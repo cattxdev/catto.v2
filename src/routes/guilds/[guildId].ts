@@ -18,7 +18,7 @@ export class GuildConfigRoute extends Route {
 
 		if (!guildId) {
 			return response.status(400).json({
-				error: 'Guild ID is required'	
+				error: 'Guild ID is required'
 			});
 		}
 
