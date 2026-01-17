@@ -1,33 +1,55 @@
 import { Command } from '@sapphire/framework';
 import { type Message } from 'discord.js';
 import { createInfoEmbed } from '#lib/utils.js';
+import { resolveKey } from '@sapphire/plugin-i18next';
+import { ApplyOptions } from '@sapphire/decorators';
 
+@ApplyOptions<Command.Options>({
+	name: 'ping',
+	aliases: ['pong'],
+	description: 'Check the bot latency',
+	detailedDescription: 'Returns the bot\'s websocket ping and API latency.',
+})
 export class PingCommand extends Command {
-  public constructor(context: Command.LoaderContext, options: Command.Options) {
-    super(context, {
-      ...options,
-      name: 'ping',
-      aliases: ['pong'],
-      description: 'Check the bot latency',
-      detailedDescription: 'Returns the bot\'s websocket ping and API latency.',
-    });
-  }
+	public override registerApplicationCommands(registry: Command.Registry) {
+		registry.registerChatInputCommand((builder) => builder.setName(this.name).setDescription(this.description));
+	}
 
-  public override async messageRun(message: Message) {
-    if (!message.channel.isSendable()) {
-      return;
-    }
+	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
+		const msg = await interaction.reply({
+			content: await resolveKey(interaction, 'commands/ping:content', {
+				latency: '...',
+				apiLatency: Math.round(this.container.client.ws.ping)
+			}),
+			ephemeral: true,
+			fetchReply: true,
+		});
 
-    const msg = await message.channel.send('Pinging...');
+		const latency = msg.createdTimestamp - interaction.createdTimestamp;
 
-    const embed = createInfoEmbed(
-      [
-        `🏓 Pong!`,
-        `**Bot Latency:** ${Math.round(this.container.client.ws.ping)}ms`,
-        `**API Latency:** ${msg.createdTimestamp - message.createdTimestamp}ms`,
-      ].join('\n'),
-      'Ping Statistics'
-    );
+		return interaction.editReply({
+			content: await resolveKey(interaction, 'commands/ping:content', {
+				latency,
+				apiLatency: Math.round(this.container.client.ws.ping)
+			}),
+		});
+	}
+
+	public override async messageRun(message: Message) {
+		if (!message.channel.isSendable()) {
+			return;
+		}
+
+		const msg = await message.channel.send('Pinging...');
+
+		const embed = createInfoEmbed(
+			[
+				`🏓 Pong!`,
+				`**Bot Latency:** ${Math.round(this.container.client.ws.ping)}ms`,
+				`**API Latency:** ${msg.createdTimestamp - message.createdTimestamp}ms`,
+			].join('\n'),
+			'Ping Statistics'
+		);
 
     return msg.edit({ content: null, embeds: [embed] });
   }

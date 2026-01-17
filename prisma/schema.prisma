@@ -19,6 +19,7 @@ model Guild {
   id        String   @id @default(cuid())
   guildId   String   @unique
   name      String
+  language  String   @default("en-US")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   settings  Json?
