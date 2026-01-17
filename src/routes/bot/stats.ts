@@ -21,7 +21,7 @@ export class BotStatsRoute extends Route {
 			const dbStats = await getStats();
 
 			// Calculate uptime
-			const uptimeSeconds = Math.floor(client.uptime! / 1000);
+			const uptimeSeconds = Math.floor((client.uptime ?? 0) / 1000);
 			const uptimeMinutes = Math.floor(uptimeSeconds / 60);
 			const uptimeHours = Math.floor(uptimeMinutes / 60);
 			const uptimeDays = Math.floor(uptimeHours / 24);

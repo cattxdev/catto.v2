@@ -20,6 +20,7 @@ export default [
         __filename: 'readonly',
         module: 'readonly',
         require: 'readonly',
+        setTimeout: 'readonly',
       },
     },
     plugins: {
@@ -37,6 +38,6 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/**', 'dist/**', '*.config.js'],
+    ignores: ['node_modules/**', 'dist/**', '*.config.js', 'src/generated/**'],
   },
 ];

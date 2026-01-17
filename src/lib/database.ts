@@ -5,6 +5,7 @@
  * You can import these functions in your commands and listeners.
  */
 
+import { Prisma } from '#root/generated/prisma';
 import { container } from '@sapphire/framework';
 import type { Guild as DiscordGuild, User as DiscordUser } from 'discord.js';
 
@@ -53,7 +54,7 @@ export async function updateGuildLanguage(guildId: string, language: string) {
  * Store or update user information
  */
 export async function saveUser(user: DiscordUser, guildId?: string) {
-	const guildRecord = guildId 
+	const guildRecord = guildId
 		? await container.prisma.guild.findUnique({ where: { guildId } })
 		: null;
 
@@ -89,7 +90,7 @@ export async function createLog(level: string, message: string, metadata?: Recor
 		data: {
 			level,
 			message,
-			metadata: metadata as any || null,
+			...(metadata && { metadata: metadata as Prisma.InputJsonValue }),
 		},
 	});
 }
@@ -112,7 +113,7 @@ export async function getGuildUsers(guildId: string) {
 		where: { guildId },
 		include: { users: true },
 	});
-	
+
 	return guild?.users || [];
 }
 

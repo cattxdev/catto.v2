@@ -179,9 +179,9 @@ export async function publish(channel: string, message: string | object): Promis
 export function subscribe(channel: string, callback: (message: string) => void): void {
 	const subscriber = container.redis.duplicate();
 	
-	subscriber.subscribe(channel, (err) => {
-		if (err) {
-			console.error(`Failed to subscribe to ${channel}:`, err);
+	subscriber.subscribe(channel, (_err) => {
+		if (_err) {
+			console.error(`Failed to subscribe to ${channel}:`, _err);
 		}
 	});
 	
