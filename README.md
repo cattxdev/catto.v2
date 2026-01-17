@@ -41,18 +41,11 @@
 
 ### Running the Bot
 
-For a seamless development experience, you can use the ephemeral environment command which sets up temporary, seeded PostgreSQL and Redis instances in RAM:
+For a seamless development experience, you can use the ephemeral environment command which sets up temporary, seeded PostgreSQL and Redis instances in RAM and starts the bot automatically:
 
-1. Start the ephemeral environment:
+1. Start the ephemeral environment (this will also start the bot; no separate `pnpm dev` is needed):
    ```bash
    pnpm dev:env
-   ```
-
-2. In a new terminal, start the bot:
-   ```bash
-   pnpm dev
-   ```
-
 If you prefer a persistent database, you can still use Docker Compose:
 ```bash
 docker-compose up -d
