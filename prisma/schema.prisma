@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["relationJoins"]
+  binaryTargets   = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Example models for a Discord bot
+// You can modify or remove these based on your needs
+
+model Guild {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  settings  Json?
+
+  users User[]
+
+  @@index([guildId])
+  @@map("guilds")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  username  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  guild   Guild?  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guildId String?
+
+  @@index([userId])
+  @@index([guildId])
+  @@map("users")
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([createdAt])
+  @@map("logs")
+}
