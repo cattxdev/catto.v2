@@ -3,7 +3,7 @@ import { Events } from '@sapphire/framework';
 import { type Client } from 'discord.js';
 import type { Server } from '@sapphire/plugin-api';
 import { CONFIG } from '#config';
-import { Prisma } from '../generated/prisma/index.js';
+import { Prisma } from '../generated/prisma/client';
 
 export class ReadyListener extends Listener {
     public constructor(context: Listener.LoaderContext, options: Listener.Options) {

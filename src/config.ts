@@ -15,6 +15,7 @@ export const CONFIG = {
   API_PREFIX: process.env.API_PREFIX ?? 'api',
   API_ORIGIN: process.env.API_ORIGIN ?? '*',
   API_REDIRECT: process.env.API_REDIRECT ?? 'http://localhost:3000',
+  DATABASE_URL: process.env.DATABASE_URL ?? '',
   REDIS_HOST: process.env.REDIS_HOST ?? 'localhost',
   REDIS_PORT: parseInt(process.env.REDIS_PORT ?? '6379', 10),
   REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? undefined,

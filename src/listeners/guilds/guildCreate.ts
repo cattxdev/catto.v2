@@ -1,7 +1,7 @@
 import { Listener } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { Guild } from 'discord.js';
-import { Prisma } from '../../generated/prisma/index.js';
+import { Prisma } from '../../generated/prisma/client';
 
 @ApplyOptions<Listener.Options>({
 	event: 'guildCreate'

@@ -1,5 +1,5 @@
 import './setup.js'
-import { BotClient } from '#structures/BotClient.js';
+import { BotClient } from '#structures/Botclient';
 import { CONFIG } from '#config';
 
 const client = new BotClient();

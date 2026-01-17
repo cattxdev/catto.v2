@@ -5,7 +5,7 @@
  * You can import these functions in your commands and listeners.
  */
 
-import { Prisma } from '#root/generated/prisma';
+import { Prisma } from '#root/generated/prisma/client';
 import { container } from '@sapphire/framework';
 import type { Guild as DiscordGuild, User as DiscordUser } from 'discord.js';
 
