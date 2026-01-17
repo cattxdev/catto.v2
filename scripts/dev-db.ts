@@ -13,8 +13,12 @@ async function startDevEnvironment() {
   let postgresContainer: StartedPostgreSqlContainer | null = null;
   let redisContainer: StartedRedisContainer | null = null;
   let devProcess: ChildProcess | null = null;
+  let isCleaningUp = false;
 
   const cleanup = async () => {
+    if (isCleaningUp) return;
+    isCleaningUp = true;
+
     console.log("\nCleaning up...");
     
     if (devProcess && !devProcess.killed) {
@@ -30,8 +34,15 @@ async function startDevEnvironment() {
     process.exit(0);
   };
 
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
+  const handleSignal = () => {
+    cleanup().catch((err) => {
+      console.error("Cleanup failed:", err);
+      process.exit(1);
+    });
+  };
+
+  process.on("SIGINT", handleSignal);
+  process.on("SIGTERM", handleSignal);
 
   try {
     // Start containers in parallel
