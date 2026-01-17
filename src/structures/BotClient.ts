@@ -1,4 +1,4 @@
-import { SapphireClient, LogLevel, container } from '@sapphire/framework';
+import { SapphireClient, LogLevel, container, RegisterBehavior } from '@sapphire/framework';
 import { GatewayIntentBits, Partials, type ClientOptions } from 'discord.js';
 import { OAuth2Scopes } from 'discord-api-types/v10';
 import { CONFIG } from '#config';
@@ -37,6 +37,18 @@ export class BotClient extends SapphireClient {
         level: (CONFIG.NODE_ENV === 'development' ? LogLevel.Debug : LogLevel.Info),
       },
       defaultPrefix: CONFIG.DEFAULT_PREFIX,
+      defaultCooldown: {
+        delay: 3000,
+        limit: 1,
+        filteredUsers: CONFIG.OWNER_IDS,
+      },
+      hmr: {
+        enabled: CONFIG.NODE_ENV === 'development',
+      },
+      applicationCommandRegistries: {
+        registerCommandIdOnly: false,
+        behaviorWhenNotIdentical: RegisterBehavior.Overwrite,
+      },
       api: {
         auth: {
           id: CONFIG.CLIENT_ID,
