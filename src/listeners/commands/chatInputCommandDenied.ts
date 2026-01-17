@@ -1,7 +1,7 @@
 import { Listener } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { ChatInputCommandDeniedPayload, UserError } from '@sapphire/framework';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '@prisma/client';
 
 @ApplyOptions<Listener.Options>({
 	event: 'chatInputCommandDenied'

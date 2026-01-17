@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ApplyOptions } from '@sapphire/decorators';
-import type { Prisma } from '../../generated/prisma/client';
+import type { Prisma } from '@prisma/client';
 
 @ApplyOptions<Route.Options>({
 	route: 'guilds/:guildId'

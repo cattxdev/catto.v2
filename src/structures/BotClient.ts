@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import type { InternationalizationContext } from '@sapphire/plugin-i18next';
 import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import Redis from 'ioredis';
 
