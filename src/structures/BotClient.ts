@@ -5,13 +5,15 @@ import { CONFIG } from '#config';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { InternationalizationContext } from '@sapphire/plugin-i18next';
+import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
 import { PrismaClient } from '../generated/prisma/index.js';
 
-// Augment container with Prisma
+// Augment container with Prisma and API Server
 declare module '@sapphire/framework' {
   interface Container {
     prisma: PrismaClient;
+    server: Server;
   }
 }
 
