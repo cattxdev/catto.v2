@@ -1,6 +1,7 @@
 import { Listener } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { ChatInputCommandDeniedPayload, UserError } from '@sapphire/framework';
+import { Prisma } from '../../generated/prisma/index.js';
 
 @ApplyOptions<Listener.Options>({
 	event: 'chatInputCommandDenied'
@@ -18,7 +19,7 @@ export class ChatInputCommandDeniedListener extends Listener {
 					guildId: payload.interaction.guildId,
 					commandName: payload.command.name,
 					reason: error.identifier
-				} as any
+				} satisfies Prisma.JsonObject
 			}
 		}).catch(err => this.container.logger.error('Failed to log command denial:', err));
 	}

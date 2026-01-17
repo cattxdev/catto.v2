@@ -3,6 +3,7 @@ import { Events } from '@sapphire/framework';
 import { type Client } from 'discord.js';
 import type { Server } from '@sapphire/plugin-api';
 import { CONFIG } from '#config';
+import { Prisma } from '../generated/prisma/index.js';
 
 export class ReadyListener extends Listener {
     public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -63,7 +64,7 @@ export class ReadyListener extends Listener {
                     userId: id,
                     username,
                     guildCount: client.guilds.cache.size
-                } as any
+                } satisfies Prisma.JsonObject
             }
         }).catch(err => this.container.logger.error('Failed to log ready event:', err));
         

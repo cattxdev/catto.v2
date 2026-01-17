@@ -1,6 +1,7 @@
 import { Listener } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { Guild } from 'discord.js';
+import { Prisma } from '../../generated/prisma/index.js';
 
 @ApplyOptions<Listener.Options>({
 	event: 'guildDelete'
@@ -28,7 +29,7 @@ export class GuildDeleteListener extends Listener {
 				metadata: {
 					guildId: guild.id,
 					guildName: guild.name
-				} as any
+				} satisfies Prisma.JsonObject
 			}
 		}).catch(err => this.container.logger.error('Failed to log guild delete:', err));
 	}

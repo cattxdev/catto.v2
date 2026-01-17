@@ -1,6 +1,7 @@
 import { Listener } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { Guild } from 'discord.js';
+import { Prisma } from '../../generated/prisma/index.js';
 
 @ApplyOptions<Listener.Options>({
 	event: 'guildCreate'
@@ -26,7 +27,7 @@ export class GuildCreateListener extends Listener {
 			this.container.logger.info(`Successfully added guild ${guild.name} to database`);
 		} catch (error) {
 			// If guild already exists, update it
-			if ((error as any).code === 'P2002') {
+			if (error instanceof Error && 'code' in error && error.code === 'P2002') {
 				await this.container.prisma.guild.update({
 					where: { guildId: guild.id },
 					data: {
@@ -49,7 +50,7 @@ export class GuildCreateListener extends Listener {
 					guildId: guild.id,
 					guildName: guild.name,
 					memberCount: guild.memberCount
-				} as any
+				} satisfies Prisma.JsonObject
 			}
 		}).catch(err => this.container.logger.error('Failed to log guild create:', err));
 	}
