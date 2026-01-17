@@ -1,32 +1,45 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { z } from 'zod';
 
 // Load environment variables
 config({ path: resolve(process.cwd(), '.env') });
 
-export const CONFIG = {
-  DISCORD_TOKEN: process.env.DISCORD_TOKEN ?? '',
-  CLIENT_ID: process.env.CLIENT_ID ?? '',
-  CLIENT_SECRET: process.env.CLIENT_SECRET ?? '',
-  OWNER_IDS: process.env.OWNER_IDS?.split(',') ?? [],
-  DEFAULT_PREFIX: process.env.DEFAULT_PREFIX ?? '!',
-  NODE_ENV: (process.env.NODE_ENV ?? 'development') as 'development' | 'production',
-  API_PORT: parseInt(process.env.API_PORT ?? '4000', 10),
-  API_PREFIX: process.env.API_PREFIX ?? 'api',
-  API_ORIGIN: process.env.API_ORIGIN ?? '*',
-  API_REDIRECT: process.env.API_REDIRECT ?? 'http://localhost:3000',
-  DATABASE_URL: process.env.DATABASE_URL ?? '',
-  REDIS_HOST: process.env.REDIS_HOST ?? 'localhost',
-  REDIS_PORT: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? undefined,
-  REDIS_DB: parseInt(process.env.REDIS_DB ?? '0', 10),
-} as const;
+// Define environment schema
+const envSchema = z.object({
+  DISCORD_TOKEN: z.string().min(1, 'DISCORD_TOKEN is required'),
+  CLIENT_ID: z.string().min(1, 'CLIENT_ID is required'),
+  CLIENT_SECRET: z.string().min(1, 'CLIENT_SECRET is required'),
+  OWNER_IDS: z.string().optional().transform((val) => val?.split(',').filter(Boolean) ?? []),
+  DEFAULT_PREFIX: z.string().optional().default('!'),
+  NODE_ENV: z.enum(['development', 'production']).optional().default('development'),
+  API_PORT: z.string().optional().default('4000').transform((val) => parseInt(val, 10)),
+  API_PREFIX: z.string().optional().default('api'),
+  API_ORIGIN: z.string().optional().default('*'),
+  API_REDIRECT: z.string().optional().default('http://localhost:3000'),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  REDIS_HOST: z.string().optional().default('localhost'),
+  REDIS_PORT: z.string().optional().default('6379').transform((val) => parseInt(val, 10)),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.string().optional().default('0').transform((val) => parseInt(val, 10)),
+});
 
-// Validate required environment variables
-if (!CONFIG.DISCORD_TOKEN) {
-  throw new Error('DISCORD_TOKEN is required in environment variables');
-}
+// Validate and parse environment variables
+const parseEnv = () => {
+  try {
+    return envSchema.parse(process.env);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('\n❌ Configuration Error: Invalid environment variables\n');
+      error.issues.forEach((err) => {
+        const path = err.path.join('.');
+        console.error(`   ${path}: ${err.message}`);
+      });
+      console.error('\n💡 Please check your .env file and ensure all required variables are set.\n');
+      process.exit(1);
+    }
+    throw error;
+  }
+};
 
-if (!CONFIG.CLIENT_ID) {
-  throw new Error('CLIENT_ID is required in environment variables');
-}
+export const CONFIG = parseEnv();
