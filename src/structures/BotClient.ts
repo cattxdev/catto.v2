@@ -8,11 +8,13 @@ import type { InternationalizationContext } from '@sapphire/plugin-i18next';
 import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
 import { PrismaClient } from '../generated/prisma/index.js';
+import Redis from 'ioredis';
 
-// Augment container with Prisma and API Server
+// Augment container with Prisma, Redis, and API Server
 declare module '@sapphire/framework' {
   interface Container {
     prisma: PrismaClient;
+    redis: Redis;
     server: Server;
   }
 }
@@ -82,6 +84,37 @@ export class BotClient extends SapphireClient {
         : ['error'],
       errorFormat: 'pretty',
     });
+
+    // Initialize Redis Client in container
+    container.redis = new Redis({
+      host: CONFIG.REDIS_HOST,
+      port: CONFIG.REDIS_PORT,
+      password: CONFIG.REDIS_PASSWORD,
+      db: CONFIG.REDIS_DB,
+      retryStrategy: (times: number) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+
+    // Connect to Redis
+    container.redis.connect().catch((error) => {
+      console.error('Failed to connect to Redis:', error);
+    });
+
+    // Redis event listeners
+    container.redis.on('connect', () => {
+      console.log('Connected to Redis');
+    });
+
+    container.redis.on('error', (error) => {
+      console.error('Redis error:', error);
+    });
+
+    container.redis.on('reconnecting', () => {
+      console.log('Reconnecting to Redis...');
+    });
   }
 
   public override async login(token?: string): Promise<string> {
@@ -90,6 +123,7 @@ export class BotClient extends SapphireClient {
 
   public override async destroy(): Promise<void> {
     await container.prisma.$disconnect();
+    await container.redis.quit();
     return super.destroy();
   }
 }

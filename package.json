@@ -45,13 +45,16 @@
     "@sapphire/plugin-api": "^8.3.1",
     "@sapphire/plugin-i18next": "^8.0.0",
     "@sapphire/plugin-logger": "^4.0.3",
+    "@sapphire/plugin-subcommands": "^7.0.1",
     "@sapphire/utilities": "^3.17.3",
     "discord-api-types": "^0.38.37",
     "discord.js": "~14.25.1",
     "dotenv": "^16.4.7",
+    "ioredis": "^5.9.2",
     "prisma": "^7.2.0"
   },
   "devDependencies": {
+    "@types/ioredis": "^5.0.0",
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.22.1",
     "@typescript-eslint/parser": "^8.22.1",
