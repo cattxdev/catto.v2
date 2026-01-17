@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import type { InternationalizationContext } from '@sapphire/plugin-i18next';
 import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
-import { PrismaClient } from '../generated/prisma/index.js';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import Redis from 'ioredis';
 
 // Augment container with Prisma, Redis, and API Server
@@ -22,6 +23,7 @@ declare module '@sapphire/framework' {
 export class BotClient extends SapphireClient {
   public constructor() {
     super({
+      baseUserDirectory: join(dirname(fileURLToPath(import.meta.url)), '..'),
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
@@ -77,8 +79,12 @@ export class BotClient extends SapphireClient {
       }
     } as ClientOptions);
 
-    // Initialize Prisma Client in container
+    // Initialize Prisma Client with pg adapter
+    const adapter = new PrismaPg({
+      connectionString: CONFIG.DATABASE_URL,
+    });
     container.prisma = new PrismaClient({
+      adapter,
       log: process.env.NODE_ENV === 'development' 
         ? ['query', 'error', 'warn'] 
         : ['error'],

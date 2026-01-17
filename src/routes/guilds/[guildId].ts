@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ApplyOptions } from '@sapphire/decorators';
-import type { Prisma } from '../../generated/prisma/index.js';
+import type { Prisma } from '../../generated/prisma/client';
 
 @ApplyOptions<Route.Options>({
 	route: 'guilds/:guildId'
@@ -18,7 +18,7 @@ export class GuildConfigRoute extends Route {
 
 		if (!guildId) {
 			return response.status(400).json({
-				error: 'Guild ID is required'
+				error: 'Guild ID is required'	
 			});
 		}
 
