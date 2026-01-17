@@ -76,8 +76,89 @@ export class ReadyListener extends Listener {
                 if (server) {
                     const port = (server.options.listenOptions as { port?: number })?.port ?? 4000;
                     const prefix = server.options.prefix ?? '';
-                    this.container.logger.info(`API Server ready at http://localhost:${port}${prefix ? `/${prefix}` : ''}`);
-                    this.container.logger.info(`Available routes: health, ping, stats, guilds`);
+                    const baseUrl = `http://localhost:${port}${prefix ? `/${prefix}` : ''}`;
+                    
+                    // Get all registered routes
+                    const routes = server.routes;
+                    const routePaths: { method: string; path: string }[] = [];
+                    
+                    for (const route of routes.values()) {
+                        const routePath = route.options.route || '';
+                        const methods = route.options.methods || ['GET'];
+                        
+                        for (const method of methods) {
+                            routePaths.push({
+                                method: method.toUpperCase(),
+                                path: `/${prefix}${routePath ? `/${routePath}` : ''}`.replace(/\/+/g, '/')
+                            });
+                        }
+                    }
+                    
+                    // Sort routes by path for better readability
+                    routePaths.sort((a, b) => a.path.localeCompare(b.path));
+                    
+                    // Create beautiful log output
+                    const separator = '─'.repeat(80);
+                    const doubleSeparator = '═'.repeat(80);
+                    
+                    this.container.logger.info('\n' + doubleSeparator);
+                    this.container.logger.info('🌐 API Server Started Successfully');
+                    this.container.logger.info(doubleSeparator);
+                    this.container.logger.info(`📍 Base URL: ${baseUrl}`);
+                    this.container.logger.info(`📊 Total Routes: ${routePaths.length}`);
+                    this.container.logger.info(separator);
+                    
+                    if (routePaths.length > 0) {
+                        this.container.logger.info('📋 Available Endpoints:');
+                        this.container.logger.info(separator);
+                        
+                        // Group routes by category
+                        const groupedRoutes: Record<string, typeof routePaths> = {};
+                        
+                        for (const route of routePaths) {
+                            const category = route.path.split('/')[2] || 'root';
+                            if (!groupedRoutes[category]) {
+                                groupedRoutes[category] = [];
+                            }
+                            groupedRoutes[category].push(route);
+                        }
+                        
+                        // Log each category
+                        const categories = Object.keys(groupedRoutes).sort();
+                        for (let i = 0; i < categories.length; i++) {
+                            const category = categories[i];
+                            if (!category) continue;
+                            
+                            const categoryRoutes = groupedRoutes[category];
+                            if (!categoryRoutes) continue;
+                            
+                            // Category header with emoji
+                            const emoji = category === 'guilds' ? '🏰' :
+                                         category === 'health' ? '💚' :
+                                         category === 'stats' ? '📊' :
+                                         category === 'ping' ? '🏓' :
+                                         category === 'bot' ? '🤖' : '📁';
+                            
+                            this.container.logger.info(`\n  ${emoji} ${category.toUpperCase()}`);
+                            
+                            // Log routes in this category
+                            for (const route of categoryRoutes) {
+                                const methodColor = route.method === 'GET' ? '🟢' :
+                                                  route.method === 'POST' ? '🟡' :
+                                                  route.method === 'PUT' ? '🟠' :
+                                                  route.method === 'PATCH' ? '🔵' :
+                                                  route.method === 'DELETE' ? '🔴' : '⚪';
+                                
+                                const methodPadded = route.method.padEnd(6);
+                                this.container.logger.info(`    ${methodColor} ${methodPadded} ${baseUrl}${route.path}`);
+                            }
+                        }
+                        
+                        this.container.logger.info('\n' + separator);
+                    }
+                    
+                    this.container.logger.info('✨ API Server is ready to accept requests');
+                    this.container.logger.info(doubleSeparator + '\n');
                 }
             } catch (error) {
                 this.container.logger.error('[API] Error logging server info:', error);
