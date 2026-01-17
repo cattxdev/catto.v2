@@ -24,7 +24,9 @@ model Guild {
   updatedAt DateTime @updatedAt
   settings  Json?
 
-  users User[]
+  users      User[]
+  modCases   ModCase[]
+  modConfig  ModConfig?
 
   @@index([guildId])
   @@map("guilds")
@@ -55,4 +57,46 @@ model Log {
   @@index([level])
   @@index([createdAt])
   @@map("logs")
+}
+
+// Moderation Case Tracking
+model ModCase {
+  id          String   @id @default(cuid())
+  caseNumber  Int      // Auto-incrementing per guild
+  guildId     String
+  action      String   // BAN, KICK, WARN, TIMEOUT, MUTE, UNMUTE, UNBAN
+  targetId    String
+  targetTag   String
+  moderatorId String
+  moderatorTag String
+  reason      String?
+  duration    Int?     // Duration in seconds for timeouts/tempbans
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, caseNumber])
+  @@index([guildId])
+  @@index([targetId])
+  @@index([moderatorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("mod_cases")
+}
+
+// Moderation Configuration per Guild
+model ModConfig {
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+  modLogChannelId String?  // Channel for moderation logs
+  muteRoleId      String?  // Role for muting users
+  autoModEnabled  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("mod_configs")
 }
