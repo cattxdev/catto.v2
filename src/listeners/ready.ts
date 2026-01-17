@@ -89,7 +89,7 @@ export class ReadyListener extends Listener {
                         for (const method of methods) {
                             routePaths.push({
                                 method: method.toUpperCase(),
-                                path: `/${prefix}${routePath ? `/${routePath}` : ''}`.replace(/\/+/g, '/')
+                                path: `/${routePath}`.replace(/\/+/g, '/')
                             });
                         }
                     }

@@ -1,14 +1,11 @@
 import { Route } from '@sapphire/plugin-api';
-import { ApplyOptions } from '@sapphire/decorators';
 import type { Prisma } from '@prisma/client';
 
-@ApplyOptions<Route.Options>({
-	route: 'guilds/:guildId'
-})
 export class GuildConfigRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
 		super(context, {
 			...options,
+			route: 'guilds/[guildId]',
 			methods: ['GET', 'PATCH']
 		});
 	}

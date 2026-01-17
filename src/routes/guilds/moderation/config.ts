@@ -1,13 +1,10 @@
 import { Route } from '@sapphire/plugin-api';
-import { ApplyOptions } from '@sapphire/decorators';
 
-@ApplyOptions<Route.Options>({
-	route: 'guilds/:guildId/moderation/config'
-})
 export class ModerationConfigRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
 		super(context, {
 			...options,
+			route: 'guilds/[guildId]/moderation/config',
 			methods: ['GET', 'PUT', 'PATCH']
 		});
 	}
