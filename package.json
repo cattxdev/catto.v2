@@ -40,6 +40,7 @@
     "#config": "./dist/config.js"
   },
   "dependencies": {
+    "@discordjs/builders": "^1.13.1",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@sapphire/decorators": "^6.2.0",
@@ -49,6 +50,7 @@
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/plugin-subcommands": "^7.0.1",
     "@sapphire/utilities": "^3.17.3",
+    "bullmq": "^5.66.5",
     "discord-api-types": "^0.38.37",
     "discord.js": "~14.25.1",
     "dotenv": "^16.4.7",

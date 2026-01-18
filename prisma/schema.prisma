@@ -25,6 +25,7 @@ model Guild {
   users      User[]
   modCases   ModCase[]
   modConfig  ModConfig?
+  logConfig  LogConfig?
 
   @@index([guildId])
   @@map("guilds")
@@ -97,4 +98,39 @@ model ModConfig {
 
   @@index([guildId])
   @@map("mod_configs")
+}
+
+// Logging Configuration per Guild
+model LogConfig {
+  id                    String   @id @default(cuid())
+  guildId               String   @unique
+  categoryId            String?  // Category for log channels
+  enabled               Boolean  @default(false)
+  
+  // Webhook URLs for each log type
+  messagesWebhook       String?
+  voiceWebhook          String?
+  voiceStateWebhook     String?
+  ticketsWebhook        String?
+  transcriptsWebhook    String?
+  rolesWebhook          String?
+  channelsWebhook       String?
+  membersWebhook        String?
+  stageWebhook          String?
+  eventsWebhook         String?
+  pollsWebhook          String?
+  emojisWebhook         String?
+  stickersWebhook       String?
+  webhooksWebhook       String?
+  joinsWebhook          String?
+  leavesWebhook         String?
+  serverWebhook         String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("log_configs")
 }
