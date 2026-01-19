@@ -205,3 +205,98 @@ export async function getRedisInfo(): Promise<string> {
 export async function pingRedis(): Promise<string> {
 	return await container.redis.ping();
 }
+
+/**
+ * Distributed lock class for preventing race conditions
+ */
+export class RedisLock {
+	constructor(
+		private key: string,
+		private ttlMs: number
+	) {}
+
+	/**
+	 * Release the lock
+	 */
+	async release(): Promise<boolean> {
+		const result = await container.redis.del(this.key);
+		return result > 0;
+	}
+
+	/**
+	 * Extend the lock TTL
+	 */
+	async extend(additionalMs: number): Promise<boolean> {
+		const ttl = await container.redis.pttl(this.key);
+		if (ttl <= 0) return false;
+
+		const newTtl = Math.ceil((ttl + additionalMs) / 1000);
+		const result = await container.redis.expire(this.key, newTtl);
+		return result === 1;
+	}
+}
+
+/**
+ * Acquire a distributed lock using Redis
+ * @param key - Lock key
+ * @param ttlMs - Time to live in milliseconds
+ * @param retries - Number of retry attempts (default: 0)
+ * @param retryDelayMs - Delay between retries in milliseconds (default: 100)
+ * @returns RedisLock instance if acquired, null if failed
+ */
+export async function acquireLock(
+	key: string,
+	ttlMs: number,
+	retries = 0,
+	retryDelayMs = 100
+): Promise<RedisLock | null> {
+	const lockValue = Date.now().toString();
+	const ttlSeconds = Math.ceil(ttlMs / 1000);
+
+	for (let attempt = 0; attempt <= retries; attempt++) {
+		// Try to set the key with NX (only if not exists) and EX (expiration)
+		const result = await container.redis.set(
+			key,
+			lockValue,
+			'EX',
+			ttlSeconds,
+			'NX'
+		);
+
+		if (result === 'OK') {
+			return new RedisLock(key, ttlMs);
+		}
+
+		// If not the last attempt, wait before retrying
+		if (attempt < retries) {
+			await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Execute a function with a distributed lock
+ * @param key - Lock key
+ * @param ttlMs - Time to live in milliseconds
+ * @param fn - Function to execute while holding the lock
+ * @returns Result of the function or null if lock couldn't be acquired
+ */
+export async function withLock<T>(
+	key: string,
+	ttlMs: number,
+	fn: () => Promise<T>
+): Promise<T | null> {
+	const lock = await acquireLock(key, ttlMs);
+
+	if (!lock) {
+		return null;
+	}
+
+	try {
+		return await fn();
+	} finally {
+		await lock.release();
+	}
+}
