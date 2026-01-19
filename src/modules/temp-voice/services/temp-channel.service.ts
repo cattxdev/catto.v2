@@ -7,9 +7,7 @@ import type { Guild, GuildMember, VoiceChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
 import type {
 	TempVoiceChannel,
-	CreateTempChannelData,
 	UpdateTempChannelData,
-	TempVoiceChannelWithMembers,
 } from '../models/temp-channel.model';
 import type { TempVoiceConfig } from '../models/config.model';
 import { PermissionsService } from './permissions.service';
@@ -18,13 +16,12 @@ import { TempVoiceConfigService } from './config.service';
 export class TempChannelService {
 	constructor(
 		private prisma: PrismaClient,
-		private configService: TempVoiceConfigService,
+		private _configService: TempVoiceConfigService,
 		private permissionsService: PermissionsService
 	) {}
 
 	/**
 	 * Create a new temporary voice channel
-	 * TODO: Implement full creation logic with Discord API calls
 	 */
 	async createChannel(
 		guild: Guild,
@@ -32,8 +29,84 @@ export class TempChannelService {
 		config: TempVoiceConfig,
 		sourceChannelId: string
 	): Promise<VoiceChannel> {
-		// TODO: Implement in Phase 1
-		throw new Error('Not implemented');
+		// Import utilities
+		const { generateChannelName } = await import('../utils/naming.util');
+		const { findSuitableCategory } = await import('../utils/fallback.util');
+
+		// Find suitable category
+		const categoryResult = await findSuitableCategory(
+			guild,
+			config.categoryId,
+			config.fallbackCategoryId
+		);
+
+		if (!categoryResult.category && categoryResult.strategy === 'none') {
+			throw new Error('No suitable category available for temp channel creation');
+		}
+
+		// Get current channel count for naming
+		const existingCount = await this.prisma.tempVoiceChannel.count({
+			where: { guildId: guild.id },
+		});
+
+		// Generate channel name
+		const channelName = generateChannelName(
+			config.defaultNameTemplate,
+			owner,
+			existingCount + 1
+		);
+
+		// Build permission overwrites
+		const overwrites = this.permissionsService.buildOverwrites({
+			ownerId: owner.id,
+			guildId: guild.id,
+			isLocked: config.defaultLocked,
+			isHidden: config.defaultHidden,
+			allowedUserIds: [],
+			deniedUserIds: [],
+		});
+
+		// Create the voice channel
+		let channel: VoiceChannel;
+		try {
+			channel = await guild.channels.create({
+				name: channelName,
+				type: ChannelType.GuildVoice,
+				parent: categoryResult.category?.id || null,
+				userLimit: config.defaultUserLimit || 0,
+				bitrate: config.defaultBitrate ? config.defaultBitrate * 1000 : undefined,
+				rtcRegion: config.defaultRegion || undefined,
+				permissionOverwrites: overwrites,
+				reason: `Temp voice channel for ${owner.user.tag}`,
+			});
+		} catch (error: any) {
+			// Handle Discord API errors
+			if (error.code === 50013) {
+				throw new Error('Bot missing permissions to create channels');
+			}
+			if (error.code === 30013) {
+				throw new Error('Maximum number of channels reached');
+			}
+			throw error;
+		}
+
+		// Store in database
+		await this.prisma.tempVoiceChannel.create({
+			data: {
+				guildId: guild.id,
+				channelId: channel.id,
+				ownerId: owner.id,
+				createdByJoinChannelId: sourceChannelId,
+				isLocked: config.defaultLocked,
+				isHidden: config.defaultHidden,
+				metadata: {
+					creationAttempts: 1,
+					categoryStrategy: categoryResult.strategy,
+				},
+			},
+		});
+
+		return channel;
 	}
 
 	/**

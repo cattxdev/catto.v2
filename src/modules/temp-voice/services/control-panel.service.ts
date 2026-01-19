@@ -7,23 +7,21 @@ import type {
 	Client,
 	GuildMember,
 	Message,
-	VoiceChannel,
-	TextChannel,
 } from 'discord.js';
 import { TempChannelService } from './temp-channel.service';
 
 export class ControlPanelService {
 	constructor(
-		private prisma: PrismaClient,
-		private client: Client,
-		private channelService: TempChannelService
+		private _prisma: PrismaClient,
+		private _client: Client,
+		private _channelService: TempChannelService
 	) {}
 
 	/**
 	 * Send a control panel message
 	 * TODO: Implement in Phase 3
 	 */
-	async send(channelId: string, owner: GuildMember): Promise<Message | null> {
+	async send(_channelId: string, _owner: GuildMember): Promise<Message | null> {
 		// TODO: Implement in Phase 3
 		throw new Error('Not implemented');
 	}
@@ -32,7 +30,7 @@ export class ControlPanelService {
 	 * Update an existing control panel message
 	 * TODO: Implement in Phase 3
 	 */
-	async refresh(channelId: string): Promise<void> {
+	async refresh(_channelId: string): Promise<void> {
 		// TODO: Implement in Phase 3
 		throw new Error('Not implemented');
 	}
@@ -41,7 +39,7 @@ export class ControlPanelService {
 	 * Delete a control panel message
 	 * TODO: Implement in Phase 3
 	 */
-	async delete(messageId: string, textChannelId: string): Promise<void> {
+	async delete(_messageId: string, _textChannelId: string): Promise<void> {
 		// TODO: Implement in Phase 3
 		throw new Error('Not implemented');
 	}
