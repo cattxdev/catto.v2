@@ -1,6 +1,13 @@
 import { container } from '@sapphire/framework';
 import { z } from 'zod';
 
+function assertRedisAvailable(): void {
+  const redis = (container as unknown as { redis?: unknown }).redis;
+  if (!redis) {
+    throw new Error('Redis is not configured (container.redis is missing).');
+  }
+}
+
 /**
  * Set a JSON value in Redis with schema validation
  * @param key - Cache key
@@ -14,6 +21,7 @@ export async function setJson<T extends z.ZodType>(
   value: z.input<T>,
   ttlSeconds?: number
 ): Promise<void> {
+  assertRedisAvailable();
   // Validate before storing
   const validated = schema.parse(value);
   const serialized = JSON.stringify(validated);
@@ -35,6 +43,7 @@ export async function getJson<T extends z.ZodType>(
   key: string,
   schema: T
 ): Promise<z.output<T> | null> {
+  assertRedisAvailable();
   const value = await container.redis.get(key);
 
   if (value === null) {
@@ -71,6 +80,7 @@ export async function getOrSetJson<T extends z.ZodType>(
   compute: () => Promise<z.input<T>>,
   ttlSeconds?: number
 ): Promise<z.output<T>> {
+  assertRedisAvailable();
   const cached = await getJson(key, schema);
 
   if (cached !== null) {
@@ -87,6 +97,7 @@ export async function getOrSetJson<T extends z.ZodType>(
  * Delete a cached value
  */
 export async function deleteJson(key: string): Promise<void> {
+  assertRedisAvailable();
   await container.redis.del(key);
 }
 
@@ -94,6 +105,7 @@ export async function deleteJson(key: string): Promise<void> {
  * Check if a key exists
  */
 export async function hasJson(key: string): Promise<boolean> {
+  assertRedisAvailable();
   const exists = await container.redis.exists(key);
   return exists === 1;
 }
@@ -104,6 +116,7 @@ export async function hasJson(key: string): Promise<boolean> {
 export async function setJsonMulti<T extends z.ZodType>(
   entries: Array<{ key: string; schema: T; value: z.input<T>; ttlSeconds?: number }>
 ): Promise<void> {
+  assertRedisAvailable();
   const pipeline = container.redis.pipeline();
 
   for (const entry of entries) {

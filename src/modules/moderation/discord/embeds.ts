@@ -100,7 +100,7 @@ export function createUserNotificationEmbed(
       { name: '🏰 Server', value: guild.name },
       { name: '📝 Reason', value: reason || 'No reason provided' }
     )
-    .setThumbnail(guild.iconURL() ?? null)
+    .setThumbnail(guild.iconURL())
     .setTimestamp();
 
   if (duration) {

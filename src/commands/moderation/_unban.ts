@@ -14,6 +14,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
       await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
       return;
     }
+    interaction.client.logger.error('Unexpected error while parsing unban options:', error);
     throw error;
   }
 

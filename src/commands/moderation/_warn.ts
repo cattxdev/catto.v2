@@ -18,6 +18,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
       await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
       return;
     }
+    interaction.client.logger.error('Unexpected error while parsing warn options:', error);
     throw error;
   }
 

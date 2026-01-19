@@ -3,7 +3,6 @@ import { moderationService } from '../../modules/moderation/services/ModerationS
 import { createHistoryEmbed } from '../../modules/moderation/discord/embeds.js';
 import { parseHistoryOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import type { GuildId, UserId } from '../../modules/moderation/domain/types.js';
 
 export async function handleHistory(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -20,10 +19,7 @@ export async function handleHistory(interaction: Subcommand.ChatInputCommandInte
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const cases = await moderationService.getUserCases(
-      options.guildId as GuildId,
-      options.targetId as UserId
-    );
+    const cases = await moderationService.getUserCases(options.guildId, options.targetId);
 
     if (cases.length === 0) {
       await interaction.editReply({

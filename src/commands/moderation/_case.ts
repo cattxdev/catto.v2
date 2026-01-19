@@ -3,7 +3,6 @@ import { moderationService } from '../../modules/moderation/services/ModerationS
 import { createCaseEmbed } from '../../modules/moderation/discord/embeds.js';
 import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import type { GuildId } from '../../modules/moderation/domain/types.js';
 
 export async function handleCase(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -20,7 +19,7 @@ export async function handleCase(interaction: Subcommand.ChatInputCommandInterac
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const modCase = await moderationService.getCase(options.guildId as GuildId, options.caseNumber);
+    const modCase = await moderationService.getCase(options.guildId, options.caseNumber);
 
     if (!modCase) {
       await interaction.editReply({ content: `❌ Case #${options.caseNumber} not found.` });

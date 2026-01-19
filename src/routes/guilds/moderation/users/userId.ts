@@ -1,5 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ModAction } from '@prisma/client';
+import { parseModAction } from '#lib/validation/modAction.js';
 
 export class ModerationUserCasesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -45,7 +46,7 @@ export class ModerationUserCasesRoute extends Route {
       const skip = (page - 1) * limit;
 
       // Validate and convert action string to enum
-      const action = actionStr ? this.parseModAction(actionStr.toUpperCase()) : undefined;
+      const action = actionStr ? parseModAction(actionStr.toUpperCase()) : undefined;
 
       // Build where clause
       const where: {
@@ -115,12 +116,5 @@ export class ModerationUserCasesRoute extends Route {
         error: 'Internal server error',
       });
     }
-  }
-
-  private parseModAction(action: string): ModAction | undefined {
-    if (Object.values(ModAction).includes(action as ModAction)) {
-      return action as ModAction;
-    }
-    return undefined;
   }
 }

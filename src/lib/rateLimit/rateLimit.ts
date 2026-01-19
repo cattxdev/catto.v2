@@ -1,5 +1,12 @@
 import { container } from '@sapphire/framework';
 
+function assertRedisAvailable(): void {
+  const redis = (container as unknown as { redis?: unknown }).redis;
+  if (!redis) {
+    throw new Error('Redis is not configured (container.redis is missing).');
+  }
+}
+
 /**
  * Options for rate limiting
  */
@@ -166,6 +173,7 @@ export class RedisRateLimiter {
    * Check if action is allowed and consume if so (atomic)
    */
   async tryTake(key: string, options: RateLimitOptions): Promise<boolean> {
+    assertRedisAvailable();
     const fullKey = `${this.keyPrefix}:${key}`;
 
     // Use SET NX PX for atomic check-and-set
@@ -184,6 +192,7 @@ export class RedisRateLimiter {
    * Throttle an action with retry info
    */
   async throttle(key: string, options: RateLimitOptions): Promise<RateLimitResult> {
+    assertRedisAvailable();
     const fullKey = `${this.keyPrefix}:${key}`;
 
     // Try to set the key
@@ -211,6 +220,7 @@ export class RedisRateLimiter {
    * Clear rate limit for a key
    */
   async reset(key: string): Promise<void> {
+    assertRedisAvailable();
     const fullKey = `${this.keyPrefix}:${key}`;
     await container.redis.del(fullKey);
   }
@@ -234,6 +244,7 @@ export class RedisSlidingWindowLimiter {
    * @param windowMs - Window size in milliseconds
    */
   async tryTake(key: string, maxRequests: number, windowMs: number): Promise<boolean> {
+    assertRedisAvailable();
     const fullKey = `${this.keyPrefix}:${key}`;
     const now = Date.now();
     const windowStart = now - windowMs;
