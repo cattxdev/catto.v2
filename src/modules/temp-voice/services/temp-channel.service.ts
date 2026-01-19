@@ -2,25 +2,23 @@
  * Service for managing temporary voice channels
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TempVoiceChannel } from '@prisma/client';
 import type { Guild, GuildMember, VoiceChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
 import type {
-	TempVoiceChannel,
 	UpdateTempChannelData,
 } from '../models/temp-channel.model';
 import type { TempVoiceConfig } from '../models/config.model';
 import { PermissionsService } from './permissions.service';
-import { TempVoiceConfigService } from './config.service';
 import { generateChannelName } from '../utils/naming.util';
 import { findSuitableCategory } from '../utils/fallback.util';
 
 export class TempChannelService {
 	constructor(
 		private prisma: PrismaClient,
-		private _configService: TempVoiceConfigService,
+
 		private permissionsService: PermissionsService
-	) {}
+	) { }
 
 	/**
 	 * Create a new temporary voice channel
@@ -186,6 +184,25 @@ export class TempChannelService {
 			where: { channelId },
 			data: { lastActiveAt: new Date() },
 		});
+	}
+
+	/**
+	 * Get all temp channels for a guild
+	 */
+	static async getGuildTempChannels(guildId: string) {
+		const { database } = require('#lib/database');
+		const channels = await database.tempVoiceChannel.findMany({
+			where: { guildId },
+			orderBy: { createdAt: 'desc' },
+		});
+
+		return channels.map((channel: any) => ({
+			channelId: channel.channelId,
+			guildId: channel.guildId,
+			ownerId: channel.ownerId,
+			createdAt: channel.createdAt,
+			lastActiveAt: channel.lastActiveAt,
+		}));
 	}
 
 	/**

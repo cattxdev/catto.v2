@@ -222,8 +222,7 @@ export async function pingRedis(): Promise<string> {
  */
 export class RedisLock {
 	constructor(
-		private key: string,
-		private ttlMs: number
+		private key: string
 	) {}
 
 	/**
@@ -275,7 +274,7 @@ export async function acquireLock(
 		);
 
 		if (result === 'OK') {
-			return new RedisLock(key, ttlMs);
+			return new RedisLock(key);
 		}
 
 		// If not the last attempt, wait before retrying

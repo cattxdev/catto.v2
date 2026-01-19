@@ -1,10 +1,11 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import type { ButtonInteraction } from 'discord.js';
+import type { ButtonInteraction, GuildMember, Role } from 'discord.js';
 import { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service';
+import { TempVoiceChannel } from '@prisma/client';
 
 export class TempVoiceButtonHandler extends InteractionHandler {
 	private channelService!: TempChannelService;
@@ -32,11 +33,9 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			this.permissionsService = new PermissionsService();
 			this.channelService = new TempChannelService(
 				this.container.prisma,
-				this.configService,
 				this.permissionsService
 			);
 			this.controlPanelService = new ControlPanelService(
-				this.container.prisma,
 				this.container.client,
 				this.channelService
 			);
@@ -58,12 +57,12 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 		// Check permissions
 		const config = await this.configService.get(interaction.guildId!);
-		const member = interaction.member as any;
+		const member = interaction.member as GuildMember;
 		const canManage = this.permissionsService.canManageChannel(
 			member.user.id,
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
-			member.roles.cache?.map((r: any) => r.id) || [],
+			member.roles.cache?.map((r: Role) => r.id) || [],
 			member.permissions?.has('Administrator') || false
 		);
 		if (!canManage) {
@@ -105,7 +104,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		}
 	}
 
-	private async handleLockToggle(interaction: ButtonInteraction, tempChannel: any, channelId: string) {
+	private async handleLockToggle(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
 		try {
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
@@ -136,7 +135,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		}
 	}
 
-	private async handleHideToggle(interaction: ButtonInteraction, tempChannel: any, channelId: string) {
+	private async handleHideToggle(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
 		try {
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
@@ -227,7 +226,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		});
 	}
 
-	private async handleSettingsModal(interaction: ButtonInteraction, tempChannel: any, channelId: string) {
+	private async handleSettingsModal(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
 		const modal = new ModalBuilder()
 			.setCustomId(`tempvoice_settings_modal_${channelId}`)
 			.setTitle('Channel Settings');
@@ -264,7 +263,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		});
 	}
 
-	private async handleReset(interaction: ButtonInteraction, tempChannel: any, channelId: string) {
+	private async handleReset(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
 		try {
 			const config = await this.configService.get(interaction.guildId!);
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);

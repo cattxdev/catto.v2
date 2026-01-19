@@ -4,14 +4,12 @@
 
 import { PrismaClient } from '@prisma/client';
 import type { Client } from 'discord.js';
-import { TempChannelService } from './temp-channel.service';
 import { CleanupService } from './cleanup.service';
 
 export class RecoveryService {
 	constructor(
 		private prisma: PrismaClient,
 		private client: Client,
-		private _channelService: TempChannelService,
 		private cleanupService: CleanupService
 	) {}
 
