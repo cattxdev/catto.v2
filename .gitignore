@@ -14,3 +14,4 @@ yarn-error.log*
 .cache
 
 /src/generated/prisma
+TEMP_VOICE_MODULE_DESIGN.md
