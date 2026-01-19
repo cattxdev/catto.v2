@@ -28,6 +28,7 @@ export class BotClient extends SapphireClient {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates,
         // GUILD_EMBEDDED_ACTIVITIES (1 << 17) - for Discord Activities in voice channels
