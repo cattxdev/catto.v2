@@ -152,13 +152,30 @@ export async function handleVoiceStateUpdate(_oldState: VoiceState, newState: Vo
 	const session = await sessionTracking.getActiveSession(guild.id, member.id);
 	if (!session) return;
 	
+	const newMuted = (newState.mute ?? false) || (newState.selfMute ?? false);
+	const newDeafened = (newState.deaf ?? false) || (newState.selfDeaf ?? false);
+	const newStreaming = newState.streaming ?? false;
+	const newVideo = newState.selfVideo ?? false;
+	
+	// Check if state changed from invalid to valid (e.g., unmuted, undeafened)
+	const wasInvalid = session.isMuted || session.isDeafened;
+	const isNowValid = !newMuted && !newDeafened;
+	
 	// Update session state
 	await sessionTracking.updateSession(guild.id, member.id, {
-		isMuted: (newState.mute ?? false) || (newState.selfMute ?? false),
-		isDeafened: (newState.deaf ?? false) || (newState.selfDeaf ?? false),
-		isStreaming: newState.streaming ?? false,
-		isVideo: newState.selfVideo ?? false
+		isMuted: newMuted,
+		isDeafened: newDeafened,
+		isStreaming: newStreaming,
+		isVideo: newVideo,
+		// Reset lastAwardTime if user transitions from invalid to valid state
+		...(wasInvalid && isNowValid ? { lastAwardTime: Date.now() } : {})
 	});
+	
+	if (wasInvalid && isNowValid) {
+		container.logger.debug(
+			`[Voice XP] User ${member.user.tag} became eligible for XP in ${guild.name} - resetting award timer`
+		);
+	}
 }
 
 export async function awardPerMinuteXP(guildId: string): Promise<number> {
