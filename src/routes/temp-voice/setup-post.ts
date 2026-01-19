@@ -1,0 +1,189 @@
+/**
+ * POST /api/guilds/:guildId/temp-voice/setup
+ * Auto-setup Temp Voice system (creates category, join channel, and config)
+ */
+
+import { Route } from '@sapphire/plugin-api';
+import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { container } from '@sapphire/framework';
+import type { RouteRequestWithBody } from '#root/lib/route-types';
+
+export class TempVoiceSetupPostRoute extends Route {
+    public constructor(context: Route.LoaderContext, options: Route.Options) {
+        super(context, {
+            ...options,
+            route: 'guilds/:guildId/temp-voice/setup',
+            methods: ['POST'],
+        });
+    }
+
+    public run(request: Route.Request, response: Route.Response) {
+        return this.handlePost(request as RouteRequestWithBody, response);
+    }
+
+    private async handlePost(request: RouteRequestWithBody, response: Route.Response) {
+        try {
+            const guildId = request.params.guildId;
+
+            // Log raw request for debugging
+            this.container.logger.debug('[TempVoice API] Setup request received');
+            this.container.logger.debug('[TempVoice API] Body:', request.body);
+            this.container.logger.debug('[TempVoice API] Headers:', request.headers);
+
+            // Parse body if it's a string
+            let body: any = request.body;
+            if (typeof body === 'string') {
+                try {
+                    body = JSON.parse(body);
+                } catch {
+                    body = {};
+                }
+            }
+
+            // Default to empty object if body is undefined
+            if (!body) {
+                body = {};
+            }
+
+            if (!guildId) {
+                return response.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'MISSING_GUILD_ID',
+                        message: 'Guild ID is required',
+                    },
+                });
+            }
+
+            // Get guild
+            const guild = this.container.client.guilds.cache.get(guildId);
+            if (!guild) {
+                return response.status(404).json({
+                    success: false,
+                    error: {
+                        code: 'GUILD_NOT_FOUND',
+                        message: 'Guild not found or bot is not in the guild',
+                    },
+                });
+            }
+
+            // Check if config already exists
+            const existingConfig = await TempVoiceConfigService.getConfig(guildId);
+            if (existingConfig) {
+                return response.status(409).json({
+                    success: false,
+                    error: {
+                        code: 'CONFIG_ALREADY_EXISTS',
+                        message: 'Temp Voice configuration already exists for this guild',
+                    },
+                    data: {
+                        guildId,
+                        suggestion: 'Use PATCH /api/guilds/:guildId/temp-voice/config to update existing configuration',
+                    },
+                });
+            }
+
+            // Extract options from body
+            const logChannelId = body?.logChannelId || null;
+            const categoryName = body?.categoryName || 'Temp Voice Channels';
+            const joinChannelName = body?.joinChannelName || '➕ Join to Create';
+
+            this.container.logger.info(`[TempVoice API] Starting auto-setup for guild ${guildId}`);
+
+            // 1. Create category
+            const category = await guild.channels.create({
+                name: categoryName,
+                type: ChannelType.GuildCategory,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+                    },
+                ],
+            });
+
+            this.container.logger.info(`[TempVoice API] Created category: ${category.name} (${category.id})`);
+
+            // 2. Create join-to-create voice channel
+            const joinChannel = await guild.channels.create({
+                name: joinChannelName,
+                type: ChannelType.GuildVoice,
+                parent: category.id,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect],
+                    },
+                ],
+            });
+
+            this.container.logger.info(`[TempVoice API] Created join channel: ${joinChannel.name} (${joinChannel.id})`);
+
+            // 3. Create temp voice configuration
+            const configData = {
+                enabled: true,
+                namingScheme: 'username' as const,
+                customNamingPattern: null,
+                userLimit: undefined,
+                bitrate: undefined,
+                defaultCategoryId: category.id,
+                autoDeleteEmpty: true,
+                deleteEmptyAfterMs: 300000, // 5 minutes
+                autoDeleteOwnerLeave: true,
+                deleteOwnerLeaveAfterMs: 0, // Immediately
+                allowOwnerTransfer: true,
+                allowOwnerManagement: true,
+                maxChannelsPerUser: 3,
+                logChannelId: logChannelId,
+            };
+
+            await TempVoiceConfigService.createConfig(guildId, configData);
+
+            this.container.logger.info(`[TempVoice API] Created config for guild ${guildId}`);
+
+            // 4. Add join channel to config's join-to-create channels
+            const dbUpdate = await container.prisma.tempVoiceConfig.update({
+                where: { guildId },
+                data: {
+                    joinToCreateChannels: [joinChannel.id],
+                },
+            });
+
+            this.container.logger.info(`[TempVoice API] DB update result:`, dbUpdate.joinToCreateChannels);
+
+            // 5. Fetch the updated config
+            const updatedConfig = await TempVoiceConfigService.getConfig(guildId);
+
+            this.container.logger.info(`[TempVoice API] Final config joinChannelIds:`, updatedConfig?.joinChannelIds);
+
+            return response.status(201).json({
+                success: true,
+                message: 'Temp Voice system setup completed successfully',
+                data: {
+                    category: {
+                        id: category.id,
+                        name: category.name,
+                    },
+                    joinChannel: {
+                        id: joinChannel.id,
+                        name: joinChannel.name,
+                    },
+                    config: updatedConfig,
+                    instructions: 'Users can now join the "Join to Create" channel to automatically create their own temporary voice channel!',
+                },
+            });
+        } catch (error) {
+            this.container.logger.error('[TempVoice API] Error during auto-setup:', error);
+
+            return response.status(500).json({
+                success: false,
+                error: {
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'An error occurred during auto-setup',
+                    details: error instanceof Error ? error.message : 'Unknown error',
+                },
+            });
+        }
+    }
+}
