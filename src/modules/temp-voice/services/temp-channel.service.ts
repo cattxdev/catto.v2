@@ -12,6 +12,8 @@ import type {
 import type { TempVoiceConfig } from '../models/config.model';
 import { PermissionsService } from './permissions.service';
 import { TempVoiceConfigService } from './config.service';
+import { generateChannelName } from '../utils/naming.util';
+import { findSuitableCategory } from '../utils/fallback.util';
 
 export class TempChannelService {
 	constructor(
@@ -29,10 +31,6 @@ export class TempChannelService {
 		config: TempVoiceConfig,
 		sourceChannelId: string
 	): Promise<VoiceChannel> {
-		// Import utilities
-		const { generateChannelName } = await import('../utils/naming.util');
-		const { findSuitableCategory } = await import('../utils/fallback.util');
-
 		// Find suitable category
 		const categoryResult = await findSuitableCategory(
 			guild,
