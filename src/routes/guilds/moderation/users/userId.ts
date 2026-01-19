@@ -1,5 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
-import { ModAction } from '../../../../lib/moderation';
+import { ModAction } from '@prisma/client';
+import { parseModAction } from '#lib/validation/modAction.js';
 
 export class ModerationUserCasesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -40,9 +41,12 @@ export class ModerationUserCasesRoute extends Route {
       // Parse query parameters for pagination
       const page = parseInt((request.query?.page as string) ?? '1') || 1;
       const limit = Math.min(parseInt((request.query?.limit as string) ?? '50') || 50, 100);
-      const action = request.query?.action as string | undefined;
+      const actionStr = request.query?.action as string | undefined;
 
       const skip = (page - 1) * limit;
+
+      // Validate and convert action string to enum
+      const action = actionStr ? parseModAction(actionStr.toUpperCase()) : undefined;
 
       // Build where clause
       const where: {
@@ -54,7 +58,7 @@ export class ModerationUserCasesRoute extends Route {
         targetId: userId,
       };
 
-      if (action) where.action = action.toUpperCase() as ModAction;
+      if (action) where.action = action;
 
       // Get total count
       const total = await this.container.prisma.modCase.count({ where });

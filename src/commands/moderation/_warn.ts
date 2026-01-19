@@ -1,74 +1,84 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { ModAction } from '@prisma/client';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
-  createModCase,
   createModEmbed,
   notifyUser,
   logToModChannel,
-  ModAction,
-} from '../../lib/moderation.js';
+} from '../../modules/moderation/discord/embeds.js';
+import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild || !interaction.member) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
-    return;
+  let options;
+  try {
+    options = parseWarnOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      return;
+    }
+    interaction.client.logger.error('Unexpected error while parsing warn options:', error);
+    throw error;
   }
 
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const target = interaction.options.getUser('target', true);
-    const reason = interaction.options.getString('reason', true);
-
+    // Verify target is in guild
     try {
-      await interaction.guild.members.fetch(target.id);
+      await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({
-        content: '❌ Target is not a member of this server.',
-      });
+      await interaction.editReply({ content: '❌ Target is not a member of this server.' });
       return;
     }
 
-    if (target.id === interaction.user.id) {
-      await interaction.editReply({
-        content: '❌ You cannot warn yourself.',
-      });
+    // Basic validation
+    if (options.target.id === options.moderator.id) {
+      await interaction.editReply({ content: '❌ You cannot warn yourself.' });
       return;
     }
 
-    if (target.bot) {
-      await interaction.editReply({
-        content: '❌ You cannot warn bots.',
-      });
+    if (options.target.bot) {
+      await interaction.editReply({ content: '❌ You cannot warn bots.' });
       return;
     }
 
-    const notified = await notifyUser(target, ModAction.WARN, interaction.guild, reason);
-
-    const modCase = await createModCase({
-      guildId: interaction.guild.id,
-      action: ModAction.WARN,
-      targetId: target.id,
-      targetTag: target.tag,
-      moderatorId: interaction.user.id,
-      moderatorTag: interaction.user.tag,
-      reason,
-    });
-
-    const embed = createModEmbed(
+    // Notify user before warn
+    const notified = await notifyUser(
+      options.target,
       ModAction.WARN,
-      target,
-      interaction.user,
-      reason,
-      modCase.caseNumber
+      options.guild,
+      options.reason
     );
 
-    await logToModChannel(interaction.guild, embed);
+    // Execute warn via service
+    const result = await moderationService.warn(
+      options.guild,
+      options.target,
+      options.moderator,
+      options.reason
+    );
+
+    if (!result.success) {
+      await interaction.editReply({
+        content: `❌ ${result.error ?? 'An unexpected error occurred while processing the warning.'}`,
+      });
+      return;
+    }
+
+    // Create and log embed
+    const embed = createModEmbed(
+      ModAction.WARN,
+      options.target,
+      options.moderator,
+      options.reason,
+      result.caseNumber
+    );
+    await logToModChannel(options.guild, embed);
 
     await interaction.editReply({
-      content: `✅ **${target.tag}** has been warned. (Case #${modCase.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
+      content: `✅ **${options.target.tag}** has been warned. (Case #${result.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
     });
   } catch (error) {
     interaction.client.logger.error('Error in warn command:', error);

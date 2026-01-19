@@ -10,6 +10,19 @@ datasource db {
   provider = "postgresql"
 }
 
+// Moderation action types
+enum ModAction {
+  BAN
+  UNBAN
+  KICK
+  TIMEOUT
+  WARN
+  MUTE
+  UNMUTE
+  SOFTBAN
+  TEMPBAN
+}
+
 // Example models for a Discord bot
 // You can modify or remove these based on your needs
 
@@ -63,7 +76,7 @@ model ModCase {
   id          String   @id @default(cuid())
   caseNumber  Int      // Auto-incrementing per guild
   guildId     String
-  action      String   // BAN, KICK, WARN, TIMEOUT, MUTE, UNMUTE, UNBAN
+  action      ModAction
   targetId    String
   targetTag   String
   moderatorId String
