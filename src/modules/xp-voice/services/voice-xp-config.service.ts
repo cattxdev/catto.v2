@@ -33,12 +33,28 @@ export async function updateVoiceXPConfig(
 	guildId: string,
 	data: UpdateVoiceXPConfigDTO
 ): Promise<GuildVoiceXPConfig> {
+	const oldConfig = await voiceXPConfigRepository.getVoiceXPConfig(guildId);
 	const config = await voiceXPConfigRepository.updateVoiceXPConfig(guildId, data);
 	
 	configCache.set(guildId, {
 		config,
 		cachedAt: Date.now()
 	});
+	
+	// Handle queue scheduling when XP mode changes
+	const { voiceXPQueue } = await import('./voice-xp-queue.service');
+	
+	if (config.enabled && config.xpMode === 'PER_MINUTE') {
+		// Schedule if newly enabled or switched to PER_MINUTE
+		if (!oldConfig.enabled || oldConfig.xpMode !== 'PER_MINUTE') {
+			await voiceXPQueue.scheduleGuildAwards(guildId);
+		}
+	} else {
+		// Unschedule if disabled or switched to PER_SESSION
+		if (oldConfig.xpMode === 'PER_MINUTE') {
+			await voiceXPQueue.unscheduleGuildAwards(guildId);
+		}
+	}
 	
 	return config;
 }

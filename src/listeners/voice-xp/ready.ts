@@ -8,6 +8,7 @@ import { Events } from 'discord.js';
 import { handleVoiceJoin } from '../../modules/xp-voice/services/voice-xp-session.service';
 import { getActiveSession } from '../../modules/xp-voice/utils/session-tracking';
 import { getVoiceXPConfig } from '../../modules/xp-voice/services/voice-xp-config.service';
+import { voiceXPQueue } from '../../modules/xp-voice/services/voice-xp-queue.service';
 
 export class VoiceXPReadyListener extends Listener<typeof Events.ClientReady> {
 	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -87,6 +88,9 @@ export class VoiceXPReadyListener extends Listener<typeof Events.ClientReady> {
 			this.container.logger.info(
 				`[Voice XP] Initialization complete: ${totalSessions} session(s) created across ${guildsProcessed} guild(s)`
 			);
+
+			// Initialize BullMQ jobs for per-minute XP awards
+			await voiceXPQueue.initializeAllGuilds();
 		} catch (error) {
 			this.container.logger.error('[Voice XP] Error during voice session initialization:', error);
 		}
