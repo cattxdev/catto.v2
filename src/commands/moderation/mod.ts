@@ -18,6 +18,13 @@ import { handleVoiceWhere } from './_voiceWhere.js';
 import { handleVoiceWatch } from './_voiceWatch.js';
 import { handleVoiceSnapshot } from './_voiceSnapshot.js';
 import { handleVoiceTrack } from './_voiceTrack.js';
+import { handleSoftban } from './_softban.js';
+import { handleTempban } from './_tempban.js';
+import { handlePanel } from './_panel.js';
+import { handleContext } from './_context.js';
+import { handleNoteAdd, handleNoteList, handleNoteDelete } from './_note.js';
+import { handleCaseEdit, handleCaseLink, handleCaseClose } from './_caseManagement.js';
+import { handleAppealCreate, handleAppealList, handleAppealResolve } from './_appeal.js';
 
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
@@ -53,6 +60,22 @@ import { handleVoiceTrack } from './_voiceTrack.js';
       name: 'history',
       chatInputRun: 'chatInputHistory',
     },
+    {
+      name: 'softban',
+      chatInputRun: 'chatInputSoftban',
+    },
+    {
+      name: 'tempban',
+      chatInputRun: 'chatInputTempban',
+    },
+    {
+      name: 'panel',
+      chatInputRun: 'chatInputPanel',
+    },
+    {
+      name: 'context',
+      chatInputRun: 'chatInputContext',
+    },
     // Voice subcommand group
     {
       name: 'voice',
@@ -62,6 +85,36 @@ import { handleVoiceTrack } from './_voiceTrack.js';
         { name: 'watch', chatInputRun: 'chatInputVoiceWatch' },
         { name: 'snapshot', chatInputRun: 'chatInputVoiceSnapshot' },
         { name: 'track', chatInputRun: 'chatInputVoiceTrack' },
+      ],
+    },
+    // Note subcommand group
+    {
+      name: 'note',
+      type: 'group',
+      entries: [
+        { name: 'add', chatInputRun: 'chatInputNoteAdd' },
+        { name: 'list', chatInputRun: 'chatInputNoteList' },
+        { name: 'delete', chatInputRun: 'chatInputNoteDelete' },
+      ],
+    },
+    // Case management subcommand group
+    {
+      name: 'casemod',
+      type: 'group',
+      entries: [
+        { name: 'edit', chatInputRun: 'chatInputCaseEdit' },
+        { name: 'link', chatInputRun: 'chatInputCaseLink' },
+        { name: 'close', chatInputRun: 'chatInputCaseClose' },
+      ],
+    },
+    // Appeal subcommand group
+    {
+      name: 'appeal',
+      type: 'group',
+      entries: [
+        { name: 'create', chatInputRun: 'chatInputAppealCreate' },
+        { name: 'list', chatInputRun: 'chatInputAppealList' },
+        { name: 'resolve', chatInputRun: 'chatInputAppealResolve' },
       ],
     },
   ],
@@ -81,7 +134,14 @@ export class ModCommand extends Subcommand {
         .addSubcommand(this.buildUnbanSubcommand)
         .addSubcommand(this.buildCaseSubcommand)
         .addSubcommand(this.buildHistorySubcommand)
+        .addSubcommand(this.buildSoftbanSubcommand)
+        .addSubcommand(this.buildTempbanSubcommand)
+        .addSubcommand(this.buildPanelSubcommand)
+        .addSubcommand(this.buildContextSubcommand)
         .addSubcommandGroup(this.buildVoiceSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildNoteSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildCaseModSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildAppealSubcommandGroup.bind(this))
     );
   }
 
@@ -173,6 +233,76 @@ export class ModCommand extends Subcommand {
       );
   }
 
+  private buildSoftbanSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('softban')
+      .setDescription('Softban a member (ban + immediate unban to delete messages)')
+      .addUserOption((option) =>
+        option.setName('target').setDescription('The member to softban').setRequired(true)
+      )
+      .addStringOption((option) =>
+        option.setName('reason').setDescription('Reason for the softban').setMaxLength(512)
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName('delete_days')
+          .setDescription('Days of messages to delete (default: 7)')
+          .setMinValue(1)
+          .setMaxValue(7)
+      );
+  }
+
+  private buildTempbanSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('tempban')
+      .setDescription('Temporarily ban a member')
+      .addUserOption((option) =>
+        option.setName('target').setDescription('The member to tempban').setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('duration')
+          .setDescription('Ban duration (e.g., 1h, 1d, 7d)')
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option.setName('reason').setDescription('Reason for the tempban').setMaxLength(512)
+      )
+      .addBooleanOption((option) =>
+        option.setName('delete_messages').setDescription('Delete messages from the last 7 days')
+      );
+  }
+
+  private buildPanelSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('panel')
+      .setDescription('Open interactive mod panel for a user')
+      .addUserOption((option) =>
+        option.setName('target').setDescription('The user to moderate').setRequired(true)
+      );
+  }
+
+  private buildContextSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('context')
+      .setDescription('Get context bundle for a user')
+      .addUserOption((option) =>
+        option.setName('target').setDescription('The user to get context for').setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('window')
+          .setDescription('Time window (e.g., 15m, 1h, 24h)')
+          .addChoices(
+            { name: '15 minutes', value: '15m' },
+            { name: '1 hour', value: '1h' },
+            { name: '6 hours', value: '6h' },
+            { name: '24 hours', value: '24h' },
+            { name: '7 days', value: '7d' }
+          )
+      );
+  }
+
   private buildVoiceSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
     return group
       .setName('voice')
@@ -231,6 +361,156 @@ export class ModCommand extends Subcommand {
       );
   }
 
+  private buildNoteSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('note')
+      .setDescription('Manage moderator notes on users')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('add')
+          .setDescription('Add a note to a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to add a note to').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('note')
+              .setDescription('The note content')
+              .setRequired(true)
+              .setMaxLength(1000)
+          )
+          .addStringOption((option) =>
+            option.setName('tags').setDescription('Comma-separated tags (e.g., "toxic,raid")')
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('list')
+          .setDescription('List notes for a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to list notes for').setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('delete')
+          .setDescription('Delete a note by ID')
+          .addStringOption((option) =>
+            option.setName('note_id').setDescription('The note ID to delete').setRequired(true)
+          )
+      );
+  }
+
+  private buildCaseModSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('casemod')
+      .setDescription('Case management commands')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('edit')
+          .setDescription('Edit a case reason')
+          .addIntegerOption((option) =>
+            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('reason')
+              .setDescription('New reason')
+              .setRequired(true)
+              .setMaxLength(512)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('link')
+          .setDescription('Link evidence to a case')
+          .addIntegerOption((option) =>
+            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('message_link')
+              .setDescription('Message link to attach')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('close')
+          .setDescription('Close a case')
+          .addIntegerOption((option) =>
+            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('status')
+              .setDescription('Close status')
+              .addChoices(
+                { name: 'Closed', value: 'CLOSED' },
+                { name: 'Void (reversed)', value: 'VOID' }
+              )
+          )
+      );
+  }
+
+  private buildAppealSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('appeal')
+      .setDescription('Manage moderation appeals')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('create')
+          .setDescription('Create an appeal on behalf of a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user the appeal is for').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('reason')
+              .setDescription('Appeal reason')
+              .setRequired(true)
+              .setMaxLength(1000)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('list')
+          .setDescription('List appeals')
+          .addStringOption((option) =>
+            option
+              .setName('status')
+              .setDescription('Filter by status')
+              .addChoices(
+                { name: 'Pending', value: 'PENDING' },
+                { name: 'Approved', value: 'APPROVED' },
+                { name: 'Denied', value: 'DENIED' }
+              )
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('resolve')
+          .setDescription('Resolve an appeal')
+          .addStringOption((option) =>
+            option.setName('appeal_id').setDescription('Appeal ID').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('decision')
+              .setDescription('Decision')
+              .setRequired(true)
+              .addChoices({ name: 'Approve', value: 'APPROVED' }, { name: 'Deny', value: 'DENIED' })
+          )
+          .addStringOption((option) =>
+            option
+              .setName('resolution')
+              .setDescription('Resolution notes')
+              .setRequired(true)
+              .setMaxLength(500)
+          )
+      );
+  }
+
   public async chatInputBan(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleBan(interaction);
   }
@@ -259,6 +539,22 @@ export class ModCommand extends Subcommand {
     return handleHistory(interaction);
   }
 
+  public async chatInputSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleSoftban(interaction);
+  }
+
+  public async chatInputTempban(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleTempban(interaction);
+  }
+
+  public async chatInputPanel(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handlePanel(interaction);
+  }
+
+  public async chatInputContext(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleContext(interaction);
+  }
+
   // Voice subcommand handlers
   public async chatInputVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleVoiceWhere(interaction);
@@ -274,5 +570,44 @@ export class ModCommand extends Subcommand {
 
   public async chatInputVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleVoiceTrack(interaction);
+  }
+
+  // Note subcommand handlers
+  public async chatInputNoteAdd(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleNoteAdd(interaction);
+  }
+
+  public async chatInputNoteList(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleNoteList(interaction);
+  }
+
+  public async chatInputNoteDelete(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleNoteDelete(interaction);
+  }
+
+  // Case management subcommand handlers
+  public async chatInputCaseEdit(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleCaseEdit(interaction);
+  }
+
+  public async chatInputCaseLink(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleCaseLink(interaction);
+  }
+
+  public async chatInputCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleCaseClose(interaction);
+  }
+
+  // Appeal subcommand handlers
+  public async chatInputAppealCreate(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleAppealCreate(interaction);
+  }
+
+  public async chatInputAppealList(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleAppealList(interaction);
+  }
+
+  public async chatInputAppealResolve(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleAppealResolve(interaction);
   }
 }

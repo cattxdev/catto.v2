@@ -21,6 +21,17 @@ export class ReadyListener extends Listener {
     this.container.logger.info(`Environment: ${CONFIG.NODE_ENV}`);
     this.container.logger.info(`Serving ${client.guilds.cache.size} guilds`);
 
+    // Initialize moderation scheduler
+    this.container.logger.info('Initializing moderation scheduler...');
+    try {
+      const { tempbanScheduler } =
+        await import('../modules/moderation/services/TempbanScheduler.js');
+      await tempbanScheduler.initialize();
+      this.container.logger.info('✓ Moderation scheduler initialized');
+    } catch (error) {
+      this.container.logger.error('Failed to initialize moderation scheduler:', error);
+    }
+
     // Sync all guilds to database on startup
     this.container.logger.info('Syncing guilds to database...');
 
@@ -79,6 +90,17 @@ export class ReadyListener extends Listener {
     // Handle graceful shutdown
     const gracefulShutdown = async () => {
       this.container.logger.info('Shutting down gracefully...');
+
+      // Shutdown moderation scheduler
+      try {
+        const { tempbanScheduler } =
+          await import('../modules/moderation/services/TempbanScheduler.js');
+        await tempbanScheduler.shutdown();
+        this.container.logger.info('✓ Moderation scheduler shut down');
+      } catch (error) {
+        this.container.logger.error('Error shutting down scheduler:', error);
+      }
+
       await loggingService.destroy();
     };
 

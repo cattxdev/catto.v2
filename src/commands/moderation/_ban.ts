@@ -8,6 +8,7 @@ import {
 } from '../../modules/moderation/discord/embeds.js';
 import { parseBanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { MessageFlags } from 'discord.js';
 
 export async function handleBan(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -15,13 +16,13 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     options = parseBanOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ ${error.message}`, flags: MessageFlags.Ephemeral });
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   try {
     // Fetch target member

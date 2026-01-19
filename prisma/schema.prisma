@@ -23,6 +23,20 @@ enum ModAction {
   TEMPBAN
 }
 
+// Moderation case status
+enum CaseStatus {
+  OPEN
+  CLOSED
+  VOID
+}
+
+// Appeal status
+enum AppealStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
 // Example models for a Discord bot
 // You can modify or remove these based on your needs
 
@@ -73,8 +87,8 @@ model Log {
 
 // Moderation Case Tracking
 model ModCase {
-  id          String   @id @default(cuid())
-  caseNumber  Int      // Auto-incrementing per guild
+  id          String     @id @default(cuid())
+  caseNumber  Int        // Auto-incrementing per guild
   guildId     String
   action      ModAction
   targetId    String
@@ -82,8 +96,11 @@ model ModCase {
   moderatorId String
   moderatorTag String
   reason      String?
-  duration    Int?     // Duration in seconds for timeouts/tempbans
-  createdAt   DateTime @default(now())
+  duration    Int?       // Duration in seconds for timeouts/tempbans
+  status      CaseStatus @default(OPEN)
+  evidence    Json?      // Message links, attachments, etc.
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   expiresAt   DateTime?
   
   guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
@@ -93,6 +110,7 @@ model ModCase {
   @@index([targetId])
   @@index([moderatorId])
   @@index([action])
+  @@index([status])
   @@index([createdAt])
   @@map("mod_cases")
 }
@@ -146,4 +164,60 @@ model LogConfig {
 
   @@index([guildId])
   @@map("log_configs")
+}
+
+// User Moderation Notes
+model UserModNote {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String   // Target user ID
+  createdById String   // Moderator who created the note
+  note        String   @db.Text
+  tags        String[] // Tags for categorization
+  createdAt   DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+  @@index([guildId, userId])
+  @@index([createdById])
+  @@map("user_mod_notes")
+}
+
+// Moderation Appeals
+model ModAppeal {
+  id          String       @id @default(cuid())
+  guildId     String
+  targetId    String       // User who submitted the appeal
+  caseId      String?      // Optional reference to the case being appealed
+  createdById String       // Can be different from targetId if mod creates on behalf
+  reason      String       @db.Text
+  status      AppealStatus @default(PENDING)
+  resolution  String?      @db.Text
+  resolvedById String?     // Moderator who resolved the appeal
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  resolvedAt  DateTime?
+
+  @@index([guildId])
+  @@index([targetId])
+  @@index([status])
+  @@index([guildId, status])
+  @@map("mod_appeals")
+}
+
+// Scheduled Tasks for Tempbans
+model ScheduledTask {
+  id          String   @id @default(cuid())
+  type        String   // e.g., "TEMPBAN_UNBAN"
+  guildId     String
+  targetId    String
+  data        Json?    // Additional task data
+  executeAt   DateTime
+  createdAt   DateTime @default(now())
+  processed   Boolean  @default(false)
+
+  @@index([type])
+  @@index([executeAt])
+  @@index([processed, executeAt])
+  @@map("scheduled_tasks")
 }
