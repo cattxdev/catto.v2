@@ -83,6 +83,10 @@ model Guild {
   xpConfig      GuildXPConfig?
   userXP        UserXP[]
   xpEventLogs   XPEventLog[]
+  voiceXPConfig GuildVoiceXPConfig?
+  userVoiceXP   UserVoiceXP[]
+  voiceXPEventLogs VoiceXPEventLog[]
+  voiceSessions VoiceSession[]
 
   @@index([guildId])
   @@map("guilds")
@@ -472,4 +476,121 @@ model XPEventLog {
   @@index([guildId, createdAt])
   @@index([eventType])
   @@map("xp_event_logs")
+}
+
+// ============================================
+// Voice XP System Models
+// ============================================
+
+// Voice XP Configuration per Guild
+model GuildVoiceXPConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // XP Award Settings
+  xpPerMinute       Int     @default(5)                // XP awarded per minute in voice
+  minSessionMinutes Int     @default(1)                // Minimum minutes before XP is awarded
+  xpMode            String  @default("PER_MINUTE")     // "PER_MINUTE" | "PER_SESSION"
+  
+  // Channel Filters
+  allowedChannels   String[] @default([])              // If not empty, only these channels award XP
+  ignoredChannels   String[] @default([])              // These channels never award XP
+  
+  // User State Filters
+  awardMuted        Boolean  @default(false)           // Award XP to muted users?
+  awardDeafened     Boolean  @default(false)           // Award XP to deafened users?
+  awardStreaming    Boolean  @default(true)            // Award XP to streaming users?
+  awardVideo        Boolean  @default(true)            // Award XP to video users?
+  ignoreAfkChannel  Boolean  @default(true)            // Ignore AFK channel?
+  
+  // Role Filters
+  ignoredRoles      String[] @default([])              // Users with these roles don't earn XP
+  
+  // Level-Up Announcements
+  announceLevelUp      Boolean @default(true)
+  announceChannelId    String?                         // If null, announce in text channel
+  messageTemplate      String  @default("🎤 {user} reached voice level {level}!")
+  embedEnabled         Boolean @default(true)
+  embedColor           Int     @default(5814783)       // Discord embed color (hex: 58B9FF)
+  
+  // Level Curve Configuration
+  levelCurveType    String  @default("FORMULA")        // "FORMULA" | "TABLE"
+  formulaBase       Float   @default(5.0)              // Base XP required
+  formulaExponent   Float   @default(2.0)              // Level scaling exponent
+  formulaOffset     Float   @default(50.0)             // Additional XP offset
+  tableThresholds   Int[]   @default([])               // Custom XP thresholds per level
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("guild_voice_xp_configs")
+}
+
+// User Voice XP per Guild
+model UserVoiceXP {
+  id            String    @id @default(cuid())
+  guildId       String
+  userId        String
+  xp            Int       @default(0)
+  level         Int       @default(0)
+  minutesInVoice Int      @default(0)                  // Total minutes tracked
+  lastAwardAt   DateTime?                              // Last XP award time
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@index([guildId, xp(sort: Desc)])                   // For leaderboard queries
+  @@index([guildId, userId])
+  @@map("user_voice_xp")
+}
+
+// Voice Session Tracking
+model VoiceSession {
+  id             String    @id @default(cuid())
+  guildId        String
+  userId         String
+  channelId      String
+  joinedAt       DateTime  @default(now())
+  leftAt         DateTime?
+  durationMinutes Int      @default(0)                 // Calculated on session end
+  xpAwarded      Int       @default(0)                 // XP awarded for this session
+  wasMuted       Boolean   @default(false)
+  wasDeafened    Boolean   @default(false)
+  wasStreaming   Boolean   @default(false)
+  wasVideo       Boolean   @default(false)
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId, userId])
+  @@index([guildId, userId, leftAt])                   // For active session queries
+  @@index([joinedAt])
+  @@map("voice_sessions")
+}
+
+// Audit Log for Voice XP Events
+model VoiceXPEventLog {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  eventType   String                                   // "AWARD" | "LEVEL_UP" | "RESET" | "SESSION_END"
+  xpChange    Int
+  xpBefore    Int
+  xpAfter     Int
+  levelBefore Int
+  levelAfter  Int
+  reason      String?
+  metadata    Json?                                    // Session details, channel info
+  createdAt   DateTime @default(now())
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId, userId])
+  @@index([guildId, createdAt])
+  @@index([eventType])
+  @@map("voice_xp_event_logs")
 }
