@@ -59,10 +59,17 @@ export async function updateXPConfig(
 	// Ensure config exists first
 	await getXPConfig(guildId);
 	
-	return await container.prisma.guildXPConfig.update({
+	// Debug log
+	console.log('Updating XP config with data:', JSON.stringify(data, null, 2));
+	
+	const result = await container.prisma.guildXPConfig.update({
 		where: { guildId },
 		data
 	});
+	
+	console.log('Update result allowedChannels:', result.allowedChannels);
+	
+	return result;
 }
 
 /**

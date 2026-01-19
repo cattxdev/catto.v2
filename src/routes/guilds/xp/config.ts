@@ -36,10 +36,29 @@ export class XPConfigRoute extends Route {
 		if (request.method === 'GET') {
 			return this.handleGet(guildId, response);
 		} else if (request.method === 'PUT') {
-			return this.handlePut(guildId, request, response);
+			// Parse body for PUT requests
+			const body = await this.parseBody(request);
+			return this.handlePut(guildId, body, response);
 		}
 
 		return response.status(405).json({ error: 'Method not allowed' });
+	}
+
+	private async parseBody(request: Route.Request): Promise<any> {
+		return new Promise((resolve, reject) => {
+			let body = '';
+			request.on('data', (chunk: Buffer) => {
+				body += chunk.toString();
+			});
+			request.on('end', () => {
+				try {
+					resolve(body ? JSON.parse(body) : undefined);
+				} catch (error) {
+					resolve(undefined);
+				}
+			});
+			request.on('error', reject);
+		});
 	}
 
 	/**
@@ -65,15 +84,16 @@ export class XPConfigRoute extends Route {
 	/**
 	 * PUT - Update XP configuration
 	 */
-	private async handlePut(guildId: string, request: Route.Request, response: Route.Response) {
+	private async handlePut(guildId: string, updateData: any, response: Route.Response) {
 		try {
-			const updateData = (request as Route.Request & { body?: unknown }).body;
-
 			if (!updateData) {
 				return response.status(400).json({
 					error: 'Request body is required'
 				});
 			}
+
+			// Debug log
+			this.container.logger.debug('XP Config Update Request:', JSON.stringify(updateData, null, 2));
 
 			// Validate update data
 			const validation = validateUpdateXPConfig(updateData);
