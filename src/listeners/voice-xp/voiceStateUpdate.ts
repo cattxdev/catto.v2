@@ -33,11 +33,27 @@ export class VoiceStateUpdateListener extends Listener<typeof Events.VoiceStateU
 			// User left voice channel
 			else if (oldChannelId && !newChannelId) {
 				const result = await handleVoiceLeave(oldState);
-				if (result?.leveledUp) {
+				if (result?.leveledUp && oldState.guild && oldState.member) {
 					this.container.logger.info(
-						`[Voice XP] User ${oldState.member?.user.tag} leveled up to ${result.newLevel}!`
+						`[Voice XP] User ${oldState.member.user.tag} leveled up to ${result.newLevel}!`
 					);
-					// TODO: Send level-up announcement if enabled
+					
+					// Send level-up announcement
+					const { getVoiceXPConfig } = await import('../../modules/xp-voice/services/voice-xp-config.service');
+					const config = await getVoiceXPConfig(oldState.guild.id);
+					
+					if (config.announceEnabled && config.announceChannelId) {
+						const channel = oldState.guild.channels.cache.get(config.announceChannelId);
+						if (channel?.isTextBased()) {
+							try {
+								await channel.send(
+									`🎉 ${oldState.member.user} reached **Voice Level ${result.newLevel}**! (${result.newXp} total voice XP)`
+								);
+							} catch (error) {
+								this.container.logger.error('[Voice XP] Failed to send level-up announcement:', error);
+							}
+						}
+					}
 				}
 			}
 			// User moved to different voice channel
