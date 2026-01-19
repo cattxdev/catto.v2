@@ -17,6 +17,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
 		super(context, {
 			...options,
 			route: 'guilds/:guildId/temp-voice/join-channels',
+			methods: ['POST'],
 		});
 	}
 

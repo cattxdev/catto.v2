@@ -11,6 +11,7 @@ export class TempVoiceJoinChannelsDeleteRoute extends Route {
 		super(context, {
 			...options,
 			route: 'guilds/:guildId/temp-voice/join-channels/:channelId',
+			methods: ['DELETE'],
 		});
 	}
 

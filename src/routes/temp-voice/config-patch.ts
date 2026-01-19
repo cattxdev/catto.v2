@@ -14,6 +14,7 @@ export class TempVoiceConfigPatchRoute extends Route {
 		super(context, {
 			...options,
 			route: 'guilds/:guildId/temp-voice/config',
+			methods: ['PATCH'],
 		});
 	}
 
