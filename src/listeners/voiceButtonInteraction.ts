@@ -17,6 +17,7 @@ import {
   cleanupWatchSession,
   cleanupTrackSession,
 } from '#root/modules/voice/services/sessionManager.js';
+import { forceRefreshWatch, forceRefreshTrack } from '#root/modules/voice/services/voiceUpdate.js';
 
 export class VoiceButtonInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -37,6 +38,12 @@ export class VoiceButtonInteractionListener extends Listener {
       await this.handleWatchStop(interaction, guildId);
     } else if (customId.startsWith('voice_track_stop:')) {
       await this.handleTrackStop(interaction, guildId);
+    } else if (customId.startsWith('voice_refresh_watch:')) {
+      await this.handleRefreshWatch(interaction, guildId);
+    } else if (customId.startsWith('voice_refresh_track:')) {
+      await this.handleRefreshTrack(interaction, guildId);
+    } else if (customId.startsWith('voice_copy_id:')) {
+      await this.handleCopyId(interaction);
     } else if (customId.startsWith('voice_join:')) {
       await this.handleJoin(interaction);
     } else if (customId.startsWith('voice_mute:')) {
@@ -140,6 +147,86 @@ export class VoiceButtonInteractionListener extends Listener {
         })
         .catch(() => {});
     }
+  }
+
+  private async handleRefreshWatch(interaction: ButtonInteraction, guildId: string): Promise<void> {
+    const targetId = interaction.customId.split(':')[1];
+    if (!targetId) return;
+
+    try {
+      await interaction.deferUpdate();
+
+      const watchKey = CacheKey.voiceWatchByTarget(guildId, targetId);
+      const interactionIds = await container.redis.smembers(watchKey);
+
+      for (const interactionId of interactionIds) {
+        const sessionKey = CacheKey.voiceWatch(guildId, interactionId);
+        const session = await getJson(sessionKey, VoiceWatchSessionSchema);
+
+        if (session && session.messageId === interaction.message.id) {
+          const success = await forceRefreshWatch(guildId, interactionId, session);
+          if (!success) {
+            await interaction.followUp({
+              content: 'Failed to refresh. The session may have ended.',
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+          return;
+        }
+      }
+
+      await interaction.followUp({
+        content: 'This watch session has already ended or was not found.',
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error refreshing watch:', error);
+    }
+  }
+
+  private async handleRefreshTrack(interaction: ButtonInteraction, guildId: string): Promise<void> {
+    const channelId = interaction.customId.split(':')[1];
+    if (!channelId) return;
+
+    try {
+      await interaction.deferUpdate();
+
+      const trackKey = CacheKey.voiceTrackByChannel(guildId, channelId);
+      const interactionIds = await container.redis.smembers(trackKey);
+
+      for (const interactionId of interactionIds) {
+        const sessionKey = CacheKey.voiceTrack(guildId, interactionId);
+        const session = await getJson(sessionKey, VoiceTrackSessionSchema);
+
+        if (session && session.messageId === interaction.message.id) {
+          const success = await forceRefreshTrack(guildId, interactionId, session);
+          if (!success) {
+            await interaction.followUp({
+              content: 'Failed to refresh. The session may have ended.',
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+          return;
+        }
+      }
+
+      await interaction.followUp({
+        content: 'This track session has already ended or was not found.',
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error refreshing track:', error);
+    }
+  }
+
+  private async handleCopyId(interaction: ButtonInteraction): Promise<void> {
+    const targetId = interaction.customId.split(':')[1];
+    if (!targetId) return;
+
+    await interaction.reply({
+      content: `\`${targetId}\``,
+      flags: MessageFlags.Ephemeral,
+    });
   }
 
   private async handleJoin(interaction: ButtonInteraction): Promise<void> {

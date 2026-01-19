@@ -9,6 +9,7 @@ import {
   ButtonStyle,
   SeparatorBuilder,
   SeparatorSpacingSize,
+  channelMention,
 } from 'discord.js';
 import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
@@ -39,14 +40,15 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const lines: string[] = [`## ${member.displayName}`];
+    const lines: string[] = [`## ${VOICE_EMOJI.member} ${member.displayName}`];
 
-    if (inVoice && voiceState.channel) {
+    if (inVoice && voiceState.channel && voiceState.channelId) {
       const indicators = getVoiceIndicators(voiceState);
-      lines.push(`${VOICE_EMOJI.channelVoice} **${voiceState.channel.name}** ${indicators}`);
+      lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
+      lines.push(`**State:** ${indicators}`);
 
       if (voiceState.streaming) {
-        lines.push(`**Streaming**`);
+        lines.push(`${VOICE_EMOJI.serverScreenshare} **Streaming**`);
       }
 
       if (cached) {
@@ -54,7 +56,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
         lines.push(`_Tracked for ${formatSeconds(joinedAgo)}_`);
       }
     } else {
-      lines.push(`_Not in a voice channel_`);
+      lines.push('_Not in a voice channel_');
 
       if (cached) {
         lines.push(`_Last seen <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
@@ -70,19 +72,20 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
       );
 
+      // All buttons in one row
       const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_join:${voiceState.channelId}`)
-          .setLabel('Join')
-          .setStyle(ButtonStyle.Primary),
+          .setEmoji(VOICE_EMOJI.connectToUser)
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_mute:${options.targetId}`)
-          .setLabel('Mute')
+          .setEmoji(VOICE_EMOJI.voiceToggle)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_disconnect:${options.targetId}`)
-          .setLabel('Disconnect')
-          .setStyle(ButtonStyle.Danger)
+          .setEmoji(VOICE_EMOJI.disconnectUser)
+          .setStyle(ButtonStyle.Secondary)
       );
 
       containerComp.addActionRowComponents(actionRow);

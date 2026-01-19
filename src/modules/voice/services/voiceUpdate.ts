@@ -1,6 +1,6 @@
 import { container } from '@sapphire/framework';
 import { type TextChannel, type Guild, type VoiceState, MessageFlags } from 'discord.js';
-import { setJson, CacheKey } from '#lib/cache/index.js';
+import { setJson, getJson, CacheKey } from '#lib/cache/index.js';
 import { InMemoryRateLimiter } from '#lib/rateLimit/index.js';
 import {
   type VoiceWatchSession,
@@ -24,6 +24,66 @@ import {
 
 const rateLimiter = new InMemoryRateLimiter();
 
+// Pending updates that will fire after throttle window ends
+const pendingWatchUpdates = new Map<string, ReturnType<typeof globalThis.setTimeout>>();
+const pendingTrackUpdates = new Map<string, ReturnType<typeof globalThis.setTimeout>>();
+
+/**
+ * Schedule a pending update to fire after throttle window
+ */
+function schedulePendingWatchUpdate(
+  key: string,
+  guildId: string,
+  interactionId: string,
+  newState: VoiceState,
+  delayMs: number
+): void {
+  // Clear any existing pending update
+  const existing = pendingWatchUpdates.get(key);
+  if (existing) globalThis.clearTimeout(existing);
+
+  const timeout = setTimeout(async () => {
+    pendingWatchUpdates.delete(key);
+    const session = await getJson(
+      CacheKey.voiceWatch(guildId, interactionId),
+      VoiceWatchSessionSchema
+    );
+    if (session && session.endsAt > Date.now()) {
+      // Force the update by resetting rate limit first
+      rateLimiter.reset(key);
+      await handleWatchUpdate(guildId, interactionId, session, newState);
+    }
+  }, delayMs + 50); // Add small buffer
+
+  pendingWatchUpdates.set(key, timeout);
+}
+
+function schedulePendingTrackUpdate(
+  key: string,
+  guildId: string,
+  interactionId: string,
+  channelId: string,
+  guild: Guild,
+  delayMs: number
+): void {
+  const existing = pendingTrackUpdates.get(key);
+  if (existing) globalThis.clearTimeout(existing);
+
+  const timeout = setTimeout(async () => {
+    pendingTrackUpdates.delete(key);
+    const session = await getJson(
+      CacheKey.voiceTrack(guildId, interactionId),
+      VoiceTrackSessionSchema
+    );
+    if (session && session.endsAt > Date.now()) {
+      rateLimiter.reset(key);
+      await handleTrackUpdate(guildId, interactionId, session, channelId, guild);
+    }
+  }, delayMs + 50);
+
+  pendingTrackUpdates.set(key, timeout);
+}
+
 // Wire up expiry callbacks
 sessionExpiryManager.setCallbacks(
   async (guildId, interactionId, session) => {
@@ -45,7 +105,18 @@ export async function handleWatchUpdate(
 ): Promise<void> {
   const rateLimitKey = `voiceWatch:${guildId}:${interactionId}`;
 
-  if (!rateLimiter.tryTake(rateLimitKey, { minIntervalMs: VOICE_WATCH_CONFIG.minIntervalMs })) {
+  const result = rateLimiter.throttle(rateLimitKey, {
+    minIntervalMs: VOICE_WATCH_CONFIG.minIntervalMs,
+  });
+  if (!result.allowed) {
+    // Schedule pending update to fire after throttle window
+    schedulePendingWatchUpdate(
+      rateLimitKey,
+      guildId,
+      interactionId,
+      newState,
+      result.retryAfterMs ?? VOICE_WATCH_CONFIG.minIntervalMs
+    );
     return;
   }
 
@@ -110,7 +181,19 @@ export async function handleTrackUpdate(
 ): Promise<void> {
   const rateLimitKey = `voiceTrack:${guildId}:${interactionId}`;
 
-  if (!rateLimiter.tryTake(rateLimitKey, { minIntervalMs: VOICE_WATCH_CONFIG.minIntervalMs })) {
+  const result = rateLimiter.throttle(rateLimitKey, {
+    minIntervalMs: VOICE_WATCH_CONFIG.minIntervalMs,
+  });
+  if (!result.allowed) {
+    // Schedule pending update to fire after throttle window
+    schedulePendingTrackUpdate(
+      rateLimitKey,
+      guildId,
+      interactionId,
+      _channelId,
+      guild,
+      result.retryAfterMs ?? VOICE_WATCH_CONFIG.minIntervalMs
+    );
     return;
   }
 
@@ -256,4 +339,74 @@ export function registerSession(
   interactionId: string
 ): void {
   sessionExpiryManager.register(type, guildId, interactionId);
+}
+
+/**
+ * Force refresh a watch session (bypass rate limit)
+ */
+export async function forceRefreshWatch(
+  guildId: string,
+  _interactionId: string,
+  session: VoiceWatchSession
+): Promise<boolean> {
+  try {
+    const guild = container.client.guilds.cache.get(guildId);
+    if (!guild) return false;
+
+    const targetMember = await guild.members.fetch(session.targetId).catch(() => null);
+    if (!targetMember) return false;
+
+    const channel = guild.channels.cache.get(session.channelIdMessage) as TextChannel | undefined;
+    if (!channel) return false;
+
+    const message = await channel.messages.fetch(session.messageId).catch(() => null);
+    if (!message) return false;
+
+    const components = buildWatchMessage(session, targetMember.voice, guild);
+
+    await message.edit({
+      components: [components],
+      flags: MessageFlags.IsComponentsV2,
+    });
+
+    return true;
+  } catch (error) {
+    container.logger.error('[VoiceUpdate] Error force refreshing watch:', error);
+    return false;
+  }
+}
+
+/**
+ * Force refresh a track session (bypass rate limit)
+ */
+export async function forceRefreshTrack(
+  guildId: string,
+  _interactionId: string,
+  session: VoiceTrackSession
+): Promise<boolean> {
+  try {
+    const guild = container.client.guilds.cache.get(guildId);
+    if (!guild) return false;
+
+    const voiceChannel = guild.channels.cache.get(session.channelId);
+    if (!voiceChannel?.isVoiceBased()) return false;
+
+    const channel = guild.channels.cache.get(session.channelIdMessage) as TextChannel | undefined;
+    if (!channel) return false;
+
+    const message = await channel.messages.fetch(session.messageId).catch(() => null);
+    if (!message) return false;
+
+    const components = buildTrackMessage(session, voiceChannel, guild);
+
+    await message.edit({
+      components: [components],
+      flags: MessageFlags.IsComponentsV2,
+    });
+
+    return true;
+  } catch (error) {
+    container.logger.error('[VoiceUpdate] Error force refreshing track:', error);
+    return false;
+  }
 }

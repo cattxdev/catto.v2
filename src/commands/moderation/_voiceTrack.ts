@@ -10,6 +10,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   type GuildMember,
+  channelMention,
+  userMention,
 } from 'discord.js';
 import { parseVoiceTrackOptions, type VoiceTrackOptions } from '#lib/interaction/typedOptions.js';
 import { setJson, CacheKey } from '#lib/cache/index.js';
@@ -113,13 +115,16 @@ function buildTrackMessage(
     .slice(0, 10)
     .map((member: GuildMember) => {
       const indicators = getVoiceIndicators(member.voice);
-      return `${indicators} ${member.displayName}`;
+      return `${indicators} ${userMention(member.id)}`;
     });
 
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
+  // IMPORTANT: TextDisplayBuilder.setContent() does NOT accept empty strings!
+  // This is a recurring validation error. Always filter or use non-empty strings.
   const lines: string[] = [
     `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
+    `**Channel:** ${channelMention(options.channelId)}`,
     `**Members:** ${memberCount}`,
     memberList,
   ];
@@ -136,22 +141,27 @@ function buildTrackMessage(
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Ends <t:${Math.floor(endsAt / 1000)}:R> | Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `${VOICE_EMOJI.timeDay} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     )
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_track_stop:${options.channelId}`)
-          .setLabel('Stop')
+          .setEmoji(VOICE_EMOJI.soundPause)
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
+          .setCustomId(`voice_refresh_track:${options.channelId}`)
+          .setEmoji(VOICE_EMOJI.replay)
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
           .setCustomId(`voice_join:${options.channelId}`)
-          .setLabel('Join')
+          .setEmoji(VOICE_EMOJI.connectToUser)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_mute_all:${options.channelId}`)
-          .setLabel('Mute All')
+          .setLabel('All')
+          .setEmoji(VOICE_EMOJI.serverMuted)
           .setStyle(ButtonStyle.Secondary)
       )
     );

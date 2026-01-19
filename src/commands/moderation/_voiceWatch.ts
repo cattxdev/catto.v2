@@ -9,6 +9,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  channelMention,
 } from 'discord.js';
 import { parseVoiceWatchOptions, type VoiceWatchOptions } from '#lib/interaction/typedOptions.js';
 import { setJson, CacheKey } from '#lib/cache/index.js';
@@ -120,13 +121,14 @@ function buildWatchMessage(
     serverMute: boolean | null;
     serverDeaf: boolean | null;
     streaming: boolean | null;
+    selfVideo: boolean | null;
   },
   endsAt: number,
   updateCount: number
 ): ContainerBuilder {
   const displayName = member.displayName;
 
-  const lines: string[] = [`## Watching: ${displayName}`];
+  const lines: string[] = [`## ${VOICE_EMOJI.member} ${displayName}`];
 
   if (voiceState.channelId && voiceState.channel) {
     const indicators = getVoiceIndicators({
@@ -134,11 +136,17 @@ function buildWatchMessage(
       selfDeaf: voiceState.selfDeaf ?? false,
       serverMute: voiceState.serverMute ?? false,
       serverDeaf: voiceState.serverDeaf ?? false,
+      selfVideo: voiceState.selfVideo ?? false,
     });
-    lines.push(`${VOICE_EMOJI.channelVoice} **${voiceState.channel.name}** ${indicators}`);
+    lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
+    lines.push(`**State:** ${indicators}`);
 
+    // Show explicit indicators for streaming, video, and activities
     if (voiceState.streaming) {
-      lines.push('**Streaming**');
+      lines.push(`${VOICE_EMOJI.serverScreenshare} **Streaming**`);
+    }
+    if (voiceState.selfVideo) {
+      lines.push(`${VOICE_EMOJI.video} **Video**`);
     }
   } else {
     lines.push('_Not in a voice channel_');
@@ -152,30 +160,35 @@ function buildWatchMessage(
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `Ends <t:${Math.floor(endsAt / 1000)}:R> | Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `${VOICE_EMOJI.timeDay} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     );
 
+  // All buttons in one row (max 5 per row)
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_watch_stop:${options.targetId}`)
-      .setLabel('Stop')
-      .setStyle(ButtonStyle.Danger)
+      .setEmoji(VOICE_EMOJI.soundPause)
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`voice_refresh_watch:${options.targetId}`)
+      .setEmoji(VOICE_EMOJI.replay)
+      .setStyle(ButtonStyle.Secondary)
   );
 
   if (voiceState.channelId) {
     actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`voice_join:${voiceState.channelId}`)
-        .setLabel('Join')
+        .setEmoji(VOICE_EMOJI.connectToUser)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_mute:${options.targetId}`)
-        .setLabel('Mute')
+        .setEmoji(VOICE_EMOJI.voiceToggle)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_disconnect:${options.targetId}`)
-        .setLabel('Disconnect')
+        .setEmoji(VOICE_EMOJI.disconnectUser)
         .setStyle(ButtonStyle.Secondary)
     );
   }

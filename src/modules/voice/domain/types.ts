@@ -112,20 +112,34 @@ export const VOICE_CACHE_TTL = {
  * Custom Discord emojis for voice state indicators
  */
 export const VOICE_EMOJI = {
-  activities: '<:activities:1462676340967866429>',
-  bot: '<:bot:1462676342024835199>',
-  member: '<:member:1462676343111155955>',
+  // User/Member indicators
+  activities: '<:activities:1462784554795270298>',
+  member: '<:member:1462785171416813731>',
 
-  serverScreenshare: '<:server_screenshare:1462676345153654794>',
+  // Voice state emojis
+  serverScreenshare: '<:server_screenshare:1462784522671095894>',
+  video: '<:channel_voice_video:1462784548021600360>',
 
-  channelVoice: '<:channel_voice:1462676347464974381>',
-  channelVoiceNsfw: '<:channel_voice_nsfw:1462676346215071825>',
-  channelStage: '<:channel_stage:1462676690877550745>',
+  // Channel types
+  channelVoice: '<:channel_voice:1462784525766627338>',
+  channelVoiceNsfw: '<:channel_voice_nsfw:1462784524675977269>',
+  channelStage: '<:channel_stage:1462784552379617351>',
 
-  serverMuted: '<:server_muted:1462676349792817256>',
-  serverDeafened: '<:server_defean:1462676350967091292>',
-  muted: '<:muted:1462676352321851565>',
-  deafened: '<:defean:1462676353479610448>',
-  unMuted: '<:un_muted:1462676354364604417>',
-  unDeafened: '<:un_defean:1462676355627090055>',
+  // Mute/Deafen states
+  serverMuted: '<:server_muted:1462784529713594596>',
+  serverDeafened: '<:server_defean:1462784531038863523>',
+  muted: '<:muted:1462784532481577042>',
+  deafened: '<:defean:1462784534419603590>',
+  unMuted: '<:un_muted:1462784536076353683>',
+  unDeafened: '<:un_defean:1462784538072584327>',
+
+  // Action buttons
+  replay: '<:replay:1462789298293313679>',
+  soundPause: '<:sound_pause_white:1462796413376139429>', // white because it's usually used in destructive actions
+  copyId: '<:copy_id:1462785169881825353>',
+  connectToUser: '<:connect_to_user:1462785395233390707>',
+  disconnectUser: '<:disconnect_user:1462785393895280660>',
+  voiceToggle: '<:voice_toggle:1462785392452305100>',
+  timeDay: '<:time_day:1462786086358093834>',
+  timeDayExpired: '<:time_day_expired:1462784541088415867>',
 } as const;
