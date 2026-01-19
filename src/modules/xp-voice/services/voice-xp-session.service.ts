@@ -36,7 +36,7 @@ export async function handleVoiceJoin(voiceState: VoiceState): Promise<void> {
 	);
 	
 	// Start in-memory session tracking
-	sessionTracking.startSession({
+	await sessionTracking.startSession({
 		guildId: guild.id,
 		userId: member.id,
 		channelId,
@@ -60,7 +60,7 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
 	if (!config.enabled) return null;
 	
 	// End in-memory session
-	const session = sessionTracking.endSession(guild.id, member.id);
+	const session = await sessionTracking.endSession(guild.id, member.id);
 	if (!session) {
 		container.logger.warn(`[Voice XP] No active session found for ${member.user.tag}`);
 		return null;
@@ -149,21 +149,23 @@ export async function handleVoiceStateUpdate(_oldState: VoiceState, newState: Vo
 	const { guild, member } = newState;
 	if (!guild || !member) return;
 	
-	const session = sessionTracking.getActiveSession(guild.id, member.id);
+	const session = await sessionTracking.getActiveSession(guild.id, member.id);
 	if (!session) return;
 	
 	// Update session state
-	session.isMuted = (newState.mute ?? false) || (newState.selfMute ?? false);
-	session.isDeafened = (newState.deaf ?? false) || (newState.selfDeaf ?? false);
-	session.isStreaming = newState.streaming ?? false;
-	session.isVideo = newState.selfVideo ?? false;
+	await sessionTracking.updateSession(guild.id, member.id, {
+		isMuted: (newState.mute ?? false) || (newState.selfMute ?? false),
+		isDeafened: (newState.deaf ?? false) || (newState.selfDeaf ?? false),
+		isStreaming: newState.streaming ?? false,
+		isVideo: newState.selfVideo ?? false
+	});
 }
 
 export async function awardPerMinuteXP(guildId: string): Promise<number> {
 	const config = await getVoiceXPConfig(guildId);
 	if (!config.enabled || config.xpMode !== VoiceXPMode.PER_MINUTE) return 0;
 	
-	const activeSessions = sessionTracking.getGuildActiveSessions(guildId);
+	const activeSessions = await sessionTracking.getGuildActiveSessions(guildId);
 	let awarded = 0;
 	
 	for (const session of activeSessions) {
@@ -200,7 +202,9 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
 			1 // 1 minute
 		);
 		
-		session.lastAwardTime = Date.now();
+		await sessionTracking.updateSession(guildId, session.userId, {
+			lastAwardTime: Date.now()
+		});
 		awarded++;
 	}
 	
