@@ -114,7 +114,10 @@ function buildTrackMessage(
   const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((member: GuildMember) => {
-      const indicators = getVoiceIndicators(member.voice);
+      const indicators = getVoiceIndicators(
+        { ...member.voice, channelId: options.channelId },
+        member.id
+      );
       return `${indicators} ${userMention(member.id)}`;
     });
 

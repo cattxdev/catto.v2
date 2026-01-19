@@ -43,7 +43,10 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const lines: string[] = [`## ${VOICE_EMOJI.member} ${member.displayName}`];
 
     if (inVoice && voiceState.channel && voiceState.channelId) {
-      const indicators = getVoiceIndicators(voiceState);
+      const indicators = getVoiceIndicators(
+        { ...voiceState, channelId: voiceState.channelId },
+        member.id
+      );
       lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
       lines.push(`**State:** ${indicators}`);
 

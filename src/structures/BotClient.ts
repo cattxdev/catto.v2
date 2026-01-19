@@ -30,6 +30,9 @@ export class BotClient extends SapphireClient {
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates,
+        // GUILD_EMBEDDED_ACTIVITIES (1 << 17) - for Discord Activities in voice channels
+        // This is an undocumented intent that enables EMBEDDED_ACTIVITY_UPDATE_V2 events
+        1 << 17,
       ],
       partials: [Partials.Channel, Partials.Message],
       loadDefaultErrorListeners: true,

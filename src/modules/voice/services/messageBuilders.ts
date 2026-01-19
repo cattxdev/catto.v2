@@ -17,20 +17,29 @@ import {
   VOICE_WATCH_CONFIG,
   VOICE_EMOJI,
 } from '../domain/types.js';
+import { embeddedActivityTracker } from './embeddedActivity.js';
 
-/**
- * Get voice state emoji indicators for a member
- */
-export function getVoiceIndicators(voice: {
+export interface VoiceIndicatorOptions {
   selfMute?: boolean | null;
   selfDeaf?: boolean | null;
   serverMute?: boolean | null;
   serverDeaf?: boolean | null;
   streaming?: boolean | null;
   selfVideo?: boolean | null;
-  // Discord activities detection
-  activities?: Array<{ type?: number }> | null;
-}): string {
+  // For embedded activity detection
+  channelId?: string | null;
+}
+
+/**
+ * Get voice state emoji indicators for a member.
+ *
+ * @param voice - Voice state properties (from member.voice)
+ * @param userId - Optional user ID to check for embedded activity participation
+ *
+ * Discord embedded activities (Watch Together, Poker Night, etc.) are detected
+ * via raw gateway events (EMBEDDED_ACTIVITY_UPDATE_V2) and tracked in memory.
+ */
+export function getVoiceIndicators(voice: VoiceIndicatorOptions, userId?: string): string {
   const indicators: string[] = [];
 
   if (voice.serverMute) {
@@ -57,10 +66,15 @@ export function getVoiceIndicators(voice: {
     indicators.push(VOICE_EMOJI.video);
   }
 
-  // Check for Discord embedded activities (type 5 = EMBEDDED)
-  if (voice.activities && voice.activities.length > 0) {
-    const hasEmbeddedActivity = voice.activities.some((activity) => activity.type === 5);
-    if (hasEmbeddedActivity) {
+  // Check for Discord embedded activity (Watch Together, Poker Night, etc.)
+  // This is tracked via raw gateway events
+  if (userId && voice.channelId) {
+    if (embeddedActivityTracker.isUserInActivityInChannel(userId, voice.channelId)) {
+      indicators.push(VOICE_EMOJI.activities);
+    }
+  } else if (userId) {
+    // Fallback: check if user is in any activity
+    if (embeddedActivityTracker.isUserInActivity(userId)) {
       indicators.push(VOICE_EMOJI.activities);
     }
   }
@@ -80,7 +94,9 @@ export function buildWatchMessage(
   const displayName = targetMember?.displayName ?? session.targetId;
   const channel = state.channelId ? guild.channels.cache.get(state.channelId) : null;
 
-  const voiceIndicators = state.channelId ? getVoiceIndicators(state) : '';
+  const voiceIndicators = state.channelId
+    ? getVoiceIndicators({ ...state, channelId: state.channelId }, session.targetId)
+    : '';
 
   const lines: string[] = [`## ${VOICE_EMOJI.member} ${displayName}`];
 
@@ -159,8 +175,15 @@ export function buildTrackMessage(
   const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((m) => {
-      const member = m as { id: string; displayName: string; voice?: VoiceState };
-      const indicators = getVoiceIndicators(member.voice ?? {});
+      const member = m as {
+        id: string;
+        displayName: string;
+        voice?: VoiceState;
+      };
+      const indicators = getVoiceIndicators(
+        { ...(member.voice ?? {}), channelId: session.channelId },
+        member.id
+      );
       return `${indicators} ${userMention(member.id)}`;
     });
 
@@ -207,7 +230,8 @@ export function buildTrackMessage(
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`voice_mute_all:${session.channelId}`)
-      .setEmoji(VOICE_EMOJI.voiceToggle)
+      .setLabel('All')
+      .setEmoji(VOICE_EMOJI.serverMuted)
       .setStyle(ButtonStyle.Secondary)
   );
 

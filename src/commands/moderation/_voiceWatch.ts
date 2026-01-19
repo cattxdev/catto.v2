@@ -112,7 +112,9 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
 
 function buildWatchMessage(
   options: VoiceWatchOptions,
-  member: { displayName: string },
+  member: {
+    displayName: string;
+  },
   voiceState: {
     channelId: string | null;
     channel?: { name: string } | null;
@@ -131,13 +133,17 @@ function buildWatchMessage(
   const lines: string[] = [`## ${VOICE_EMOJI.member} ${displayName}`];
 
   if (voiceState.channelId && voiceState.channel) {
-    const indicators = getVoiceIndicators({
-      selfMute: voiceState.selfMute ?? false,
-      selfDeaf: voiceState.selfDeaf ?? false,
-      serverMute: voiceState.serverMute ?? false,
-      serverDeaf: voiceState.serverDeaf ?? false,
-      selfVideo: voiceState.selfVideo ?? false,
-    });
+    const indicators = getVoiceIndicators(
+      {
+        selfMute: voiceState.selfMute ?? false,
+        selfDeaf: voiceState.selfDeaf ?? false,
+        serverMute: voiceState.serverMute ?? false,
+        serverDeaf: voiceState.serverDeaf ?? false,
+        selfVideo: voiceState.selfVideo ?? false,
+        channelId: voiceState.channelId,
+      },
+      options.targetId
+    );
     lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
     lines.push(`**State:** ${indicators}`);
 

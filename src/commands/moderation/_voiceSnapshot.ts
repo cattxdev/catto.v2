@@ -84,6 +84,9 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
 }
 
 function formatMemberLine(member: GuildMember): string {
-  const indicators = getVoiceIndicators(member.voice);
+  const indicators = getVoiceIndicators(
+    { ...member.voice, channelId: member.voice.channelId },
+    member.id
+  );
   return `${indicators} **${member.displayName}** (${member.user.tag})`;
 }
