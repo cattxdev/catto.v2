@@ -7,6 +7,7 @@ import type { GuildVoiceXPConfig } from '@prisma/client';
 import type { UpdateVoiceXPConfigDTO } from '../dtos';
 import type { VoiceConfigCacheEntry } from '../types/voice-xp.types';
 import * as voiceXPConfigRepository from '../repositories/voice-xp-config.repository';
+import { voiceXPQueue } from './voice-xp-queue.service';
 
 const configCache = new Map<string, VoiceConfigCacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -42,8 +43,6 @@ export async function updateVoiceXPConfig(
 	});
 	
 	// Handle queue scheduling when XP mode changes
-	const { voiceXPQueue } = await import('./voice-xp-queue.service');
-	
 	if (config.enabled && config.xpMode === 'PER_MINUTE') {
 		// Schedule if newly enabled or switched to PER_MINUTE
 		if (!oldConfig.enabled || oldConfig.xpMode !== 'PER_MINUTE') {
