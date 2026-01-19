@@ -56,7 +56,9 @@ export class VoiceButtonInteractionListener extends Listener {
   }
 
   private async handleWatchStop(interaction: ButtonInteraction, guildId: string): Promise<void> {
-    const targetId = interaction.customId.split(':')[1];
+    const parts = interaction.customId.split(':');
+    if (parts.length !== 2) return;
+    const targetId = parts[1];
     if (!targetId) return;
 
     try {
@@ -68,7 +70,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const sessionKey = CacheKey.voiceWatch(guildId, interactionId);
         const session = await getJson(sessionKey, VoiceWatchSessionSchema);
 
-        if (session && session.messageId === interaction.message.id) {
+        if (session && interaction.message && session.messageId === interaction.message.id) {
           await cleanupWatchSession(guildId, interactionId, session);
           found = true;
           break;
@@ -98,12 +100,16 @@ export class VoiceButtonInteractionListener extends Listener {
           content: 'An error occurred while stopping the watch.',
           flags: MessageFlags.Ephemeral,
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error replying to watch stop:', err);
+        });
     }
   }
 
   private async handleTrackStop(interaction: ButtonInteraction, guildId: string): Promise<void> {
-    const channelId = interaction.customId.split(':')[1];
+    const parts = interaction.customId.split(':');
+    if (parts.length !== 2) return;
+    const channelId = parts[1];
     if (!channelId) return;
 
     try {
@@ -115,7 +121,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const sessionKey = CacheKey.voiceTrack(guildId, interactionId);
         const session = await getJson(sessionKey, VoiceTrackSessionSchema);
 
-        if (session && session.messageId === interaction.message.id) {
+        if (session && interaction.message && session.messageId === interaction.message.id) {
           await cleanupTrackSession(guildId, interactionId, session);
           found = true;
           break;
@@ -145,12 +151,16 @@ export class VoiceButtonInteractionListener extends Listener {
           content: 'An error occurred while stopping the track.',
           flags: MessageFlags.Ephemeral,
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error replying to track stop:', err);
+        });
     }
   }
 
   private async handleRefreshWatch(interaction: ButtonInteraction, guildId: string): Promise<void> {
-    const targetId = interaction.customId.split(':')[1];
+    const parts = interaction.customId.split(':');
+    if (parts.length !== 2) return;
+    const targetId = parts[1];
     if (!targetId) return;
 
     try {
@@ -163,7 +173,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const sessionKey = CacheKey.voiceWatch(guildId, interactionId);
         const session = await getJson(sessionKey, VoiceWatchSessionSchema);
 
-        if (session && session.messageId === interaction.message.id) {
+        if (session && interaction.message && session.messageId === interaction.message.id) {
           const success = await forceRefreshWatch(guildId, interactionId, session);
           if (!success) {
             await interaction.followUp({
@@ -185,7 +195,9 @@ export class VoiceButtonInteractionListener extends Listener {
   }
 
   private async handleRefreshTrack(interaction: ButtonInteraction, guildId: string): Promise<void> {
-    const channelId = interaction.customId.split(':')[1];
+    const parts = interaction.customId.split(':');
+    if (parts.length !== 2) return;
+    const channelId = parts[1];
     if (!channelId) return;
 
     try {
@@ -198,7 +210,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const sessionKey = CacheKey.voiceTrack(guildId, interactionId);
         const session = await getJson(sessionKey, VoiceTrackSessionSchema);
 
-        if (session && session.messageId === interaction.message.id) {
+        if (session && interaction.message && session.messageId === interaction.message.id) {
           const success = await forceRefreshTrack(guildId, interactionId, session);
           if (!success) {
             await interaction.followUp({
@@ -220,7 +232,9 @@ export class VoiceButtonInteractionListener extends Listener {
   }
 
   private async handleCopyId(interaction: ButtonInteraction): Promise<void> {
-    const targetId = interaction.customId.split(':')[1];
+    const parts = interaction.customId.split(':');
+    if (parts.length !== 2) return;
+    const targetId = parts[1];
     if (!targetId) return;
 
     await interaction.reply({
@@ -255,7 +269,9 @@ export class VoiceButtonInteractionListener extends Listener {
           content: 'An error occurred.',
           flags: MessageFlags.Ephemeral,
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error replying to join:', err);
+        });
     }
   }
 
@@ -304,7 +320,9 @@ export class VoiceButtonInteractionListener extends Listener {
           content: 'An error occurred while muting the member.',
           flags: MessageFlags.Ephemeral,
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error replying to mute:', err);
+        });
     }
   }
 
@@ -352,7 +370,9 @@ export class VoiceButtonInteractionListener extends Listener {
           content: 'An error occurred while disconnecting the member.',
           flags: MessageFlags.Ephemeral,
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error replying to disconnect:', err);
+        });
     }
   }
 
@@ -407,7 +427,9 @@ export class VoiceButtonInteractionListener extends Listener {
         .editReply({
           content: 'An error occurred while muting members.',
         })
-        .catch(() => {});
+        .catch((err) => {
+          container.logger.error('[VoiceButtonInteraction] Error editing reply to mute all:', err);
+        });
     }
   }
 }

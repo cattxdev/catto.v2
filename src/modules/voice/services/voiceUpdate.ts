@@ -29,6 +29,21 @@ const pendingWatchUpdates = new Map<string, ReturnType<typeof globalThis.setTime
 const pendingTrackUpdates = new Map<string, ReturnType<typeof globalThis.setTimeout>>();
 
 /**
+ * Clear all pending updates (for cleanup during shutdown or disconnect)
+ */
+export function clearAllPendingUpdates(): void {
+  for (const timeoutId of pendingWatchUpdates.values()) {
+    globalThis.clearTimeout(timeoutId);
+  }
+  pendingWatchUpdates.clear();
+
+  for (const timeoutId of pendingTrackUpdates.values()) {
+    globalThis.clearTimeout(timeoutId);
+  }
+  pendingTrackUpdates.clear();
+}
+
+/**
  * Schedule a pending update to fire after throttle window
  */
 function schedulePendingWatchUpdate(
@@ -42,7 +57,7 @@ function schedulePendingWatchUpdate(
   const existing = pendingWatchUpdates.get(key);
   if (existing) globalThis.clearTimeout(existing);
 
-  const timeout = setTimeout(async () => {
+  const pendingTimeout = setTimeout(async () => {
     pendingWatchUpdates.delete(key);
     const session = await getJson(
       CacheKey.voiceWatch(guildId, interactionId),
@@ -55,7 +70,7 @@ function schedulePendingWatchUpdate(
     }
   }, delayMs + 50); // Add small buffer
 
-  pendingWatchUpdates.set(key, timeout);
+  pendingWatchUpdates.set(key, pendingTimeout);
 }
 
 function schedulePendingTrackUpdate(
@@ -69,7 +84,7 @@ function schedulePendingTrackUpdate(
   const existing = pendingTrackUpdates.get(key);
   if (existing) globalThis.clearTimeout(existing);
 
-  const timeout = setTimeout(async () => {
+  const pendingTimeout = setTimeout(async () => {
     pendingTrackUpdates.delete(key);
     const session = await getJson(
       CacheKey.voiceTrack(guildId, interactionId),
@@ -81,7 +96,7 @@ function schedulePendingTrackUpdate(
     }
   }, delayMs + 50);
 
-  pendingTrackUpdates.set(key, timeout);
+  pendingTrackUpdates.set(key, pendingTimeout);
 }
 
 // Wire up expiry callbacks
