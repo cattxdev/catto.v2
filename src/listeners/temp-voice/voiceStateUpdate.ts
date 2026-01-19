@@ -34,17 +34,14 @@ export class VoiceStateUpdateListener extends Listener {
 			this.configService = new TempVoiceConfigService(container.prisma);
 			this.channelService = new TempChannelService(
 				container.prisma,
-				this.configService,
 				this.permissionsService || new PermissionsService()
 			);
 			this.cleanupService = new CleanupService(
 				container.prisma,
 				this.container.client,
-				this.channelService,
 				this.configService
 			);
 			this.controlPanelService = new ControlPanelService(
-				container.prisma,
 				this.container.client,
 				this.channelService
 			);

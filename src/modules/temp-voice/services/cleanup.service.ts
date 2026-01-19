@@ -2,9 +2,8 @@
  * Service for handling cleanup and deletion of temp voice channels
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TempVoiceChannel as PrismaTempVoiceChannel } from '@prisma/client';
 import type { Client } from 'discord.js';
-import { TempChannelService } from './temp-channel.service';
 import { TempVoiceConfigService } from './config.service';
 
 export class CleanupService {
@@ -13,7 +12,6 @@ export class CleanupService {
 	constructor(
 		private prisma: PrismaClient,
 		private client: Client,
-		private _channelService: TempChannelService,
 		private configService: TempVoiceConfigService
 	) {}
 
@@ -140,7 +138,7 @@ export class CleanupService {
 	/**
 	 * Clean up database and control panel message
 	 */
-	private async cleanup(record: any): Promise<void> {
+	private async cleanup(record: PrismaTempVoiceChannel): Promise<void> {
 		// Delete control panel message if exists
 		if (record.controlPanelMessageId && record.controlPanelChannelId) {
 			try {

@@ -2,6 +2,8 @@
  * TypeScript interfaces for Temp Voice channels
  */
 
+import { TempVoiceChannel } from "@prisma/client";
+
 /**
  * Metadata stored for temp voice channels
  */
@@ -21,43 +23,43 @@ export interface TempVoiceChannelMetadata {
 /**
  * Active temporary voice channel record
  */
-export interface TempVoiceChannel {
-	id: string;
-	guildId: string;
-	channelId: string;
-	ownerId: string;
+// export interface TempVoiceChannel {
+// 	id: string;
+// 	guildId: string;
+// 	channelId: string;
+// 	ownerId: string;
 
-	// Creation context
-	createdByJoinChannelId: string;
-	createdAt: Date;
-	lastActiveAt: Date;
+// 	// Creation context
+// 	createdByJoinChannelId: string;
+// 	createdAt: Date;
+// 	lastActiveAt: Date;
 
-	// Custom settings (null = using defaults)
-	customName: string | null;
-	customUserLimit: number | null;
-	customBitrate: number | null;
-	customRegion: string | null;
+// 	// Custom settings (null = using defaults)
+// 	customName: string | null;
+// 	customUserLimit: number | null;
+// 	customBitrate: number | null;
+// 	customRegion: string | null;
 
-	// State flags
-	isLocked: boolean;
-	isHidden: boolean;
+// 	// State flags
+// 	isLocked: boolean;
+// 	isHidden: boolean;
 
-	// Permission overrides
-	allowedUserIds: string[];
-	deniedUserIds: string[];
+// 	// Permission overrides
+// 	allowedUserIds: string[];
+// 	deniedUserIds: string[];
 
-	// Deletion management
-	deletionScheduledAt: Date | null;
+// 	// Deletion management
+// 	deletionScheduledAt: Date | null;
 
-	// Control panel
-	controlPanelMessageId: string | null;
-	controlPanelChannelId: string | null;
+// 	// Control panel
+// 	controlPanelMessageId: string | null;
+// 	controlPanelChannelId: string | null;
 
-	// Metadata
-	metadata: TempVoiceChannelMetadata;
+// 	// Metadata
+// 	metadata: TempVoiceChannelMetadata;
 
-	updatedAt: Date;
-}
+// 	updatedAt: Date;
+// }
 
 /**
  * Data for creating a new temp voice channel
