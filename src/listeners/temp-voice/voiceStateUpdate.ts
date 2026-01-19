@@ -86,10 +86,24 @@ export class VoiceStateUpdateListener extends Listener {
 
 		// Get config
 		const config = await this.configService.getOrNull(state.guild.id);
-		if (!config || !config.enabled) return;
+		if (!config || !config.enabled) {
+			this.container.logger.debug(
+				`[TempVoice] No config or disabled for guild ${state.guild.id}`
+			);
+			return;
+		}
+
+		this.container.logger.debug(
+			`[TempVoice] User ${state.member.id} joined channel ${state.channelId}`
+		);
+		this.container.logger.debug(
+			`[TempVoice] JTC channels: ${JSON.stringify(config.joinToCreateChannels)}`
+		);
 
 		// Check if this is a Join to Create channel
 		const isJTC = config.joinToCreateChannels.includes(state.channelId);
+
+		this.container.logger.debug(`[TempVoice] Is JTC channel: ${isJTC}`);
 
 		if (isJTC) {
 			// User joined a JTC channel - create temp channel
