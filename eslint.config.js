@@ -27,6 +27,7 @@ export default [
       '@typescript-eslint': tseslint,
     },
     rules: {
+      'no-unused-vars': 'off', // Handled by @typescript-eslint/no-unused-vars
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
