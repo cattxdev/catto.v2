@@ -84,9 +84,7 @@ export class LoggingConfigRoute extends Route {
 
 	private async handlePatch(guildId: string, request: Route.Request, response: Route.Response) {
 		try {
-			const body = (request as Route.Request & { body?: unknown }).body as {
-				enabled?: boolean;
-			} | undefined;
+			const body = await this.parseBody(request);
 
 			if (!body) {
 				return response.status(400).json({
@@ -124,5 +122,22 @@ export class LoggingConfigRoute extends Route {
 				error: 'Internal server error'
 			});
 		}
+	}
+
+	private async parseBody(request: Route.Request): Promise<any> {
+		return new Promise((resolve, reject) => {
+			let body = '';
+			request.on('data', (chunk: Buffer) => {
+				body += chunk.toString();
+			});
+			request.on('end', () => {
+				try {
+					resolve(body ? JSON.parse(body) : undefined);
+				} catch (error) {
+					resolve(undefined);
+				}
+			});
+			request.on('error', reject);
+		});
 	}
 }

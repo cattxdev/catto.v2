@@ -34,7 +34,7 @@ export class XPResetUserRoute extends Route {
 		}
 
 		// Parse body
-		const body = (request as Route.Request & { body?: unknown }).body as { userId?: string; reason?: string } | undefined;
+		const body = await this.parseBody(request);
 		const userId = body?.userId;
 		const reason = body?.reason;
 
@@ -60,5 +60,22 @@ export class XPResetUserRoute extends Route {
 				error: 'Internal server error'
 			});
 		}
+	}
+
+	private async parseBody(request: Route.Request): Promise<any> {
+		return new Promise((resolve, reject) => {
+			let body = '';
+			request.on('data', (chunk: Buffer) => {
+				body += chunk.toString();
+			});
+			request.on('end', () => {
+				try {
+					resolve(body ? JSON.parse(body) : undefined);
+				} catch (error) {
+					resolve(undefined);
+				}
+			});
+			request.on('error', reject);
+		});
 	}
 }
