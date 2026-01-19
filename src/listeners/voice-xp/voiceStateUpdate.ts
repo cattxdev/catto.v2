@@ -12,6 +12,7 @@ import {
 	handleVoiceMove,
 	handleVoiceStateUpdate
 } from '../../modules/xp-voice/services/voice-xp-session.service';
+import { getVoiceXPConfig } from '../../modules/xp-voice/services/voice-xp-config.service';
 
 export class VoiceStateUpdateListener extends Listener<typeof Events.VoiceStateUpdate> {
 	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -39,16 +40,21 @@ export class VoiceStateUpdateListener extends Listener<typeof Events.VoiceStateU
 					);
 					
 					// Send level-up announcement
-					const { getVoiceXPConfig } = await import('../../modules/xp-voice/services/voice-xp-config.service');
 					const config = await getVoiceXPConfig(oldState.guild.id);
 					
-					if (config.announceEnabled && config.announceChannelId) {
+					if (config.announceLevelUp && config.announceChannelId) {
 						const channel = oldState.guild.channels.cache.get(config.announceChannelId);
 						if (channel?.isTextBased()) {
 							try {
-								await channel.send(
-									`🎉 ${oldState.member.user} reached **Voice Level ${result.newLevel}**! (${result.newXp} total voice XP)`
-								);
+								// Use custom template or fallback
+								const template = config.messageTemplate || '🎤 {user} reached voice level {level}!';
+								const message = template
+									.replace(/{user}/g, `${oldState.member.user}`)
+									.replace(/{level}/g, `${result.newLevel}`)
+									.replace(/{xp}/g, `${result.newXp}`)
+									.replace(/{previousLevel}/g, `${result.previousLevel}`);
+								
+								await channel.send(message);
 							} catch (error) {
 								this.container.logger.error('[Voice XP] Failed to send level-up announcement:', error);
 							}
