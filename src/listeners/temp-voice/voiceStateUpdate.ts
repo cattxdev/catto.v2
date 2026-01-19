@@ -14,7 +14,7 @@ import { PermissionsService } from '../../modules/temp-voice/services/permission
 import { acquireLock } from '../../lib/redis';
 import { REDIS_KEYS } from '../../modules/temp-voice/constants';
 
-export class VoiceStateUpdateListener extends Listener {
+export class TempVoiceStateUpdateListener extends Listener {
 	private configService!: TempVoiceConfigService;
 	private channelService!: TempChannelService;
 	private cleanupService!: CleanupService;
@@ -25,6 +25,7 @@ export class VoiceStateUpdateListener extends Listener {
 		super(context, {
 			...options,
 			event: Events.VoiceStateUpdate,
+			name: 'tempVoiceStateUpdateListener',
 		});
 	}
 
