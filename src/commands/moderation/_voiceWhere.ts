@@ -8,22 +8,20 @@ import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
 export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWhereOptions(interaction);
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    // First check Redis cache for current voice state
     const cached = await getJson(
       CacheKey.voiceMemberPresence(options.guildId, options.targetId),
       VoiceMemberPresenceSchema
     );
 
-    // Also check Discord's live state
     let member;
     try {
       member = await options.guild.members.fetch(options.targetId);
     } catch {
       await interaction.editReply({
-        content: `❌ User **${options.target.tag}** is not a member of this server.`,
+        content: `User **${options.target.tag}** is not a member of this server.`,
       });
       return;
     }
@@ -31,47 +29,36 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    // Build Components V2 response
-    const containerComp = new ContainerBuilder();
+    const lines: string[] = [
+      `## Voice Location`,
+      `**User:** ${member.displayName} (${options.target.tag})`,
+    ];
 
     if (inVoice && voiceState.channel) {
       const muteStatus = getMuteStatusText(voiceState);
+      lines.push(`**Status:** Online`);
+      lines.push(`**Channel:** ${voiceState.channel.name}`);
+      lines.push(`**Audio:** ${muteStatus}`);
 
-      containerComp.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`## 🎙️ Voice Location`),
-        new TextDisplayBuilder().setContent(
-          `**User:** ${member.displayName} (${options.target.tag})`
-        ),
-        new TextDisplayBuilder().setContent(`🟢 **Channel:** ${voiceState.channel.name}`),
-        new TextDisplayBuilder().setContent(`🔇 **Status:** ${muteStatus}`),
-        new TextDisplayBuilder().setContent(
-          voiceState.streaming ? '📺 **Currently Streaming**' : ''
-        )
-      );
+      if (voiceState.streaming) {
+        lines.push(`**Streaming:** Yes`);
+      }
 
       if (cached) {
         const joinedAgo = Math.floor((Date.now() - cached.timestamp) / 1000);
-        containerComp.addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`⏱️ _State tracked for ${formatSeconds(joinedAgo)}_`)
-        );
+        lines.push(`_State tracked for ${formatSeconds(joinedAgo)}_`);
       }
     } else {
-      containerComp.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`## 🎙️ Voice Location`),
-        new TextDisplayBuilder().setContent(
-          `**User:** ${member.displayName} (${options.target.tag})`
-        ),
-        new TextDisplayBuilder().setContent(`🔴 **Not in a voice channel**`)
-      );
+      lines.push(`**Status:** Not in voice`);
 
       if (cached) {
-        containerComp.addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `_Last seen in voice <t:${Math.floor(cached.timestamp / 1000)}:R>_`
-          )
-        );
+        lines.push(`_Last seen in voice <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
       }
     }
+
+    const containerComp = new ContainerBuilder().addTextDisplayComponents(
+      ...lines.map((line) => new TextDisplayBuilder().setContent(line))
+    );
 
     await interaction.editReply({
       components: [containerComp],
@@ -80,7 +67,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
   } catch (error) {
     container.logger.error('Error in voice where command:', error);
     await interaction.editReply({
-      content: '❌ An error occurred while checking voice location.',
+      content: 'An error occurred while checking voice location.',
     });
   }
 }

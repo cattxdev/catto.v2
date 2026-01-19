@@ -7,11 +7,15 @@ import {
   TextDisplayBuilder,
   type ButtonInteraction,
 } from 'discord.js';
-import { getJson, deleteJson, CacheKey } from '#lib/cache/index.js';
+import { getJson, CacheKey } from '#lib/cache/index.js';
 import {
   VoiceWatchSessionSchema,
   VoiceTrackSessionSchema,
 } from '#root/modules/voice/domain/types.js';
+import {
+  cleanupWatchSession,
+  cleanupTrackSession,
+} from '#root/modules/voice/services/sessionManager.js';
 
 export class VoiceButtonInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -40,7 +44,6 @@ export class VoiceButtonInteractionListener extends Listener {
     if (!targetId) return;
 
     try {
-      // Find the watch session for this target
       const watchKey = CacheKey.voiceWatchByTarget(guildId, targetId);
       const interactionIds = await container.redis.smembers(watchKey);
 
@@ -50,9 +53,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const session = await getJson(sessionKey, VoiceWatchSessionSchema);
 
         if (session && session.messageId === interaction.message.id) {
-          // Clean up session
-          await deleteJson(sessionKey);
-          await container.redis.srem(watchKey, interactionId);
+          await cleanupWatchSession(guildId, interactionId, session);
           found = true;
           break;
         }
@@ -60,8 +61,8 @@ export class VoiceButtonInteractionListener extends Listener {
 
       if (found) {
         const containerComp = new ContainerBuilder().addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('## 👁️ Watch Stopped'),
-          new TextDisplayBuilder().setContent('Watching has been stopped by moderator.')
+          new TextDisplayBuilder().setContent('## Watch Stopped'),
+          new TextDisplayBuilder().setContent('Stopped by moderator.')
         );
 
         await interaction.update({
@@ -70,16 +71,16 @@ export class VoiceButtonInteractionListener extends Listener {
         });
       } else {
         await interaction.reply({
-          content: '❌ This watch session has already ended or was not found.',
-          ephemeral: true,
+          content: 'This watch session has already ended or was not found.',
+          flags: MessageFlags.Ephemeral,
         });
       }
     } catch (error) {
       container.logger.error('[VoiceButtonInteraction] Error stopping watch:', error);
       await interaction
         .reply({
-          content: '❌ An error occurred while stopping the watch.',
-          ephemeral: true,
+          content: 'An error occurred while stopping the watch.',
+          flags: MessageFlags.Ephemeral,
         })
         .catch(() => {});
     }
@@ -90,7 +91,6 @@ export class VoiceButtonInteractionListener extends Listener {
     if (!channelId) return;
 
     try {
-      // Find the track session for this channel
       const trackKey = CacheKey.voiceTrackByChannel(guildId, channelId);
       const interactionIds = await container.redis.smembers(trackKey);
 
@@ -100,9 +100,7 @@ export class VoiceButtonInteractionListener extends Listener {
         const session = await getJson(sessionKey, VoiceTrackSessionSchema);
 
         if (session && session.messageId === interaction.message.id) {
-          // Clean up session
-          await deleteJson(sessionKey);
-          await container.redis.srem(trackKey, interactionId);
+          await cleanupTrackSession(guildId, interactionId, session);
           found = true;
           break;
         }
@@ -110,8 +108,8 @@ export class VoiceButtonInteractionListener extends Listener {
 
       if (found) {
         const containerComp = new ContainerBuilder().addTextDisplayComponents(
-          new TextDisplayBuilder().setContent('## 📡 Track Stopped'),
-          new TextDisplayBuilder().setContent('Channel tracking has been stopped by moderator.')
+          new TextDisplayBuilder().setContent('## Track Stopped'),
+          new TextDisplayBuilder().setContent('Stopped by moderator.')
         );
 
         await interaction.update({
@@ -120,16 +118,16 @@ export class VoiceButtonInteractionListener extends Listener {
         });
       } else {
         await interaction.reply({
-          content: '❌ This track session has already ended or was not found.',
-          ephemeral: true,
+          content: 'This track session has already ended or was not found.',
+          flags: MessageFlags.Ephemeral,
         });
       }
     } catch (error) {
       container.logger.error('[VoiceButtonInteraction] Error stopping track:', error);
       await interaction
         .reply({
-          content: '❌ An error occurred while stopping the track.',
-          ephemeral: true,
+          content: 'An error occurred while stopping the track.',
+          flags: MessageFlags.Ephemeral,
         })
         .catch(() => {});
     }

@@ -15,23 +15,27 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
 
   if (!options) {
     await interaction.reply({
-      content: '❌ Please select a valid voice channel.',
-      ephemeral: true,
+      content: 'Please select a valid voice channel.',
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const voiceChannel = options.channel;
     const members = voiceChannel.members;
     const memberCount = members.size;
 
+    const lines: string[] = [
+      `## Snapshot: ${voiceChannel.name}`,
+      `**Members:** ${memberCount}`,
+      `**Taken:** <t:${Math.floor(Date.now() / 1000)}:F>`,
+    ];
+
     const containerComp = new ContainerBuilder().addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## 📸 Voice Snapshot: ${voiceChannel.name}`),
-      new TextDisplayBuilder().setContent(`**Members:** ${memberCount}`),
-      new TextDisplayBuilder().setContent(`**Taken:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+      ...lines.map((line) => new TextDisplayBuilder().setContent(line))
     );
 
     if (memberCount === 0) {
@@ -43,12 +47,11 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
       );
 
-      // Build member list (limit to 25 for display)
-      const memberList = Array.from(members.values())
+      const memberLines = Array.from(members.values())
         .slice(0, 25)
-        .map((member: GuildMember) => formatMemberLine(member))
-        .join('\n');
+        .map((member: GuildMember) => formatMemberLine(member));
 
+      const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
       containerComp.addTextDisplayComponents(new TextDisplayBuilder().setContent(memberList));
 
       if (memberCount > 25) {
@@ -58,12 +61,11 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
       }
     }
 
-    // Add channel info
     containerComp
       .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `📊 **Channel Info:** User Limit: ${voiceChannel.userLimit || '∞'} • Bitrate: ${Math.floor(voiceChannel.bitrate / 1000)}kbps`
+          `**Channel Info:** User Limit: ${voiceChannel.userLimit || 'None'} | Bitrate: ${Math.floor(voiceChannel.bitrate / 1000)}kbps`
         )
       );
 
@@ -74,19 +76,20 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
   } catch (error) {
     container.logger.error('Error in voice snapshot command:', error);
     await interaction.editReply({
-      content: '❌ An error occurred while taking the snapshot.',
+      content: 'An error occurred while taking the snapshot.',
     });
   }
 }
 
 function formatMemberLine(member: GuildMember): string {
   const voice = member.voice;
-  const muteEmoji = voice.selfMute || voice.serverMute ? '🔇' : '🔊';
-  const deafEmoji = voice.selfDeaf || voice.serverDeaf ? '🔕' : '';
-  const streamEmoji = voice.streaming ? '📺' : '';
-  const videoEmoji = voice.selfVideo ? '📹' : '';
+  const indicators: string[] = [];
 
-  const statusIcons = [muteEmoji, deafEmoji, streamEmoji, videoEmoji].filter(Boolean).join(' ');
+  if (voice.selfMute || voice.serverMute) indicators.push('[M]');
+  if (voice.selfDeaf || voice.serverDeaf) indicators.push('[D]');
+  if (voice.streaming) indicators.push('[S]');
+  if (voice.selfVideo) indicators.push('[V]');
 
-  return `${statusIcons} **${member.displayName}** (${member.user.tag})`;
+  const status = indicators.length > 0 ? ` ${indicators.join(' ')}` : '';
+  return `**${member.displayName}** (${member.user.tag})${status}`;
 }

@@ -9,7 +9,7 @@ import {
   type VoiceMemberPresence,
 } from '#root/modules/voice/domain/types.js';
 import { getJson } from '#lib/cache/index.js';
-import { voiceUpdateService } from '#root/modules/voice/services/VoiceUpdateService.js';
+import { handleWatchUpdate, handleTrackUpdate } from '#root/modules/voice/services/voiceUpdate.js';
 
 export class VoiceStateUpdateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -104,7 +104,7 @@ export class VoiceStateUpdateListener extends Listener {
       const session = await getJson(sessionKey, VoiceWatchSessionSchema);
 
       if (session && session.endsAt > Date.now()) {
-        await voiceUpdateService.handleWatchUpdate(guildId, interactionId, session, newState);
+        await handleWatchUpdate(guildId, interactionId, session, newState);
       }
     }
 
@@ -122,13 +122,7 @@ export class VoiceStateUpdateListener extends Listener {
         const session = await getJson(sessionKey, VoiceTrackSessionSchema);
 
         if (session && session.endsAt > Date.now()) {
-          await voiceUpdateService.handleTrackUpdate(
-            guildId,
-            interactionId,
-            session,
-            channelId,
-            newState.guild
-          );
+          await handleTrackUpdate(guildId, interactionId, session, channelId, newState.guild);
         }
       }
     }

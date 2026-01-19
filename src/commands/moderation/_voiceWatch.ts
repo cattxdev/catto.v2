@@ -18,31 +18,31 @@ import {
   VOICE_CACHE_TTL,
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
+import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 
 export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWatchOptions(interaction);
 
   if (!options) {
     await interaction.reply({
-      content: '❌ Invalid duration format. Use formats like: 1m, 5m, 10m, 15m',
-      ephemeral: true,
+      content: 'Invalid duration format. Use formats like: 1m, 5m, 10m, 15m',
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  // Validate duration bounds
   if (options.durationSeconds < VOICE_WATCH_CONFIG.minDurationSeconds) {
     await interaction.reply({
-      content: `❌ Minimum watch duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`,
-      ephemeral: true,
+      content: `Minimum watch duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   if (options.durationSeconds > VOICE_WATCH_CONFIG.maxDurationSeconds) {
     await interaction.reply({
-      content: `❌ Maximum watch duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`,
-      ephemeral: true,
+      content: `Maximum watch duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -50,13 +50,12 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
   await interaction.deferReply();
 
   try {
-    // Fetch target member
     let member;
     try {
       member = await options.guild.members.fetch(options.targetId);
     } catch {
       await interaction.editReply({
-        content: `❌ User **${options.target.tag}** is not a member of this server.`,
+        content: `User **${options.target.tag}** is not a member of this server.`,
       });
       return;
     }
@@ -65,15 +64,13 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
     const now = Date.now();
     const endsAt = now + options.durationSeconds * 1000;
 
-    // Build initial message
-    const containerComp = buildWatchMessage(options, member, voiceState, now, endsAt, 0);
+    const containerComp = buildWatchMessage(options, member, voiceState, endsAt, 0);
 
     const reply = await interaction.editReply({
       components: [containerComp],
       flags: MessageFlags.IsComponentsV2,
     });
 
-    // Store watch session in Redis
     const session: VoiceWatchSession = {
       targetId: options.targetId,
       channelId: voiceState.channelId,
@@ -85,7 +82,6 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
       updateCount: 0,
     };
 
-    // Store session
     await setJson(
       CacheKey.voiceWatch(options.guildId, interaction.id),
       VoiceWatchSessionSchema,
@@ -93,7 +89,6 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
       VOICE_CACHE_TTL.watchSession
     );
 
-    // Add to target index for lookup during voice state updates
     await container.redis.sadd(
       CacheKey.voiceWatchByTarget(options.guildId, options.targetId),
       interaction.id
@@ -102,10 +97,12 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
       CacheKey.voiceWatchByTarget(options.guildId, options.targetId),
       VOICE_CACHE_TTL.watchSession
     );
+
+    registerSession('watch', options.guildId, interaction.id);
   } catch (error) {
     container.logger.error('Error in voice watch command:', error);
     await interaction.editReply({
-      content: '❌ An error occurred while starting the watch.',
+      content: 'An error occurred while starting the watch.',
     });
   }
 }
@@ -122,7 +119,6 @@ function buildWatchMessage(
     serverDeaf: boolean | null;
     streaming: boolean | null;
   },
-  _now: number,
   endsAt: number,
   updateCount: number
 ): ContainerBuilder {
@@ -130,37 +126,37 @@ function buildWatchMessage(
   const channelName = voiceState.channelId
     ? (voiceState.channel?.name ?? 'Unknown')
     : 'Not in voice';
-
-  const statusEmoji = voiceState.channelId ? '🟢' : '🔴';
+  const statusIndicator = voiceState.channelId ? '[Online]' : '[Offline]';
   const muteStatus = getMuteStatus(voiceState);
 
-  const containerComp = new ContainerBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## 👁️ Watching: ${displayName}`),
-    new TextDisplayBuilder().setContent(`**Target:** ${options.target.tag}`),
-    new TextDisplayBuilder().setContent(`${statusEmoji} **Channel:** ${channelName}`),
-    new TextDisplayBuilder().setContent(`🔇 **Status:** ${muteStatus}`)
-  );
+  const lines: string[] = [
+    `## Watching: ${displayName}`,
+    `**Target:** ${options.target.tag}`,
+    `${statusIndicator} **Channel:** ${channelName}`,
+    `**Audio:** ${muteStatus}`,
+  ];
 
   if (voiceState.streaming) {
-    containerComp.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('📺 **Currently Streaming**')
-    );
+    lines.push('**Streaming:** Yes');
   }
+
+  const containerComp = new ContainerBuilder().addTextDisplayComponents(
+    ...lines.map((line) => new TextDisplayBuilder().setContent(line))
+  );
 
   containerComp
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `⏱️ Ends <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `Ends <t:${Math.floor(endsAt / 1000)}:R> | Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     )
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_watch_stop:${options.targetId}`)
-          .setLabel('Stop Watching')
+          .setLabel('Stop')
           .setStyle(ButtonStyle.Danger)
-          .setEmoji('⏹️')
       )
     );
 

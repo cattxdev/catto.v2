@@ -19,6 +19,7 @@ import {
   VOICE_CACHE_TTL,
   type VoiceTrackSession,
 } from '#root/modules/voice/domain/types.js';
+import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 
 export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceTrackOptions(interaction);
@@ -26,25 +27,24 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
   if (!options) {
     await interaction.reply({
       content:
-        '❌ Invalid channel or duration. Please select a voice channel and use formats like: 1m, 5m, 10m, 15m',
-      ephemeral: true,
+        'Invalid channel or duration. Please select a voice channel and use formats like: 1m, 5m, 10m, 15m',
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  // Validate duration bounds
   if (options.durationSeconds < VOICE_WATCH_CONFIG.minDurationSeconds) {
     await interaction.reply({
-      content: `❌ Minimum track duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`,
-      ephemeral: true,
+      content: `Minimum track duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   if (options.durationSeconds > VOICE_WATCH_CONFIG.maxDurationSeconds) {
     await interaction.reply({
-      content: `❌ Maximum track duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`,
-      ephemeral: true,
+      content: `Maximum track duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -56,7 +56,6 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
     const now = Date.now();
     const endsAt = now + options.durationSeconds * 1000;
 
-    // Build initial message
     const containerComp = buildTrackMessage(options, voiceChannel, endsAt, 0);
 
     const reply = await interaction.editReply({
@@ -64,7 +63,6 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
       flags: MessageFlags.IsComponentsV2,
     });
 
-    // Store track session in Redis
     const session: VoiceTrackSession = {
       channelId: options.channelId,
       startedAt: now,
@@ -75,7 +73,6 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
       updateCount: 0,
     };
 
-    // Store session
     await setJson(
       CacheKey.voiceTrack(options.guildId, interaction.id),
       VoiceTrackSessionSchema,
@@ -83,7 +80,6 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
       VOICE_CACHE_TTL.trackSession
     );
 
-    // Add to channel index for lookup during voice state updates
     await container.redis.sadd(
       CacheKey.voiceTrackByChannel(options.guildId, options.channelId),
       interaction.id
@@ -92,10 +88,12 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
       CacheKey.voiceTrackByChannel(options.guildId, options.channelId),
       VOICE_CACHE_TTL.trackSession
     );
+
+    registerSession('track', options.guildId, interaction.id);
   } catch (error) {
     container.logger.error('Error in voice track command:', error);
     await interaction.editReply({
-      content: '❌ An error occurred while starting the track.',
+      content: 'An error occurred while starting the track.',
     });
   }
 }
@@ -109,41 +107,44 @@ function buildTrackMessage(
   const members = voiceChannel.members;
   const memberCount = members.size;
 
-  const memberList = Array.from(members.values())
+  const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((member: GuildMember) => {
-      const muteEmoji = member.voice.selfMute || member.voice.serverMute ? '🔇' : '🔊';
-      const streamEmoji = member.voice.streaming ? '📺' : '';
-      return `${muteEmoji} ${member.displayName} ${streamEmoji}`;
-    })
-    .join('\n');
+      const muteIndicator = member.voice.selfMute || member.voice.serverMute ? '[M]' : '';
+      const streamIndicator = member.voice.streaming ? '[S]' : '';
+      const indicators = [muteIndicator, streamIndicator].filter(Boolean).join(' ');
+      return indicators ? `${member.displayName} ${indicators}` : member.displayName;
+    });
 
-  const moreCount = memberCount > 10 ? `\n_... and ${memberCount - 10} more_` : '';
+  const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
+
+  const lines: string[] = [
+    `## Tracking: ${voiceChannel.name}`,
+    `**Members:** ${memberCount}`,
+    memberList,
+  ];
+
+  if (memberCount > 10) {
+    lines.push(`_... and ${memberCount - 10} more_`);
+  }
 
   const containerComp = new ContainerBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## 📡 Tracking: ${voiceChannel.name}`),
-    new TextDisplayBuilder().setContent(`👥 **Members:** ${memberCount}`),
-    new TextDisplayBuilder().setContent(memberList || '_No members in channel_')
+    ...lines.map((line) => new TextDisplayBuilder().setContent(line))
   );
-
-  if (moreCount) {
-    containerComp.addTextDisplayComponents(new TextDisplayBuilder().setContent(moreCount));
-  }
 
   containerComp
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `⏱️ Ends <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `Ends <t:${Math.floor(endsAt / 1000)}:R> | Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     )
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_track_stop:${options.channelId}`)
-          .setLabel('Stop Tracking')
+          .setLabel('Stop')
           .setStyle(ButtonStyle.Danger)
-          .setEmoji('⏹️')
       )
     );
 
