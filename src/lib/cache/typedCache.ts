@@ -141,4 +141,15 @@ export const CacheKey = {
   modCase: (guildId: string, caseNumber: number) => `mod:case:${guildId}:${caseNumber}`,
   userCases: (guildId: string, userId: string) => `mod:usercases:${guildId}:${userId}`,
   guildSettings: (guildId: string) => `guild:settings:${guildId}`,
+  // Voice-related keys
+  voiceMemberPresence: (guildId: string, userId: string) =>
+    `guild:${guildId}:voice:member:${userId}`,
+  voiceChannelMembers: (guildId: string, channelId: string) =>
+    `guild:${guildId}:voice:channel:${channelId}:members`,
+  voiceWatch: (guildId: string, interactionId: string) => `voiceWatch:${guildId}:${interactionId}`,
+  voiceTrack: (guildId: string, interactionId: string) => `voiceTrack:${guildId}:${interactionId}`,
+  voiceWatchByTarget: (guildId: string, targetId: string) =>
+    `voiceWatch:target:${guildId}:${targetId}`,
+  voiceTrackByChannel: (guildId: string, channelId: string) =>
+    `voiceTrack:channel:${guildId}:${channelId}`,
 } as const;
