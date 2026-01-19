@@ -594,3 +594,98 @@ model VoiceXPEventLog {
   @@index([eventType])
   @@map("voice_xp_event_logs")
 }
+
+// ============================================
+// Temporary Voice Channels Module
+// ============================================
+
+// Configuration for the temp voice module per guild
+model TempVoiceConfig {
+  id                    String   @id @default(cuid())
+  guildId               String   @unique
+  enabled               Boolean  @default(true)
+  
+  // Join to Create channels
+  joinToCreateChannels  Json     @default("[]")        // string[] of channel IDs
+  
+  // Creation settings
+  categoryId            String?
+  fallbackCategoryId    String?
+  defaultNameTemplate   String   @default("{username}'s Channel")
+  
+  // Default channel settings
+  defaultUserLimit      Int      @default(0)           // 0 = unlimited
+  defaultBitrate        Int?                            // null = Discord default (in kbps)
+  defaultRegion         String?                         // null = auto
+  defaultLocked         Boolean  @default(false)
+  defaultHidden         Boolean  @default(false)
+  
+  // Cleanup settings
+  deleteDelaySeconds    Int      @default(5)
+  ownerLeaveStrategy    String   @default("TRANSFER")  // TRANSFER | KEEP | DELETE
+  
+  // Anti-abuse
+  cooldownSeconds       Int      @default(10)
+  maxChannelsPerUser    Int      @default(3)
+  
+  // Control panel
+  controlPanelEnabled   Boolean  @default(true)
+  controlPanelOnCreate  Boolean  @default(true)
+  
+  // Logging
+  logChannelId          String?
+  
+  // Permissions
+  adminRoleIds          Json     @default("[]")        // string[] - roles that can manage any temp channel
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([guildId])
+  @@map("temp_voice_configs")
+}
+
+// Active temporary voice channels
+model TempVoiceChannel {
+  id                    String   @id @default(cuid())
+  guildId               String
+  channelId             String   @unique
+  ownerId               String
+  
+  // Creation context
+  createdByJoinChannelId String
+  createdAt             DateTime @default(now())
+  lastActiveAt          DateTime @default(now())
+  
+  // Custom settings (null = using defaults)
+  customName            String?
+  customUserLimit       Int?
+  customBitrate         Int?
+  customRegion          String?
+  
+  // State flags
+  isLocked              Boolean  @default(false)
+  isHidden              Boolean  @default(false)
+  
+  // Permission overrides
+  allowedUserIds        Json     @default("[]")        // string[]
+  deniedUserIds         Json     @default("[]")        // string[]
+  
+  // Deletion management
+  deletionScheduledAt   DateTime?
+  
+  // Control panel
+  controlPanelMessageId String?
+  controlPanelChannelId String?
+  
+  // Metadata
+  metadata              Json     @default("{}")
+  
+  updatedAt             DateTime @updatedAt
+  
+  @@index([guildId])
+  @@index([ownerId])
+  @@index([channelId])
+  @@index([deletionScheduledAt])
+  @@map("temp_voice_channels")
+}
