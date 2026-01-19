@@ -21,6 +21,19 @@ enum ModAction {
   UNMUTE
   SOFTBAN
   TEMPBAN
+  MUTE_TEXT
+  MUTE_VOICE
+  MUTE_BOTH
+  UNMUTE_TEXT
+  UNMUTE_VOICE
+  UNMUTE_BOTH
+}
+
+// Mute type variants
+enum MuteType {
+  TEXT    // Can't send messages in text channels
+  VOICE   // Server deafened in voice channels
+  BOTH    // Both text and voice muted
 }
 
 // Moderation case status
@@ -120,8 +133,12 @@ model ModConfig {
   id              String   @id @default(cuid())
   guildId         String   @unique
   modLogChannelId String?  // Channel for moderation logs
-  muteRoleId      String?  // Role for muting users
+  muteRoleId      String?  // Role for muting users (legacy, use mutedTextRole)
+  mutedTextRole   String?  // Role to apply for text mutes
+  mutedVoiceRole  String?  // Role to apply for voice mutes (alternative to server mute)
+  muteSettings    Json     @default("{}") // { allowInThreads: false, exemptChannels: [] }
   autoModEnabled  Boolean  @default(false)
+  warningEscalation Json   @default("{}") // { enabled: true, thresholds: { 3: 'timeout', 5: 'mute', 10: 'tempban' } }
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
@@ -129,6 +146,117 @@ model ModConfig {
 
   @@index([guildId])
   @@map("mod_configs")
+}
+
+// Active Mutes tracking
+model Mute {
+  id          String    @id @default(cuid())
+  guildId     String
+  userId      String
+  createdById String
+  type        MuteType
+  reason      String
+  duration    Int?      // seconds, null = permanent
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  active      Boolean   @default(true)
+  
+  @@unique([guildId, userId, type])
+  @@index([guildId, active])
+  @@index([expiresAt])
+  @@map("mutes")
+}
+
+// User Flags for moderation tracking
+model UserFlag {
+  id          String    @id @default(cuid())
+  guildId     String
+  userId      String
+  flag        String    // SUSPICIOUS, AUTO_FLAGGED, RAID_PARTICIPANT, ALT_ACCOUNT, TRUSTED, APPEALED
+  reason      String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  
+  @@unique([guildId, userId, flag])
+  @@index([guildId, active])
+  @@map("user_flags")
+}
+
+// Case Templates for quick moderation actions
+model CaseTemplate {
+  id          String   @id @default(cuid())
+  guildId     String
+  name        String
+  action      ModAction
+  reason      String
+  duration    String?  // Duration string like "1h", "7d"
+  createdById String
+  createdAt   DateTime @default(now())
+  
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@map("case_templates")
+}
+
+// Moderation Queue for pending review items
+model ModerationQueueItem {
+  id           String    @id @default(cuid())
+  guildId      String
+  targetId     String
+  reportedById String?
+  reason       String
+  priority     Int       @default(0)
+  status       String    @default("pending") // pending, claimed, resolved
+  claimedById  String?
+  claimedAt    DateTime?
+  resolvedAt   DateTime?
+  resolution   String?
+  createdAt    DateTime  @default(now())
+  
+  @@index([guildId, status])
+  @@index([priority])
+  @@map("moderation_queue")
+}
+
+// Moderation Events for analytics
+model ModEvent {
+  id            String   @id @default(cuid())
+  guildId       String
+  timestamp     DateTime @default(now())
+  
+  // Actor
+  actorId       String
+  actorType     String   // user, bot, automod
+  
+  // Target
+  targetId      String?
+  targetType    String?  // user, message, channel, role
+  
+  // Action
+  action        String   // ModAction enum or custom action string
+  category      String   // punishment, info, config, appeal
+  
+  // Context
+  reason        String?
+  metadata      Json     @default("{}")
+  
+  // Outcome
+  success       Boolean
+  errorType     String?
+  latencyMs     Int      @default(0)
+  
+  // Correlation
+  caseId        String?
+  caseNumber    Int?
+  correlationId String?  // Link related events
+  
+  @@index([guildId, timestamp])
+  @@index([action])
+  @@index([actorId])
+  @@index([targetId])
+  @@map("mod_events")
 }
 
 // Logging Configuration per Guild

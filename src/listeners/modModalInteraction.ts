@@ -12,6 +12,7 @@ import {
   decodeReasonModalCustomId,
   decodeDurationModalCustomId,
   decodeNoteModalCustomId,
+  decodeMuteModalCustomId,
 } from '#root/modules/moderation/discord/customId.js';
 import {
   buildModActionSuccessV2,
@@ -19,7 +20,8 @@ import {
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
-import { asGuildId, asUserId } from '#root/modules/moderation/domain/types.js';
+import { muteService } from '#root/modules/moderation/services/MuteService.js';
+import { asGuildId, asUserId, asDuration } from '#root/modules/moderation/domain/types.js';
 import {
   createModEmbed,
   notifyUser,
@@ -50,6 +52,8 @@ export class ModModalInteractionListener extends Listener {
       await this.handleDurationModal(interaction);
     } else if (customId.startsWith('modnote:')) {
       await this.handleNoteModal(interaction);
+    } else if (customId.startsWith('modmute:')) {
+      await this.handleMuteModal(interaction);
     }
   }
 
@@ -434,13 +438,195 @@ export class ModModalInteractionListener extends Listener {
       const tagsDisplay =
         tags.length > 0 ? `\n**Tags:** ${tags.map((t) => `\`${t}\``).join(', ')}` : '';
       await interaction.editReply({
-        content: `✅ Note added for **${target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``,
+        content: `Note added for **${target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``,
       });
     } catch (error) {
       container.logger.error('[ModModalInteraction] Error in note modal:', error);
       await interaction
         .editReply({
-          content: '❌ An unexpected error occurred.',
+          content: 'An unexpected error occurred.',
+        })
+        .catch(() => {});
+    }
+  }
+
+  private async handleMuteModal(interaction: ModalSubmitInteraction): Promise<void> {
+    const parsed = decodeMuteModalCustomId(interaction.customId);
+    if (!parsed) {
+      await interaction.reply({
+        content: 'Invalid modal data.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    // Permission check
+    const member = interaction.member as GuildMember;
+    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+      await interaction.reply({
+        content: 'You do not have permission to use this.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const durationStr = interaction.fields.getTextInputValue('duration');
+    const reason = interaction.fields.getTextInputValue('reason');
+    const targetId = parsed.targetId;
+    const muteType = parsed.action;
+
+    // Validate duration if provided
+    let durationSeconds: number | undefined;
+    if (durationStr && durationStr.trim().length > 0) {
+      const validation = safeParse(durationStringSchema, durationStr);
+      if (!validation.success) {
+        await interaction.reply({
+          content: 'Invalid duration format. Use formats like: 10m, 1h, 1d',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+      durationSeconds = parseDurationToSeconds(durationStr) ?? undefined;
+    }
+
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    try {
+      const guild = interaction.guild!;
+      const target = await interaction.client.users.fetch(targetId).catch(() => null);
+
+      if (!target) {
+        const errorContainer = buildModActionErrorV2('User not found.');
+        await interaction.editReply({
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      // Get target member
+      let targetMember: GuildMember | null = null;
+      try {
+        targetMember = await guild.members.fetch(targetId);
+      } catch {
+        // User may not be in the server
+      }
+
+      if (!targetMember) {
+        const errorContainer = buildModActionErrorV2('User is not in this server.');
+        await interaction.editReply({
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      // Check moderation hierarchy
+      const canModerateResult = moderationService.canModerate(member, targetMember);
+      if (!canModerateResult.canModerate) {
+        const errorContainer = buildModActionErrorV2(
+          canModerateResult.reason ?? 'Cannot moderate this user.'
+        );
+        await interaction.editReply({
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      // Execute the mute action
+      let result;
+      let modAction: ModAction;
+
+      const muteInput = {
+        guildId: asGuildId(guild.id),
+        userId: asUserId(targetId),
+        createdById: asUserId(interaction.user.id),
+        reason,
+        duration: durationSeconds ? asDuration(durationSeconds) : undefined,
+      };
+
+      switch (muteType) {
+        case 'text':
+          modAction = ModAction.MUTE_TEXT;
+          result = await muteService.muteText(
+            guild,
+            targetMember,
+            asUserId(interaction.user.id),
+            interaction.user.tag,
+            muteInput
+          );
+          break;
+        case 'voice':
+          modAction = ModAction.MUTE_VOICE;
+          result = await muteService.muteVoice(
+            guild,
+            targetMember,
+            asUserId(interaction.user.id),
+            interaction.user.tag,
+            muteInput
+          );
+          break;
+        case 'both':
+          modAction = ModAction.MUTE_BOTH;
+          result = await muteService.muteBoth(
+            guild,
+            targetMember,
+            asUserId(interaction.user.id),
+            interaction.user.tag,
+            muteInput
+          );
+          break;
+        default: {
+          const errorContainer = buildModActionErrorV2('Unknown mute type.');
+          await interaction.editReply({
+            components: [errorContainer],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
+      }
+
+      if (!result.success) {
+        const errorContainer = buildModActionErrorV2(result.error ?? 'Mute action failed.');
+        await interaction.editReply({
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
+        return;
+      }
+
+      // Log to mod channel
+      const embed = createModEmbed(
+        modAction,
+        target,
+        interaction.user,
+        reason,
+        result.caseNumber,
+        durationSeconds ? asDuration(durationSeconds) : undefined
+      );
+      await logToModChannel(guild, embed);
+
+      // Show success
+      const durationText = durationSeconds ? formatDuration(durationSeconds) : undefined;
+      const successContainer = buildModActionSuccessV2(
+        `MUTE ${muteType.toUpperCase()}`,
+        target,
+        result.caseNumber!,
+        reason,
+        durationText
+      );
+      await interaction.editReply({
+        components: [successContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch (error) {
+      container.logger.error('[ModModalInteraction] Error in mute modal:', error);
+      const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
+      await interaction
+        .editReply({
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
         })
         .catch(() => {});
     }

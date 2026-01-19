@@ -479,3 +479,83 @@ export function parseVoiceTrackOptions(
     moderator: interaction.user,
   };
 }
+
+// ==================== Mute Command Options ====================
+
+/**
+ * Parsed mute options
+ */
+export interface MuteOptions {
+  target: User;
+  targetId: UserId;
+  reason: string;
+  durationSeconds?: DurationSeconds;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+  moderatorMember: GuildMember;
+}
+
+/**
+ * Parsed unmute options
+ */
+export interface UnmuteOptions {
+  target: User;
+  targetId: UserId;
+  reason: string;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+  moderatorMember: GuildMember;
+}
+
+/**
+ * Parse mute subcommand options (with optional duration)
+ */
+export function parseMuteOptions(interaction: ChatInputCommandInteraction): MuteOptions | null {
+  const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target', true);
+  const reason = interaction.options.getString('reason', true);
+  const durationStr = interaction.options.getString('duration');
+
+  let durationSeconds: DurationSeconds | undefined;
+  if (durationStr) {
+    const validation = safeParse(durationStringSchema, durationStr);
+    if (!validation.success) {
+      return null;
+    }
+    durationSeconds = parseDurationToSeconds(durationStr) ?? undefined;
+  }
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    durationSeconds,
+    guild,
+    guildId,
+    moderator: interaction.user,
+    moderatorMember,
+  };
+}
+
+/**
+ * Parse unmute subcommand options
+ */
+export function parseUnmuteOptions(interaction: ChatInputCommandInteraction): UnmuteOptions {
+  const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target', true);
+  const reason = interaction.options.getString('reason') ?? 'No reason provided';
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    guild,
+    guildId,
+    moderator: interaction.user,
+    moderatorMember,
+  };
+}

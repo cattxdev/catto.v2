@@ -25,6 +25,22 @@ import { handleContext } from './_context.js';
 import { handleNoteAdd, handleNoteList, handleNoteDelete } from './_note.js';
 import { handleCaseEdit, handleCaseLink, handleCaseClose } from './_caseManagement.js';
 import { handleAppealCreate, handleAppealList, handleAppealResolve } from './_appeal.js';
+import {
+  handleMuteText,
+  handleMuteVoice,
+  handleMuteBoth,
+  handleUnmuteText,
+  handleUnmuteVoice,
+  handleUnmuteBoth,
+  handleMutesList,
+} from './_mute.js';
+import {
+  handleSetup,
+  handleConfigModLog,
+  handleConfigTextRole,
+  handleConfigVoiceRole,
+  handleConfigView,
+} from './_setup.js';
 
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
@@ -117,6 +133,47 @@ import { handleAppealCreate, handleAppealList, handleAppealResolve } from './_ap
         { name: 'resolve', chatInputRun: 'chatInputAppealResolve' },
       ],
     },
+    // Mute subcommand group
+    {
+      name: 'mute',
+      type: 'group',
+      entries: [
+        { name: 'text', chatInputRun: 'chatInputMuteText' },
+        { name: 'voice', chatInputRun: 'chatInputMuteVoice' },
+        { name: 'both', chatInputRun: 'chatInputMuteBoth' },
+      ],
+    },
+    // Unmute subcommand group
+    {
+      name: 'unmute',
+      type: 'group',
+      entries: [
+        { name: 'text', chatInputRun: 'chatInputUnmuteText' },
+        { name: 'voice', chatInputRun: 'chatInputUnmuteVoice' },
+        { name: 'both', chatInputRun: 'chatInputUnmuteBoth' },
+      ],
+    },
+    // Mutes list
+    {
+      name: 'mutes',
+      chatInputRun: 'chatInputMutesList',
+    },
+    // Setup wizard
+    {
+      name: 'setup',
+      chatInputRun: 'chatInputSetup',
+    },
+    // Config subcommand group
+    {
+      name: 'config',
+      type: 'group',
+      entries: [
+        { name: 'modlog', chatInputRun: 'chatInputConfigModLog' },
+        { name: 'textrole', chatInputRun: 'chatInputConfigTextRole' },
+        { name: 'voicerole', chatInputRun: 'chatInputConfigVoiceRole' },
+        { name: 'view', chatInputRun: 'chatInputConfigView' },
+      ],
+    },
   ],
 })
 export class ModCommand extends Subcommand {
@@ -138,10 +195,15 @@ export class ModCommand extends Subcommand {
         .addSubcommand(this.buildTempbanSubcommand)
         .addSubcommand(this.buildPanelSubcommand)
         .addSubcommand(this.buildContextSubcommand)
+        .addSubcommand(this.buildMutesSubcommand)
+        .addSubcommand(this.buildSetupSubcommand)
         .addSubcommandGroup(this.buildVoiceSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildNoteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildCaseModSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildAppealSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildMuteSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildUnmuteSubcommandGroup.bind(this))
+        .addSubcommandGroup(this.buildConfigSubcommandGroup.bind(this))
     );
   }
 
@@ -511,6 +573,173 @@ export class ModCommand extends Subcommand {
       );
   }
 
+  private buildMutesSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('mutes')
+      .setDescription('List active mutes')
+      .addUserOption((option) =>
+        option.setName('target').setDescription('Filter by user (optional)')
+      )
+      .addStringOption((option) =>
+        option
+          .setName('type')
+          .setDescription('Filter by mute type')
+          .addChoices(
+            { name: 'Text', value: 'TEXT' },
+            { name: 'Voice', value: 'VOICE' },
+            { name: 'Both', value: 'BOTH' }
+          )
+      );
+  }
+
+  private buildMuteSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('mute')
+      .setDescription('Mute a user (text, voice, or both)')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('text')
+          .setDescription('Mute a user in text channels')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to mute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('reason')
+              .setDescription('Reason for the mute')
+              .setRequired(true)
+              .setMaxLength(512)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('duration')
+              .setDescription('Duration (e.g., 1h, 1d, 7d) - leave empty for permanent')
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('voice')
+          .setDescription('Mute a user in voice channels (server deafen)')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to mute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('reason')
+              .setDescription('Reason for the mute')
+              .setRequired(true)
+              .setMaxLength(512)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('duration')
+              .setDescription('Duration (e.g., 1h, 1d, 7d) - leave empty for permanent')
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('both')
+          .setDescription('Mute a user in both text and voice channels')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to mute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('reason')
+              .setDescription('Reason for the mute')
+              .setRequired(true)
+              .setMaxLength(512)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('duration')
+              .setDescription('Duration (e.g., 1h, 1d, 7d) - leave empty for permanent')
+          )
+      );
+  }
+
+  private buildUnmuteSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('unmute')
+      .setDescription('Unmute a user')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('text')
+          .setDescription('Remove text mute from a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to unmute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option.setName('reason').setDescription('Reason for the unmute').setMaxLength(512)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('voice')
+          .setDescription('Remove voice mute from a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to unmute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option.setName('reason').setDescription('Reason for the unmute').setMaxLength(512)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('both')
+          .setDescription('Remove all mutes from a user')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to unmute').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option.setName('reason').setDescription('Reason for the unmute').setMaxLength(512)
+          )
+      );
+  }
+
+  private buildSetupSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('setup')
+      .setDescription('Interactive setup wizard for moderation settings (Admin only)');
+  }
+
+  private buildConfigSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('config')
+      .setDescription('Configure moderation settings')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('modlog')
+          .setDescription('Set the mod log channel')
+          .addChannelOption((option) =>
+            option
+              .setName('channel')
+              .setDescription('The channel for moderation logs')
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('textrole')
+          .setDescription('Set the muted text role')
+          .addRoleOption((option) =>
+            option.setName('role').setDescription('The role for text mutes').setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('voicerole')
+          .setDescription('Set the muted voice role')
+          .addRoleOption((option) =>
+            option.setName('role').setDescription('The role for voice mutes').setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand.setName('view').setDescription('View current moderation config')
+      );
+  }
+
   public async chatInputBan(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleBan(interaction);
   }
@@ -609,5 +838,58 @@ export class ModCommand extends Subcommand {
 
   public async chatInputAppealResolve(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleAppealResolve(interaction);
+  }
+
+  // Mute subcommand handlers
+  public async chatInputMuteText(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleMuteText(interaction);
+  }
+
+  public async chatInputMuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleMuteVoice(interaction);
+  }
+
+  public async chatInputMuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleMuteBoth(interaction);
+  }
+
+  // Unmute subcommand handlers
+  public async chatInputUnmuteText(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleUnmuteText(interaction);
+  }
+
+  public async chatInputUnmuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleUnmuteVoice(interaction);
+  }
+
+  public async chatInputUnmuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleUnmuteBoth(interaction);
+  }
+
+  // Mutes list handler
+  public async chatInputMutesList(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleMutesList(interaction);
+  }
+
+  // Setup handler
+  public async chatInputSetup(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleSetup(interaction);
+  }
+
+  // Config subcommand handlers
+  public async chatInputConfigModLog(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleConfigModLog(interaction);
+  }
+
+  public async chatInputConfigTextRole(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleConfigTextRole(interaction);
+  }
+
+  public async chatInputConfigVoiceRole(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleConfigVoiceRole(interaction);
+  }
+
+  public async chatInputConfigView(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleConfigView(interaction);
   }
 }

@@ -10,6 +10,8 @@ import {
 } from '#root/modules/voice/domain/types.js';
 import { getJson } from '#lib/cache/index.js';
 import { handleWatchUpdate, handleTrackUpdate } from '#root/modules/voice/services/voiceUpdate.js';
+import { muteService } from '#root/modules/moderation/services/MuteService.js';
+import { asGuildId } from '#root/modules/moderation/domain/types.js';
 
 export class VoiceStateUpdateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -32,6 +34,11 @@ export class VoiceStateUpdateListener extends Listener {
 
       // Publish for active watchers (listener-driven updates)
       await this.notifyWatchers(guildId, userId, oldState, newState);
+
+      // Reapply voice mute if user joined a voice channel while muted
+      if (!oldState.channelId && newState.channelId && newState.member) {
+        await muteService.reapplyVoiceMute(asGuildId(guildId), newState.member);
+      }
     } catch (error) {
       container.logger.error('[VoiceStateUpdate] Error processing voice state update:', error);
     }

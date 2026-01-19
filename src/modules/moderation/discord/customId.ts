@@ -22,6 +22,9 @@ export const ModPanelAction = {
   VIEW_CONTEXT: 'viewctx',
   VIEW_HISTORY: 'history',
   REFRESH: 'refresh',
+  MUTE_TEXT: 'mutetxt',
+  MUTE_VOICE: 'mutevoice',
+  UNMUTE: 'unmute',
 } as const;
 
 export type ModPanelActionType = (typeof ModPanelAction)[keyof typeof ModPanelAction];
@@ -45,6 +48,9 @@ export const ModPanelCustomIdSchema = z.object({
     ModPanelAction.VIEW_CONTEXT,
     ModPanelAction.VIEW_HISTORY,
     ModPanelAction.REFRESH,
+    ModPanelAction.MUTE_TEXT,
+    ModPanelAction.MUTE_VOICE,
+    ModPanelAction.UNMUTE,
   ]),
   targetId: snowflakeSchema,
   nonce: z.string().min(1),
@@ -255,6 +261,57 @@ export function decodeReasonModalCustomId(customId: string): ReasonModalCustomId
   return result.data;
 }
 
+// ==================== Mute Modal Custom ID ====================
+
+/**
+ * Schema for mute modal custom_id
+ * Format: modmute:v1:{action}:{targetId}
+ */
+export const MuteModalCustomIdSchema = z.object({
+  prefix: z.literal('modmute'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  action: z.enum(['text', 'voice', 'both']),
+  targetId: snowflakeSchema,
+});
+
+export type MuteModalCustomId = z.infer<typeof MuteModalCustomIdSchema>;
+
+/**
+ * Encode a mute modal custom_id
+ */
+export function encodeMuteModalCustomId(
+  action: 'text' | 'voice' | 'both',
+  targetId: string
+): string {
+  return `modmute:${CUSTOM_ID_VERSION}:${action}:${targetId}`;
+}
+
+/**
+ * Decode and validate a mute modal custom_id
+ */
+export function decodeMuteModalCustomId(customId: string): MuteModalCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [prefix, version, action, targetId] = parts;
+
+  const result = MuteModalCustomIdSchema.safeParse({
+    prefix,
+    version,
+    action,
+    targetId,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
 // ==================== Helper to check all mod interaction types ====================
 
 /**
@@ -265,6 +322,7 @@ export function isModInteractionCustomId(customId: string): boolean {
     customId.startsWith('modpanel:') ||
     customId.startsWith('modnote:') ||
     customId.startsWith('moddur:') ||
-    customId.startsWith('modreason:')
+    customId.startsWith('modreason:') ||
+    customId.startsWith('modmute:')
   );
 }

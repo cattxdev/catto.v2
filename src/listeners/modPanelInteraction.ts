@@ -21,6 +21,7 @@ import {
   encodeReasonModalCustomId,
   encodeDurationModalCustomId,
   encodeNoteModalCustomId,
+  encodeMuteModalCustomId,
 } from '#root/modules/moderation/discord/customId.js';
 import {
   buildModPanelV2,
@@ -31,6 +32,7 @@ import {
 import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
 import { caseService } from '#root/modules/moderation/services/CaseService.js';
+import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, CaseStatus } from '#root/modules/moderation/domain/types.js';
 import { memoryLimiter } from '#lib/rateLimit/index.js';
 
@@ -95,6 +97,18 @@ export class ModPanelInteractionListener extends Listener {
           await this.showDurationModal(interaction, parsed.action, targetId);
           break;
 
+        case ModPanelAction.MUTE_TEXT:
+          await this.showMuteModal(interaction, 'text', targetId);
+          break;
+
+        case ModPanelAction.MUTE_VOICE:
+          await this.showMuteModal(interaction, 'voice', targetId);
+          break;
+
+        case ModPanelAction.UNMUTE:
+          await this.handleUnmute(interaction, targetId);
+          break;
+
         case ModPanelAction.ADD_NOTE:
           await this.showNoteModal(interaction, targetId);
           break;
@@ -117,7 +131,7 @@ export class ModPanelInteractionListener extends Listener {
 
         default:
           await interaction.reply({
-            content: '❌ Unknown action.',
+            content: 'Unknown action.',
             flags: MessageFlags.Ephemeral,
           });
       }
@@ -125,10 +139,84 @@ export class ModPanelInteractionListener extends Listener {
       container.logger.error('[ModPanelInteraction] Error handling interaction:', error);
       await interaction
         .reply({
-          content: '❌ An error occurred while processing your request.',
+          content: 'An error occurred while processing your request.',
           flags: MessageFlags.Ephemeral,
         })
         .catch(() => {});
+    }
+  }
+
+  private async showMuteModal(
+    interaction: ButtonInteraction,
+    muteType: 'text' | 'voice',
+    targetId: string
+  ): Promise<void> {
+    const modal = new ModalBuilder()
+      .setCustomId(encodeMuteModalCustomId(muteType, targetId))
+      .setTitle(`Mute User (${muteType === 'text' ? 'Text' : 'Voice'})`);
+
+    const durationInput = new TextInputBuilder()
+      .setCustomId('duration')
+      .setLabel('Duration (leave empty for permanent)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('1h, 1d, 7d')
+      .setRequired(false)
+      .setMaxLength(10);
+
+    const reasonInput = new TextInputBuilder()
+      .setCustomId('reason')
+      .setLabel('Reason')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('Enter the reason for this mute...')
+      .setRequired(true)
+      .setMaxLength(512);
+
+    const durationRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+      durationInput
+    );
+    const reasonRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+      reasonInput
+    );
+    modal.addComponents(durationRow, reasonRow);
+
+    await interaction.showModal(modal);
+  }
+
+  private async handleUnmute(interaction: ButtonInteraction, targetId: string): Promise<void> {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const guild = interaction.guild!;
+    const guildId = asGuildId(guild.id);
+    const userId = asUserId(targetId);
+
+    try {
+      const targetMember = await guild.members.fetch(targetId).catch(() => null);
+      if (!targetMember) {
+        await interaction.editReply({ content: 'User not found in this server.' });
+        return;
+      }
+
+      const result = await muteService.unmuteBoth(
+        guild,
+        targetMember,
+        asUserId(interaction.user.id),
+        interaction.user.tag,
+        guildId,
+        userId,
+        'Unmuted via mod panel'
+      );
+
+      if (!result.success) {
+        await interaction.editReply({ content: result.error ?? 'Failed to unmute user.' });
+        return;
+      }
+
+      await interaction.editReply({
+        content: `**${targetMember.user.tag}** has been unmuted. (Case #${result.caseNumber})`,
+      });
+    } catch (error) {
+      container.logger.error('[ModPanelInteraction] Error handling unmute:', error);
+      await interaction.editReply({ content: 'An error occurred while processing the unmute.' });
     }
   }
 
@@ -363,9 +451,10 @@ export class ModPanelInteractionListener extends Listener {
       // User may not be in the server
     }
 
-    const [userCases, notes] = await Promise.all([
+    const [userCases, notes, activeMutes] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
+      muteService.getActiveMutes(guildId, userId),
     ]);
 
     const recentCases = await caseService.getCasesByStatus(guildId, CaseStatus.OPEN);
@@ -381,6 +470,7 @@ export class ModPanelInteractionListener extends Listener {
       voiceChannelName: targetMember?.voice.channel?.name ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
+      hasActiveMutes: activeMutes.length > 0,
     };
 
     const containerComp = buildModPanelV2(context);

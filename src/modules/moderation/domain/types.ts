@@ -1,8 +1,8 @@
-import { ModAction, CaseStatus, AppealStatus } from '@prisma/client';
+import { ModAction, CaseStatus, AppealStatus, MuteType } from '@prisma/client';
 import type { Snowflake } from 'discord.js';
 
 // Re-export Prisma enums as the single source of truth
-export { ModAction, CaseStatus, AppealStatus };
+export { ModAction, CaseStatus, AppealStatus, MuteType };
 
 /**
  * Branded type for Discord Snowflake IDs
@@ -135,7 +135,63 @@ export interface ModActionResult {
 export interface ModerationConfig {
   modLogChannelId: ChannelId | null;
   muteRoleId: RoleId | null;
+  mutedTextRole: RoleId | null;
+  mutedVoiceRole: RoleId | null;
+  muteSettings: MuteSettings;
   autoModEnabled: boolean;
+  warningEscalation: WarningEscalationConfig;
+}
+
+/**
+ * Mute settings configuration
+ */
+export interface MuteSettings {
+  allowInThreads?: boolean;
+  exemptChannels?: ChannelId[];
+}
+
+/**
+ * Single escalation threshold
+ */
+export interface EscalationThreshold {
+  count: number;
+  action: 'timeout' | 'mute' | 'kick' | 'tempban';
+  duration?: number; // seconds, for timeout/mute/tempban
+  message?: string;
+}
+
+/**
+ * Warning escalation configuration
+ */
+export interface WarningEscalationConfig {
+  enabled: boolean;
+  thresholds: EscalationThreshold[];
+}
+
+/**
+ * Escalation recommendation
+ */
+export interface EscalationRecommendation {
+  warningCount: number;
+  recommendation: 'timeout' | 'mute' | 'kick' | 'tempban';
+  reason: string;
+  suggestedDuration?: number;
+}
+
+/**
+ * Warning result with case and count
+ */
+export interface WarningResult extends ModActionResult {
+  warningCount: number;
+  escalation?: EscalationRecommendation;
+}
+
+/**
+ * Time range for counting warnings
+ */
+export interface TimeRange {
+  start: Date;
+  end: Date;
 }
 
 /**
@@ -147,4 +203,80 @@ export interface ModStats {
   kicks: number;
   timeouts: number;
   warns: number;
+  mutes: number;
+}
+
+/**
+ * Mute ID (cuid)
+ */
+export type MuteId = string & { readonly __brand: 'MuteId' };
+export const asMuteId = (id: string): MuteId => id as MuteId;
+
+/**
+ * Input data for creating a text mute
+ */
+export interface MuteTextInput {
+  guildId: GuildId;
+  userId: UserId;
+  createdById: UserId;
+  reason: string;
+  duration?: DurationSeconds;
+}
+
+/**
+ * Input data for creating a voice mute
+ */
+export interface MuteVoiceInput {
+  guildId: GuildId;
+  userId: UserId;
+  createdById: UserId;
+  reason: string;
+  duration?: DurationSeconds;
+}
+
+/**
+ * Input data for creating a combined mute (text + voice)
+ */
+export interface MuteBothInput {
+  guildId: GuildId;
+  userId: UserId;
+  createdById: UserId;
+  reason: string;
+  duration?: DurationSeconds;
+}
+
+/**
+ * Result from mute operations
+ */
+export interface MuteResult {
+  success: boolean;
+  muteId?: MuteId;
+  caseNumber?: CaseNumber;
+  error?: string;
+}
+
+/**
+ * Mute data returned from queries
+ */
+export interface MuteData {
+  id: MuteId;
+  guildId: string;
+  userId: string;
+  createdById: string;
+  type: MuteType;
+  reason: string;
+  duration: number | null;
+  expiresAt: Date | null;
+  createdAt: Date;
+  active: boolean;
+}
+
+/**
+ * Bulk action result
+ */
+export interface BulkResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+  errors: Array<{ userId: UserId; error: string }>;
 }

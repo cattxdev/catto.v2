@@ -371,6 +371,13 @@ export class ModerationService {
       kicks: cases.filter((c) => c.action === ModAction.KICK).length,
       timeouts: cases.filter((c) => c.action === ModAction.TIMEOUT).length,
       warns: cases.filter((c) => c.action === ModAction.WARN).length,
+      mutes: cases.filter(
+        (c) =>
+          c.action === ModAction.MUTE ||
+          c.action === ModAction.MUTE_TEXT ||
+          c.action === ModAction.MUTE_VOICE ||
+          c.action === ModAction.MUTE_BOTH
+      ).length,
     };
   }
 

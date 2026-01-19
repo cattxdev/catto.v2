@@ -27,7 +27,15 @@ export class ReadyListener extends Listener {
       const { tempbanScheduler } =
         await import('../modules/moderation/services/TempbanScheduler.js');
       await tempbanScheduler.initialize();
-      this.container.logger.info('✓ Moderation scheduler initialized');
+      this.container.logger.info('Moderation scheduler (tempban) initialized');
+
+      const { muteScheduler } = await import('../modules/moderation/services/MuteScheduler.js');
+      await muteScheduler.initialize();
+      this.container.logger.info('Moderation scheduler (mute) initialized');
+
+      const { modEventLogger } = await import('../modules/moderation/services/ModEventLogger.js');
+      await modEventLogger.initialize();
+      this.container.logger.info('Moderation event logger initialized');
     } catch (error) {
       this.container.logger.error('Failed to initialize moderation scheduler:', error);
     }
@@ -96,7 +104,15 @@ export class ReadyListener extends Listener {
         const { tempbanScheduler } =
           await import('../modules/moderation/services/TempbanScheduler.js');
         await tempbanScheduler.shutdown();
-        this.container.logger.info('✓ Moderation scheduler shut down');
+        this.container.logger.info('Moderation scheduler (tempban) shut down');
+
+        const { muteScheduler } = await import('../modules/moderation/services/MuteScheduler.js');
+        await muteScheduler.shutdown();
+        this.container.logger.info('Moderation scheduler (mute) shut down');
+
+        const { modEventLogger } = await import('../modules/moderation/services/ModEventLogger.js');
+        await modEventLogger.shutdown();
+        this.container.logger.info('Moderation event logger shut down');
       } catch (error) {
         this.container.logger.error('Error shutting down scheduler:', error);
       }
