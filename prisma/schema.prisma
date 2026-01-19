@@ -76,10 +76,13 @@ model Guild {
   updatedAt DateTime @updatedAt
   settings  Json?
 
-  users      User[]
-  modCases   ModCase[]
-  modConfig  ModConfig?
-  logConfig  LogConfig?
+  users         User[]
+  modCases      ModCase[]
+  modConfig     ModConfig?
+  logConfig     LogConfig?
+  xpConfig      GuildXPConfig?
+  userXP        UserXP[]
+  xpEventLogs   XPEventLog[]
 
   @@index([guildId])
   @@map("guilds")
@@ -381,4 +384,92 @@ model PermissionGrant {
   @@index([guildId, subjectType, subjectId])
   @@index([guildId, resourceType, resourceKey])
   @@map("permission_grants")
+}
+// XP/Leveling Configuration per Guild
+model GuildXPConfig {
+  id                    String   @id @default(cuid())
+  guildId               String   @unique
+  enabled               Boolean  @default(true)
+  
+  // XP Award Settings
+  cooldownSec           Int      @default(60)    // Cooldown between XP awards
+  xpMode                String   @default("RANDOM") // "RANDOM" | "FIXED"
+  minXp                 Int      @default(15)    // For RANDOM mode
+  maxXp                 Int      @default(25)    // For RANDOM mode
+  fixedXp               Int      @default(20)    // For FIXED mode
+  minMessageLength      Int      @default(5)     // Minimum message length to award XP
+  maxXpPerMinute        Int?                     // Optional rate limit
+  
+  // Channel & Role Filters (JSONB arrays)
+  allowedChannels       String[] @default([])   // If empty, all channels allowed
+  ignoredChannels       String[] @default([])   // Always ignored
+  ignoredRoles          String[] @default([])   // Users with these roles ignored
+  
+  // Level-Up Announcements
+  announceLevelUp       Boolean  @default(true)
+  announceChannelId     String?                 // If null, announce in message channel
+  messageTemplate       String   @default("🎉 {user} reached level {level}!")
+  embedEnabled          Boolean  @default(true)
+  embedColor            Int      @default(5793266) // Hex 0x5865F2 (Discord Blurple)
+  
+  // Level Curve Configuration
+  levelCurveType        String   @default("FORMULA") // "FORMULA" | "TABLE"
+  // Formula: xpRequired = base * (level ^ exponent) + offset
+  formulaBase           Float    @default(5.0)
+  formulaExponent       Float    @default(2.0)
+  formulaOffset         Float    @default(50.0)
+  // Table: Array of cumulative XP thresholds [100, 255, 475, 770, ...] for levels 1, 2, 3, 4...
+  tableThresholds       Int[]    @default([])
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("guild_xp_configs")
+}
+
+// User XP per Guild
+model UserXP {
+  id            String    @id @default(cuid())
+  guildId       String
+  userId        String
+  xp            Int       @default(0)
+  level         Int       @default(0)
+  messageCount  Int       @default(0)
+  lastAwardAt   DateTime?                    // For cooldown enforcement
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@index([guildId, xp(sort: Desc)])          // For leaderboard queries
+  @@index([guildId, userId])
+  @@index([lastAwardAt])                       // For cooldown checks
+  @@map("user_xp")
+}
+
+// Audit Log for XP Events (optional but recommended)
+model XPEventLog {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  eventType   String                          // "AWARD" | "LEVEL_UP" | "RESET" | "MANUAL_ADJUST"
+  xpChange    Int                             // Amount of XP change (can be negative)
+  xpBefore    Int
+  xpAfter     Int
+  levelBefore Int
+  levelAfter  Int
+  reason      String?                         // Optional context (e.g., "message", "admin reset")
+  metadata    Json?                           // Additional context (channelId, messageId, etc.)
+  createdAt   DateTime @default(now())
+  
+  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+
+  @@index([guildId, userId])
+  @@index([guildId, createdAt])
+  @@index([eventType])
+  @@map("xp_event_logs")
 }
