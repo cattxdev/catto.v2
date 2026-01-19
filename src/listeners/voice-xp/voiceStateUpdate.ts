@@ -14,11 +14,12 @@ import {
 } from '../../modules/xp-voice/services/voice-xp-session.service';
 import { getVoiceXPConfig } from '../../modules/xp-voice/services/voice-xp-config.service';
 
-export class VoiceStateUpdateListener extends Listener<typeof Events.VoiceStateUpdate> {
+export class VoiceXPStateUpdateListener extends Listener<typeof Events.VoiceStateUpdate> {
 	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
 		super(context, {
 			...options,
-			event: Events.VoiceStateUpdate
+			event: Events.VoiceStateUpdate,
+			name: 'voiceXPStateUpdateListener',
 		});
 	}
 
