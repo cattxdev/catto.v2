@@ -11,6 +11,7 @@ export class TempVoiceConfigDeleteRoute extends Route {
 		super(context, {
 			...options,
 			route: 'guilds/:guildId/temp-voice/config',
+			methods: ['DELETE'],
 		});
 	}
 
