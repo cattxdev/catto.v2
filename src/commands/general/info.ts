@@ -11,7 +11,8 @@ export class InfoCommand extends Command {
       name: 'info',
       aliases: ['botinfo', 'stats'],
       description: 'Display bot information and statistics',
-      detailedDescription: 'Shows detailed information about the bot including version, uptime, and statistics.',
+      detailedDescription:
+        'Shows detailed information about the bot including version, uptime, and statistics.',
     });
   }
 
