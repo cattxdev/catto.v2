@@ -112,13 +112,20 @@ export const VOICE_CACHE_TTL = {
  * Custom Discord emojis for voice state indicators
  */
 export const VOICE_EMOJI = {
-  selfMute: '<:self_mute:1462669369917313251>',
-  selfDeaf: '<:self_deaf:1462669368671604891>',
-  serverMute: '<:server_mute:1462668512932663326>',
-  serverDeaf: '<:server_deaf:1462668511880024302>',
-  unDeaf: '<:un_deaf:1462669353068527699>',
-  unMute: '<:un_mute:1462669352162693171>',
-  channelVoice: '<:channel_voice:1462669361977364512>',
-  channelPrivate: '<:channel_private:1462669363470667951>',
-  channelVoicePrivate: '<:channel_voice_private:1462669366633169032>',
+  activities: '<:activities:1462676340967866429>',
+  bot: '<:bot:1462676342024835199>',
+  member: '<:member:1462676343111155955>',
+
+  serverScreenshare: '<:server_screenshare:1462676345153654794>',
+
+  channelVoice: '<:channel_voice:1462676347464974381>',
+  channelVoiceNsfw: '<:channel_voice_nsfw:1462676346215071825>',
+  channelStage: '<:channel_stage:1462676690877550745>',
+
+  serverMuted: '<:server_muted:1462676349792817256>',
+  serverDeafened: '<:server_defean:1462676350967091292>',
+  muted: '<:muted:1462676352321851565>',
+  deafened: '<:defean:1462676353479610448>',
+  unMuted: '<:un_muted:1462676354364604417>',
+  unDeafened: '<:un_defean:1462676355627090055>',
 } as const;

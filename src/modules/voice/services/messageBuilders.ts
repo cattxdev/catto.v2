@@ -29,17 +29,23 @@ export function getVoiceIndicators(voice: {
   const indicators: string[] = [];
 
   if (voice.serverMute) {
-    indicators.push(VOICE_EMOJI.serverMute);
+    indicators.push(VOICE_EMOJI.serverMuted);
   } else if (voice.selfMute) {
-    indicators.push(VOICE_EMOJI.selfMute);
+    indicators.push(VOICE_EMOJI.muted);
   } else {
-    indicators.push(VOICE_EMOJI.unMute);
+    indicators.push(VOICE_EMOJI.unMuted);
   }
 
   if (voice.serverDeaf) {
-    indicators.push(VOICE_EMOJI.serverDeaf);
+    indicators.push(VOICE_EMOJI.serverDeafened);
   } else if (voice.selfDeaf) {
-    indicators.push(VOICE_EMOJI.selfDeaf);
+    indicators.push(VOICE_EMOJI.deafened);
+  } else {
+    indicators.push(VOICE_EMOJI.unDeafened);
+  }
+
+  if (voice.streaming) {
+    indicators.push(VOICE_EMOJI.serverScreenshare);
   }
 
   return indicators.join(' ');
