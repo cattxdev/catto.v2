@@ -1,4 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
+import { ModAction } from '../../../../lib/moderation';
 
 export class ModerationUserCasesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -47,13 +48,13 @@ export class ModerationUserCasesRoute extends Route {
       const where: {
         guildId: string;
         targetId: string;
-        action?: string;
+        action?: ModAction;
       } = {
         guildId,
         targetId: userId,
       };
 
-      if (action) where.action = action.toUpperCase();
+      if (action) where.action = action.toUpperCase() as ModAction;
 
       // Get total count
       const total = await this.container.prisma.modCase.count({ where });

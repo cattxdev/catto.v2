@@ -1,4 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
+import { ModAction } from '../../../../lib/moderation';
 
 export class ModerationCasesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -43,12 +44,12 @@ export class ModerationCasesRoute extends Route {
       // Build where clause
       const where: {
         guildId: string;
-        action?: string;
+        action?: ModAction;
         targetId?: string;
         moderatorId?: string;
       } = { guildId };
 
-      if (action) where.action = action.toUpperCase();
+      if (action) where.action = action.toUpperCase() as ModAction;
       if (targetId) where.targetId = targetId;
       if (moderatorId) where.moderatorId = moderatorId;
 
