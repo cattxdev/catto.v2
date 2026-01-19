@@ -88,7 +88,7 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
 		isDeafened: session.isDeafened,
 		isStreaming: session.isStreaming,
 		isVideo: session.isVideo,
-		isAfkChannel: false // TODO: Check if channel is AFK channel
+		isAfkChannel: guild.afkChannelId === session.channelId
 	};
 	
 	const validationResult = validation.validateVoiceXPAward(context, config);
@@ -172,17 +172,24 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
 		const minutesSinceLastAward = Math.floor((Date.now() - session.lastAwardTime) / 60000);
 		if (minutesSinceLastAward < 1) continue;
 		
+		// Fetch guild and member for validation
+		const guild = container.client.guilds.cache.get(guildId);
+		if (!guild) continue;
+		
+		const member = await guild.members.fetch(session.userId).catch(() => null);
+		if (!member) continue;
+		
 		// Validate XP award
 		const context: VoiceValidationContext = {
 			guildId: session.guildId,
 			userId: session.userId,
 			channelId: session.channelId,
-			userRoles: [], // TODO: Fetch member roles
+			userRoles: member.roles.cache.map(r => r.id),
 			isMuted: session.isMuted,
 			isDeafened: session.isDeafened,
 			isStreaming: session.isStreaming,
 			isVideo: session.isVideo,
-			isAfkChannel: false // TODO: Check if channel is AFK channel
+			isAfkChannel: guild.afkChannelId === session.channelId
 		};
 		
 		const validationResult = validation.validateVoiceXPAward(context, config);
