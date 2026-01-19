@@ -12,6 +12,7 @@ export class TempVoiceValidateRoute extends Route {
 		super(context, {
 			...options,
 			route: 'guilds/:guildId/temp-voice/validate',
+			methods: ['POST'],
 		});
 	}
 

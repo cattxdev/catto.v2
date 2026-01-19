@@ -7,14 +7,13 @@ import { Prisma } from '@prisma/client';
 import { loggingService } from '../lib/logging';
 
 export class ReadyListener extends Listener {
-    public constructor(context: Listener.LoaderContext, options: Listener.Options) {
-        super(context, {
-            ...options,
-            name: 'mainReady',
-            once: true,
-            event: Events.ClientReady,
-        });
-    }
+  public constructor(context: Listener.LoaderContext, options: Listener.Options) {
+    super(context, {
+      ...options,
+      once: true,
+      event: Events.ClientReady,
+    });
+  }
 
   public async run(client: Client<true>) {
     const { username, id } = client.user;
