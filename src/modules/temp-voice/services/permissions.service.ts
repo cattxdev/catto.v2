@@ -4,7 +4,6 @@
 
 import {
 	PermissionFlagsBits,
-	PermissionOverwriteOptions,
 	OverwriteResolvable,
 	OverwriteType,
 } from 'discord.js';
