@@ -42,17 +42,27 @@ export class ControlPanelService {
 				return null;
 			}
 
-			// Find a text channel to send the panel to (preferably the first text channel the user can see)
+			// Get the voice channel's text chat (Discord automatically creates a linked text channel for voice channels)
 			const guild = owner.guild;
-			const textChannel = guild.channels.cache.find(
-				(ch) =>
-					ch.type === ChannelType.GuildText &&
-					ch.permissionsFor(owner)?.has('ViewChannel') &&
-					ch.permissionsFor(guild.members.me!)?.has(['SendMessages', 'EmbedLinks'])
-			) as TextChannel | undefined;
-
-			if (!textChannel) {
-				return null;
+			const voiceChan = voiceChannel as VoiceChannel;
+			
+			// Try to send to the voice channel itself (Discord shows text messages in voice channels)
+			let textChannel: TextChannel | VoiceChannel = voiceChan;
+			
+			// If voice channel doesn't support sending messages, find first accessible text channel
+			const botMember = guild.members.me!;
+			if (!voiceChan.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])) {
+				const fallbackChannel = guild.channels.cache.find(
+					(ch) =>
+						ch.type === ChannelType.GuildText &&
+						ch.permissionsFor(owner)?.has('ViewChannel') &&
+						ch.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])
+				) as TextChannel | undefined;
+				
+				if (!fallbackChannel) {
+					return null;
+				}
+				textChannel = fallbackChannel;
 			}
 
 			const embed = this.buildEmbed(tempChannel, voiceChannel as VoiceChannel, owner);
@@ -220,12 +230,12 @@ export class ControlPanelService {
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
 				.setLabel(tempChannel.isHidden ? 'Show' : 'Hide')
-				.setEmoji(tempChannel.isHidden ? '👁️' : '👁️‍🗨️')
+				.setEmoji(tempChannel.isHidden ? '👁' : '🙈')
 				.setStyle(tempChannel.isHidden ? ButtonStyle.Success : ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
 				.setLabel('Rename')
-				.setEmoji('✏️')
+				.setEmoji('✏')
 				.setStyle(ButtonStyle.Primary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
@@ -253,7 +263,7 @@ export class ControlPanelService {
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
 				.setLabel('Settings')
-				.setEmoji('⚙️')
+				.setEmoji('⚙')
 				.setStyle(ButtonStyle.Secondary)
 		);
 
