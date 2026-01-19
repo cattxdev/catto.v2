@@ -65,12 +65,17 @@ export class TempChannelService {
 		// Create the voice channel
 		let channel: VoiceChannel;
 		try {
+			// Calculate max bitrate based on guild boost level
+			const maxBitrate = guild.maximumBitrate || 64000; // Default to 64kbps if unavailable
+			const requestedBitrate = config.defaultBitrate ? config.defaultBitrate * 1000 : undefined;
+			const bitrate = requestedBitrate ? Math.min(requestedBitrate, maxBitrate) : undefined;
+
 			channel = await guild.channels.create({
 				name: channelName,
 				type: ChannelType.GuildVoice,
 				parent: categoryResult.category?.id || null,
 				userLimit: config.defaultUserLimit || 0,
-				bitrate: config.defaultBitrate ? config.defaultBitrate * 1000 : undefined,
+				bitrate,
 				rtcRegion: config.defaultRegion || undefined,
 				permissionOverwrites: overwrites,
 				reason: `Temp voice channel for ${owner.user.tag}`,

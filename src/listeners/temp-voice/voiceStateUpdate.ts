@@ -13,6 +13,8 @@ import { ControlPanelService } from '../../modules/temp-voice/services/control-p
 import { PermissionsService } from '../../modules/temp-voice/services/permissions.service';
 import { acquireLock } from '../../lib/redis';
 import { REDIS_KEYS } from '../../modules/temp-voice/constants';
+import { logAction, LogType } from '../../lib/logging';
+import { Colors } from 'discord.js';
 
 export class TempVoiceStateUpdateListener extends Listener {
 	private configService!: TempVoiceConfigService;
@@ -151,6 +153,21 @@ export class TempVoiceStateUpdateListener extends Listener {
 			this.container.logger.info(
 				`[TempVoice] Scheduled deletion for empty channel ${state.channelId}`
 			);
+
+			// Log to configured log channel if enabled
+			const config = await this.configService.getOrNull(state.guild.id);
+			if (config?.logChannelId) {
+				await logAction({
+					guildId: state.guild.id,
+					type: LogType.Voice,
+					title: '🎙️ Temporary Voice Channel Empty',
+					description: `Temporary voice channel is now empty and scheduled for deletion`,
+					fields: [
+						{ name: 'Channel', value: `${discordChannel.name} (<#${state.channelId}>)`, inline: true },
+					],
+					color: Colors.Yellow,
+				});
+			}
 		} else {
 			// Channel still has members - update last active time
 			await this.channelService.updateLastActive(state.channelId);
@@ -243,7 +260,20 @@ export class TempVoiceStateUpdateListener extends Listener {
 				`[TempVoice] Created temp channel ${channel.id} for user ${userId} in guild ${guildId}`
 			);
 
-			// TODO: Log to configured log channel if enabled
+			// Log to configured log channel if enabled
+			if (config.logChannelId) {
+				await logAction({
+					guildId,
+					type: LogType.Voice,
+					title: '🎙️ Temporary Voice Channel Created',
+					description: `${state.member} created a temporary voice channel`,
+					fields: [
+						{ name: 'Channel', value: `${channel.name} (<#${channel.id}>)`, inline: true },
+						{ name: 'Owner', value: `${state.member.user.tag} (${state.member.id})`, inline: true },
+					],
+					color: Colors.Green,
+				});
+			}
 		} catch (error) {
 			this.container.logger.error(
 				`[TempVoice] Error creating temp channel for user ${userId}:`,
