@@ -62,6 +62,7 @@ export class BotClient extends SapphireClient {
         listenOptions: {
           port: CONFIG.API_PORT,
         },
+        automaticallyConnect: true,
       },
       i18n: {
         defaultLanguageDirectory: join(dirname(fileURLToPath(import.meta.url)), '..', 'languages'),
