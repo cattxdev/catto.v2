@@ -34,3 +34,5 @@ export {
 	isVoiceXPEnabled,
 	clearVoiceConfigCache as clearVoiceXPConfigCache
 } from './services/voice-xp-config.service';
+
+export { voiceXPQueue } from './services/voice-xp-queue.service';
