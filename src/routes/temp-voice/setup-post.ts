@@ -1,6 +1,6 @@
 /**
  * POST /api/guilds/:guildId/temp-voice/setup
- * Auto-setup Temp Voice system (creates category, join channel, and config)
+ * Auto-setup Temp Voice system (creates category, join channel, logs channel with webhook, and config)
  */
 
 import { Route } from '@sapphire/plugin-api';
@@ -85,9 +85,9 @@ export class TempVoiceSetupPostRoute extends Route {
             }
 
             // Extract options from body
-            const logChannelId = body?.logChannelId || null;
             const categoryName = body?.categoryName || 'Temp Voice Channels';
             const joinChannelName = body?.joinChannelName || '➕ Join to Create';
+            const logsChannelName = body?.logsChannelName || '📝 temp-voice-logs';
 
             this.container.logger.info(`[TempVoice API] Starting auto-setup for guild ${guildId}`);
 
@@ -120,7 +120,32 @@ export class TempVoiceSetupPostRoute extends Route {
 
             this.container.logger.info(`[TempVoice API] Created join channel: ${joinChannel.name} (${joinChannel.id})`);
 
-            // 3. Create temp voice configuration
+            // 3. Create admin-only logs channel
+            const logsChannel = await guild.channels.create({
+                name: logsChannelName,
+                type: ChannelType.GuildText,
+                parent: category.id,
+                permissionOverwrites: [
+                    {
+                        id: guild.id, // @everyone
+                        deny: [PermissionFlagsBits.ViewChannel],
+                    },
+                ],
+            });
+
+            this.container.logger.info(`[TempVoice API] Created logs channel: ${logsChannel.name} (${logsChannel.id})`);
+
+            // 4. Create webhook in logs channel
+            const webhook = await logsChannel.createWebhook({
+                name: 'Temp Voice Logger',
+                avatar: this.container.client.user?.displayAvatarURL(),
+                reason: 'Auto-setup: Temp Voice logging webhook',
+            });
+
+            const webhookUrl = webhook.url;
+            this.container.logger.info(`[TempVoice API] Created webhook for logs channel`);
+
+            // 5. Create temp voice configuration
             const configData = {
                 enabled: true,
                 namingScheme: 'username' as const,
@@ -135,14 +160,15 @@ export class TempVoiceSetupPostRoute extends Route {
                 allowOwnerTransfer: true,
                 allowOwnerManagement: true,
                 maxChannelsPerUser: 3,
-                logChannelId: logChannelId,
+                logChannelId: logsChannel.id,
+                logWebhook: webhookUrl,
             };
 
             await TempVoiceConfigService.createConfig(guildId, configData);
 
             this.container.logger.info(`[TempVoice API] Created config for guild ${guildId}`);
 
-            // 4. Add join channel to config's join-to-create channels
+            // 6. Add join channel to config's join-to-create channels
             const dbUpdate = await container.prisma.tempVoiceConfig.update({
                 where: { guildId },
                 data: {
@@ -152,7 +178,7 @@ export class TempVoiceSetupPostRoute extends Route {
 
             this.container.logger.info(`[TempVoice API] DB update result:`, dbUpdate.joinToCreateChannels);
 
-            // 5. Fetch the updated config
+            // 7. Fetch the updated config
             const updatedConfig = await TempVoiceConfigService.getConfig(guildId);
 
             this.container.logger.info(`[TempVoice API] Final config joinChannelIds:`, updatedConfig?.joinChannelIds);
@@ -169,8 +195,12 @@ export class TempVoiceSetupPostRoute extends Route {
                         id: joinChannel.id,
                         name: joinChannel.name,
                     },
+                    logsChannel: {
+                        id: logsChannel.id,
+                        name: logsChannel.name,
+                    },
                     config: updatedConfig,
-                    instructions: 'Users can now join the "Join to Create" channel to automatically create their own temporary voice channel!',
+                    instructions: 'Users can now join the "Join to Create" channel to automatically create their own temporary voice channel! Logs will appear in the admin-only logs channel.',
                 },
             });
         } catch (error) {

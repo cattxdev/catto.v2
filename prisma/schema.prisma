@@ -634,6 +634,7 @@ model TempVoiceConfig {
   
   // Logging
   logChannelId          String?
+  logWebhook            String?  // Webhook URL for logging
   
   // Permissions
   adminRoleIds          Json     @default("[]")        // string[] - roles that can manage any temp channel
