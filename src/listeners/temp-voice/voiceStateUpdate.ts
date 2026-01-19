@@ -4,13 +4,11 @@
 
 import { Listener } from '@sapphire/framework';
 import type { VoiceState } from 'discord.js';
-import { Events } from 'discord.js';
+import { Events, Colors, WebhookClient, EmbedBuilder } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service';
 import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service';
 import { PermissionsService } from '../../modules/temp-voice/services/permissions.service';
-import { logAction, LogType } from '../../lib/logging';
-import { Colors } from 'discord.js';
 import { tempVoiceQueue } from '../../modules/temp-voice/services/temp-voice-queue.service';
 
 export class TempVoiceStateUpdateListener extends Listener {
@@ -157,18 +155,24 @@ export class TempVoiceStateUpdateListener extends Listener {
 			);
 
 			// Log to configured log channel if enabled
-			if (config?.logChannelId) {
-				await logAction({
-					guildId: state.guild.id,
-					type: LogType.Voice,
-					title: '🎙️ Temporary Voice Channel Empty',
-					description: `Temporary voice channel is now empty and scheduled for deletion`,
-					fields: [
-						{ name: 'Channel', value: `${discordChannel.name} (<#${state.channelId}>)`, inline: true },
-						{ name: 'Deletion in', value: `${config.deleteDelaySeconds} seconds`, inline: true },
-					],
-					color: Colors.Yellow,
-				});
+			if (config?.logWebhook) {
+				try {
+					const webhook = new WebhookClient({ url: config.logWebhook });
+					const embed = new EmbedBuilder()
+						.setTitle('🎙️ Temporary Voice Channel Empty')
+						.setDescription(`Temporary voice channel is now empty and scheduled for deletion`)
+						.addFields(
+							{ name: 'Channel', value: `${discordChannel.name} (<#${state.channelId}>)`, inline: true },
+							{ name: 'Deletion in', value: `${config.deleteDelaySeconds} seconds`, inline: true },
+						)
+						.setColor(Colors.Yellow)
+						.setTimestamp();
+					
+					await webhook.send({ embeds: [embed] });
+					webhook.destroy();
+				} catch (error) {
+					this.container.logger.error('[TempVoice] Failed to send empty log:', error);
+				}
 			}
 		} else {
 			// Channel still has members - update last active time

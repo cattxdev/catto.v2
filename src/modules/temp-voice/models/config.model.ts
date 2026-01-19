@@ -41,6 +41,7 @@ export interface TempVoiceConfig {
 
 	// Logging
 	logChannelId: string | null;
+	logWebhook: string | null;
 
 	// Permissions
 	adminRoleIds: string[];

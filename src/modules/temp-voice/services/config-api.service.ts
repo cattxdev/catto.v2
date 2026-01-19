@@ -29,6 +29,7 @@ export interface TempVoiceConfigApiInput {
 	allowOwnerManagement?: boolean;
 	maxChannelsPerUser?: number;
 	logChannelId?: string | null;
+	logWebhook?: string | null;
 }
 
 /**
@@ -84,13 +85,14 @@ export class TempVoiceConfigServiceStatic {
 			ownerLeaveStrategy: data.autoDeleteOwnerLeave ? OwnerLeaveStrategy.DELETE : OwnerLeaveStrategy.KEEP,
 			maxChannelsPerUser: data.maxChannelsPerUser ?? 1,
 			logChannelId: data.logChannelId,
-			controlPanelEnabled: data.allowOwnerManagement ?? true,
-		};
+		logWebhook: data.logWebhook,
+		controlPanelEnabled: data.allowOwnerManagement ?? true,
+	};
 
-		const config = await configService.create(guildId, serviceData);
+	const config = await configService.create(guildId, serviceData);
 
-		// Map to API response format
-		return {
+	// Map to API response format
+	return {
 			guildId: config.guildId,
 			enabled: config.enabled,
 			joinChannelIds: config.joinToCreateChannels,

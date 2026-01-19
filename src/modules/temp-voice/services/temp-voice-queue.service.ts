@@ -6,12 +6,11 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
 import { CONFIG } from '../../../config';
-import { Colors } from 'discord.js';
+import { Colors, WebhookClient, EmbedBuilder } from 'discord.js';
 import { TempVoiceConfigService } from './config.service';
 import { TempChannelService } from './temp-channel.service';
 import { ControlPanelService } from './control-panel.service';
 import { PermissionsService } from './permissions.service';
-import { logAction, LogType } from '../../../lib/logging';
 
 interface CreateChannelJobData {
 	type: 'create';
@@ -171,18 +170,24 @@ class TempVoiceQueueService {
 			}
 
 			// Log to configured log channel if enabled
-			if (config.logChannelId) {
-				await logAction({
-					guildId,
-					type: LogType.Voice,
-					title: '🎙️ Temporary Voice Channel Created',
-					description: `${member} created a temporary voice channel`,
-					fields: [
-						{ name: 'Channel', value: `${channel.name} (<#${channel.id}>)`, inline: true },
-						{ name: 'Owner', value: `${member.user.tag} (${member.id})`, inline: true },
-					],
-					color: Colors.Green,
-				});
+			if (config.logWebhook) {
+				try {
+					const webhook = new WebhookClient({ url: config.logWebhook });
+					const embed = new EmbedBuilder()
+						.setTitle('🎙️ Temporary Voice Channel Created')
+						.setDescription(`${member} created a temporary voice channel`)
+						.addFields(
+							{ name: 'Channel', value: `${channel.name} (<#${channel.id}>)`, inline: true },
+							{ name: 'Owner', value: `${member.user.tag} (${member.id})`, inline: true },
+						)
+						.setColor(Colors.Green)
+						.setTimestamp();
+					
+					await webhook.send({ embeds: [embed] });
+					webhook.destroy();
+				} catch (error) {
+					container.logger.error('[TempVoice Queue] Failed to send creation log:', error);
+				}
 			}
 
 			container.logger.info(
@@ -230,18 +235,24 @@ class TempVoiceQueueService {
 			await channelService.delete(channelId);
 
 			// Log deletion if enabled
-			if (config?.logChannelId) {
-				await logAction({
-					guildId,
-					type: LogType.Voice,
-					title: '🎙️ Temporary Voice Channel Deleted',
-					description: `Temporary voice channel was deleted`,
-					fields: [
-						{ name: 'Channel ID', value: channelId, inline: true },
-						{ name: 'Reason', value: reason, inline: true },
-					],
-					color: Colors.Red,
-				});
+			if (config?.logWebhook) {
+				try {
+					const webhook = new WebhookClient({ url: config.logWebhook });
+					const embed = new EmbedBuilder()
+						.setTitle('🎙️ Temporary Voice Channel Deleted')
+						.setDescription(`Temporary voice channel was deleted`)
+						.addFields(
+							{ name: 'Channel ID', value: channelId, inline: true },
+							{ name: 'Reason', value: reason, inline: true },
+						)
+						.setColor(Colors.Red)
+						.setTimestamp();
+					
+					await webhook.send({ embeds: [embed] });
+					webhook.destroy();
+				} catch (error) {
+					container.logger.error('[TempVoice Queue] Failed to send deletion log:', error);
+				}
 			}
 
 			container.logger.info(`[TempVoice Queue] Deleted temp channel ${channelId} - ${reason}`);
