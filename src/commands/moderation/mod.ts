@@ -3,7 +3,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import {
   PermissionFlagsBits,
   SlashCommandSubcommandBuilder,
+  SlashCommandSubcommandGroupBuilder,
   InteractionContextType,
+  ChannelType,
 } from 'discord.js';
 import { handleKick } from './_kick.js';
 import { handleTimeout } from './_timeout.js';
@@ -12,6 +14,10 @@ import { handleUnban } from './_unban.js';
 import { handleCase } from './_case.js';
 import { handleHistory } from './_history.js';
 import { handleBan } from './_ban.js';
+import { handleVoiceWhere } from './_voiceWhere.js';
+import { handleVoiceWatch } from './_voiceWatch.js';
+import { handleVoiceSnapshot } from './_voiceSnapshot.js';
+import { handleVoiceTrack } from './_voiceTrack.js';
 
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
@@ -47,6 +53,17 @@ import { handleBan } from './_ban.js';
       name: 'history',
       chatInputRun: 'chatInputHistory',
     },
+    // Voice subcommand group
+    {
+      name: 'voice',
+      type: 'group',
+      entries: [
+        { name: 'where', chatInputRun: 'chatInputVoiceWhere' },
+        { name: 'watch', chatInputRun: 'chatInputVoiceWatch' },
+        { name: 'snapshot', chatInputRun: 'chatInputVoiceSnapshot' },
+        { name: 'track', chatInputRun: 'chatInputVoiceTrack' },
+      ],
+    },
   ],
 })
 export class ModCommand extends Subcommand {
@@ -64,6 +81,7 @@ export class ModCommand extends Subcommand {
         .addSubcommand(this.buildUnbanSubcommand)
         .addSubcommand(this.buildCaseSubcommand)
         .addSubcommand(this.buildHistorySubcommand)
+        .addSubcommandGroup(this.buildVoiceSubcommandGroup.bind(this))
     );
   }
 
@@ -155,6 +173,64 @@ export class ModCommand extends Subcommand {
       );
   }
 
+  private buildVoiceSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('voice')
+      .setDescription('Voice channel monitoring commands')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('where')
+          .setDescription('Check where a user is in voice')
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to locate').setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('watch')
+          .setDescription("Watch a user's voice activity in real-time")
+          .addUserOption((option) =>
+            option.setName('target').setDescription('The user to watch').setRequired(true)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('duration')
+              .setDescription('Watch duration (1m-15m, e.g., 5m, 10m)')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('snapshot')
+          .setDescription('Get a snapshot of members in a voice channel')
+          .addChannelOption((option) =>
+            option
+              .setName('channel')
+              .setDescription('The voice channel to snapshot')
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('track')
+          .setDescription("Track a voice channel's activity in real-time")
+          .addChannelOption((option) =>
+            option
+              .setName('channel')
+              .setDescription('The voice channel to track')
+              .setRequired(true)
+              .addChannelTypes(ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+          )
+          .addStringOption((option) =>
+            option
+              .setName('duration')
+              .setDescription('Track duration (1m-15m, e.g., 5m, 10m)')
+              .setRequired(true)
+          )
+      );
+  }
+
   public async chatInputBan(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleBan(interaction);
   }
@@ -181,5 +257,22 @@ export class ModCommand extends Subcommand {
 
   public async chatInputHistory(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleHistory(interaction);
+  }
+
+  // Voice subcommand handlers
+  public async chatInputVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleVoiceWhere(interaction);
+  }
+
+  public async chatInputVoiceWatch(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleVoiceWatch(interaction);
+  }
+
+  public async chatInputVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleVoiceSnapshot(interaction);
+  }
+
+  public async chatInputVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleVoiceTrack(interaction);
   }
 }

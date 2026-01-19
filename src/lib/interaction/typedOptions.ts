@@ -1,4 +1,12 @@
-import type { ChatInputCommandInteraction, GuildMember, User, Guild } from 'discord.js';
+import type {
+  ChatInputCommandInteraction,
+  GuildMember,
+  User,
+  Guild,
+  VoiceChannel,
+  StageChannel,
+} from 'discord.js';
+import { ChannelType } from 'discord.js';
 import {
   snowflakeSchema,
   durationStringSchema,
@@ -8,9 +16,11 @@ import {
 import {
   type UserId,
   type GuildId,
+  type ChannelId,
   type DurationSeconds,
   asUserId,
   asGuildId,
+  asChannelId,
   asDuration,
 } from '../../modules/moderation/domain/types.js';
 
@@ -297,5 +307,175 @@ export function parseHistoryOptions(interaction: ChatInputCommandInteraction): H
     targetId: asUserId(target.id),
     guild,
     guildId,
+  };
+}
+
+// ==================== Voice Command Options ====================
+
+/**
+ * Parsed voice where options
+ */
+export interface VoiceWhereOptions {
+  target: User;
+  targetId: UserId;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+}
+
+/**
+ * Parsed voice watch options
+ */
+export interface VoiceWatchOptions {
+  target: User;
+  targetId: UserId;
+  durationSeconds: DurationSeconds;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+}
+
+/**
+ * Parsed voice snapshot options
+ */
+export interface VoiceSnapshotOptions {
+  channel: VoiceChannel | StageChannel;
+  channelId: ChannelId;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+}
+
+/**
+ * Parsed voice track options
+ */
+export interface VoiceTrackOptions {
+  channel: VoiceChannel | StageChannel;
+  channelId: ChannelId;
+  durationSeconds: DurationSeconds;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+}
+
+/**
+ * Parse voice where subcommand options
+ */
+export function parseVoiceWhereOptions(
+  interaction: ChatInputCommandInteraction
+): VoiceWhereOptions {
+  const { guild, guildId } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target', true);
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    guild,
+    guildId,
+    moderator: interaction.user,
+  };
+}
+
+/**
+ * Parse voice watch subcommand options
+ */
+export function parseVoiceWatchOptions(
+  interaction: ChatInputCommandInteraction
+): VoiceWatchOptions | null {
+  const { guild, guildId } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target', true);
+  const durationStr = interaction.options.getString('duration', true);
+
+  const validation = safeParse(durationStringSchema, durationStr);
+  if (!validation.success) {
+    return null;
+  }
+
+  const durationSeconds = parseDurationToSeconds(durationStr);
+  if (!durationSeconds) {
+    return null;
+  }
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    durationSeconds,
+    guild,
+    guildId,
+    moderator: interaction.user,
+  };
+}
+
+/**
+ * Parse voice snapshot subcommand options
+ */
+export function parseVoiceSnapshotOptions(
+  interaction: ChatInputCommandInteraction
+): VoiceSnapshotOptions | null {
+  const { guild, guildId } = ensureGuildContext(interaction);
+
+  const channel = interaction.options.getChannel('channel', true);
+
+  // Check if channel is voice-based by type
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    return null;
+  }
+
+  // Fetch the actual channel from the guild cache
+  const voiceChannel = guild.channels.cache.get(channel.id);
+  if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+    return null;
+  }
+
+  return {
+    channel: voiceChannel as VoiceChannel | StageChannel,
+    channelId: asChannelId(channel.id),
+    guild,
+    guildId,
+    moderator: interaction.user,
+  };
+}
+
+/**
+ * Parse voice track subcommand options
+ */
+export function parseVoiceTrackOptions(
+  interaction: ChatInputCommandInteraction
+): VoiceTrackOptions | null {
+  const { guild, guildId } = ensureGuildContext(interaction);
+
+  const channel = interaction.options.getChannel('channel', true);
+  const durationStr = interaction.options.getString('duration', true);
+
+  // Check if channel is voice-based by type
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    return null;
+  }
+
+  // Fetch the actual channel from the guild cache
+  const voiceChannel = guild.channels.cache.get(channel.id);
+  if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+    return null;
+  }
+
+  const validation = safeParse(durationStringSchema, durationStr);
+  if (!validation.success) {
+    return null;
+  }
+
+  const durationSeconds = parseDurationToSeconds(durationStr);
+  if (!durationSeconds) {
+    return null;
+  }
+
+  return {
+    channel: voiceChannel as VoiceChannel | StageChannel,
+    channelId: asChannelId(channel.id),
+    durationSeconds,
+    guild,
+    guildId,
+    moderator: interaction.user,
   };
 }
