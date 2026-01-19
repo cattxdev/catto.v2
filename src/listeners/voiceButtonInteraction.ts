@@ -6,6 +6,7 @@ import {
   ContainerBuilder,
   TextDisplayBuilder,
   type ButtonInteraction,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import {
@@ -36,6 +37,14 @@ export class VoiceButtonInteractionListener extends Listener {
       await this.handleWatchStop(interaction, guildId);
     } else if (customId.startsWith('voice_track_stop:')) {
       await this.handleTrackStop(interaction, guildId);
+    } else if (customId.startsWith('voice_join:')) {
+      await this.handleJoin(interaction);
+    } else if (customId.startsWith('voice_mute:')) {
+      await this.handleMute(interaction);
+    } else if (customId.startsWith('voice_disconnect:')) {
+      await this.handleDisconnect(interaction);
+    } else if (customId.startsWith('voice_mute_all:')) {
+      await this.handleMuteAll(interaction);
     }
   }
 
@@ -128,6 +137,188 @@ export class VoiceButtonInteractionListener extends Listener {
         .reply({
           content: 'An error occurred while stopping the track.',
           flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
+  }
+
+  private async handleJoin(interaction: ButtonInteraction): Promise<void> {
+    const channelId = interaction.customId.split(':')[1];
+    if (!channelId || !interaction.guild) return;
+
+    try {
+      const channel = interaction.guild.channels.cache.get(channelId);
+      if (!channel?.isVoiceBased()) {
+        await interaction.reply({
+          content: 'Voice channel not found.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const inviteUrl = `https://discord.com/channels/${interaction.guildId}/${channelId}`;
+      await interaction.reply({
+        content: `**Join channel:** ${channel.name}\n${inviteUrl}`,
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error joining:', error);
+      await interaction
+        .reply({
+          content: 'An error occurred.',
+          flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
+  }
+
+  private async handleMute(interaction: ButtonInteraction): Promise<void> {
+    const targetId = interaction.customId.split(':')[1];
+    if (!targetId || !interaction.guild) return;
+
+    try {
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      if (!member?.permissions.has(PermissionFlagsBits.MuteMembers)) {
+        await interaction.reply({
+          content: 'You do not have permission to mute members.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const target = await interaction.guild.members.fetch(targetId).catch(() => null);
+      if (!target) {
+        await interaction.reply({
+          content: 'Member not found.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      if (!target.voice.channelId) {
+        await interaction.reply({
+          content: 'Member is not in a voice channel.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const newMuteState = !target.voice.serverMute;
+      await target.voice.setMute(newMuteState);
+
+      await interaction.reply({
+        content: `**${target.displayName}** has been ${newMuteState ? 'muted' : 'unmuted'}.`,
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error muting:', error);
+      await interaction
+        .reply({
+          content: 'An error occurred while muting the member.',
+          flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
+  }
+
+  private async handleDisconnect(interaction: ButtonInteraction): Promise<void> {
+    const targetId = interaction.customId.split(':')[1];
+    if (!targetId || !interaction.guild) return;
+
+    try {
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      if (!member?.permissions.has(PermissionFlagsBits.MoveMembers)) {
+        await interaction.reply({
+          content: 'You do not have permission to disconnect members.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const target = await interaction.guild.members.fetch(targetId).catch(() => null);
+      if (!target) {
+        await interaction.reply({
+          content: 'Member not found.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      if (!target.voice.channelId) {
+        await interaction.reply({
+          content: 'Member is not in a voice channel.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      await target.voice.disconnect();
+
+      await interaction.reply({
+        content: `**${target.displayName}** has been disconnected from voice.`,
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error disconnecting:', error);
+      await interaction
+        .reply({
+          content: 'An error occurred while disconnecting the member.',
+          flags: MessageFlags.Ephemeral,
+        })
+        .catch(() => {});
+    }
+  }
+
+  private async handleMuteAll(interaction: ButtonInteraction): Promise<void> {
+    const channelId = interaction.customId.split(':')[1];
+    if (!channelId || !interaction.guild) return;
+
+    try {
+      const member = interaction.guild.members.cache.get(interaction.user.id);
+      if (!member?.permissions.has(PermissionFlagsBits.MuteMembers)) {
+        await interaction.reply({
+          content: 'You do not have permission to mute members.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const channel = interaction.guild.channels.cache.get(channelId);
+      if (!channel?.isVoiceBased()) {
+        await interaction.reply({
+          content: 'Voice channel not found.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      const members = channel.members;
+      if (members.size === 0) {
+        await interaction.reply({
+          content: 'No members in the channel.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      let mutedCount = 0;
+      for (const [, target] of members) {
+        if (!target.voice.serverMute) {
+          await target.voice.setMute(true).catch(() => {});
+          mutedCount++;
+        }
+      }
+
+      await interaction.editReply({
+        content: `Muted **${mutedCount}** member(s) in **${channel.name}**.`,
+      });
+    } catch (error) {
+      container.logger.error('[VoiceButtonInteraction] Error muting all:', error);
+      await interaction
+        .editReply({
+          content: 'An error occurred while muting members.',
         })
         .catch(() => {});
     }

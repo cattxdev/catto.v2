@@ -9,6 +9,8 @@ import {
 } from 'discord.js';
 import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
 import type { GuildMember } from 'discord.js';
+import { VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
+import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceSnapshotOptions(interaction);
@@ -29,7 +31,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     const memberCount = members.size;
 
     const lines: string[] = [
-      `## Snapshot: ${voiceChannel.name}`,
+      `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
       `**Members:** ${memberCount}`,
       `**Taken:** <t:${Math.floor(Date.now() / 1000)}:F>`,
     ];
@@ -82,14 +84,6 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
 }
 
 function formatMemberLine(member: GuildMember): string {
-  const voice = member.voice;
-  const indicators: string[] = [];
-
-  if (voice.selfMute || voice.serverMute) indicators.push('[M]');
-  if (voice.selfDeaf || voice.serverDeaf) indicators.push('[D]');
-  if (voice.streaming) indicators.push('[S]');
-  if (voice.selfVideo) indicators.push('[V]');
-
-  const status = indicators.length > 0 ? ` ${indicators.join(' ')}` : '';
-  return `**${member.displayName}** (${member.user.tag})${status}`;
+  const indicators = getVoiceIndicators(member.voice);
+  return `${indicators} **${member.displayName}** (${member.user.tag})`;
 }

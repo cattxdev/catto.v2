@@ -13,10 +13,40 @@ import {
   type VoiceWatchSession,
   type VoiceTrackSession,
   VOICE_WATCH_CONFIG,
+  VOICE_EMOJI,
 } from '../domain/types.js';
 
 /**
- * Build watch message components (no emojis)
+ * Get voice state emoji indicators for a member
+ */
+export function getVoiceIndicators(voice: {
+  selfMute?: boolean | null;
+  selfDeaf?: boolean | null;
+  serverMute?: boolean | null;
+  serverDeaf?: boolean | null;
+  streaming?: boolean | null;
+}): string {
+  const indicators: string[] = [];
+
+  if (voice.serverMute) {
+    indicators.push(VOICE_EMOJI.serverMute);
+  } else if (voice.selfMute) {
+    indicators.push(VOICE_EMOJI.selfMute);
+  } else {
+    indicators.push(VOICE_EMOJI.unMute);
+  }
+
+  if (voice.serverDeaf) {
+    indicators.push(VOICE_EMOJI.serverDeaf);
+  } else if (voice.selfDeaf) {
+    indicators.push(VOICE_EMOJI.selfDeaf);
+  }
+
+  return indicators.join(' ');
+}
+
+/**
+ * Build watch message components with utility buttons
  */
 export function buildWatchMessage(
   session: VoiceWatchSession,
@@ -25,21 +55,21 @@ export function buildWatchMessage(
 ): ContainerBuilder {
   const targetMember = guild.members.cache.get(session.targetId);
   const displayName = targetMember?.displayName ?? session.targetId;
-  const channelName = state.channelId
-    ? (guild.channels.cache.get(state.channelId)?.name ?? 'Unknown')
-    : 'Not in voice';
+  const channel = state.channelId ? guild.channels.cache.get(state.channelId) : null;
+  const channelName = channel?.name ?? 'Not in voice';
 
-  const statusIndicator = state.channelId ? '[Online]' : '[Offline]';
-  const muteStatus = getMuteStatus(state);
+  const channelIcon = channel ? VOICE_EMOJI.channelVoice : '';
+  const voiceIndicators = state.channelId ? getVoiceIndicators(state) : '';
 
-  const lines: string[] = [
-    `## Watching: ${displayName}`,
-    `${statusIndicator} **Channel:** ${channelName}`,
-    `**Audio:** ${muteStatus}`,
-  ];
+  const lines: string[] = [`## Watching: ${displayName}`];
 
-  if (state.streaming) {
-    lines.push('**Streaming:** Yes');
+  if (state.channelId && channel) {
+    lines.push(`${channelIcon} **${channelName}** ${voiceIndicators}`);
+    if (state.streaming) {
+      lines.push('**Streaming**');
+    }
+  } else {
+    lines.push('_Not in a voice channel_');
   }
 
   const containerComp = new ContainerBuilder().addTextDisplayComponents(
@@ -52,21 +82,39 @@ export function buildWatchMessage(
       new TextDisplayBuilder().setContent(
         `Ends <t:${Math.floor(session.endsAt / 1000)}:R> | Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`voice_watch_stop:${session.targetId}`)
-          .setLabel('Stop')
-          .setStyle(ButtonStyle.Danger)
-      )
     );
+
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`voice_watch_stop:${session.targetId}`)
+      .setLabel('Stop')
+      .setStyle(ButtonStyle.Danger)
+  );
+
+  if (state.channelId) {
+    actionRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`voice_join:${state.channelId}`)
+        .setLabel('Join')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`voice_mute:${session.targetId}`)
+        .setLabel('Mute')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`voice_disconnect:${session.targetId}`)
+        .setLabel('Disconnect')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+
+  containerComp.addActionRowComponents(actionRow);
 
   return containerComp;
 }
 
 /**
- * Build track message components (no emojis)
+ * Build track message components with utility buttons
  */
 export function buildTrackMessage(
   session: VoiceTrackSession,
@@ -80,17 +128,15 @@ export function buildTrackMessage(
   const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((m) => {
-      const member = m as { displayName: string; voice?: VoiceState };
-      const muteIndicator = member.voice?.selfMute || member.voice?.serverMute ? '[M]' : '';
-      const streamIndicator = member.voice?.streaming ? '[S]' : '';
-      const indicators = [muteIndicator, streamIndicator].filter(Boolean).join(' ');
-      return indicators ? `${member.displayName} ${indicators}` : member.displayName;
+      const member = m as { id: string; displayName: string; voice?: VoiceState };
+      const indicators = getVoiceIndicators(member.voice ?? {});
+      return `${indicators} ${member.displayName}`;
     });
 
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
   const lines: string[] = [
-    `## Tracking: ${voiceChannel.name}`,
+    `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
     `**Members:** ${memberCount}`,
     memberList,
   ];
@@ -109,15 +155,24 @@ export function buildTrackMessage(
       new TextDisplayBuilder().setContent(
         `Ends <t:${Math.floor(session.endsAt / 1000)}:R> | Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`voice_track_stop:${session.channelId}`)
-          .setLabel('Stop')
-          .setStyle(ButtonStyle.Danger)
-      )
     );
+
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`voice_track_stop:${session.channelId}`)
+      .setLabel('Stop')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`voice_join:${session.channelId}`)
+      .setLabel('Join')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`voice_mute_all:${session.channelId}`)
+      .setLabel('Mute All')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  containerComp.addActionRowComponents(actionRow);
 
   return containerComp;
 }
@@ -156,15 +211,6 @@ export function buildTrackEndedMessage(
       `**Duration:** ${formatDuration(durationMs)} | **Updates:** ${updateCount}`
     )
   );
-}
-
-function getMuteStatus(state: VoiceState): string {
-  const parts: string[] = [];
-  if (state.selfMute) parts.push('Self-muted');
-  if (state.selfDeaf) parts.push('Self-deafened');
-  if (state.serverMute) parts.push('Server-muted');
-  if (state.serverDeaf) parts.push('Server-deafened');
-  return parts.length > 0 ? parts.join(', ') : 'Unmuted';
 }
 
 export function formatDuration(ms: number): string {

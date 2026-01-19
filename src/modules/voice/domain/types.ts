@@ -107,3 +107,18 @@ export const VOICE_CACHE_TTL = {
   watchSession: 16 * 60, // 16 minutes (slightly longer than max watch)
   trackSession: 16 * 60,
 } as const;
+
+/**
+ * Custom Discord emojis for voice state indicators
+ */
+export const VOICE_EMOJI = {
+  selfMute: '<:self_mute:1462669369917313251>',
+  selfDeaf: '<:self_deaf:1462669368671604891>',
+  serverMute: '<:server_mute:1462668512932663326>',
+  serverDeaf: '<:server_deaf:1462668511880024302>',
+  unDeaf: '<:un_deaf:1462669353068527699>',
+  unMute: '<:un_mute:1462669352162693171>',
+  channelVoice: '<:channel_voice:1462669361977364512>',
+  channelPrivate: '<:channel_private:1462669363470667951>',
+  channelVoicePrivate: '<:channel_voice_private:1462669366633169032>',
+} as const;

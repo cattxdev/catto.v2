@@ -1,9 +1,19 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { container } from '@sapphire/framework';
-import { MessageFlags, ContainerBuilder, TextDisplayBuilder } from 'discord.js';
+import {
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+} from 'discord.js';
 import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
-import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
+import { VoiceMemberPresenceSchema, VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
+import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWhereOptions(interaction);
@@ -29,36 +39,54 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const lines: string[] = [
-      `## Voice Location`,
-      `**User:** ${member.displayName} (${options.target.tag})`,
-    ];
+    const lines: string[] = [`## ${member.displayName}`];
 
     if (inVoice && voiceState.channel) {
-      const muteStatus = getMuteStatusText(voiceState);
-      lines.push(`**Status:** Online`);
-      lines.push(`**Channel:** ${voiceState.channel.name}`);
-      lines.push(`**Audio:** ${muteStatus}`);
+      const indicators = getVoiceIndicators(voiceState);
+      lines.push(`${VOICE_EMOJI.channelVoice} **${voiceState.channel.name}** ${indicators}`);
 
       if (voiceState.streaming) {
-        lines.push(`**Streaming:** Yes`);
+        lines.push(`**Streaming**`);
       }
 
       if (cached) {
         const joinedAgo = Math.floor((Date.now() - cached.timestamp) / 1000);
-        lines.push(`_State tracked for ${formatSeconds(joinedAgo)}_`);
+        lines.push(`_Tracked for ${formatSeconds(joinedAgo)}_`);
       }
     } else {
-      lines.push(`**Status:** Not in voice`);
+      lines.push(`_Not in a voice channel_`);
 
       if (cached) {
-        lines.push(`_Last seen in voice <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
+        lines.push(`_Last seen <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
       }
     }
 
     const containerComp = new ContainerBuilder().addTextDisplayComponents(
       ...lines.map((line) => new TextDisplayBuilder().setContent(line))
     );
+
+    if (inVoice && voiceState.channelId) {
+      containerComp.addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
+      );
+
+      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`voice_join:${voiceState.channelId}`)
+          .setLabel('Join')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`voice_mute:${options.targetId}`)
+          .setLabel('Mute')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`voice_disconnect:${options.targetId}`)
+          .setLabel('Disconnect')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      containerComp.addActionRowComponents(actionRow);
+    }
 
     await interaction.editReply({
       components: [containerComp],
@@ -70,20 +98,6 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       content: 'An error occurred while checking voice location.',
     });
   }
-}
-
-function getMuteStatusText(voiceState: {
-  selfMute: boolean | null;
-  selfDeaf: boolean | null;
-  serverMute: boolean | null;
-  serverDeaf: boolean | null;
-}): string {
-  const parts: string[] = [];
-  if (voiceState.selfMute) parts.push('Self-muted');
-  if (voiceState.selfDeaf) parts.push('Self-deafened');
-  if (voiceState.serverMute) parts.push('Server-muted');
-  if (voiceState.serverDeaf) parts.push('Server-deafened');
-  return parts.length > 0 ? parts.join(', ') : 'Unmuted';
 }
 
 function formatSeconds(seconds: number): string {

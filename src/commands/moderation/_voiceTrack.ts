@@ -17,9 +17,11 @@ import {
   VoiceTrackSessionSchema,
   VOICE_WATCH_CONFIG,
   VOICE_CACHE_TTL,
+  VOICE_EMOJI,
   type VoiceTrackSession,
 } from '#root/modules/voice/domain/types.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
+import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceTrackOptions(interaction);
@@ -110,16 +112,14 @@ function buildTrackMessage(
   const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((member: GuildMember) => {
-      const muteIndicator = member.voice.selfMute || member.voice.serverMute ? '[M]' : '';
-      const streamIndicator = member.voice.streaming ? '[S]' : '';
-      const indicators = [muteIndicator, streamIndicator].filter(Boolean).join(' ');
-      return indicators ? `${member.displayName} ${indicators}` : member.displayName;
+      const indicators = getVoiceIndicators(member.voice);
+      return `${indicators} ${member.displayName}`;
     });
 
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
   const lines: string[] = [
-    `## Tracking: ${voiceChannel.name}`,
+    `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
     `**Members:** ${memberCount}`,
     memberList,
   ];
@@ -144,7 +144,15 @@ function buildTrackMessage(
         new ButtonBuilder()
           .setCustomId(`voice_track_stop:${options.channelId}`)
           .setLabel('Stop')
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`voice_join:${options.channelId}`)
+          .setLabel('Join')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`voice_mute_all:${options.channelId}`)
+          .setLabel('Mute All')
+          .setStyle(ButtonStyle.Secondary)
       )
     );
 

@@ -16,9 +16,11 @@ import {
   VoiceWatchSessionSchema,
   VOICE_WATCH_CONFIG,
   VOICE_CACHE_TTL,
+  VOICE_EMOJI,
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
+import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWatchOptions(interaction);
@@ -123,21 +125,23 @@ function buildWatchMessage(
   updateCount: number
 ): ContainerBuilder {
   const displayName = member.displayName;
-  const channelName = voiceState.channelId
-    ? (voiceState.channel?.name ?? 'Unknown')
-    : 'Not in voice';
-  const statusIndicator = voiceState.channelId ? '[Online]' : '[Offline]';
-  const muteStatus = getMuteStatus(voiceState);
 
-  const lines: string[] = [
-    `## Watching: ${displayName}`,
-    `**Target:** ${options.target.tag}`,
-    `${statusIndicator} **Channel:** ${channelName}`,
-    `**Audio:** ${muteStatus}`,
-  ];
+  const lines: string[] = [`## Watching: ${displayName}`];
 
-  if (voiceState.streaming) {
-    lines.push('**Streaming:** Yes');
+  if (voiceState.channelId && voiceState.channel) {
+    const indicators = getVoiceIndicators({
+      selfMute: voiceState.selfMute ?? false,
+      selfDeaf: voiceState.selfDeaf ?? false,
+      serverMute: voiceState.serverMute ?? false,
+      serverDeaf: voiceState.serverDeaf ?? false,
+    });
+    lines.push(`${VOICE_EMOJI.channelVoice} **${voiceState.channel.name}** ${indicators}`);
+
+    if (voiceState.streaming) {
+      lines.push('**Streaming**');
+    }
+  } else {
+    lines.push('_Not in a voice channel_');
   }
 
   const containerComp = new ContainerBuilder().addTextDisplayComponents(
@@ -150,29 +154,33 @@ function buildWatchMessage(
       new TextDisplayBuilder().setContent(
         `Ends <t:${Math.floor(endsAt / 1000)}:R> | Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`voice_watch_stop:${options.targetId}`)
-          .setLabel('Stop')
-          .setStyle(ButtonStyle.Danger)
-      )
     );
 
-  return containerComp;
-}
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`voice_watch_stop:${options.targetId}`)
+      .setLabel('Stop')
+      .setStyle(ButtonStyle.Danger)
+  );
 
-function getMuteStatus(voiceState: {
-  selfMute: boolean | null;
-  selfDeaf: boolean | null;
-  serverMute: boolean | null;
-  serverDeaf: boolean | null;
-}): string {
-  const parts: string[] = [];
-  if (voiceState.selfMute) parts.push('Self-muted');
-  if (voiceState.selfDeaf) parts.push('Self-deafened');
-  if (voiceState.serverMute) parts.push('Server-muted');
-  if (voiceState.serverDeaf) parts.push('Server-deafened');
-  return parts.length > 0 ? parts.join(', ') : 'Unmuted';
+  if (voiceState.channelId) {
+    actionRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`voice_join:${voiceState.channelId}`)
+        .setLabel('Join')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`voice_mute:${options.targetId}`)
+        .setLabel('Mute')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`voice_disconnect:${options.targetId}`)
+        .setLabel('Disconnect')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+
+  containerComp.addActionRowComponents(actionRow);
+
+  return containerComp;
 }
