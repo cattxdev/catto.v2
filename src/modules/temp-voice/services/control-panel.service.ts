@@ -2,7 +2,7 @@
  * Service for managing control panel messages
  */
 
-import { PrismaClient, TempVoiceChannel } from '@prisma/client';
+import { TempVoiceChannel } from '@prisma/client';
 import type {
 	Client,
 	GuildMember,
@@ -22,7 +22,7 @@ import { TempChannelService } from './temp-channel.service';
 
 export class ControlPanelService {
 	constructor(
-		private _prisma: PrismaClient,
+
 		private _client: Client,
 		private _channelService: TempChannelService
 	) {}

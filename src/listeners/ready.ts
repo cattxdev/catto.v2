@@ -10,6 +10,7 @@ export class ReadyListener extends Listener {
     public constructor(context: Listener.LoaderContext, options: Listener.Options) {
         super(context, {
             ...options,
+            name: 'mainReady',
             once: true,
             event: Events.ClientReady,
         });

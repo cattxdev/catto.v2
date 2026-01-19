@@ -27,7 +27,6 @@ export class ChannelDeleteListener extends Listener {
 			this.configService = new TempVoiceConfigService(container.prisma);
 			this.channelService = new TempChannelService(
 				container.prisma,
-				this.configService,
 				new PermissionsService()
 			);
 		}

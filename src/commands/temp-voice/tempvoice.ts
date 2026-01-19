@@ -9,10 +9,10 @@ import { TempChannelService } from '#modules/temp-voice/services/temp-channel.se
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service';
-import { CleanupService } from '#modules/temp-voice/services/cleanup.service';
+import { TempVoiceChannel } from '@prisma/client';
 
 @ApplyOptions<Command.Options>({
-	name: 'tempvoice',
+	name: 'voice',
 	description: 'Manage your temporary voice channel',
 	requiredUserPermissions: [],
 	preconditions: ['GuildOnly'],
@@ -22,7 +22,6 @@ export class TempVoiceCommand extends Command {
 	private configService!: TempVoiceConfigService;
 	private permissionsService!: PermissionsService;
 	private controlPanelService!: ControlPanelService;
-	private _cleanupService!: CleanupService;
 
 	public override registerApplicationCommands(registry: Command.Registry) {
 		registry.registerChatInputCommand((builder) =>
@@ -170,17 +169,9 @@ export class TempVoiceCommand extends Command {
 			this.permissionsService = new PermissionsService();
 			this.channelService = new TempChannelService(
 				this.container.prisma,
-				this.configService,
 				this.permissionsService
 			);
-			this._cleanupService = new CleanupService(
-				this.container.prisma,
-				this.container.client,
-				this.channelService,
-				this.configService
-			);
 			this.controlPanelService = new ControlPanelService(
-				this.container.prisma,
 				this.container.client,
 				this.channelService
 			);
@@ -267,7 +258,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleRename(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const newName = interaction.options.getString('name', true);
@@ -291,7 +282,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleLimit(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const limit = interaction.options.getInteger('limit', true);
@@ -315,7 +306,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleLock(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {
@@ -339,7 +330,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleUnlock(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {
@@ -363,7 +354,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleHide(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {
@@ -387,7 +378,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleShow(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {
@@ -411,7 +402,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handlePermit(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const user = interaction.options.getUser('user', true);
@@ -423,7 +414,7 @@ export class TempVoiceCommand extends Command {
 			});
 
 			// Update allowed users list
-			const allowedUsers = tempChannel.allowedUserIds || [];
+			const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
 			if (!allowedUsers.includes(user.id)) {
 				allowedUsers.push(user.id);
 				await this.channelService.update(tempChannel.channelId, { allowedUserIds: allowedUsers });
@@ -444,7 +435,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleDeny(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const user = interaction.options.getUser('user', true);
@@ -462,14 +453,14 @@ export class TempVoiceCommand extends Command {
 			});
 
 			// Update denied users list
-			const deniedUsers = tempChannel.deniedUserIds || [];
+			const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
 			if (!deniedUsers.includes(user.id)) {
 				deniedUsers.push(user.id);
 				await this.channelService.update(tempChannel.channelId, { deniedUserIds: deniedUsers });
 			}
 
 			// Remove from allowed users if present
-			const allowedUsers = tempChannel.allowedUserIds || [];
+			const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
 			const filteredAllowed = allowedUsers.filter((id: string) => id !== user.id);
 			if (filteredAllowed.length !== allowedUsers.length) {
 				await this.channelService.update(tempChannel.channelId, { allowedUserIds: filteredAllowed });
@@ -490,7 +481,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleKick(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const user = interaction.options.getUser('user', true);
@@ -535,7 +526,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleTransfer(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const user = interaction.options.getUser('user', true);
@@ -593,7 +584,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleBitrate(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const bitrate = interaction.options.getInteger('bitrate', true) * 1000; // Convert to bps
@@ -629,7 +620,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleRegion(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const region = interaction.options.getString('region', true);
@@ -637,8 +628,8 @@ export class TempVoiceCommand extends Command {
 
 		try {
 			await voiceChannel.setRTCRegion(rtcRegion);
-			await this.channelService.update(tempChannel.channelId, { 
-				customRegion: rtcRegion || 'auto' 
+			await this.channelService.update(tempChannel.channelId, {
+				customRegion: rtcRegion || 'auto'
 			});
 
 			return interaction.reply({
@@ -656,7 +647,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleReset(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {
@@ -708,7 +699,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handleClaim(
 		interaction: Command.ChatInputCommandInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		const member = interaction.member as GuildMember;
@@ -749,7 +740,7 @@ export class TempVoiceCommand extends Command {
 
 	private async handlePanel(
 		interaction: Command.ChatInputCommandInteraction,
-		_tempChannel: any,
+		_tempChannel: TempVoiceChannel,
 		voiceChannel: VoiceChannel
 	) {
 		try {

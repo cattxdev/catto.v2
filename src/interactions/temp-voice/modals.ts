@@ -1,5 +1,5 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import type { ModalSubmitInteraction } from 'discord.js';
+import type { ModalSubmitInteraction, GuildMember, Role } from 'discord.js';
 import { MessageFlags, VoiceChannel } from 'discord.js';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
@@ -32,11 +32,9 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			this.permissionsService = new PermissionsService();
 			this.channelService = new TempChannelService(
 				this.container.prisma,
-				this.configService,
 				this.permissionsService
 			);
 			this.controlPanelService = new ControlPanelService(
-				this.container.prisma,
 				this.container.client,
 				this.channelService
 			);
@@ -58,12 +56,12 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
 		// Check permissions
 		const config = await this.configService.get(interaction.guildId!);
-		const member = interaction.member as any;
+		const member = interaction.member as GuildMember;
 		const canManage = this.permissionsService.canManageChannel(
 			member.user.id,
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
-			member.roles.cache?.map((r: any) => r.id) || [],
+			member.roles.cache?.map((r: Role) => r.id) || [],
 			member.permissions?.has('Administrator') || false
 		);
 		if (!canManage) {
