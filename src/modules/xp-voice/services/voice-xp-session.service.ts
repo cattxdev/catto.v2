@@ -166,11 +166,21 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
 	if (!config.enabled || config.xpMode !== VoiceXPMode.PER_MINUTE) return 0;
 	
 	const activeSessions = await sessionTracking.getGuildActiveSessions(guildId);
+	
+	if (activeSessions.length === 0) {
+		container.logger.debug(`[Voice XP] No active sessions for guild ${guildId}`);
+		return 0;
+	}
+	
+	container.logger.debug(`[Voice XP] Processing ${activeSessions.length} active session(s) for guild ${guildId}`);
 	let awarded = 0;
 	
 	for (const session of activeSessions) {
 		const minutesSinceLastAward = Math.floor((Date.now() - session.lastAwardTime) / 60000);
-		if (minutesSinceLastAward < 1) continue;
+		if (minutesSinceLastAward < 1) {
+			container.logger.debug(`[Voice XP] Session ${session.userId} in guild ${guildId} not due yet (${minutesSinceLastAward}m since last award)`);
+			continue;
+		}
 		
 		// Fetch guild and member for validation
 		const guild = container.client.guilds.cache.get(guildId);
@@ -193,7 +203,10 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
 		};
 		
 		const validationResult = validation.validateVoiceXPAward(context, config);
-		if (!validationResult.valid) continue;
+		if (!validationResult.valid) {
+			container.logger.debug(`[Voice XP] Validation failed for ${session.userId}: ${validationResult.reason}`);
+			continue;
+		}
 		
 		// Award XP for 1 minute
 		const xpAwarded = config.xpPerMinute;
@@ -213,6 +226,12 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
 			lastAwardTime: Date.now()
 		});
 		awarded++;
+		
+		container.logger.debug(`[Voice XP] Awarded ${xpAwarded} XP to ${session.userId} in guild ${guildId}`);
+	}
+	
+	if (awarded > 0) {
+		container.logger.info(`[Voice XP] Awarded XP to ${awarded} user(s) in guild ${guildId}`);
 	}
 	
 	return awarded;
