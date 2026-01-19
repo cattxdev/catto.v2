@@ -7,6 +7,7 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
 import { CONFIG } from '../../../config';
 import { awardPerMinuteXP } from './voice-xp-session.service';
+import { getVoiceXPConfig } from './voice-xp-config.service';
 
 interface VoiceXPJobData {
 	guildId: string;
@@ -145,8 +146,6 @@ class VoiceXPQueueService {
 	public async initializeAllGuilds(): Promise<void> {
 		try {
 			const guilds = container.client.guilds.cache;
-			const { getVoiceXPConfig } = await import('./voice-xp-config.service');
-			
 			let scheduled = 0;
 
 			for (const [guildId] of guilds) {
