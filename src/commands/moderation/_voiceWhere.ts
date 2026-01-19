@@ -14,7 +14,10 @@ import {
 import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMemberPresenceSchema, VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
-import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
+import {
+  getVoiceIndicators,
+  formatMemberName,
+} from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWhereOptions(interaction);
@@ -40,7 +43,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const lines: string[] = [`## ${VOICE_EMOJI.member} ${member.displayName}`];
+    const lines: string[] = [`## ${VOICE_EMOJI.member} ${formatMemberName(member)}`];
 
     if (inVoice && voiceState.channel && voiceState.channelId) {
       const indicators = getVoiceIndicators(

@@ -6,8 +6,11 @@ import {
   ButtonStyle,
   SeparatorBuilder,
   SeparatorSpacingSize,
+  PermissionFlagsBits,
   type Guild,
   type VoiceState,
+  type GuildMember,
+  type PermissionResolvable,
   channelMention,
   userMention,
 } from 'discord.js';
@@ -18,6 +21,55 @@ import {
   VOICE_EMOJI,
 } from '../domain/types.js';
 import { embeddedActivityTracker } from './embeddedActivity.js';
+
+/**
+ * Voice moderation permissions that qualify a member for the mod shield indicator
+ */
+const VOICE_MOD_PERMISSIONS: PermissionResolvable[] = [
+  PermissionFlagsBits.MuteMembers,
+  PermissionFlagsBits.DeafenMembers,
+  PermissionFlagsBits.MoveMembers,
+  PermissionFlagsBits.KickMembers,
+];
+
+/**
+ * Check if a member has voice moderation permissions (mute/deafen, move, kick)
+ */
+export function hasVoiceModPermissions(member: GuildMember): boolean {
+  return VOICE_MOD_PERMISSIONS.every((perm) => member.permissions.has(perm));
+}
+
+/**
+ * Get the mod shield indicator if a member has voice moderation permissions
+ */
+export function getModShieldIndicator(member: GuildMember): string {
+  return hasVoiceModPermissions(member) ? VOICE_EMOJI.modShield : '';
+}
+
+/**
+ * Format a member's display name with mod shield if applicable
+ */
+export function formatMemberName(member: GuildMember): string {
+  const modShield = getModShieldIndicator(member);
+  return modShield ? `${member.displayName}` : member.displayName;
+}
+
+/**
+ * Format a member line with voice indicators and optional mod shield
+ */
+export function formatVoiceMemberLine(
+  member: GuildMember,
+  options?: { useMention?: boolean; channelId?: string | null }
+): string {
+  const indicators = getVoiceIndicators(
+    { ...member.voice, channelId: options?.channelId ?? member.voice.channelId },
+    member.id
+  );
+  const modShield = getModShieldIndicator(member);
+  const nameDisplay = options?.useMention ? userMention(member.id) : member.displayName;
+
+  return `${indicators} ${nameDisplay} ${modShield}${modShield ? ' ' : ''}`;
+}
 
 export interface VoiceIndicatorOptions {
   selfMute?: boolean | null;
@@ -91,7 +143,7 @@ export function buildWatchMessage(
   guild: Guild
 ): ContainerBuilder {
   const targetMember = guild.members.cache.get(session.targetId);
-  const displayName = targetMember?.displayName ?? session.targetId;
+  const displayName = targetMember ? formatMemberName(targetMember) : session.targetId;
   const channel = state.channelId ? guild.channels.cache.get(state.channelId) : null;
 
   const voiceIndicators = state.channelId
@@ -175,16 +227,8 @@ export function buildTrackMessage(
   const memberLines = Array.from(members.values())
     .slice(0, 10)
     .map((m) => {
-      const member = m as {
-        id: string;
-        displayName: string;
-        voice?: VoiceState;
-      };
-      const indicators = getVoiceIndicators(
-        { ...(member.voice ?? {}), channelId: session.channelId },
-        member.id
-      );
-      return `${indicators} ${userMention(member.id)}`;
+      const member = m as GuildMember;
+      return formatVoiceMemberLine(member, { useMention: true, channelId: session.channelId });
     });
 
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';

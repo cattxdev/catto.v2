@@ -10,6 +10,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   channelMention,
+  type GuildMember,
 } from 'discord.js';
 import { parseVoiceWatchOptions, type VoiceWatchOptions } from '#lib/interaction/typedOptions.js';
 import { setJson, CacheKey } from '#lib/cache/index.js';
@@ -21,7 +22,10 @@ import {
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
-import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
+import {
+  getVoiceIndicators,
+  formatMemberName,
+} from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWatchOptions(interaction);
@@ -72,6 +76,7 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
     const reply = await interaction.editReply({
       components: [containerComp],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
 
     const session: VoiceWatchSession = {
@@ -112,9 +117,7 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
 
 function buildWatchMessage(
   options: VoiceWatchOptions,
-  member: {
-    displayName: string;
-  },
+  member: GuildMember,
   voiceState: {
     channelId: string | null;
     channel?: { name: string } | null;
@@ -128,7 +131,7 @@ function buildWatchMessage(
   endsAt: number,
   updateCount: number
 ): ContainerBuilder {
-  const displayName = member.displayName;
+  const displayName = formatMemberName(member);
 
   const lines: string[] = [`## ${VOICE_EMOJI.member} ${displayName}`];
 

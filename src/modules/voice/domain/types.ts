@@ -115,6 +115,7 @@ export const VOICE_EMOJI = {
   // User/Member indicators
   activities: '<:activities:1462784554795270298>',
   member: '<:member:1462785171416813731>',
+  modShield: '<:mod_shield:1462816389260775547>',
 
   // Voice state emojis
   serverScreenshare: '<:server_screenshare:1462784522671095894>',

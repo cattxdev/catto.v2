@@ -10,7 +10,7 @@ import {
 import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
 import type { GuildMember } from 'discord.js';
 import { VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
-import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
+import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceSnapshotOptions(interaction);
@@ -23,7 +23,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     return;
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await interaction.deferReply();
 
   try {
     const voiceChannel = options.channel;
@@ -74,6 +74,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     await interaction.editReply({
       components: [containerComp],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
   } catch (error) {
     container.logger.error('Error in voice snapshot command:', error);
@@ -83,10 +84,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
   }
 }
 
+// this function is redundant, but it's here for future usage
 function formatMemberLine(member: GuildMember): string {
-  const indicators = getVoiceIndicators(
-    { ...member.voice, channelId: member.voice.channelId },
-    member.id
-  );
-  return `${indicators} **${member.displayName}** (${member.user.tag})`;
+  return formatVoiceMemberLine(member, { useMention: true, channelId: member.voice.channelId });
 }

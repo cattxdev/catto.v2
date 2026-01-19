@@ -163,6 +163,7 @@ export async function handleWatchUpdate(
     await message.edit({
       components: [components],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
   } catch (error) {
     container.logger.error('[VoiceUpdate] Error updating watch:', error);
@@ -242,6 +243,7 @@ export async function handleTrackUpdate(
     await message.edit({
       components: [components],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
   } catch (error) {
     container.logger.error('[VoiceUpdate] Error updating track:', error);
@@ -367,6 +369,7 @@ export async function forceRefreshWatch(
     await message.edit({
       components: [components],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
 
     return true;
@@ -402,6 +405,7 @@ export async function forceRefreshTrack(
     await message.edit({
       components: [components],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
 
     return true;

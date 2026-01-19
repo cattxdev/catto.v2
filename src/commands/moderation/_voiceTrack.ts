@@ -11,7 +11,6 @@ import {
   ButtonStyle,
   type GuildMember,
   channelMention,
-  userMention,
 } from 'discord.js';
 import { parseVoiceTrackOptions, type VoiceTrackOptions } from '#lib/interaction/typedOptions.js';
 import { setJson, CacheKey } from '#lib/cache/index.js';
@@ -23,7 +22,7 @@ import {
   type VoiceTrackSession,
 } from '#root/modules/voice/domain/types.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
-import { getVoiceIndicators } from '#root/modules/voice/services/messageBuilders.js';
+import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceTrackOptions(interaction);
@@ -65,6 +64,7 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
     const reply = await interaction.editReply({
       components: [containerComp],
       flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { parse: [] },
     });
 
     const session: VoiceTrackSession = {
@@ -113,13 +113,9 @@ function buildTrackMessage(
 
   const memberLines = Array.from(members.values())
     .slice(0, 10)
-    .map((member: GuildMember) => {
-      const indicators = getVoiceIndicators(
-        { ...member.voice, channelId: options.channelId },
-        member.id
-      );
-      return `${indicators} ${userMention(member.id)}`;
-    });
+    .map((member: GuildMember) =>
+      formatVoiceMemberLine(member, { useMention: true, channelId: options.channelId })
+    );
 
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
