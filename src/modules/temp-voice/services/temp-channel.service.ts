@@ -176,7 +176,8 @@ export class TempChannelService {
 	 * Delete a temp voice channel record
 	 */
 	async delete(channelId: string): Promise<void> {
-		await this.prisma.tempVoiceChannel.delete({
+		// Use deleteMany to avoid errors if record doesn't exist
+		await this.prisma.tempVoiceChannel.deleteMany({
 			where: { channelId },
 		});
 	}
