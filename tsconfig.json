@@ -38,6 +38,7 @@
       "#routes/*": ["./src/routes/*"],
       "#preconditions/*": ["./src/preconditions/*"],
       "#lib/*": ["./src/lib/*"],
+      "#modules/*": ["./src/modules/*"],
       "#config": ["./src/config.ts"]
     }
   },
