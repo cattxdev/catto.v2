@@ -111,8 +111,9 @@ export class MessageCreateXPListener extends Listener {
 				progress: 0
 			};
 
-			// Parse message template
-			const messageText = parseTemplate(config.messageTemplate, variables);
+			// Use custom template or fallback
+			const template = config.messageTemplate || '🎉 {user} reached level {level}!';
+			const messageText = parseTemplate(template, variables);
 
 			// Send announcement
 			if (config.embedEnabled) {
