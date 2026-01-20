@@ -144,12 +144,14 @@ class LoggingService {
         });
 
         if (!config || !config.enabled) {
-            throw new Error(`Logging disabled for guild ${guildId}`);
+            // Silently skip if logging is disabled - this is expected behavior
+            return;
         }
 
         const webhookUrl = this.getWebhookUrl(config, type);
         if (!webhookUrl) {
-            throw new Error(`No webhook configured for ${guildId}:${type}`);
+            // Silently skip if no webhook configured - this is expected behavior
+            return;
         }
 
         // Reconstruct embed from JSON
