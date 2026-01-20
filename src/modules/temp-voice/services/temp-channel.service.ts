@@ -94,9 +94,9 @@ export class TempChannelService {
 				guildId: guild.id,
 				isLocked,
 				isHidden,
-				allowedUserIds: [],
-				deniedUserIds: [],
-				trustedUserIds: [],
+				allowedUserIds: userPrefs?.allowedUserIds || [],
+				deniedUserIds: userPrefs?.deniedUserIds || [],
+				trustedUserIds: userPrefs?.trustedUserIds || [],
 			});
 		}
 
@@ -136,8 +136,11 @@ export class TempChannelService {
 				channelId: channel.id,
 				ownerId: owner.id,
 				createdByJoinChannelId: sourceChannelId,
-				isLocked: config.defaultLocked,
-				isHidden: config.defaultHidden,
+				isLocked,
+				isHidden,
+				allowedUserIds: userPrefs?.allowedUserIds || [],
+				deniedUserIds: userPrefs?.deniedUserIds || [],
+				trustedUserIds: userPrefs?.trustedUserIds || [],
 				metadata: {
 					creationAttempts: 1,
 					categoryStrategy: categoryResult.strategy,

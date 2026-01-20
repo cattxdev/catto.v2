@@ -3,11 +3,13 @@ import type { UserSelectMenuInteraction, GuildMember, VoiceChannel } from 'disco
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
 
 export class TempVoiceUserSelectHandler extends InteractionHandler {
 	private channelService!: TempChannelService;
 	private configService!: TempVoiceConfigService;
 	private permissionsService!: PermissionsService;
+	private userPrefsService!: UserPreferencesService;
 
 	public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
 		super(ctx, {
@@ -34,6 +36,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				this.container.prisma,
 				this.permissionsService
 			);
+			this.userPrefsService = new UserPreferencesService(this.container.prisma);
 		}
 
 		// Parse customId: tempvoice_<action>_select_<channelId>
@@ -141,6 +144,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			const newAllowed = [...new Set([...currentAllowed, ...userIds])];
 			await this.channelService.update(channelId, { allowedUserIds: newAllowed });
 
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					allowedUserIds: newAllowed,
+				});
+			}
+
 			const userMentions = userIds.map(id => `<@${id}>`).join(', ');
 			return interaction.editReply({
 				content: `✅ Permitted ${userMentions} to access this channel.`,
@@ -203,6 +214,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			const newDenied = [...new Set([...currentDenied, ...userIds.filter(id => id !== tempChannel.ownerId)])];
 			await this.channelService.update(channelId, { deniedUserIds: newDenied });
 
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					deniedUserIds: newDenied,
+				});
+			}
+
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
 			return interaction.editReply({
 				content: userMentions 
@@ -263,6 +282,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
 			const newTrusted = [...new Set([...currentTrusted, ...userIds.filter(id => id !== tempChannel.ownerId)])];
 			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
+
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					trustedUserIds: newTrusted,
+				});
+			}
 
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
 			return interaction.editReply({

@@ -11,6 +11,9 @@ export interface UserPreferenceData {
 	customRegion?: string | null;
 	preferLocked?: boolean;
 	preferHidden?: boolean;
+	allowedUserIds?: string[];
+	deniedUserIds?: string[];
+	trustedUserIds?: string[];
 }
 
 export class UserPreferencesService {
@@ -35,6 +38,9 @@ export class UserPreferencesService {
 			customRegion: prefs.customRegion,
 			preferLocked: prefs.preferLocked,
 			preferHidden: prefs.preferHidden,
+			allowedUserIds: Array.isArray(prefs.allowedUserIds) ? prefs.allowedUserIds as string[] : [],
+			deniedUserIds: Array.isArray(prefs.deniedUserIds) ? prefs.deniedUserIds as string[] : [],
+			trustedUserIds: Array.isArray(prefs.trustedUserIds) ? prefs.trustedUserIds as string[] : [],
 		};
 	}
 
@@ -75,6 +81,9 @@ export class UserPreferencesService {
 			customRegion?: string | null;
 			isLocked: boolean;
 			isHidden: boolean;
+			allowedUserIds?: string[];
+			deniedUserIds?: string[];
+			trustedUserIds?: string[];
 		}
 	): Promise<void> {
 		await this.save(guildId, userId, {
@@ -84,6 +93,9 @@ export class UserPreferencesService {
 			customRegion: channelData.customRegion,
 			preferLocked: channelData.isLocked,
 			preferHidden: channelData.isHidden,
+			allowedUserIds: channelData.allowedUserIds || [],
+			deniedUserIds: channelData.deniedUserIds || [],
+			trustedUserIds: channelData.trustedUserIds || [],
 		});
 	}
 }

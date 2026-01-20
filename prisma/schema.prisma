@@ -461,6 +461,11 @@ model TempVoiceUserPreference {
   preferLocked          Boolean  @default(false)
   preferHidden          Boolean  @default(false)
   
+  // Saved permission lists
+  allowedUserIds        Json     @default("[]")        // string[]
+  deniedUserIds         Json     @default("[]")        // string[]
+  trustedUserIds        Json     @default("[]")        // string[]
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
