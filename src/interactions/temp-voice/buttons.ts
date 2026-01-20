@@ -63,7 +63,8 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
 			member.roles.cache?.map((r: Role) => r.id) || [],
-			member.permissions?.has('Administrator') || false
+			member.permissions?.has('Administrator') || false,
+			(tempChannel.trustedUserIds as string[]) || []
 		);
 		if (!canManage) {
 			return interaction.reply({
@@ -85,8 +86,8 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			case 'permit':
 				return this.handlePermitModal(interaction);
 			case 'deny':
-				return this.handleDenyModal(interaction);
-			case 'kick':
+				return this.handleDenyModal(interaction);		case 'trust':
+			return this.handleTrustModal(interaction);			case 'kick':
 				return this.handleKickModal(interaction);
 			case 'settings':
 				return this.handleSettingsModal(interaction, tempChannel, channelId);
@@ -241,6 +242,24 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		});
 	}
 
+	private async handleTrustModal(interaction: ButtonInteraction) {
+		const channelId = interaction.customId.split('_')[2]!;
+		
+		const userSelect = new UserSelectMenuBuilder()
+			.setCustomId(`tempvoice_trust_select_${channelId}`)
+			.setPlaceholder('Select user(s) to trust')
+			.setMinValues(1)
+			.setMaxValues(10);
+
+		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+
+		return interaction.reply({
+			content: '🤝 Select the user(s) you want to trust with management permissions (they can do everything except transfer ownership):',
+			components: [row],
+			flags: MessageFlags.Ephemeral,
+		});
+	}
+
 	private async handleKickModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
 		
@@ -324,6 +343,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 					isHidden: config.defaultHidden,
 					allowedUserIds: [],
 					deniedUserIds: [],
+					trustedUserIds: [],
 				})
 			);
 

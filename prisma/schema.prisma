@@ -423,6 +423,7 @@ model TempVoiceChannel {
   // Permission overrides
   allowedUserIds        Json     @default("[]")        // string[]
   deniedUserIds         Json     @default("[]")        // string[]
+  trustedUserIds        Json     @default("[]")        // string[] - users with owner-like permissions (except claim)
   
   // Deletion management
   deletionScheduledAt   DateTime?

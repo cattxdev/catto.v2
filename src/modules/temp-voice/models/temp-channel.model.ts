@@ -85,6 +85,7 @@ export interface UpdateTempChannelData {
 	isHidden?: boolean;
 	allowedUserIds?: string[];
 	deniedUserIds?: string[];
+	trustedUserIds?: string[];
 	ownerId?: string;
 	deletionScheduledAt?: Date | null;
 	controlPanelMessageId?: string | null;
