@@ -1,6 +1,6 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction, GuildMember, Role } from 'discord.js';
-import { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, UserSelectMenuBuilder } from 'discord.js';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
@@ -206,22 +206,55 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 	}
 
 	private async handlePermitModal(interaction: ButtonInteraction) {
+		const channelId = interaction.customId.split('_')[2]!;
+		
+		const userSelect = new UserSelectMenuBuilder()
+			.setCustomId(`tempvoice_permit_select_${channelId}`)
+			.setPlaceholder('Select user(s) to permit')
+			.setMinValues(1)
+			.setMaxValues(10);
+
+		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+
 		return interaction.reply({
-			content: '⚠️ Please use `/tempvoice permit <user>` command for now. User selection via buttons coming soon!',
+			content: '👤 Select the user(s) you want to permit access to this channel:',
+			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
 	}
 
 	private async handleDenyModal(interaction: ButtonInteraction) {
+		const channelId = interaction.customId.split('_')[2]!;
+		
+		const userSelect = new UserSelectMenuBuilder()
+			.setCustomId(`tempvoice_deny_select_${channelId}`)
+			.setPlaceholder('Select user(s) to deny')
+			.setMinValues(1)
+			.setMaxValues(10);
+
+		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+
 		return interaction.reply({
-			content: '⚠️ Please use `/tempvoice deny <user>` command for now. User selection via buttons coming soon!',
+			content: '🚫 Select the user(s) you want to deny access to this channel:',
+			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
 	}
 
 	private async handleKickModal(interaction: ButtonInteraction) {
+		const channelId = interaction.customId.split('_')[2]!;
+		
+		const userSelect = new UserSelectMenuBuilder()
+			.setCustomId(`tempvoice_kick_select_${channelId}`)
+			.setPlaceholder('Select user(s) to kick')
+			.setMinValues(1)
+			.setMaxValues(10);
+
+		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+
 		return interaction.reply({
-			content: '⚠️ Please use `/tempvoice kick <user>` command for now. User selection via buttons coming soon!',
+			content: '👢 Select the user(s) you want to kick from this channel:',
+			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
 	}
