@@ -60,6 +60,7 @@ export class TempChannelService {
 			isHidden: config.defaultHidden,
 			allowedUserIds: [],
 			deniedUserIds: [],
+			trustedUserIds: [],
 		});
 
 		// Create the voice channel

@@ -24,6 +24,8 @@ export interface PermissionOverwriteBuilderOptions {
 	allowedUserIds: string[];
 	/** Array of user IDs who are explicitly denied */
 	deniedUserIds: string[];
+	/** Array of user IDs who are trusted (can manage channel like owner, except claim) */
+	trustedUserIds: string[];
 }
 
 /**
@@ -50,6 +52,24 @@ export class PermissionsService {
 			],
 			type: OverwriteType.Member,
 		});
+
+		// Trusted users get the same permissions as owner
+		for (const userId of options.trustedUserIds) {
+			// Skip if it's the owner (already has access)
+			if (userId === options.ownerId) continue;
+
+			overwrites.push({
+				id: userId,
+				allow: [
+					PermissionFlagsBits.ViewChannel,
+					PermissionFlagsBits.Connect,
+					PermissionFlagsBits.Speak,
+					PermissionFlagsBits.Stream,
+					PermissionFlagsBits.UseVAD,
+				],
+				type: OverwriteType.Member,
+			});
+		}
 
 		// @everyone base permissions
 		const everyoneAllow: bigint[] = [
@@ -115,12 +135,37 @@ export class PermissionsService {
 		ownerId: string,
 		adminRoleIds: string[],
 		memberRoleIds: string[],
-		isAdministrator: boolean
+		isAdministrator: boolean,
+		trustedUserIds: string[] = []
 	): boolean {
 		// Owner can always manage
 		if (userId === ownerId) return true;
 
+		// Trusted users can manage
+		if (trustedUserIds.includes(userId)) return true;
+
 		// Server administrators can manage
+		if (isAdministrator) return true;
+
+		// Check if user has any admin role
+		return adminRoleIds.some((roleId) => memberRoleIds.includes(roleId));
+	}
+
+	/**
+	 * Check if a user can transfer ownership (claim command)
+	 * Only owner and admins can transfer, trusted users cannot
+	 */
+	public canTransferOwnership(
+		userId: string,
+		ownerId: string,
+		adminRoleIds: string[],
+		memberRoleIds: string[],
+		isAdministrator: boolean
+	): boolean {
+		// Owner can transfer
+		if (userId === ownerId) return true;
+
+		// Server administrators can transfer
 		if (isAdministrator) return true;
 
 		// Check if user has any admin role

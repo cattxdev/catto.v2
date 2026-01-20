@@ -58,7 +58,8 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
 			member.roles.cache?.map((r) => r.id) || [],
-			member.permissions?.has('Administrator') || false
+			member.permissions?.has('Administrator') || false,
+			(tempChannel.trustedUserIds as string[]) || []
 		);
 		if (!canManage) {
 			return interaction.update({
@@ -76,6 +77,8 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				return this.handlePermit(interaction, tempChannel, channelId, selectedUsers);
 			case 'deny':
 				return this.handleDeny(interaction, tempChannel, channelId, selectedUsers);
+			case 'trust':
+				return this.handleTrust(interaction, tempChannel, channelId, selectedUsers);
 			case 'kick':
 				return this.handleKick(interaction, channelId, selectedUsers);
 			default:
@@ -178,6 +181,58 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			this.container.logger.error('Failed to deny users:', error);
 			return interaction.update({
 				content: '❌ Failed to deny users. Make sure the bot has permission to manage this channel.',
+				components: [],
+			});
+		}
+	}
+
+	private async handleTrust(
+		interaction: UserSelectMenuInteraction,
+		tempChannel: any,
+		channelId: string,
+		userIds: string[]
+	) {
+		try {
+			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
+			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+				return interaction.update({
+					content: '❌ Voice channel not found.',
+					components: [],
+				});
+			}
+
+			// Add trusted users permissions (same as owner)
+			for (const userId of userIds) {
+				// Don't allow trusting the owner (they already have full access)
+				if (userId === tempChannel.ownerId) {
+					continue;
+				}
+
+				await voiceChannel.permissionOverwrites.edit(userId, {
+					Connect: true,
+					ViewChannel: true,
+					Speak: true,
+					Stream: true,
+					UseVAD: true,
+				});
+			}
+
+			// Update database
+			const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
+			const newTrusted = [...new Set([...currentTrusted, ...userIds.filter(id => id !== tempChannel.ownerId)])];
+			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
+
+			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
+			return interaction.update({
+				content: userMentions 
+					? `✅ Trusted ${userMentions}. They can now manage this channel (except transfer ownership).`
+					: '⚠️ The channel owner is already trusted.',
+				components: [],
+			});
+		} catch (error) {
+			this.container.logger.error('Failed to trust users:', error);
+			return interaction.update({
+				content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
 		}
