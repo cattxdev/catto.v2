@@ -16,7 +16,6 @@ import {
 	ButtonBuilder,
 	ButtonStyle,
 	ChannelType,
-	Colors,
 } from 'discord.js';
 import { TempChannelService } from './temp-channel.service';
 
@@ -153,39 +152,42 @@ export class ControlPanelService {
 		voiceChannel: VoiceChannel,
 		owner: GuildMember
 	): EmbedBuilder {
+		const usersValue = tempChannel.customUserLimit && tempChannel.customUserLimit > 0
+			? `\`${voiceChannel.members.size}/${tempChannel.customUserLimit}\``
+			: `\`${voiceChannel.members.size}\``;
+
 		const embed = new EmbedBuilder()
-			.setColor(Colors.Blue)
-			.setTitle('🎙️ Voice Channel Control Panel')
-			.setDescription(`Control panel for **${voiceChannel.name}**`)
+			.setColor(0xFFFFFF) // White color (16777215)
+			.setDescription('### <:4767voiceevent:1462964331317825711> VOICE CHANNEL CONTROL PANEL')
 			.addFields(
 				{
-					name: '👑 Owner',
+					name: '<:4102owner1:1462962657270169712> Owner',
 					value: `<@${owner.id}>`,
 					inline: true,
 				},
 				{
-					name: '👥 Users',
-					value: `${voiceChannel.members.size}${tempChannel.customUserLimit && tempChannel.customUserLimit > 0 ? `/${tempChannel.customUserLimit}` : ''}`,
+					name: '<:5837members:1462962641105584211> Users',
+					value: usersValue,
 					inline: true,
 				},
 				{
-					name: '📊 Bitrate',
-					value: `${(tempChannel.customBitrate || voiceChannel.bitrate) / 1000}kbps`,
+					name: '<:8635krispon:1462962615465541642> Bitrate',
+					value: `\`${(tempChannel.customBitrate || voiceChannel.bitrate) / 1000}kbps\``,
 					inline: true,
 				},
 				{
-					name: '🔒 Status',
-					value: tempChannel.isLocked ? '🔒 Locked' : '🔓 Unlocked',
+					name: '<:9577voiceprivateevent:1462963079485853707> Status',
+					value: tempChannel.isLocked ? '`Locked`' : '`Unlocked`',
 					inline: true,
 				},
 				{
-					name: '👁️ Visibility',
-					value: tempChannel.isHidden ? '👁️‍🗨️ Hidden' : '👁️ Visible',
+					name: '<:3500preview:1462962674542444658> Visibility',
+					value: tempChannel.isHidden ? '`Hidden`' : '`Visible`',
 					inline: true,
 				},
 				{
-					name: '🌍 Region',
-					value: tempChannel.customRegion || 'Auto',
+					name: '<:2910eventlocation:1462962693026611281> Region',
+					value: `\`${tempChannel.customRegion || voiceChannel.rtcRegion || 'Auto'}\``,
 					inline: true,
 				}
 			)
@@ -193,26 +195,6 @@ export class ControlPanelService {
 				text: `Channel ID: ${voiceChannel.id}`,
 			})
 			.setTimestamp();
-
-		// Add allowed/denied users if any
-		const allowedUserIds = tempChannel.allowedUserIds as unknown as string[];
-		const deniedUserIds = tempChannel.deniedUserIds as unknown as string[];
-
-		if (allowedUserIds && allowedUserIds.length > 0) {
-			embed.addFields({
-				name: '✅ Allowed Users',
-				value: allowedUserIds.map((id: string) => `<@${id}>`).join(', '),
-				inline: false,
-			});
-		}
-
-		if (deniedUserIds && deniedUserIds.length > 0) {
-			embed.addFields({
-				name: '⛔ Denied Users',
-				value: deniedUserIds.map((id: string) => `<@${id}>`).join(', '),
-				inline: false,
-			});
-		}
 
 		return embed;
 	}
@@ -224,67 +206,49 @@ export class ControlPanelService {
 		const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_lock_${tempChannel.channelId}`)
-				.setLabel(tempChannel.isLocked ? 'Unlock' : 'Lock')
-				.setEmoji(tempChannel.isLocked ? '🔓' : '🔒')
-				.setStyle(tempChannel.isLocked ? ButtonStyle.Success : ButtonStyle.Danger),
+				.setEmoji({ id: '1462963079485853707', name: '9577voiceprivateevent' })
+				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
-				.setLabel(tempChannel.isHidden ? 'Show' : 'Hide')
-				.setEmoji(tempChannel.isHidden ? '👁' : '🙈')
-				.setStyle(tempChannel.isHidden ? ButtonStyle.Success : ButtonStyle.Secondary),
+				.setEmoji({ id: '1462962674542444658', name: '3500preview' })
+				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
-				.setLabel('Rename')
-				.setEmoji('✏')
-				.setStyle(ButtonStyle.Primary),
+				.setEmoji({ id: '1462995803583811725', name: '3639edit' })
+				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
-				.setLabel('User Limit')
-				.setEmoji('👥')
-				.setStyle(ButtonStyle.Primary)
+				.setEmoji({ id: '1462962641105584211', name: '5837members' })
+				.setStyle(ButtonStyle.Secondary),
+			new ButtonBuilder()
+				.setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
+				.setEmoji({ id: '1462995184336765074', name: '2888settings' })
+				.setStyle(ButtonStyle.Secondary)
 		);
 
 		const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_permit_${tempChannel.channelId}`)
-				.setLabel('Permit User')
-				.setEmoji('✅')
-				.setStyle(ButtonStyle.Success),
-			new ButtonBuilder()
-				.setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
-				.setLabel('Deny User')
-				.setEmoji('⛔')
-				.setStyle(ButtonStyle.Danger),
-			new ButtonBuilder()
-				.setCustomId(`tempvoice_kick_${tempChannel.channelId}`)
-				.setLabel('Kick User')
-				.setEmoji('👢')
-				.setStyle(ButtonStyle.Danger),
-			new ButtonBuilder()
-				.setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
-				.setLabel('Settings')
-				.setEmoji('⚙')
-				.setStyle(ButtonStyle.Secondary)
-		);
-
-		const row3 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-			new ButtonBuilder()
-				.setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
-				.setLabel('Transfer')
-				.setEmoji('🔄')
-				.setStyle(ButtonStyle.Primary),
-			new ButtonBuilder()
-				.setCustomId(`tempvoice_reset_${tempChannel.channelId}`)
-				.setLabel('Reset')
-				.setEmoji('🔄')
+				.setEmoji({ id: '1462996719120945234', name: '1563invitepeople1' })
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
+				.setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
+				.setEmoji({ id: '1462996737127092305', name: '8056engagedinsuspectedspamactiv1' })
+				.setStyle(ButtonStyle.Secondary),
+			new ButtonBuilder()
+				.setCustomId(`tempvoice_trust_${tempChannel.channelId}`)
+				.setEmoji({ id: '1463062838179532821', name: '2360cross' })
+				.setStyle(ButtonStyle.Secondary),
+			new ButtonBuilder()
+				.setCustomId(`tempvoice_kick_${tempChannel.channelId}`)
+				.setEmoji({ id: '1463001026079621235', name: '8562replay2' })
+				.setStyle(ButtonStyle.Secondary), 
+			new ButtonBuilder()
 				.setCustomId(`tempvoice_refresh_${tempChannel.channelId}`)
-				.setLabel('Refresh')
-				.setEmoji('🔄')
+				.setEmoji({ id: '1463001053095006293', name: '2636securityfilter' })
 				.setStyle(ButtonStyle.Secondary)
 		);
 
-		return [row1, row2, row3];
+		return [row1, row2];
 	}
 }

@@ -206,7 +206,8 @@ export class TempVoiceCommand extends Command {
 				tempChannel.ownerId,
 				config.adminRoleIds || [],
 				member.roles.cache.map(r => r.id),
-				member.permissions.has('Administrator')
+				member.permissions.has('Administrator'),
+				(tempChannel.trustedUserIds as string[]) || []
 			);
 			if (!canManage) {
 				return interaction.reply({
@@ -670,6 +671,7 @@ export class TempVoiceCommand extends Command {
 					isHidden: config.defaultHidden,
 					allowedUserIds: [],
 					deniedUserIds: [],
+					trustedUserIds: [],
 				})
 			);
 

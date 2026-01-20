@@ -62,7 +62,8 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
 			member.roles.cache?.map((r: Role) => r.id) || [],
-			member.permissions?.has('Administrator') || false
+			member.permissions?.has('Administrator') || false,
+			(tempChannel.trustedUserIds as string[]) || []
 		);
 		if (!canManage) {
 			return interaction.reply({
