@@ -44,10 +44,17 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		// Get temp channel
 		const tempChannel = await this.channelService.getByChannelId(channelId);
 		if (!tempChannel) {
-			return interaction.update({
-				content: '❌ This temporary voice channel no longer exists.',
-				components: [],
-			});
+			try {
+				return await interaction.update({
+					content: '❌ This temporary voice channel no longer exists.',
+					components: [],
+				});
+			} catch {
+				return interaction.reply({
+					content: '❌ This temporary voice channel no longer exists.',
+					flags: 64, // Ephemeral
+				});
+			}
 		}
 
 		// Check permissions
@@ -62,10 +69,17 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			(tempChannel.trustedUserIds as string[]) || []
 		);
 		if (!canManage) {
-			return interaction.update({
-				content: '❌ You do not have permission to manage this channel.',
-				components: [],
-			});
+			try {
+				return await interaction.update({
+					content: '❌ You do not have permission to manage this channel.',
+					components: [],
+				});
+			} catch {
+				return interaction.reply({
+					content: '❌ You do not have permission to manage this channel.',
+					flags: 64, // Ephemeral
+				});
+			}
 		}
 
 		// Get selected users
@@ -82,10 +96,17 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			case 'kick':
 				return this.handleKick(interaction, channelId, selectedUsers);
 			default:
-				return interaction.update({
-					content: '❌ Unknown action.',
-					components: [],
-				});
+				try {
+					return await interaction.update({
+						content: '❌ Unknown action.',
+						components: [],
+					});
+				} catch {
+					return interaction.reply({
+						content: '❌ Unknown action.',
+						flags: 64, // Ephemeral
+					});
+				}
 		}
 	}
 
@@ -96,9 +117,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -118,13 +142,19 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			await this.channelService.update(channelId, { allowedUserIds: newAllowed });
 
 			const userMentions = userIds.map(id => `<@${id}>`).join(', ');
-			return interaction.update({
+			return interaction.editReply({
 				content: `✅ Permitted ${userMentions} to access this channel.`,
 				components: [],
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to permit users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to permit users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to permit users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
@@ -138,9 +168,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -171,7 +204,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			await this.channelService.update(channelId, { deniedUserIds: newDenied });
 
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
-			return interaction.update({
+			return interaction.editReply({
 				content: userMentions 
 					? `✅ Denied ${userMentions} access to this channel.`
 					: '⚠️ Cannot deny the channel owner.',
@@ -179,7 +212,13 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to deny users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to deny users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to deny users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
@@ -193,9 +232,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -223,7 +265,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
 
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
-			return interaction.update({
+			return interaction.editReply({
 				content: userMentions 
 					? `✅ Trusted ${userMentions}. They can now manage this channel (except transfer ownership).`
 					: '⚠️ The channel owner is already trusted.',
@@ -231,7 +273,13 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to trust users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
@@ -244,9 +292,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -271,13 +322,19 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				? `\n⚠️ Failed to kick: ${failedUsers.map(id => `<@${id}>`).join(', ')}`
 				: '';
 
-			return interaction.update({
+			return interaction.editReply({
 				content: `✅ Kicked ${kickedCount} user(s) from the channel.${failedMentions}`,
 				components: [],
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to kick users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
