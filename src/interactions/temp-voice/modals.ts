@@ -5,12 +5,14 @@ import { TempChannelService } from '#modules/temp-voice/services/temp-channel.se
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
 
 export class TempVoiceModalHandler extends InteractionHandler {
 	private channelService!: TempChannelService;
 	private configService!: TempVoiceConfigService;
 	private permissionsService!: PermissionsService;
 	private controlPanelService!: ControlPanelService;
+	private userPrefsService!: UserPreferencesService;
 
 	public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
 		super(ctx, {
@@ -38,6 +40,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 				this.container.client,
 				this.channelService
 			);
+			this.userPrefsService = new UserPreferencesService(this.container.prisma);
 		}
 
 		// Parse modal customId: tempvoice_<action>_modal_<channelId>
@@ -109,6 +112,18 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
 			await voiceChannel.setName(newName);
 			await this.channelService.update(channelId, { customName: newName });
+
+			// Save user preference if customization is allowed
+			const tempChannel = await this.channelService.getByChannelId(channelId);
+			if (tempChannel) {
+				const config = await this.configService.get(interaction.guildId!);
+				if (config.allowCustomization) {
+					await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+						customName: newName,
+					});
+				}
+			}
+
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
@@ -146,6 +161,18 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
 			await voiceChannel.setUserLimit(limit);
 			await this.channelService.update(channelId, { customUserLimit: limit });
+
+			// Save user preference if customization is allowed
+			const tempChannel = await this.channelService.getByChannelId(channelId);
+			if (tempChannel) {
+				const config = await this.configService.get(interaction.guildId!);
+				if (config.allowCustomization) {
+					await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+						customUserLimit: limit,
+					});
+				}
+			}
+
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
@@ -208,6 +235,18 @@ export class TempVoiceModalHandler extends InteractionHandler {
 				customBitrate: bitrateInBps,
 				customRegion: region,
 			});
+
+			// Save user preference if customization is allowed
+			const tempChannel = await this.channelService.getByChannelId(channelId);
+			if (tempChannel) {
+				const config = await this.configService.get(interaction.guildId!);
+				if (config.allowCustomization) {
+					await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+						customBitrate: bitrate,
+						customRegion: region,
+					});
+				}
+			}
 
 			await this.controlPanelService.refresh(channelId);
 

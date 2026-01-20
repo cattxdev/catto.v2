@@ -215,6 +215,14 @@ export class TempVoiceCommand extends Command {
 					ephemeral: true,
 				});
 			}
+
+			// Check if customization is allowed (except for panel/claim/transfer which are always allowed)
+			if (!config.allowCustomization && !['panel', 'claim', 'transfer'].includes(subcommand)) {
+				return interaction.reply({
+					content: '❌ Channel customization is disabled in this server.',
+					ephemeral: true,
+				});
+			}
 		}
 
 		// Route to appropriate handler

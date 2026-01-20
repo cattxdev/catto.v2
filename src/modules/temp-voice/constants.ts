@@ -36,6 +36,7 @@ export const DEFAULT_TEMP_VOICE_CONFIG = {
 	controlPanelOnCreate: true,
 	logChannelId: null,
 	adminRoleIds: [] as string[],
+	allowCustomization: true,
 } as const;
 
 /**

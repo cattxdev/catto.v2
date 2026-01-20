@@ -5,6 +5,7 @@ import { TempChannelService } from '#modules/temp-voice/services/temp-channel.se
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
 import { TempVoiceChannel } from '@prisma/client';
 
 export class TempVoiceButtonHandler extends InteractionHandler {
@@ -12,6 +13,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 	private configService!: TempVoiceConfigService;
 	private permissionsService!: PermissionsService;
 	private controlPanelService!: ControlPanelService;
+	private userPrefsService!: UserPreferencesService;
 
 	public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
 		super(ctx, {
@@ -39,11 +41,12 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 				this.container.client,
 				this.channelService
 			);
+			this.userPrefsService = new UserPreferencesService(this.container.prisma);
 		}
 
 		// Parse button customId: tempvoice_<action>_<channelId>
 		const parts = interaction.customId.split('_');
-		const action = parts[1];
+		const action = parts[1] || '';
 		const channelId = parts[2]!; // Non-null assertion: customId format is guaranteed
 
 		// Get temp channel
@@ -69,6 +72,14 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		if (!canManage) {
 			return interaction.reply({
 				content: '❌ You do not have permission to manage this channel.',
+				flags: MessageFlags.Ephemeral,
+			});
+		}
+
+		// Check if customization is allowed (except for refresh and transfer which are always allowed)
+		if (!config.allowCustomization && !['refresh', 'transfer'].includes(action)) {
+			return interaction.reply({
+				content: '❌ Channel customization is disabled in this server.',
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -121,6 +132,15 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			});
 
 			await this.channelService.update(channelId, { isLocked: newLockState });
+
+			// Save user preference if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					preferLocked: newLockState,
+				});
+			}
+
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
@@ -152,6 +172,15 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			});
 
 			await this.channelService.update(channelId, { isHidden: newHiddenState });
+
+			// Save user preference if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					preferHidden: newHiddenState,
+				});
+			}
+
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({

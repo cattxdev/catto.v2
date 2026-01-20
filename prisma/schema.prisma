@@ -383,6 +383,7 @@ model TempVoiceConfig {
   // Control panel
   controlPanelEnabled   Boolean  @default(true)
   controlPanelOnCreate  Boolean  @default(true)
+  allowCustomization    Boolean  @default(true)        // Allow users to customize their channels
   
   // Logging
   logChannelId          String?
@@ -442,4 +443,29 @@ model TempVoiceChannel {
   @@index([channelId])
   @@index([deletionScheduledAt])
   @@map("temp_voice_channels")
+}
+
+// User-specific temp voice channel preferences
+model TempVoiceUserPreference {
+  id                    String   @id @default(cuid())
+  guildId               String
+  userId                String
+  
+  // Saved channel settings
+  customName            String?
+  customUserLimit       Int?
+  customBitrate         Int?
+  customRegion          String?
+  
+  // Saved state flags
+  preferLocked          Boolean  @default(false)
+  preferHidden          Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@index([userId])
+  @@map("temp_voice_user_preferences")
 }
