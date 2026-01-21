@@ -100,6 +100,8 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				return this.handleTrust(interaction, tempChannel, channelId, selectedUsers);
 			case 'kick':
 				return this.handleKick(interaction, channelId, selectedUsers);
+			case 'transfer':
+				return this.handleTransfer(interaction, tempChannel, channelId, selectedUsers);
 			default:
 				try {
 					return await interaction.update({
@@ -163,6 +165,15 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 
 			const userMentions = userIds.map(id => `<@${id}>`).join(', ');
+			
+			// Refresh control panel
+			await this.container.client.emit('tempVoiceRefresh', channelId);
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+			
 			return interaction.editReply({
 				content: `✅ Permitted ${userMentions} to access this channel.`,
 				components: [],
@@ -246,6 +257,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
+			
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+			
 			return interaction.editReply({
 				content: userMentions 
 					? `✅ Denied ${userMentions} access to this channel.`
@@ -364,6 +383,13 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				message = '⚠️ The channel owner is already trusted.';
 			}
 
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
 			return interaction.editReply({
 				content: message,
 				components: [],
@@ -419,6 +445,13 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				? `\n⚠️ Failed to kick: ${failedUsers.map(id => `<@${id}>`).join(', ')}`
 				: '';
 
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
 			return interaction.editReply({
 				content: `✅ Kicked ${kickedCount} user(s) from the channel.${failedMentions}`,
 				components: [],
@@ -433,6 +466,101 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 			return interaction.editReply({
 				content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
+				components: [],
+			});
+		}
+	}
+
+	private async handleTransfer(
+		interaction: UserSelectMenuInteraction,
+		tempChannel: TempVoiceChannel,
+		channelId: string,
+		userIds: string[]
+	) {
+		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
+			// Only allow one user to be selected
+			if (userIds.length !== 1) {
+				return interaction.editReply({
+					content: '❌ You can only transfer ownership to one user.',
+					components: [],
+				});
+			}
+
+			const newOwnerId = userIds[0]!;
+			
+			// Check if trying to transfer to current owner
+			if (newOwnerId === tempChannel.ownerId) {
+				return interaction.editReply({
+					content: '❌ This user is already the owner.',
+					components: [],
+				});
+			}
+
+			// Check if the interaction user is the owner (only owner can transfer)
+			const member = interaction.member as GuildMember;
+			if (member.user.id !== tempChannel.ownerId) {
+				return interaction.editReply({
+					content: '❌ Only the channel owner can transfer ownership.',
+					components: [],
+				});
+			}
+
+			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
+			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+				return interaction.editReply({
+					content: '❌ Voice channel not found.',
+					components: [],
+				});
+			}
+
+			// Check if new owner is in the channel
+			const newOwnerMember = await interaction.guild!.members.fetch(newOwnerId).catch(() => null);
+			if (!newOwnerMember || newOwnerMember.voice.channelId !== channelId) {
+				return interaction.editReply({
+					content: '❌ The new owner must be in your channel.',
+					components: [],
+				});
+			}
+
+			// Update permissions - give new owner full permissions
+			await voiceChannel.permissionOverwrites.edit(newOwnerId, {
+				Connect: true,
+				Speak: true,
+				MoveMembers: true,
+				ManageChannels: true,
+				ViewChannel: true,
+			});
+
+			// Remove old owner's special permissions
+			await voiceChannel.permissionOverwrites.delete(tempChannel.ownerId);
+
+			// Update database
+			await this.channelService.update(channelId, { ownerId: newOwnerId });
+
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
+			return interaction.editReply({
+				content: `✅ Channel ownership transferred to <@${newOwnerId}>.`,
+				components: [],
+			});
+		} catch (error) {
+			this.container.logger.error('Failed to transfer ownership:', error);
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to transfer ownership. Please try again.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
+				content: '❌ Failed to transfer ownership. Please try again.',
 				components: [],
 			});
 		}

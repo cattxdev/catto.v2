@@ -247,6 +247,7 @@ export class ControlPanelService {
 				.setCustomId(`tempvoice_refresh_${tempChannel.channelId}`)
 				.setEmoji({ id: '1463001053095006293', name: '2636securityfilter' })
 				.setStyle(ButtonStyle.Secondary)
+				.setLabel('Transfer')
 		);
 
 		return [row1, row2];

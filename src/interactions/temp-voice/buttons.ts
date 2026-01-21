@@ -97,17 +97,19 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			case 'permit':
 				return this.handlePermitModal(interaction);
 			case 'deny':
-				return this.handleDenyModal(interaction);		case 'trust':
-			return this.handleTrustModal(interaction);			case 'kick':
+				return this.handleDenyModal(interaction);
+			case 'trust':
+				return this.handleTrustModal(interaction);
+			case 'kick':
 				return this.handleKickModal(interaction);
 			case 'settings':
 				return this.handleSettingsModal(interaction, tempChannel, channelId);
 			case 'transfer':
-				return this.handleTransferModal(interaction);
+				return this.handleTransferModal(interaction, channelId);
 			case 'reset':
 				return this.handleReset(interaction, tempChannel, channelId);
 			case 'refresh':
-				return this.handleRefresh(interaction, channelId);
+				return this.handleTransferModal(interaction, channelId);
 			default:
 				return interaction.reply({
 					content: '❌ Unknown action.',
@@ -237,7 +239,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 	private async handlePermitModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
-		
+
 		const userSelect = new UserSelectMenuBuilder()
 			.setCustomId(`tempvoice_permit_select_${channelId}`)
 			.setPlaceholder('Select user(s) to permit')
@@ -255,7 +257,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 	private async handleDenyModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
-		
+
 		const userSelect = new UserSelectMenuBuilder()
 			.setCustomId(`tempvoice_deny_select_${channelId}`)
 			.setPlaceholder('Select user(s) to deny')
@@ -273,13 +275,13 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 	private async handleTrustModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
-		
+
 		// Get current temp channel to show trusted users
 		const tempChannel = await this.channelService.getByChannelId(channelId);
-		const trustedUsers = tempChannel && Array.isArray(tempChannel.trustedUserIds) 
-			? (tempChannel.trustedUserIds as string[]) 
+		const trustedUsers = tempChannel && Array.isArray(tempChannel.trustedUserIds)
+			? (tempChannel.trustedUserIds as string[])
 			: [];
-		
+
 		const userSelect = new UserSelectMenuBuilder()
 			.setCustomId(`tempvoice_trust_select_${channelId}`)
 			.setPlaceholder('Select user(s) to trust/untrust')
@@ -289,7 +291,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
 		let content = '🤝 **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).';
-		
+
 		if (trustedUsers.length > 0) {
 			const mentions = trustedUsers.map(id => `<@${id}>`).join(', ');
 			content += `\n\n**Currently trusted:** ${mentions}`;
@@ -304,7 +306,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 	private async handleKickModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
-		
+
 		const userSelect = new UserSelectMenuBuilder()
 			.setCustomId(`tempvoice_kick_select_${channelId}`)
 			.setPlaceholder('Select user(s) to kick')
@@ -350,9 +352,18 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		return interaction.showModal(modal);
 	}
 
-	private async handleTransferModal(interaction: ButtonInteraction) {
+	private async handleTransferModal(interaction: ButtonInteraction, channelId: string) {
+		const userSelect = new UserSelectMenuBuilder()
+			.setCustomId(`tempvoice_transfer_select_${channelId}`)
+			.setPlaceholder('Select new owner')
+			.setMinValues(1)
+			.setMaxValues(1);
+
+		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+
 		return interaction.reply({
-			content: '⚠️ Please use `/tempvoice transfer <user>` command for now. User selection via buttons coming soon!',
+			content: '👑 Select the user you want to transfer ownership to:',
+			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
 	}
@@ -415,19 +426,5 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		}
 	}
 
-	private async handleRefresh(interaction: ButtonInteraction, channelId: string) {
-		try {
-			await this.controlPanelService.refresh(channelId);
-			return interaction.reply({
-				content: '✅ Control panel refreshed.',
-				flags: MessageFlags.Ephemeral,
-			});
-		} catch (error) {
-			this.container.logger.error('Failed to refresh control panel:', error);
-			return interaction.reply({
-				content: '❌ Failed to refresh control panel.',
-				flags: MessageFlags.Ephemeral,
-			});
-		}
-	}
+
 }
