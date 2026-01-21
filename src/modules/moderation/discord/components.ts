@@ -36,8 +36,6 @@ export {
   // Responses
   buildSuccessV2,
   buildErrorV2,
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
   buildLoadingV2,
 } from '#lib/discord/index.js';
 
