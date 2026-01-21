@@ -240,8 +240,8 @@ export class ControlPanelService {
 				.setEmoji({ id: '1463062838179532821', name: '2360cross' })
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
-				.setCustomId(`tempvoice_kick_${tempChannel.channelId}`)
-				.setEmoji({ id: '1463001026079621235', name: '8562replay2' })
+				.setCustomId(`tempvoice_claim_${tempChannel.channelId}`)
+				.setEmoji({ id: '1462784527670837372', name: '8562replay2' })
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)

@@ -98,8 +98,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				return this.handleDeny(interaction, tempChannel, channelId, selectedUsers);
 			case 'trust':
 				return this.handleTrust(interaction, tempChannel, channelId, selectedUsers);
-			case 'kick':
-				return this.handleKick(interaction, channelId, selectedUsers);
+
 			case 'transfer':
 				return this.handleTransfer(interaction, tempChannel, channelId, selectedUsers);
 			default:
@@ -404,68 +403,6 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 			return interaction.editReply({
 				content: '❌ Failed to manage trusted users. Make sure the bot has permission to manage this channel.',
-				components: [],
-			});
-		}
-	}
-
-	private async handleKick(
-		interaction: UserSelectMenuInteraction,
-		channelId: string,
-		userIds: string[]
-	) {
-		try {
-			// Defer the update to prevent interaction timeout
-			await interaction.deferUpdate();
-
-			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
-			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.editReply({
-					content: '❌ Voice channel not found.',
-					components: [],
-				});
-			}
-
-			let kickedCount = 0;
-			const failedUsers: string[] = [];
-
-			for (const userId of userIds) {
-				try {
-					const member = await interaction.guild!.members.fetch(userId);
-					if (member.voice.channelId === channelId) {
-						await member.voice.disconnect('Kicked from temporary voice channel');
-						kickedCount++;
-					}
-				} catch (error) {
-					failedUsers.push(userId);
-				}
-			}
-
-			const failedMentions = failedUsers.length > 0 
-				? `\n⚠️ Failed to kick: ${failedUsers.map(id => `<@${id}>`).join(', ')}`
-				: '';
-
-			// Refresh control panel
-			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
-				this.container.client,
-				this.channelService
-			);
-			await controlPanelService.refresh(channelId);
-
-			return interaction.editReply({
-				content: `✅ Kicked ${kickedCount} user(s) from the channel.${failedMentions}`,
-				components: [],
-			});
-		} catch (error) {
-			this.container.logger.error('Failed to kick users:', error);
-			if (!interaction.deferred) {
-				return interaction.update({
-					content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
-					components: [],
-				});
-			}
-			return interaction.editReply({
-				content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
 		}
