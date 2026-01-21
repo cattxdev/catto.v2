@@ -1,7 +1,7 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds.js';
+import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';

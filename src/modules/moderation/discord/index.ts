@@ -4,10 +4,9 @@ export {
   createModEmbed,
   createUserNotificationEmbed,
   notifyUser,
-  logToModChannel,
   createCaseEmbed,
   createHistoryEmbed,
-} from './embeds.js';
+} from './embeds/presets.js';
 
 // Re-export from customId (moderation-specific)
 export {
@@ -56,11 +55,4 @@ export {
   buildSuccessV2,
   buildErrorV2,
   buildLoadingV2,
-  // Moderation-specific (deprecated wrappers)
-  type ModerationErrorType,
-  type ModerationError,
-  buildErrorResponse,
-  buildSuccessResponse,
-  buildLoadingResponse,
-  createCardSection,
 } from './components.js';

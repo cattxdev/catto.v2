@@ -5,7 +5,7 @@ import {
   logModActionV2,
   notifyUser,
   formatDuration,
-} from '../../modules/moderation/discord/embeds.js';
+} from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccessV2,
   buildModActionErrorV2,

@@ -1,7 +1,7 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds.js';
+import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccessV2,
   buildModActionErrorV2,

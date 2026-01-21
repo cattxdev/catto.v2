@@ -92,7 +92,7 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
     const container = buildContextBundleV2(context);
 
     await interaction.editReply({
-      components: [container],
+      components: [container.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   } catch (error) {

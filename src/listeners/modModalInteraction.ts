@@ -26,7 +26,7 @@ import {
   logModActionV2,
   notifyUser,
   formatDuration,
-} from '#root/modules/moderation/discord/embeds.js';
+} from '#root/modules/moderation/discord/embeds/presets.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
 
@@ -89,7 +89,7 @@ export class ModModalInteractionListener extends Listener {
       if (!target) {
         const errorContainer = buildModActionErrorV2('User not found.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -107,7 +107,7 @@ export class ModModalInteractionListener extends Listener {
       if ((action === 'kick' || action === 'warn') && !targetMember) {
         const errorContainer = buildModActionErrorV2('User is not in this server.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -121,7 +121,7 @@ export class ModModalInteractionListener extends Listener {
             canModerateResult.reason ?? 'Cannot moderate this user.'
           );
           await interaction.editReply({
-            components: [errorContainer],
+            components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -158,7 +158,7 @@ export class ModModalInteractionListener extends Listener {
         default: {
           const errorContainer = buildModActionErrorV2('Unknown action.');
           await interaction.editReply({
-            components: [errorContainer],
+            components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -168,7 +168,7 @@ export class ModModalInteractionListener extends Listener {
       if (!result.success) {
         const errorContainer = buildModActionErrorV2(result.error ?? 'Action failed.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -185,7 +185,7 @@ export class ModModalInteractionListener extends Listener {
         reason
       );
       await interaction.editReply({
-        components: [successContainer],
+        components: [successContainer.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
@@ -193,7 +193,7 @@ export class ModModalInteractionListener extends Listener {
       const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
       await interaction
         .editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         })
         .catch(() => {});
@@ -253,7 +253,7 @@ export class ModModalInteractionListener extends Listener {
       if (!target) {
         const errorContainer = buildModActionErrorV2('User not found.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -271,7 +271,7 @@ export class ModModalInteractionListener extends Listener {
       if (action === 'timeout' && !targetMember) {
         const errorContainer = buildModActionErrorV2('User is not in this server.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -285,7 +285,7 @@ export class ModModalInteractionListener extends Listener {
             canModerateResult.reason ?? 'Cannot moderate this user.'
           );
           await interaction.editReply({
-            components: [errorContainer],
+            components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -328,7 +328,7 @@ export class ModModalInteractionListener extends Listener {
         default: {
           const errorContainer = buildModActionErrorV2('Unknown action.');
           await interaction.editReply({
-            components: [errorContainer],
+            components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -338,7 +338,7 @@ export class ModModalInteractionListener extends Listener {
       if (!result.success) {
         const errorContainer = buildModActionErrorV2(result.error ?? 'Action failed.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -364,7 +364,7 @@ export class ModModalInteractionListener extends Listener {
         formatDuration(durationSeconds)
       );
       await interaction.editReply({
-        components: [successContainer],
+        components: [successContainer.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
@@ -372,7 +372,7 @@ export class ModModalInteractionListener extends Listener {
       const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
       await interaction
         .editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         })
         .catch(() => {});
@@ -496,7 +496,7 @@ export class ModModalInteractionListener extends Listener {
       if (!target) {
         const errorContainer = buildModActionErrorV2('User not found.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -513,7 +513,7 @@ export class ModModalInteractionListener extends Listener {
       if (!targetMember) {
         const errorContainer = buildModActionErrorV2('User is not in this server.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -526,7 +526,7 @@ export class ModModalInteractionListener extends Listener {
           canModerateResult.reason ?? 'Cannot moderate this user.'
         );
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -578,7 +578,7 @@ export class ModModalInteractionListener extends Listener {
         default: {
           const errorContainer = buildModActionErrorV2('Unknown mute type.');
           await interaction.editReply({
-            components: [errorContainer],
+            components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
           });
           return;
@@ -588,7 +588,7 @@ export class ModModalInteractionListener extends Listener {
       if (!result.success) {
         const errorContainer = buildModActionErrorV2(result.error ?? 'Mute action failed.');
         await interaction.editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         });
         return;
@@ -615,7 +615,7 @@ export class ModModalInteractionListener extends Listener {
         durationText
       );
       await interaction.editReply({
-        components: [successContainer],
+        components: [successContainer.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
@@ -623,7 +623,7 @@ export class ModModalInteractionListener extends Listener {
       const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
       await interaction
         .editReply({
-          components: [errorContainer],
+          components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
         })
         .catch(() => {});

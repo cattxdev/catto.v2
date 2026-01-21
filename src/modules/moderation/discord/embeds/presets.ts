@@ -1,10 +1,10 @@
 import { container } from '@sapphire/framework';
 import { GuildMember, type User, type Guild, MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
-import type { DurationSeconds, CaseNumber } from '../domain/types.js';
+import type { DurationSeconds, CaseNumber } from '../../domain/types.js';
 import { formatDuration } from '#lib/discord/index.js';
-import * as modV1 from './v1-embeds.js';
-import { buildModLogEntryV2, type ModLogEntry } from './modlog-v2.js';
+import * as modV1 from './v1.js';
+import { buildModLogEntryV2, type ModLogEntry } from '../modlog-v2.js';
 
 // Re-export formatDuration for backward compatibility
 export { formatDuration };
@@ -67,32 +67,6 @@ export async function notifyUser(
   } catch {
     container.logger.warn(`Failed to DM user ${target.id}`);
     return false;
-  }
-}
-
-/**
- * Log moderation action to mod log channel (V1 embed - legacy)
- * @deprecated Use logToModChannelV2 for new code
- */
-export async function logToModChannel(
-  guild: Guild,
-  embed: ReturnType<typeof modV1.buildModActionEmbed>
-): Promise<void> {
-  try {
-    const modConfig = await container.prisma.modConfig.findUnique({
-      where: { guildId: guild.id },
-    });
-
-    if (!modConfig?.modLogChannelId) {
-      return;
-    }
-
-    const channel = await guild.channels.fetch(modConfig.modLogChannelId);
-    if (channel?.isTextBased()) {
-      await channel.send({ embeds: [embed] });
-    }
-  } catch (error) {
-    container.logger.error('Failed to log to mod channel:', error);
   }
 }
 

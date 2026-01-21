@@ -62,7 +62,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
     const container = buildModPanelV2(context);
 
     await interaction.editReply({
-      components: [container],
+      components: [container.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   } catch (error) {

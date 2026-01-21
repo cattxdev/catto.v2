@@ -6,8 +6,6 @@
  */
 
 import {
-  ContainerBuilder,
-  TextDisplayBuilder,
   EmbedBuilder,
   type User,
   type InteractionReplyOptions,
@@ -15,7 +13,8 @@ import {
   MessageFlags,
 } from 'discord.js';
 import { COLORS, EMOJI, ERROR_ICONS, type ErrorType } from './design.js';
-import { createSmallSeparator, formatInfoRow } from './builders.js';
+import { formatInfoRow } from './builders.js';
+import { successContainer, errorContainer, type FluentContainer } from './v2/container.js';
 
 // ============================================================================
 // Response Types
@@ -59,59 +58,43 @@ export interface ModActionSuccessData {
 /**
  * Build a success response using Components V2
  */
-export function buildSuccessV2(data: SuccessData): ContainerBuilder {
-  const container = new ContainerBuilder();
-
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${EMOJI.SUCCESS} ${data.title}`)
-  );
+export function buildSuccessV2(data: SuccessData): FluentContainer {
+  const c = successContainer().h1(`${EMOJI.SUCCESS} ${data.title}`);
 
   if (data.message) {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.message));
+    c.text(data.message);
   }
 
   if (data.details && Object.keys(data.details).length > 0) {
     const detailLines = Object.entries(data.details).map(([key, value]) =>
       formatInfoRow(key, value)
     );
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(detailLines.join('\n')));
+    c.text(detailLines.join('\n'));
   }
 
-  return container;
+  return c;
 }
 
 /**
  * Build an error response using Components V2
  */
-export function buildErrorV2(data: ErrorData): ContainerBuilder {
-  const container = new ContainerBuilder();
+export function buildErrorV2(data: ErrorData): FluentContainer {
   const icon = data.type ? ERROR_ICONS[data.type] : EMOJI.ERROR;
   const title = data.title ?? 'Error';
 
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${icon} ${title}`),
-    new TextDisplayBuilder().setContent(data.message)
-  );
-
-  if (data.suggestion) {
-    container.addSeparatorComponents(createSmallSeparator());
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`${EMOJI.INFO} **Suggestion:** ${data.suggestion}`)
+  return errorContainer()
+    .h1(`${icon} ${title}`)
+    .text(data.message)
+    .when(!!data.suggestion, (c) =>
+      c.separator().text(`${EMOJI.INFO} **Suggestion:** ${data.suggestion}`)
     );
-  }
-
-  return container;
 }
 
 /**
  * Build a loading state response using Components V2
  */
-export function buildLoadingV2(message: string = 'Loading...'): ContainerBuilder {
-  const container = new ContainerBuilder();
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`${EMOJI.TIME} ${message}`)
-  );
-  return container;
+export function buildLoadingV2(message: string = 'Loading...'): FluentContainer {
+  return successContainer().text(`${EMOJI.TIME} ${message}`);
 }
 
 // ============================================================================
@@ -244,7 +227,7 @@ export function editSuccess(message: string): MessageEditOptions {
  */
 export function ephemeralErrorV2(message: string, suggestion?: string): InteractionReplyOptions {
   return {
-    components: [buildErrorV2({ message, suggestion })],
+    components: [buildErrorV2({ message, suggestion }).build()],
     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
   };
 }
@@ -254,7 +237,7 @@ export function ephemeralErrorV2(message: string, suggestion?: string): Interact
  */
 export function ephemeralSuccessV2(title: string, message?: string): InteractionReplyOptions {
   return {
-    components: [buildSuccessV2({ title, message })],
+    components: [buildSuccessV2({ title, message }).build()],
     flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
   };
 }
@@ -264,7 +247,7 @@ export function ephemeralSuccessV2(title: string, message?: string): Interaction
  */
 export function editErrorV2(message: string, suggestion?: string): MessageEditOptions {
   return {
-    components: [buildErrorV2({ message, suggestion })],
+    components: [buildErrorV2({ message, suggestion }).build()],
     flags: MessageFlags.IsComponentsV2,
   };
 }
@@ -274,7 +257,7 @@ export function editErrorV2(message: string, suggestion?: string): MessageEditOp
  */
 export function editSuccessV2(title: string, message?: string): MessageEditOptions {
   return {
-    components: [buildSuccessV2({ title, message })],
+    components: [buildSuccessV2({ title, message }).build()],
     flags: MessageFlags.IsComponentsV2,
   };
 }

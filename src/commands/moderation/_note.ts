@@ -77,7 +77,7 @@ export async function handleNoteList(interaction: Subcommand.ChatInputCommandInt
     const container = buildNotesListV2(target, notes);
 
     await interaction.editReply({
-      components: [container],
+      components: [container.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   } catch (error) {

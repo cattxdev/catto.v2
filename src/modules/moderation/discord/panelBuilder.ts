@@ -1,4 +1,4 @@
-import { type ContainerBuilder, type User, type GuildMember } from 'discord.js';
+import { type User, type GuildMember } from 'discord.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import {
   v2,
@@ -12,6 +12,7 @@ import {
   secondaryButton,
   dangerButton,
   successButton,
+  type FluentContainer,
 } from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
@@ -37,7 +38,7 @@ export interface ModPanelContext {
 /**
  * Build the mod panel Components V2 message
  */
-export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
+export function buildModPanelV2(context: ModPanelContext): FluentContainer {
   const {
     target,
     casesCount,
@@ -50,19 +51,10 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
   } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
-  // Create container with primary color
-  const container = v2.primaryContainer();
-
   // Header with optional flag indicator
   const flagIndicator = activeFlags && activeFlags.length > 0 ? ` ${EMOJI.SUSPECTED}` : '';
-  container.addTextDisplayComponents(v2.h1(`Mod Panel${flagIndicator}`, EMOJI.MOD_SHIELD));
 
-  // Target info - compact single line
-  container.addTextDisplayComponents(
-    v2.text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
-  );
-
-  // Stats line - grid format
+  // Stats for display
   const stats: Record<string, string | number> = {
     Cases: casesCount,
     Notes: notesCount,
@@ -70,29 +62,12 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
   if (warningsCount !== undefined) {
     stats['Warnings'] = warningsCount;
   }
-  container.addTextDisplayComponents(v2.text(formatStatsLine(stats)));
 
-  // Voice status - only if in voice
-  if (voiceChannelName) {
-    container.addTextDisplayComponents(
-      v2.text(formatInfoRow('Voice', voiceChannelName, EMOJI.VOICE))
-    );
-  }
-
-  // Account info - single line with joined and account age
+  // Account info line
   const accountCreatedTs = formatRelativeTimestamp(target.createdAt);
-  if (joinedAt) {
-    const joinedTs = formatRelativeTimestamp(joinedAt);
-    container.addTextDisplayComponents(
-      v2.text(`${EMOJI.TIME_DAY} **Joined:** ${joinedTs} · **Account:** ${accountCreatedTs}`)
-    );
-  } else {
-    container.addTextDisplayComponents(
-      v2.text(`${EMOJI.TIME_DAY} **Account:** ${accountCreatedTs}`)
-    );
-  }
-
-  container.addSeparatorComponents(v2.smallSeparator());
+  const accountLine = joinedAt
+    ? `${EMOJI.TIME_DAY} **Joined:** ${formatRelativeTimestamp(joinedAt)} · **Account:** ${accountCreatedTs}`
+    : `${EMOJI.TIME_DAY} **Account:** ${accountCreatedTs}`;
 
   // Primary moderation actions row (4 buttons)
   const primaryActions = row(
@@ -143,7 +118,7 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
     );
   }
 
-  const secondaryActions = row(...secondaryButtons);
+  const secondaryActionsRow = row(...secondaryButtons);
 
   // Info actions row (5 buttons)
   const infoActions = row(
@@ -169,86 +144,60 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
     })
   );
 
-  container.addActionRowComponents(primaryActions, secondaryActions, infoActions);
-
-  return container;
+  return v2
+    .primaryContainer()
+    .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
+    .text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
+    .text(formatStatsLine(stats))
+    .when(!!voiceChannelName, (c) => c.text(formatInfoRow('Voice', voiceChannelName!, EMOJI.VOICE)))
+    .text(accountLine)
+    .separator()
+    .actions(primaryActions, secondaryActionsRow, infoActions);
 }
 
 /**
  * Build a context bundle card using Components V2
  */
-export function buildContextBundleV2(context: ModPanelContext): ContainerBuilder {
+export function buildContextBundleV2(context: ModPanelContext): FluentContainer {
   const { target, recentCases, recentNotes, voiceChannelName, joinedAt, hasActiveMutes } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
-  const container = v2.infoContainer();
-
-  // Header
-  v2.addHeader(container, 'Context Bundle');
-  container.addTextDisplayComponents(
-    v2.text(formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
-  );
-
-  container.addSeparatorComponents(v2.smallSeparator());
-
-  // Timeline section
-  v2.addSection(container, 'Timeline', '');
-  const timeline: string[] = [];
-  timeline.push(
-    `${EMOJI.TIME_DAY} **Account created:** ${formatRelativeTimestamp(target.createdAt)}`
-  );
-
+  // Build timeline entries
+  const timeline: string[] = [
+    `${EMOJI.TIME_DAY} **Account created:** ${formatRelativeTimestamp(target.createdAt)}`,
+  ];
   if (joinedAt) {
     timeline.push(`${EMOJI.TIME_DAY} **Joined server:** ${formatRelativeTimestamp(joinedAt)}`);
   }
-
   if (voiceChannelName) {
     timeline.push(`${EMOJI.VOICE} **Currently in voice:** ${voiceChannelName}`);
   }
 
-  container.addTextDisplayComponents(v2.text(timeline.join('\n')));
+  // Format recent cases
+  const casesText =
+    recentCases.length > 0
+      ? recentCases
+          .slice(0, 5)
+          .map((c) => {
+            const timestamp = formatRelativeTimestamp(c.createdAt);
+            const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
+            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n  ${reasonPreview}`;
+          })
+          .join('\n')
+      : null;
 
-  // Active statuses (if any)
-  if (hasActiveMutes) {
-    container.addSeparatorComponents(v2.smallSeparator());
-    container.addTextDisplayComponents(
-      v2.h2('Active Statuses'),
-      v2.text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
-    );
-  }
-
-  // Recent cases
-  if (recentCases.length > 0) {
-    container.addSeparatorComponents(v2.smallSeparator());
-    const casesText = recentCases
-      .slice(0, 5)
-      .map((c) => {
-        const timestamp = formatRelativeTimestamp(c.createdAt);
-        const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
-        return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n  ${reasonPreview}`;
-      })
-      .join('\n');
-
-    container.addTextDisplayComponents(v2.h2('Recent Cases'), v2.text(casesText));
-  }
-
-  // Recent notes
-  if (recentNotes.length > 0) {
-    container.addSeparatorComponents(v2.smallSeparator());
-
-    const notesText = recentNotes
-      .slice(0, 3)
-      .map((n) => {
-        const timestamp = formatRelativeTimestamp(n.createdAt);
-        const truncatedNote = truncateText(n.note, 100);
-        return `${timestamp}: ${truncatedNote}`;
-      })
-      .join('\n');
-
-    container.addTextDisplayComponents(v2.h2('Recent Notes'), v2.text(notesText));
-  }
-
-  container.addSeparatorComponents(v2.smallSeparator());
+  // Format recent notes
+  const notesText =
+    recentNotes.length > 0
+      ? recentNotes
+          .slice(0, 3)
+          .map((n) => {
+            const timestamp = formatRelativeTimestamp(n.createdAt);
+            const truncatedNote = truncateText(n.note, 100);
+            return `${timestamp}: ${truncatedNote}`;
+          })
+          .join('\n')
+      : null;
 
   // Quick actions
   const quickActions = row(
@@ -266,9 +215,23 @@ export function buildContextBundleV2(context: ModPanelContext): ContainerBuilder
     })
   );
 
-  container.addActionRowComponents(quickActions);
-
-  return container;
+  return v2
+    .infoContainer()
+    .h1('Context Bundle')
+    .text(formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
+    .separator()
+    .h2('Timeline')
+    .text(timeline.join('\n'))
+    .when(!!hasActiveMutes, (c) =>
+      c
+        .separator()
+        .h2('Active Statuses')
+        .text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
+    )
+    .when(!!casesText, (c) => c.separator().h2('Recent Cases').text(casesText!))
+    .when(!!notesText, (c) => c.separator().h2('Recent Notes').text(notesText!))
+    .separator()
+    .actions(quickActions);
 }
 
 /**
@@ -279,39 +242,30 @@ export function buildNotesListV2(
   notes: NoteData[],
   page: number = 1,
   pageSize: number = 5
-): ContainerBuilder {
-  const container = v2.container();
+): FluentContainer {
   const totalPages = Math.ceil(notes.length / pageSize) || 1;
   const startIdx = (page - 1) * pageSize;
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
-  // Header with pagination
-  container.addTextDisplayComponents(
-    v2.h1(`Notes for ${target.tag}`),
-    v2.text(`Page ${page} of ${totalPages} (${notes.length} total)`)
-  );
-
-  container.addSeparatorComponents(v2.smallSeparator());
+  const c = v2
+    .container()
+    .h1(`Notes for ${target.tag}`)
+    .text(`Page ${page} of ${totalPages} (${notes.length} total)`)
+    .separator();
 
   if (pageNotes.length === 0) {
-    container.addTextDisplayComponents(v2.text('*No notes found for this user.*'));
-  } else {
-    for (const note of pageNotes) {
-      const timestamp = formatRelativeTimestamp(note.createdAt);
-      const tags =
-        note.tags.length > 0 ? `\nTags: ${note.tags.map((t) => `\`${t}\``).join(', ')}` : '';
-
-      container.addTextDisplayComponents(
-        v2.text(
-          `**ID:** \`${note.id}\`\n<@${note.createdById}> · ${timestamp}${tags}\n${note.note}`
-        )
-      );
-
-      container.addSeparatorComponents(v2.smallSeparator());
-    }
+    return c.text('*No notes found for this user.*');
   }
 
-  return container;
+  for (const note of pageNotes) {
+    const timestamp = formatRelativeTimestamp(note.createdAt);
+    const tags =
+      note.tags.length > 0 ? `\nTags: ${note.tags.map((t) => `\`${t}\``).join(', ')}` : '';
+    c.text(`**ID:** \`${note.id}\`\n<@${note.createdById}> · ${timestamp}${tags}\n${note.note}`);
+    c.separator();
+  }
+
+  return c;
 }
 
 /**
@@ -324,30 +278,32 @@ export function buildModActionSuccessV2(
   reason: string,
   duration?: string,
   options?: { dmSent?: boolean }
-): ContainerBuilder {
-  const c = v2.buildSuccess(`${action} successful`, {
-    details: {
-      [`${EMOJI.MEMBER} Target`]: `${target.tag} (\`${target.id}\`)`,
-      [`${EMOJI.SERVER_FOLDER} Case`]: `#${caseNumber}`,
-      [`${EMOJI.MODERATION} Reason`]: reason,
-      ...(duration ? { [`${EMOJI.SLOWMODE} Duration`]: duration } : {}),
-    },
-  });
-
-  if (options?.dmSent === false) {
-    c.addSeparatorComponents(v2.smallSeparator());
-    c.addTextDisplayComponents(v2.text(`${EMOJI.WARNING} Could not send DM notification to user.`));
+): FluentContainer {
+  const details: Record<string, string> = {
+    [`${EMOJI.MEMBER} Target`]: `${target.tag} (\`${target.id}\`)`,
+    [`${EMOJI.SERVER_FOLDER} Case`]: `#${caseNumber}`,
+    [`${EMOJI.MODERATION} Reason`]: reason,
+  };
+  if (duration) {
+    details[`${EMOJI.SLOWMODE} Duration`] = duration;
   }
 
-  return c;
+  return v2
+    .successContainer()
+    .h1(`${EMOJI.SUCCESS} ${action} successful`)
+    .kv(details)
+    .when(options?.dmSent === false, (c) =>
+      c.separator().text(`${EMOJI.WARNING} Could not send DM notification to user.`)
+    );
 }
 
 /**
  * Build error message with optional suggestion
  */
-export function buildModActionErrorV2(error: string, suggestion?: string): ContainerBuilder {
-  return v2.buildError(error, {
-    title: 'Error',
-    suggestion,
-  });
+export function buildModActionErrorV2(error: string, suggestion?: string): FluentContainer {
+  return v2
+    .errorContainer()
+    .h1(`${EMOJI.ERROR} Error`)
+    .text(error)
+    .when(!!suggestion, (c) => c.separator().text(`${EMOJI.INFO} **Suggestion:** ${suggestion}`));
 }

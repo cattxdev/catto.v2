@@ -2,7 +2,7 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { MuteType, ModAction } from '@prisma/client';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, formatDuration } from '../../modules/moderation/discord/embeds.js';
+import { logModActionV2, formatDuration } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccessV2,
   buildModActionErrorV2,

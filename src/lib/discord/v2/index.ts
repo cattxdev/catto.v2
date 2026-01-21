@@ -3,34 +3,13 @@
  *
  * A composable component factory for building Discord Components V2 messages.
  *
- * ## Architecture
- *
- * The V2 framework has two API styles:
- *
- * 1. **Legacy API** (containers.ts) - Direct ContainerBuilder manipulation
- *    - Returns raw `ContainerBuilder` instances
- *    - Uses extension functions like `addHeader()`, `addSection()`
- *
- * 2. **Fluent API** (container.ts, primitives.ts, etc.) - Composable builder pattern
- *    - Returns `FluentContainer` with chainable methods
- *    - Uses functional composition with `pipe()`, `when()`, etc.
- *
  * ## Usage Examples
  *
- * ### Legacy API (backward compatible)
+ * ### Fluent API
  * ```ts
  * import { v2 } from '#lib/discord';
  *
- * const container = v2.primaryContainer();  // Returns ContainerBuilder
- * container.addTextDisplayComponents(v2.h1('Title'));
- * container.addSeparatorComponents(v2.smallSeparator());
- * ```
- *
- * ### Fluent API (new)
- * ```ts
- * import { v2 } from '#lib/discord';
- *
- * const message = v2.fluent()
+ * const message = v2.container()
  *   .accent(COLORS.SUCCESS)
  *   .h1('Welcome!')
  *   .divider()
@@ -38,12 +17,23 @@
  *   .build();
  * ```
  *
+ * ### Quick Builders
+ * ```ts
+ * import { v2 } from '#lib/discord';
+ *
+ * // Success message
+ * v2.successMessage('Done!', 'Your changes have been saved.')
+ *
+ * // Error message
+ * v2.errorMessage('Error', 'Something went wrong.')
+ * ```
+ *
  * ### Functional Composition
  * ```ts
  * import { v2 } from '#lib/discord';
  *
  * const message = v2.pipe(
- *   v2.fluent(),
+ *   v2.container(),
  *   v2.withHeader('Dashboard'),
  *   v2.when(hasNotifications, (c) => c.text('New notifications!')),
  *   v2.withFooter('Last updated: now')
@@ -52,47 +42,29 @@
  */
 
 // =============================================================================
-// Legacy API (containers.ts) - Backward compatible
+// Fluent Container - Composable container builder
 // =============================================================================
 export {
-  // Types
-  type ContainerConfig,
-  // Container factories (return ContainerBuilder directly)
   container,
+  FluentContainer,
+  // Preset factories
   successContainer,
   errorContainer,
   warningContainer,
   infoContainer,
   primaryContainer,
-  // Text display builders
-  text,
-  h1,
-  h2,
-  h3,
-  bold,
-  italic,
-  code,
-  codeBlock,
-  quote,
-  // Separator builders
-  smallSeparator,
-  largeSeparator,
-  divider,
-  // Container extensions
-  addHeader,
-  addSection,
-  addKeyValues,
-  addList,
-  addFooter,
-  addActions,
-  // Pre-built templates
-  buildSuccess,
-  buildError,
-  buildWarning,
-  buildInfo,
-  buildLoading,
-  buildConfirmation,
-} from './containers.js';
+  neutralContainer,
+  // Quick builders
+  simpleMessage,
+  successMessage,
+  errorMessage,
+  warningMessage,
+  infoMessage,
+  // Types
+  type ContainerComponent,
+  type ContainerOptions,
+  type AccentColor,
+} from './container.js';
 
 // =============================================================================
 // Primitives - Base building blocks
@@ -181,32 +153,6 @@ export {
   type MediaGalleryItemOptions,
   type FileOptions,
 } from './media.js';
-
-// =============================================================================
-// Fluent Container - Composable container builder
-// =============================================================================
-export {
-  // Fluent factory (use fluent() to avoid conflict with legacy container())
-  container as fluent,
-  FluentContainer,
-  // Preset factories (fluent versions)
-  successContainer as fluentSuccess,
-  errorContainer as fluentError,
-  warningContainer as fluentWarning,
-  infoContainer as fluentInfo,
-  primaryContainer as fluentPrimary,
-  neutralContainer as fluentNeutral,
-  // Quick builders
-  simpleMessage,
-  successMessage,
-  errorMessage,
-  warningMessage,
-  infoMessage,
-  // Types
-  type ContainerComponent,
-  type ContainerOptions,
-  type AccentColor,
-} from './container.js';
 
 // =============================================================================
 // Compose - Functional composition utilities

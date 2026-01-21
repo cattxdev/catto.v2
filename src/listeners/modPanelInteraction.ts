@@ -324,7 +324,7 @@ export class ModPanelInteractionListener extends Listener {
     const containerComp = buildNotesListV2(target, notes);
 
     await interaction.editReply({
-      components: [containerComp],
+      components: [containerComp.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   }
@@ -372,7 +372,7 @@ export class ModPanelInteractionListener extends Listener {
     const containerComp = buildContextBundleV2(context);
 
     await interaction.editReply({
-      components: [containerComp],
+      components: [containerComp.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   }
@@ -474,7 +474,7 @@ export class ModPanelInteractionListener extends Listener {
     const containerComp = buildModPanelV2(context);
 
     await interaction.editReply({
-      components: [containerComp],
+      components: [containerComp.build()],
       flags: MessageFlags.IsComponentsV2,
     });
   }

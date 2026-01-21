@@ -19,9 +19,16 @@
  * ## Quick Start
  *
  * ```ts
- * // V2 Container (modern)
+ * // V2 Container (modern fluent API)
  * import { v2 } from '#lib/discord';
- * const container = v2.buildSuccess('Action Complete', { details: { User: 'John' } });
+ * const container = v2.successMessage('Action Complete', 'User John was updated.');
+ *
+ * // V2 with chaining
+ * const panel = v2.primaryContainer()
+ *   .h1('Dashboard')
+ *   .kv({ Users: 100, Active: 50 })
+ *   .divider()
+ *   .actions(buttonRow);
  *
  * // V1 Embed (traditional)
  * import { v1 } from '#lib/discord';
@@ -34,49 +41,32 @@
  */
 
 // ============================================================================
-// V2 Builders (Components V2)
+// V2 Builders (Components V2 - Fluent API)
 // ============================================================================
 
 import * as v2 from './v2/index.js';
 export { v2 };
 
 export {
-  // Container factories
-  type ContainerConfig,
+  // Fluent container factories
   container,
+  FluentContainer,
   successContainer,
   errorContainer,
   warningContainer,
   infoContainer,
   primaryContainer,
-  // Text display builders
-  text,
-  h1,
-  h2,
-  h3,
-  bold,
-  italic,
-  code,
-  codeBlock,
-  quote,
-  // Separator builders
-  smallSeparator,
-  largeSeparator,
-  divider,
-  // Container extensions
-  addHeader,
-  addSection,
-  addKeyValues,
-  addList,
-  addFooter,
-  addActions,
-  // Pre-built templates
-  buildSuccess,
-  buildError,
-  buildWarning,
-  buildInfo,
-  buildLoading,
-  buildConfirmation,
+  neutralContainer,
+  // Quick builders
+  simpleMessage,
+  successMessage,
+  errorMessage,
+  warningMessage,
+  infoMessage,
+  // Types
+  type ContainerComponent,
+  type ContainerOptions,
+  type AccentColor,
 } from './v2/index.js';
 
 // ============================================================================
@@ -338,6 +328,7 @@ export {
 
 export {
   // Types
+  type V2Container,
   type V2EditReplyOptions,
   type V2ReplyOptions,
   // Flag constants

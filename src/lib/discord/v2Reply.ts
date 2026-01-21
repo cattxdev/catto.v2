@@ -19,6 +19,21 @@ import {
   type InteractionEditReplyOptions,
   type InteractionReplyOptions,
 } from 'discord.js';
+import { FluentContainer } from './v2/container.js';
+
+/** A container that can be used in V2 messages - either a ContainerBuilder or FluentContainer */
+export type V2Container = ContainerBuilder | FluentContainer;
+
+/**
+ * Resolve a V2Container to a ContainerBuilder.
+ * FluentContainers are built, ContainerBuilders are returned as-is.
+ */
+function resolveContainer(container: V2Container): ContainerBuilder {
+  if (container instanceof FluentContainer) {
+    return container.build();
+  }
+  return container;
+}
 
 // Enable verbose logging for V2 reply payloads.
 // This is intentionally opt-in because payloads can be large and noisy.
@@ -60,12 +75,12 @@ type RepliableInteraction =
 
 /** Options for V2 edit reply */
 export interface V2EditReplyOptions {
-  container: ContainerBuilder;
+  container: V2Container;
 }
 
 /** Options for V2 reply */
 export interface V2ReplyOptions {
-  container: ContainerBuilder;
+  container: V2Container;
   ephemeral?: boolean;
 }
 
@@ -132,24 +147,25 @@ export async function deferV2(interaction: RepliableInteraction): Promise<void> 
  */
 export async function replyV2(
   interaction: RepliableInteraction,
-  container: ContainerBuilder,
+  container: V2Container,
   options?: { ephemeral?: boolean }
 ): Promise<void> {
+  const resolved = resolveContainer(container);
   const ephemeral = options?.ephemeral ?? true;
   const flags = ephemeral ? V2_EPHEMERAL_FLAGS : V2_FLAGS;
 
   const replyOptions: InteractionReplyOptions = {
-    components: [container],
+    components: [resolved],
     flags,
   };
 
   v2Debug(interaction, 'replyV2() payload', {
     ephemeral,
     flags,
-    container: container.toJSON(),
+    container: resolved.toJSON(),
   });
 
-  validateV2ContainerJson(interaction, container.toJSON());
+  validateV2ContainerJson(interaction, resolved.toJSON());
   await interaction.reply(replyOptions);
 }
 
@@ -159,7 +175,7 @@ export async function replyV2(
  */
 export async function replyV2Ephemeral(
   interaction: RepliableInteraction,
-  container: ContainerBuilder,
+  container: V2Container,
   _content?: string
 ): Promise<void> {
   // Components V2 messages cannot use legacy `content`. The third argument is kept
@@ -180,11 +196,12 @@ export async function replyV2Ephemeral(
  */
 export async function editReplyV2(
   interaction: RepliableInteraction,
-  container: ContainerBuilder,
+  container: V2Container,
   _options?: { content?: string }
 ): Promise<void> {
+  const resolved = resolveContainer(container);
   const editOptions: InteractionEditReplyOptions = {
-    components: [container],
+    components: [resolved],
     // Discord requires the message to be flagged as Components V2 when editing
     // with a ContainerBuilder payload. Defer flags are not always sufficient.
     flags: MessageFlags.IsComponentsV2,
@@ -194,10 +211,10 @@ export async function editReplyV2(
     deferred: interaction.deferred,
     replied: interaction.replied,
     flags: MessageFlags.IsComponentsV2,
-    container: container.toJSON(),
+    container: resolved.toJSON(),
   });
 
-  validateV2ContainerJson(interaction, container.toJSON());
+  validateV2ContainerJson(interaction, resolved.toJSON());
 
   try {
     await interaction.editReply(editOptions);
@@ -209,7 +226,7 @@ export async function editReplyV2(
           ? { name: error.name, message: error.message, stack: error.stack }
           : error,
       editOptions: {
-        container: container.toJSON(),
+        container: resolved.toJSON(),
       },
     });
     throw error;
@@ -225,14 +242,15 @@ export async function editReplyV2(
  * Useful when you need to build the options object manually.
  */
 export function createV2ReplyOptions(
-  container: ContainerBuilder,
+  container: V2Container,
   options?: { ephemeral?: boolean }
 ): InteractionReplyOptions {
+  const resolved = resolveContainer(container);
   const ephemeral = options?.ephemeral ?? true;
   const flags = ephemeral ? V2_EPHEMERAL_FLAGS : V2_FLAGS;
 
   return {
-    components: [container],
+    components: [resolved],
     flags,
   };
 }
@@ -241,11 +259,12 @@ export function createV2ReplyOptions(
  * Create edit reply options for a V2 container response.
  */
 export function createV2EditOptions(
-  container: ContainerBuilder,
+  container: V2Container,
   _options?: { content?: string }
 ): InteractionEditReplyOptions {
+  const resolved = resolveContainer(container);
   return {
-    components: [container],
+    components: [resolved],
     flags: MessageFlags.IsComponentsV2,
   };
 }

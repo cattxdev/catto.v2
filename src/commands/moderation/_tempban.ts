@@ -5,7 +5,7 @@ import {
   logModActionV2,
   notifyUser,
   formatDuration,
-} from '../../modules/moderation/discord/embeds.js';
+} from '../../modules/moderation/discord/embeds/presets.js';
 import { parseTempbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';

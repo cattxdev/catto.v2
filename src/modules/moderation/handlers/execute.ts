@@ -9,7 +9,7 @@ import type { Guild, User } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../services/ModerationService.js';
 import { muteService } from '../services/MuteService.js';
-import { notifyUser, logModActionV2 } from '../discord/embeds.js';
+import { notifyUser, logModActionV2 } from '../discord/embeds/presets.js';
 import type { ModerationContext } from './context.js';
 import type { ModActionResult, MuteResult, UserId } from '../domain/types.js';
 import { asGuildId, asUserId, asDuration } from '../domain/types.js';

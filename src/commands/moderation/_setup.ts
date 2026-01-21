@@ -81,16 +81,17 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
   if (!interaction.guild) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('This command can only be used in a server.')
+      v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
   if (!isAdmin(interaction.member as GuildMember)) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('You need Administrator permissions to configure moderation settings.', {
-        title: 'Permission Denied',
-      })
+      v2
+        .errorContainer()
+        .h1('Permission Denied')
+        .text('You need Administrator permissions to configure moderation settings.')
     );
   }
 
@@ -141,12 +142,16 @@ function buildSetupContainer(
     'Set up warning escalation rules',
   ];
 
-  const c = v2.infoContainer();
-  v2.addHeader(c, 'Moderation Setup', { emoji: EMOJI.MOD_SHIELD });
-  v2.addKeyValues(c, settings, { title: 'Current Settings' });
-  v2.addList(c, steps, { title: 'Setup Steps', ordered: true });
-  v2.addFooter(c, 'Use the buttons below or /mod config commands', { dividerBefore: true });
-  return c;
+  return v2
+    .infoContainer()
+    .h1(`${EMOJI.MOD_SHIELD} Moderation Setup`)
+    .separator()
+    .h2('Current Settings')
+    .kv(settings)
+    .h2('Setup Steps')
+    .numberedList(steps)
+    .divider()
+    .text(`-# Use the buttons below or /mod config commands`);
 }
 
 /**
@@ -176,14 +181,15 @@ async function showSetupOverview(
     ? await guild.roles.fetch(config.mutedVoiceRole).catch(() => null)
     : null;
 
-  const setupContainer = buildSetupContainer(config, modLogChannel, textMuteRole, voiceMuteRole);
-  setupContainer.addActionRowComponents(
-    buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole),
-    buildSetupRow2()
-  );
+  const setupContainer = buildSetupContainer(
+    config,
+    modLogChannel,
+    textMuteRole,
+    voiceMuteRole
+  ).actions(buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole), buildSetupRow2());
 
   await interaction.editReply({
-    components: [setupContainer],
+    components: [setupContainer.build()],
     flags: MessageFlags.IsComponentsV2,
   });
 
@@ -209,12 +215,12 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
     try {
       if (customId === 'mod_setup:done') {
-        const doneContainer = v2.buildSuccess('Setup Complete', {
-          message: 'Your moderation settings have been saved.',
-        });
-
         await buttonInteraction.update({
-          components: [doneContainer],
+          components: [
+            v2
+              .successMessage('Setup Complete', 'Your moderation settings have been saved.')
+              .build(),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
         collector.stop();
@@ -640,13 +646,15 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
   collector.on('end', async (_, reason) => {
     if (reason === 'time') {
       try {
-        const timeoutContainer = v2.buildWarning(
-          'The setup wizard has timed out. Run `/mod setup` again to continue.',
-          { title: 'Setup Timed Out' }
-        );
-
         await interaction.editReply({
-          components: [timeoutContainer],
+          components: [
+            v2
+              .warningMessage(
+                'Setup Timed Out',
+                'The setup wizard has timed out. Run `/mod setup` again to continue.'
+              )
+              .build(),
+          ],
           flags: MessageFlags.IsComponentsV2,
         });
       } catch {
@@ -687,14 +695,10 @@ async function refreshOverview(
     modLogChannel as { id: string } | null,
     textMuteRole as { id: string } | null,
     voiceMuteRole as { id: string } | null
-  );
-  setupContainer.addActionRowComponents(
-    buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole),
-    buildSetupRow2()
-  );
+  ).actions(buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole), buildSetupRow2());
 
   await interaction.editReply({
-    components: [setupContainer],
+    components: [setupContainer.build()],
     flags: MessageFlags.IsComponentsV2,
   });
 }
@@ -706,14 +710,14 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
   if (!interaction.guild) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('This command can only be used in a server.')
+      v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
   const channel = interaction.options.getChannel('channel', true);
 
   if (channel.type !== ChannelType.GuildText) {
-    return replyV2Ephemeral(interaction, v2.buildError('Please select a text channel.'));
+    return replyV2Ephemeral(interaction, v2.errorMessage('Error', 'Please select a text channel.'));
   }
 
   const guildId = asGuildId(interaction.guild.id);
@@ -726,9 +730,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
 
   await replyV2Ephemeral(
     interaction,
-    v2.buildSuccess('Configuration Updated', {
-      message: `Mod log channel set to <#${channel.id}>`,
-    })
+    v2.successMessage('Configuration Updated', `Mod log channel set to <#${channel.id}>`)
   );
 }
 
@@ -736,7 +738,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
   if (!interaction.guild) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('This command can only be used in a server.')
+      v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
@@ -751,9 +753,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
 
   await replyV2Ephemeral(
     interaction,
-    v2.buildSuccess('Configuration Updated', {
-      message: `Muted text role set to <@&${role.id}>`,
-    })
+    v2.successMessage('Configuration Updated', `Muted text role set to <@&${role.id}>`)
   );
 }
 
@@ -761,7 +761,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
   if (!interaction.guild) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('This command can only be used in a server.')
+      v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
@@ -776,9 +776,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
 
   await replyV2Ephemeral(
     interaction,
-    v2.buildSuccess('Configuration Updated', {
-      message: `Muted voice role set to <@&${role.id}>`,
-    })
+    v2.successMessage('Configuration Updated', `Muted voice role set to <@&${role.id}>`)
   );
 }
 
@@ -786,7 +784,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
   if (!interaction.guild) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('This command can only be used in a server.')
+      v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
@@ -798,24 +796,30 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
   if (!config) {
     return replyV2Ephemeral(
       interaction,
-      v2.buildError('No moderation config found.', {
-        suggestion: 'Run `/mod setup` to configure.',
-      })
+      v2
+        .errorContainer()
+        .h1('No Config Found')
+        .text('No moderation config found.')
+        .separator()
+        .text(`${EMOJI.INFO} **Suggestion:** Run \`/mod setup\` to configure.`)
     );
   }
 
-  const configContainer = v2.infoContainer();
-  v2.addHeader(configContainer, 'Moderation Config', { emoji: EMOJI.MOD_SHIELD });
-  v2.addKeyValues(configContainer, {
-    'Mod Log': config.modLogChannelId ? `<#${config.modLogChannelId}>` : '`Not set`',
-    'Muted Text Role': config.mutedTextRole ? `<@&${config.mutedTextRole}>` : '`Not set`',
-    'Muted Voice Role': config.mutedVoiceRole ? `<@&${config.mutedVoiceRole}>` : '`Not set`',
-    'Warning Escalation':
-      (config.warningEscalation as { enabled?: boolean })?.enabled !== false
-        ? '`Enabled`'
-        : '`Disabled`',
-    AutoMod: config.autoModEnabled ? '`Yes`' : '`No`',
-  });
-
-  await replyV2Ephemeral(interaction, configContainer);
+  await replyV2Ephemeral(
+    interaction,
+    v2
+      .infoContainer()
+      .h1(`${EMOJI.MOD_SHIELD} Moderation Config`)
+      .separator()
+      .kv({
+        'Mod Log': config.modLogChannelId ? `<#${config.modLogChannelId}>` : '`Not set`',
+        'Muted Text Role': config.mutedTextRole ? `<@&${config.mutedTextRole}>` : '`Not set`',
+        'Muted Voice Role': config.mutedVoiceRole ? `<@&${config.mutedVoiceRole}>` : '`Not set`',
+        'Warning Escalation':
+          (config.warningEscalation as { enabled?: boolean })?.enabled !== false
+            ? '`Enabled`'
+            : '`Disabled`',
+        AutoMod: config.autoModEnabled ? '`Yes`' : '`No`',
+      })
+  );
 }

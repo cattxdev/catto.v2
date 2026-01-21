@@ -1,7 +1,7 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { MessageFlags } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { createCaseEmbed } from '../../modules/moderation/discord/embeds.js';
+import { createCaseEmbed } from '../../modules/moderation/discord/embeds/presets.js';
 import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 
