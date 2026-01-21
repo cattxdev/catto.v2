@@ -1,7 +1,3 @@
-/**
- * Listener for when channels are deleted to clean up temp voice records
- */
-
 import { Listener } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
 import { Events } from 'discord.js';
@@ -9,10 +5,12 @@ import { container } from '@sapphire/framework';
 import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service';
 import { PermissionsService } from '../../modules/temp-voice/services/permissions.service';
+import { UserPreferencesService } from '../../modules/temp-voice/services/user-preferences.service';
 
 export class ChannelDeleteListener extends Listener {
 	private configService!: TempVoiceConfigService;
 	private channelService!: TempChannelService;
+	private userPrefsService!: UserPreferencesService;
 
 	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
 		super(context, {
@@ -29,6 +27,7 @@ export class ChannelDeleteListener extends Listener {
 				container.prisma,
 				new PermissionsService()
 			);
+			this.userPrefsService = new UserPreferencesService(container.prisma);
 		}
 
 		try {
@@ -36,6 +35,22 @@ export class ChannelDeleteListener extends Listener {
 			const tempChannel = await this.channelService.getByChannelId(channel.id);
 
 			if (tempChannel) {
+				// Save user preferences before deleting (if customization is allowed)
+				const config = await this.configService.getOrNull(channel.guild.id);
+				if (config?.allowCustomization) {
+					await this.userPrefsService.saveFromChannel(channel.guild.id, tempChannel.ownerId, {
+						customName: tempChannel.customName,
+						customUserLimit: tempChannel.customUserLimit,
+						customBitrate: tempChannel.customBitrate,
+						customRegion: tempChannel.customRegion,
+						isLocked: tempChannel.isLocked,
+						isHidden: tempChannel.isHidden,
+						allowedUserIds: (tempChannel.allowedUserIds as string[]) || [],
+						deniedUserIds: (tempChannel.deniedUserIds as string[]) || [],
+						trustedUserIds: (tempChannel.trustedUserIds as string[]) || [],
+					});
+				}
+
 				// Clean up the database record
 				await this.channelService.delete(channel.id);
 

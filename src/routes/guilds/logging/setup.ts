@@ -117,12 +117,21 @@ export class LoggingSetupRoute extends Route {
           ],
         })) as TextChannel;
 
+<<<<<<< HEAD
         // Create webhook
         const webhook = await channel.createWebhook({
           name: 'Catto Logs',
           avatar: botMember.user.displayAvatarURL(),
           reason: 'Logging system setup',
         });
+=======
+				// Create webhook
+				const webhook = await channel.createWebhook({
+					name: botMember.user.username + ' Logs',
+					avatar: botMember.user.displayAvatarURL(),
+					reason: 'Logging system setup'
+				});
+>>>>>>> 4fb6ebb (feat(temp-voice): add user preferences and customization toggle for t… (#17))
 
         webhookUrls[logChannel.type] = webhook.url;
 

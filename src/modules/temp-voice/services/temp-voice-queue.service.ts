@@ -11,6 +11,7 @@ import { TempVoiceConfigService } from './config.service';
 import { TempChannelService } from './temp-channel.service';
 import { ControlPanelService } from './control-panel.service';
 import { PermissionsService } from './permissions.service';
+import { UserPreferencesService } from './user-preferences.service';
 
 interface CreateChannelJobData {
 	type: 'create';
@@ -223,6 +224,30 @@ class TempVoiceQueueService {
 			const configService = new TempVoiceConfigService(container.prisma);
 			const config = await configService.getOrNull(guildId);
 
+			// Get channel data before deletion to save preferences
+			const permissionsService = new PermissionsService();
+			const channelService = new TempChannelService(container.prisma, permissionsService);
+			const tempChannel = await channelService.getByChannelId(channelId);
+
+			// Save user preferences before deleting (if customization is allowed)
+			if (tempChannel && config?.allowCustomization) {
+				const userPrefsService = new UserPreferencesService(container.prisma);
+				await userPrefsService.saveFromChannel(guildId, tempChannel.ownerId, {
+					customName: tempChannel.customName,
+					customUserLimit: tempChannel.customUserLimit,
+					customBitrate: tempChannel.customBitrate,
+					customRegion: tempChannel.customRegion,
+					isLocked: tempChannel.isLocked,
+					isHidden: tempChannel.isHidden,
+					allowedUserIds: (tempChannel.allowedUserIds as string[]) || [],
+					deniedUserIds: (tempChannel.deniedUserIds as string[]) || [],
+					trustedUserIds: (tempChannel.trustedUserIds as string[]) || [],
+				});
+				container.logger.info(
+					`[TempVoice Queue] Saved user preferences for ${tempChannel.ownerId} before deletion`
+				);
+			}
+
 			// Delete from Discord
 			const channel = await guild.channels.fetch(channelId).catch(() => null);
 			if (channel) {
@@ -230,8 +255,6 @@ class TempVoiceQueueService {
 			}
 
 			// Delete from database
-			const permissionsService = new PermissionsService();
-			const channelService = new TempChannelService(container.prisma, permissionsService);
 			await channelService.delete(channelId);
 
 			// Log deletion if enabled

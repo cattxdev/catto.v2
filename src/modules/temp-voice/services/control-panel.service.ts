@@ -24,7 +24,7 @@ export class ControlPanelService {
 
 		private _client: Client,
 		private _channelService: TempChannelService
-	) {}
+	) { }
 
 	/**
 	 * Send a control panel message to the text channel associated with the voice channel
@@ -44,10 +44,10 @@ export class ControlPanelService {
 			// Get the voice channel's text chat (Discord automatically creates a linked text channel for voice channels)
 			const guild = owner.guild;
 			const voiceChan = voiceChannel as VoiceChannel;
-			
+
 			// Try to send to the voice channel itself (Discord shows text messages in voice channels)
 			let textChannel: TextChannel | VoiceChannel = voiceChan;
-			
+
 			// If voice channel doesn't support sending messages, find first accessible text channel
 			const botMember = guild.members.me!;
 			if (!voiceChan.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])) {
@@ -57,7 +57,7 @@ export class ControlPanelService {
 						ch.permissionsFor(owner)?.has('ViewChannel') &&
 						ch.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])
 				) as TextChannel | undefined;
-				
+
 				if (!fallbackChannel) {
 					return null;
 				}
@@ -242,10 +242,10 @@ export class ControlPanelService {
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_kick_${tempChannel.channelId}`)
 				.setEmoji({ id: '1463001026079621235', name: '8562replay2' })
-				.setStyle(ButtonStyle.Secondary), 
+				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
-				.setCustomId(`tempvoice_refresh_${tempChannel.channelId}`)
-				.setEmoji({ id: '1463001053095006293', name: '2636securityfilter' })
+				.setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
+				.setEmoji({ id: '1463575177358217360', name: '2636securityfilter' })
 				.setStyle(ButtonStyle.Secondary)
 		);
 
