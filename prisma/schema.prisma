@@ -33,6 +33,7 @@ model Guild {
   userVoiceXP   UserVoiceXP[]
   voiceXPEventLogs VoiceXPEventLog[]
   voiceSessions VoiceSession[]
+  reputationVouches ReputationVouch[]
 
   @@index([guildId])
   @@map("guilds")
@@ -383,6 +384,7 @@ model TempVoiceConfig {
   // Control panel
   controlPanelEnabled   Boolean  @default(true)
   controlPanelOnCreate  Boolean  @default(true)
+  allowCustomization    Boolean  @default(true)        // Allow users to customize their channels
   
   // Logging
   logChannelId          String?
@@ -443,3 +445,128 @@ model TempVoiceChannel {
   @@index([deletionScheduledAt])
   @@map("temp_voice_channels")
 }
+
+// User-specific temp voice channel preferences
+model TempVoiceUserPreference {
+  id                    String   @id @default(cuid())
+  guildId               String
+  userId                String
+  
+  // Saved channel settings
+  customName            String?
+  customUserLimit       Int?
+  customBitrate         Int?
+  customRegion          String?
+  
+  // Saved state flags
+  preferLocked          Boolean  @default(false)
+  preferHidden          Boolean  @default(false)
+  
+  // Saved permission lists
+  allowedUserIds        Json     @default("[]")        // string[]
+  deniedUserIds         Json     @default("[]")        // string[]
+  trustedUserIds        Json     @default("[]")        // string[]
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@index([userId])
+  @@map("temp_voice_user_preferences")
+}
+
+// ============================================================================
+// REPUTATION SYSTEM
+// ============================================================================
+
+// User reputation/social credit tracking
+model UserReputation {
+  id                    String   @id @default(cuid())
+  guildId               String
+  userId                String
+  
+  // Reputation scores
+  reputationScore       Int      @default(0)         // Total reputation points
+  vouchesReceived       Int      @default(0)         // Count of vouches received
+  vouchesGiven          Int      @default(0)         // Count of vouches given
+  
+  // Reputation breakdown by type
+  helpfulVouches        Int      @default(0)
+  friendlyVouches       Int      @default(0)
+  skilledVouches        Int      @default(0)
+  reliableVouches       Int      @default(0)
+  
+  // Tier system
+  reputationTier        String   @default("Bronze")  // Bronze, Silver, Gold, Platinum, Diamond
+  tierReachedAt         DateTime?
+  
+  // Anti-abuse tracking
+  lastVouchGiven        DateTime?
+  suspiciousActivity    Boolean  @default(false)
+  
+  // Decay system
+  lastActiveDate        DateTime @default(now())
+  decayAppliedAt        DateTime?
+  
+  // Stats & achievements
+  longestVouchStreak    Int      @default(0)
+  totalHelpfulness      Int      @default(0)         // Calculated metric
+  
+  // Metadata
+  metadata              Json     @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  vouchesReceived_      ReputationVouch[] @relation("VouchReceiver")
+  vouchesGiven_         ReputationVouch[] @relation("VouchGiver")
+  
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@index([userId])
+  @@index([reputationScore])
+  @@index([reputationTier])
+  @@map("user_reputation")
+}
+
+// Individual vouch records
+model ReputationVouch {
+  id                    String   @id @default(cuid())
+  guildId               String
+  
+  // Who vouched for whom
+  giverUserId           String
+  receiverUserId        String
+  
+  // Vouch details
+  vouchType             String                       // helpful, friendly, skilled, reliable
+  reason                String?                      // Optional message
+  weight                Int      @default(1)         // Vouch weight (can vary by giver's reputation)
+  
+  // Context
+  contextType           String?                      // Where it happened: voice, text, event
+  contextId             String?                      // Channel/event ID
+  
+  // Validation
+  isValid               Boolean  @default(true)      // Can be invalidated if abuse detected
+  validatedBy           String?                      // Moderator who validated/invalidated
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  giver                 UserReputation @relation("VouchGiver", fields: [guildId, giverUserId], references: [guildId, userId], onDelete: Cascade)
+  receiver              UserReputation @relation("VouchReceiver", fields: [guildId, receiverUserId], references: [guildId, userId], onDelete: Cascade)
+  guild                 Guild    @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  
+  @@unique([guildId, giverUserId, receiverUserId, vouchType, createdAt])
+  @@index([guildId])
+  @@index([giverUserId])
+  @@index([receiverUserId])
+  @@index([vouchType])
+  @@index([createdAt])
+  @@map("reputation_vouches")
+}
+

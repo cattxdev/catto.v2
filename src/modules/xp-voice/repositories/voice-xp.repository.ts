@@ -3,7 +3,7 @@
  */
 
 import { container } from '@sapphire/framework';
-import type { UserVoiceXP } from '@prisma/client';
+import type { UserVoiceXP, Prisma } from '@prisma/client';
 
 export async function getUserVoiceXP(guildId: string, userId: string): Promise<UserVoiceXP | null> {
 	return await container.prisma.userVoiceXP.findUnique({
@@ -16,7 +16,7 @@ export async function getUserVoiceXP(guildId: string, userId: string): Promise<U
 export async function getUserVoiceXPForUpdate(
 	guildId: string,
 	userId: string,
-	tx: any
+	tx: Prisma.TransactionClient
 ): Promise<UserVoiceXP | null> {
 	const result = await tx.$queryRaw<UserVoiceXP[]>`
 		SELECT * FROM user_voice_xp

@@ -47,7 +47,7 @@ export class TempVoiceValidateRoute extends Route {
 						details: validationResult.error.issues.map((err) => ({
 							field: err.path.join('.'),
 							message: err.message,
-							value: err.code === 'invalid_type' ? undefined : err.path[0] ? (request.body as any)?.[err.path[0]] : undefined,
+						value: err.code === 'invalid_type' ? undefined : err.path[0] && typeof err.path[0] === 'string' ? (request.body as Record<string, unknown>)?.[err.path[0]] : undefined,
 						})),
 					},
 				});

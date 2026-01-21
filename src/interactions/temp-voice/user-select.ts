@@ -1,13 +1,16 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { UserSelectMenuInteraction, GuildMember, VoiceChannel } from 'discord.js';
+import type { TempVoiceChannel } from '@prisma/client';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
 
 export class TempVoiceUserSelectHandler extends InteractionHandler {
 	private channelService!: TempChannelService;
 	private configService!: TempVoiceConfigService;
 	private permissionsService!: PermissionsService;
+	private userPrefsService!: UserPreferencesService;
 
 	public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
 		super(ctx, {
@@ -34,6 +37,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				this.container.prisma,
 				this.permissionsService
 			);
+			this.userPrefsService = new UserPreferencesService(this.container.prisma);
 		}
 
 		// Parse customId: tempvoice_<action>_select_<channelId>
@@ -44,28 +48,43 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		// Get temp channel
 		const tempChannel = await this.channelService.getByChannelId(channelId);
 		if (!tempChannel) {
-			return interaction.update({
-				content: '❌ This temporary voice channel no longer exists.',
-				components: [],
-			});
+			try {
+				return await interaction.update({
+					content: '❌ This temporary voice channel no longer exists.',
+					components: [],
+				});
+			} catch {
+				return interaction.reply({
+					content: '❌ This temporary voice channel no longer exists.',
+					flags: 64, // Ephemeral
+				});
+			}
 		}
 
 		// Check permissions
 		const config = await this.configService.get(interaction.guildId!);
 		const member = interaction.member as GuildMember;
+		const trustedUserIds = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
 		const canManage = this.permissionsService.canManageChannel(
 			member.user.id,
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
 			member.roles.cache?.map((r) => r.id) || [],
 			member.permissions?.has('Administrator') || false,
-			(tempChannel.trustedUserIds as string[]) || []
+			trustedUserIds
 		);
 		if (!canManage) {
-			return interaction.update({
-				content: '❌ You do not have permission to manage this channel.',
-				components: [],
-			});
+			try {
+				return await interaction.update({
+					content: '❌ You do not have permission to manage this channel.',
+					components: [],
+				});
+			} catch {
+				return interaction.reply({
+					content: '❌ You do not have permission to manage this channel.',
+					flags: 64, // Ephemeral
+				});
+			}
 		}
 
 		// Get selected users
@@ -81,24 +100,36 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				return this.handleTrust(interaction, tempChannel, channelId, selectedUsers);
 			case 'kick':
 				return this.handleKick(interaction, channelId, selectedUsers);
+			case 'transfer':
+				return this.handleTransfer(interaction, tempChannel, channelId, selectedUsers);
 			default:
-				return interaction.update({
-					content: '❌ Unknown action.',
-					components: [],
-				});
+				try {
+					return await interaction.update({
+						content: '❌ Unknown action.',
+						components: [],
+					});
+				} catch {
+					return interaction.reply({
+						content: '❌ Unknown action.',
+						flags: 64, // Ephemeral
+					});
+				}
 		}
 	}
 
 	private async handlePermit(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -112,19 +143,50 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				});
 			}
 
-			// Update database
-			const currentAllowed = tempChannel.allowedUserIds || [];
+			// Update database - remove from denied list and add to allowed list
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
+			
 			const newAllowed = [...new Set([...currentAllowed, ...userIds])];
-			await this.channelService.update(channelId, { allowedUserIds: newAllowed });
+			const newDenied = currentDenied.filter(id => !userIds.includes(id)); // Remove from denied
+			
+			await this.channelService.update(channelId, { 
+				allowedUserIds: newAllowed,
+				deniedUserIds: newDenied
+			});
+
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					allowedUserIds: newAllowed,
+					deniedUserIds: newDenied
+				});
+			}
 
 			const userMentions = userIds.map(id => `<@${id}>`).join(', ');
-			return interaction.update({
+			
+			// Refresh control panel
+			await this.container.client.emit('tempVoiceRefresh', channelId);
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+			
+			return interaction.editReply({
 				content: `✅ Permitted ${userMentions} to access this channel.`,
 				components: [],
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to permit users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to permit users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to permit users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
@@ -133,14 +195,17 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
 	private async handleDeny(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -165,13 +230,42 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				}
 			}
 
-			// Update database
-			const currentDenied = tempChannel.deniedUserIds || [];
-			const newDenied = [...new Set([...currentDenied, ...userIds.filter(id => id !== tempChannel.ownerId)])];
-			await this.channelService.update(channelId, { deniedUserIds: newDenied });
+			// Update database - remove from allowed and trusted lists, add to denied list
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
+			
+			const validUserIds = userIds.filter(id => id !== tempChannel.ownerId);
+			const newDenied = [...new Set([...currentDenied, ...validUserIds])];
+			const newAllowed = currentAllowed.filter(id => !validUserIds.includes(id)); // Remove from allowed
+			const newTrusted = currentTrusted.filter(id => !validUserIds.includes(id)); // Remove from trusted
+			
+			await this.channelService.update(channelId, { 
+				deniedUserIds: newDenied,
+				allowedUserIds: newAllowed,
+				trustedUserIds: newTrusted
+			});
+
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					deniedUserIds: newDenied,
+					allowedUserIds: newAllowed,
+					trustedUserIds: newTrusted
+				});
+			}
 
 			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
-			return interaction.update({
+			
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+			
+			return interaction.editReply({
 				content: userMentions 
 					? `✅ Denied ${userMentions} access to this channel.`
 					: '⚠️ Cannot deny the channel owner.',
@@ -179,7 +273,13 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to deny users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to deny users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to deny users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
@@ -188,26 +288,42 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
 	private async handleTrust(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
 			}
 
-			// Add trusted users permissions (same as owner)
-			for (const userId of userIds) {
-				// Don't allow trusting the owner (they already have full access)
-				if (userId === tempChannel.ownerId) {
-					continue;
+			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
+			
+			const validUserIds = userIds.filter(id => id !== tempChannel.ownerId);
+			
+			// Separate users to add and remove based on current trust status
+			const usersToAdd: string[] = [];
+			const usersToRemove: string[] = [];
+			
+			for (const userId of validUserIds) {
+				if (currentTrusted.includes(userId)) {
+					usersToRemove.push(userId);
+				} else {
+					usersToAdd.push(userId);
 				}
+			}
 
+			// Add trusted users permissions
+			for (const userId of usersToAdd) {
 				await voiceChannel.permissionOverwrites.edit(userId, {
 					Connect: true,
 					ViewChannel: true,
@@ -217,22 +333,77 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				});
 			}
 
-			// Update database
-			const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
-			const newTrusted = [...new Set([...currentTrusted, ...userIds.filter(id => id !== tempChannel.ownerId)])];
-			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
+			// Remove trusted users permissions (but keep them as allowed users)
+			for (const userId of usersToRemove) {
+				await voiceChannel.permissionOverwrites.edit(userId, {
+					Connect: true,
+					ViewChannel: true,
+					Speak: null,
+					Stream: null,
+					UseVAD: null,
+				});
+			}
 
-			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
-			return interaction.update({
-				content: userMentions 
-					? `✅ Trusted ${userMentions}. They can now manage this channel (except transfer ownership).`
-					: '⚠️ The channel owner is already trusted.',
+			// Update database
+			const newTrusted = currentTrusted.filter(id => !usersToRemove.includes(id));
+			newTrusted.push(...usersToAdd);
+			
+			const newAllowed = [...new Set([...currentAllowed, ...usersToAdd])]; // Trusted users must be allowed
+			const newDenied = currentDenied.filter(id => !usersToAdd.includes(id)); // Remove from denied
+			
+			await this.channelService.update(channelId, { 
+				trustedUserIds: newTrusted,
+				allowedUserIds: newAllowed,
+				deniedUserIds: newDenied
+			});
+
+			// Save to user preferences if customization is allowed
+			const config = await this.configService.get(interaction.guildId!);
+			if (config.allowCustomization) {
+				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
+					trustedUserIds: newTrusted,
+					allowedUserIds: newAllowed,
+					deniedUserIds: newDenied
+				});
+			}
+
+			// Build response message
+			const addedMentions = usersToAdd.map(id => `<@${id}>`).join(', ');
+			const removedMentions = usersToRemove.map(id => `<@${id}>`).join(', ');
+			
+			let message = '';
+			if (addedMentions) {
+				message += `✅ Trusted ${addedMentions}. They can now manage this channel (except transfer ownership).`;
+			}
+			if (removedMentions) {
+				if (message) message += '\n';
+				message += `➖ Removed trust from ${removedMentions}.`;
+			}
+			if (!message) {
+				message = '⚠️ The channel owner is already trusted.';
+			}
+
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
+			return interaction.editReply({
+				content: message,
 				components: [],
 			});
 		} catch (error) {
-			this.container.logger.error('Failed to trust users:', error);
-			return interaction.update({
-				content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
+			this.container.logger.error('Failed to manage trusted users:', error);
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to manage trusted users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
+				content: '❌ Failed to manage trusted users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
 		}
@@ -244,9 +415,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		userIds: string[]
 	) {
 		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-				return interaction.update({
+				return interaction.editReply({
 					content: '❌ Voice channel not found.',
 					components: [],
 				});
@@ -271,14 +445,122 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				? `\n⚠️ Failed to kick: ${failedUsers.map(id => `<@${id}>`).join(', ')}`
 				: '';
 
-			return interaction.update({
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
+			return interaction.editReply({
 				content: `✅ Kicked ${kickedCount} user(s) from the channel.${failedMentions}`,
 				components: [],
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to kick users:', error);
-			return interaction.update({
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
 				content: '❌ Failed to kick users. Make sure the bot has permission to manage this channel.',
+				components: [],
+			});
+		}
+	}
+
+	private async handleTransfer(
+		interaction: UserSelectMenuInteraction,
+		tempChannel: TempVoiceChannel,
+		channelId: string,
+		userIds: string[]
+	) {
+		try {
+			// Defer the update to prevent interaction timeout
+			await interaction.deferUpdate();
+
+			// Only allow one user to be selected
+			if (userIds.length !== 1) {
+				return interaction.editReply({
+					content: '❌ You can only transfer ownership to one user.',
+					components: [],
+				});
+			}
+
+			const newOwnerId = userIds[0]!;
+			
+			// Check if trying to transfer to current owner
+			if (newOwnerId === tempChannel.ownerId) {
+				return interaction.editReply({
+					content: '❌ This user is already the owner.',
+					components: [],
+				});
+			}
+
+			// Check if the interaction user is the owner (only owner can transfer)
+			const member = interaction.member as GuildMember;
+			if (member.user.id !== tempChannel.ownerId) {
+				return interaction.editReply({
+					content: '❌ Only the channel owner can transfer ownership.',
+					components: [],
+				});
+			}
+
+			const voiceChannel = await interaction.guild!.channels.fetch(channelId) as VoiceChannel;
+			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+				return interaction.editReply({
+					content: '❌ Voice channel not found.',
+					components: [],
+				});
+			}
+
+			// Check if new owner is in the channel
+			const newOwnerMember = await interaction.guild!.members.fetch(newOwnerId).catch(() => null);
+			if (!newOwnerMember || newOwnerMember.voice.channelId !== channelId) {
+				return interaction.editReply({
+					content: '❌ The new owner must be in your channel.',
+					components: [],
+				});
+			}
+
+			// Update permissions - give new owner full permissions
+			await voiceChannel.permissionOverwrites.edit(newOwnerId, {
+				Connect: true,
+				Speak: true,
+				MoveMembers: true,
+				ManageChannels: true,
+				ViewChannel: true,
+			});
+
+			// Remove old owner's special permissions
+			await voiceChannel.permissionOverwrites.delete(tempChannel.ownerId);
+
+			// Update database
+			await this.channelService.update(channelId, { ownerId: newOwnerId });
+
+			// Refresh control panel
+			const controlPanelService = new (await import('#modules/temp-voice/services/control-panel.service')).ControlPanelService(
+				this.container.client,
+				this.channelService
+			);
+			await controlPanelService.refresh(channelId);
+
+			return interaction.editReply({
+				content: `✅ Channel ownership transferred to <@${newOwnerId}>.`,
+				components: [],
+			});
+		} catch (error) {
+			this.container.logger.error('Failed to transfer ownership:', error);
+			if (!interaction.deferred) {
+				return interaction.update({
+					content: '❌ Failed to transfer ownership. Please try again.',
+					components: [],
+				});
+			}
+			return interaction.editReply({
+				content: '❌ Failed to transfer ownership. Please try again.',
 				components: [],
 			});
 		}

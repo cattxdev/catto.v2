@@ -163,7 +163,7 @@ class LoggingService {
         try {
             await webhook.send({
                 embeds: [embedBuilder],
-                username: 'Catto Logs',
+                username: container.client.user?.username,
                 avatarURL: container.client.user?.displayAvatarURL()
             });
         } finally {

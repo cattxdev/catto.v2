@@ -5,11 +5,13 @@
 
 import type { UserXP } from '@prisma/client';
 import type { XPAwardResult, ValidationContext } from '../types/xp-text.types';
-import { XPMode } from '../types/xp-text.types';
+import { XPMode, LevelCurveType } from '../types/xp-text.types';
 import * as xpRepo from '../repositories/xp-text.repository';
 import * as configService from './xp-text-config.service';
 import * as levelService from './xp-text-level.service';
 import { validateXPAward, checkCooldown, calculateXPAmount } from '../utils/validation';
+import { ReputationService } from '#modules/reputation/services/reputation.service';
+import { container } from '@sapphire/framework';
 
 /**
  * Award XP for a message
@@ -26,7 +28,7 @@ export async function awardXP(context: ValidationContext): Promise<XPAwardResult
 	const validation = validateXPAward(context, {
 		...config,
 		xpMode: config.xpMode as XPMode,
-		levelCurveType: config.levelCurveType as any
+		levelCurveType: config.levelCurveType as LevelCurveType
 	});
 	if (!validation.valid) {
 		return {
@@ -46,12 +48,24 @@ export async function awardXP(context: ValidationContext): Promise<XPAwardResult
 		};
 	}
 	
-	// Calculate XP amount
+	// Get reputation boost multiplier
+	let reputationMultiplier = 1.0;
+	try {
+		const reputationService = new ReputationService(container.prisma);
+		const reputation = await reputationService.getOrCreateReputation(context.guildId, context.userId);
+		reputationMultiplier = reputationService.getXPBoostForTier(reputation.reputationTier);
+	} catch (error) {
+		// If reputation system fails, continue with default multiplier
+		container.logger.warn('Failed to get reputation multiplier for XP:', error);
+	}
+	
+	// Calculate XP amount with reputation boost
 	const xpGain = calculateXPAmount(
 		config.xpMode as XPMode,
 		config.minXp,
 		config.maxXp,
-		config.fixedXp
+		config.fixedXp,
+		reputationMultiplier
 	);
 	
 	// Calculate new level
@@ -97,7 +111,7 @@ export async function previewAward(context: ValidationContext): Promise<{
 	const validation = validateXPAward(context, {
 		...config,
 		xpMode: config.xpMode as XPMode,
-		levelCurveType: config.levelCurveType as any
+		levelCurveType: config.levelCurveType as LevelCurveType
 	});
 	
 	if (!validation.valid) {

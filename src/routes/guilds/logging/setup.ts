@@ -123,7 +123,7 @@ export class LoggingSetupRoute extends Route {
 
 				// Create webhook
 				const webhook = await channel.createWebhook({
-					name: 'Catto Logs',
+					name: botMember.user.username + ' Logs',
 					avatar: botMember.user.displayAvatarURL(),
 					reason: 'Logging system setup'
 				});
