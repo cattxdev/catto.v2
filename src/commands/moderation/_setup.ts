@@ -16,6 +16,7 @@ import {
   roleSelectRow,
   stringSelectRow,
   COLORS,
+  EMOJI,
 } from '#lib/discord/index.js';
 import { v1 } from '#lib/discord/index.js';
 import {
@@ -33,19 +34,19 @@ function buildSetupRow1(modLogSet: boolean, textRoleSet: boolean, voiceRoleSet: 
       customId: 'mod_setup:mod_log',
       label: 'Set Mod Log',
       style: modLogSet ? ButtonStyle.Success : ButtonStyle.Primary,
-      emoji: '📋',
+      emoji: EMOJI.MODERATION,
     }),
     button({
       customId: 'mod_setup:text_role',
       label: 'Text Mute Role',
       style: textRoleSet ? ButtonStyle.Success : ButtonStyle.Primary,
-      emoji: '💬',
+      emoji: EMOJI.VOICE,
     }),
     button({
       customId: 'mod_setup:voice_role',
       label: 'Voice Mute Role',
       style: voiceRoleSet ? ButtonStyle.Success : ButtonStyle.Secondary,
-      emoji: '🔇',
+      emoji: EMOJI.VOICE_MUTED,
     })
   );
 }
@@ -59,19 +60,19 @@ function buildSetupRow2() {
       customId: 'mod_setup:warning_escalation',
       label: 'Warning Escalation',
       style: ButtonStyle.Secondary,
-      emoji: '⚠️',
+      emoji: EMOJI.WARNING,
     }),
     button({
       customId: 'mod_setup:create_roles',
       label: 'Auto-Create Roles',
       style: ButtonStyle.Secondary,
-      emoji: '✨',
+      emoji: EMOJI.ADD_GREEN,
     }),
     button({
       customId: 'mod_setup:done',
       label: 'Done',
       style: ButtonStyle.Success,
-      emoji: '✅',
+      emoji: EMOJI.SUCCESS,
     })
   );
 }
@@ -82,7 +83,7 @@ function buildSetupRow2() {
 export async function handleSetup(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: '❌ This command can only be used in a server.',
+      content: `${EMOJI.ERROR} This command can only be used in a server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -91,7 +92,7 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
   // Check for admin permissions
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
     await interaction.reply({
-      content: '❌ You need Administrator permissions to configure moderation settings.',
+      content: `${EMOJI.ERROR} You need Administrator permissions to configure moderation settings.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -230,7 +231,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content: '📋 **Select the channel for moderation logs:**',
+          content: `${EMOJI.TEXT_CHANNEL} Select the channel for moderation logs:`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -252,7 +253,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `✅ Mod log channel set to <#${channelId}>`,
+                content: `${EMOJI.SUCCESS} Mod log channel set to <#${channelId}>`,
                 components: [],
               });
 
@@ -278,8 +279,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content:
-            '💬 **Select the role to use for text mutes:**\n*This role should have Send Messages denied in all channels.*',
+          content: `${EMOJI.INFO} Select the role to use for text mutes:\n*This role should have Send Messages denied in all channels.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -301,7 +301,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `✅ Muted text role set to <@&${roleId}>`,
+                content: `${EMOJI.SUCCESS} Muted text role set to <@&${roleId}>`,
                 components: [],
               });
 
@@ -326,8 +326,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content:
-            '🔇 **Select the role to use for voice mutes (optional):**\n*If not set, server mute will be used instead.*',
+          content: `${EMOJI.VOICE_MUTED} Select the role to use for voice mutes (optional):\n*If not set, server mute will be used instead.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -349,7 +348,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `✅ Muted voice role set to <@&${roleId}>`,
+                content: `${EMOJI.SUCCESS} Muted voice role set to <@&${roleId}>`,
                 components: [],
               });
 
@@ -386,8 +385,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content:
-            '⚠️ **Configure warning escalation:**\n*When enabled, moderators will see escalation recommendations based on warning count.*',
+          content: `${EMOJI.WARNING} Configure warning escalation:\n*When enabled, moderators will see escalation recommendations based on warning count.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -436,7 +434,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: '✅ Warning escalation enabled with default rules.',
+                content: `${EMOJI.SUCCESS} Warning escalation enabled with default rules.`,
                 components: [],
               });
             } else if (value === 'disable') {
@@ -448,7 +446,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: '✅ Warning escalation disabled.',
+                content: `${EMOJI.SUCCESS} Warning escalation disabled.`,
                 components: [],
               });
             }
@@ -611,11 +609,11 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
           if (createdRoles.length > 0) {
             await buttonInteraction.editReply({
-              content: `✅ **Roles created:**\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically (via category inheritance where possible).*`,
+              content: `${EMOJI.SUCCESS} Roles created:\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically (via category inheritance where possible).*`,
             });
           } else {
             await buttonInteraction.editReply({
-              content: '✅ Muted roles already exist. No changes made.',
+              content: `${EMOJI.SUCCESS} Muted roles already exist. No changes made.`,
             });
           }
 
@@ -628,7 +626,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         } catch (error) {
           container.logger.error('[Setup] Failed to create roles:', error);
           await buttonInteraction.editReply({
-            content: '❌ Failed to create roles. Make sure I have the Manage Roles permission.',
+            content: `${EMOJI.ERROR} Failed to create roles. Make sure I have the Manage Roles permission.`,
           });
         }
         return;
@@ -708,7 +706,7 @@ async function refreshOverview(
 export async function handleConfigModLog(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: '❌ This command can only be used in a server.',
+      content: `${EMOJI.ERROR} This command can only be used in a server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -718,7 +716,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
 
   if (channel.type !== ChannelType.GuildText) {
     await interaction.reply({
-      content: '❌ Please select a text channel.',
+      content: `${EMOJI.ERROR} Please select a text channel.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -733,7 +731,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
   });
 
   await interaction.reply({
-    content: `✅ Mod log channel set to <#${channel.id}>`,
+    content: `${EMOJI.SUCCESS} Mod log channel set to <#${channel.id}>`,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -741,7 +739,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
 export async function handleConfigTextRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: '❌ This command can only be used in a server.',
+      content: `${EMOJI.ERROR} This command can only be used in a server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -757,7 +755,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
   });
 
   await interaction.reply({
-    content: `✅ Muted text role set to <@&${role.id}>`,
+    content: `${EMOJI.SUCCESS} Muted text role set to <@&${role.id}>`,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -765,7 +763,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
 export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: '❌ This command can only be used in a server.',
+      content: `${EMOJI.ERROR} This command can only be used in a server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -781,7 +779,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
   });
 
   await interaction.reply({
-    content: `✅ Muted voice role set to <@&${role.id}>`,
+    content: `${EMOJI.SUCCESS} Muted voice role set to <@&${role.id}>`,
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -789,7 +787,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
 export async function handleConfigView(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
     await interaction.reply({
-      content: '❌ This command can only be used in a server.',
+      content: `${EMOJI.ERROR} This command can only be used in a server.`,
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -802,7 +800,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
 
   if (!config) {
     await interaction.reply({
-      content: '❌ No moderation config found. Run `/mod setup` to configure.',
+      content: `${EMOJI.ERROR} No moderation config found. Run \`/mod setup\` to configure.`,
       flags: MessageFlags.Ephemeral,
     });
     return;

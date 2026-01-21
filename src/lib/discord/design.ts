@@ -229,6 +229,10 @@ export const EMOJI_CONFIG = {
     custom: '<:more_options:1463368507617050833>',
     fallback: '\u22EF', // horizontal ellipsis
   },
+  TEXT_CHANNEL: {
+    custom: '<:text:1462785165985321103>',
+    fallback: '\uD83D\uDCDD', // text channel
+  },
 } as const;
 
 export type EmojiKey = keyof typeof EMOJI_CONFIG;
@@ -320,6 +324,7 @@ export const EMOJI: Record<EmojiKey, string> & {
   SLOWMODE: EMOJI_CONFIG.SLOWMODE.custom,
   EVENT_LOCATION: EMOJI_CONFIG.EVENT_LOCATION.custom,
   MORE_OPTIONS: EMOJI_CONFIG.MORE_OPTIONS.custom,
+  TEXT_CHANNEL: EMOJI_CONFIG.TEXT_CHANNEL.custom,
 
   // Aliases for backward compatibility
   RED_CROSS: EMOJI_CONFIG.ERROR.custom,
