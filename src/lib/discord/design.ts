@@ -233,6 +233,18 @@ export const EMOJI_CONFIG = {
     custom: '<:text:1462785165985321103>',
     fallback: '\uD83D\uDCDD', // text channel
   },
+  VOICE_LIMITER: {
+    custom: '<:voice_limiter:1463532166586564700>',
+    fallback: '\uD83D\uDD08', // speaker low volume
+  },
+  TEXT_LIMITER: {
+    custom: '<:text_limiter:1463532129081229454>',
+    fallback: '\uD83D\uDD08', // speaker low volume
+  },
+  ADD_WHITE: {
+    custom: '<:add_white:1463534575299858588>',
+    fallback: '\u2795', // plus
+  },
 } as const;
 
 export type EmojiKey = keyof typeof EMOJI_CONFIG;
@@ -325,6 +337,9 @@ export const EMOJI: Record<EmojiKey, string> & {
   EVENT_LOCATION: EMOJI_CONFIG.EVENT_LOCATION.custom,
   MORE_OPTIONS: EMOJI_CONFIG.MORE_OPTIONS.custom,
   TEXT_CHANNEL: EMOJI_CONFIG.TEXT_CHANNEL.custom,
+  VOICE_LIMITER: EMOJI_CONFIG.VOICE_LIMITER.custom,
+  TEXT_LIMITER: EMOJI_CONFIG.TEXT_LIMITER.custom,
+  ADD_WHITE: EMOJI_CONFIG.ADD_WHITE.custom,
 
   // Aliases for backward compatibility
   RED_CROSS: EMOJI_CONFIG.ERROR.custom,
