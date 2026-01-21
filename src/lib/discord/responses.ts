@@ -104,48 +104,6 @@ export function buildErrorV2(data: ErrorData): ContainerBuilder {
 }
 
 /**
- * Build a moderation action success response using Components V2
- */
-export function buildModActionSuccessV2(data: ModActionSuccessData): ContainerBuilder {
-  const container = new ContainerBuilder();
-
-  const lines = [
-    `# ${EMOJI.SUCCESS} ${data.action} Successful`,
-    formatInfoRow('Target', `${data.target.tag} (\`${data.target.id}\`)`, EMOJI.MEMBER),
-    formatInfoRow('Case', `#${data.caseNumber}`),
-    formatInfoRow('Reason', data.reason),
-  ];
-
-  if (data.duration) {
-    lines.push(formatInfoRow('Duration', data.duration, EMOJI.TIME));
-  }
-
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
-
-  if (data.dmSent === false) {
-    container.addSeparatorComponents(createSmallSeparator());
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `${EMOJI.WARNING} Could not send DM notification to user.`
-      )
-    );
-  }
-
-  return container;
-}
-
-/**
- * Build an error response using Components V2 for moderation actions
- */
-export function buildModActionErrorV2(error: string, suggestion?: string): ContainerBuilder {
-  return buildErrorV2({
-    title: 'Error',
-    message: error,
-    suggestion,
-  });
-}
-
-/**
  * Build a loading state response using Components V2
  */
 export function buildLoadingV2(message: string = 'Loading...'): ContainerBuilder {
@@ -198,31 +156,6 @@ export function buildErrorEmbed(data: ErrorData): EmbedBuilder {
 
   if (data.suggestion) {
     embed.addFields({ name: 'Suggestion', value: data.suggestion });
-  }
-
-  return embed;
-}
-
-/**
- * Build a moderation action success embed (traditional format)
- */
-export function buildModActionSuccessEmbed(data: ModActionSuccessData): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setColor(COLORS.SUCCESS)
-    .setTitle(`${EMOJI.SUCCESS} ${data.action} Successful`)
-    .addFields(
-      { name: 'Target', value: `${data.target.tag} (\`${data.target.id}\`)`, inline: true },
-      { name: 'Case', value: `#${data.caseNumber}`, inline: true },
-      { name: 'Reason', value: data.reason }
-    )
-    .setTimestamp();
-
-  if (data.duration) {
-    embed.addFields({ name: 'Duration', value: data.duration, inline: true });
-  }
-
-  if (data.dmSent === false) {
-    embed.setFooter({ text: 'Could not send DM notification to user.' });
   }
 
   return embed;

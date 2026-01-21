@@ -277,13 +277,10 @@ export {
   // V2 builders
   buildSuccessV2,
   buildErrorV2,
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
   buildLoadingV2,
   // Embed builders
   buildSuccessEmbed as buildSuccessEmbedLegacy,
   buildErrorEmbed as buildErrorEmbedLegacy,
-  buildModActionSuccessEmbed,
   // Plain text
   buildSuccessText,
   buildErrorText,

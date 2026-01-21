@@ -325,12 +325,12 @@ export function buildModActionSuccessV2(
   duration?: string,
   options?: { dmSent?: boolean }
 ): ContainerBuilder {
-  const c = v2.buildSuccess(`${action} Successful`, {
+  const c = v2.buildSuccess(`${action} successful`, {
     details: {
       [`${EMOJI.MEMBER} Target`]: `${target.tag} (\`${target.id}\`)`,
-      Case: `#${caseNumber}`,
-      Reason: reason,
-      ...(duration ? { [`${EMOJI.TIME_DAY} Duration`]: duration } : {}),
+      [`${EMOJI.SERVER_FOLDER} Case`]: `#${caseNumber}`,
+      [`${EMOJI.MODERATION} Reason`]: reason,
+      ...(duration ? { [`${EMOJI.SLOWMODE} Duration`]: duration } : {}),
     },
   });
 

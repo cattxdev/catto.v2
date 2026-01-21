@@ -52,7 +52,7 @@ export const COLORS = {
 export const EMOJI_CONFIG = {
   // Status emojis
   SUCCESS: {
-    custom: '<:success:1462784528094629930>',
+    custom: '<:green_check:1463366102917714134>',
     fallback: '\u2705', // check mark
   },
   ERROR: {
@@ -60,11 +60,11 @@ export const EMOJI_CONFIG = {
     fallback: '\u274C', // cross mark
   },
   WARNING: {
-    custom: '<:warning:1462784529155805254>',
+    custom: '<:yellow_warning:1463366097838407868>',
     fallback: '\u26A0\uFE0F', // warning sign
   },
   INFO: {
-    custom: '<:info:1462784530196308038>',
+    custom: '<:discord_info:1463368489317437612>',
     fallback: '\u2139\uFE0F', // info
   },
 
@@ -100,6 +100,14 @@ export const EMOJI_CONFIG = {
   SUSPECTED: {
     custom: '<:suspected_actvity:1462785167285551167>',
     fallback: '\uD83D\uDD75\uFE0F', // detective
+  },
+  SERVER_FOLDER: {
+    custom: '<:server_folder:1463375728958504981>',
+    fallback: '\uD83D\uDCC4', // folder
+  },
+  MODERATION: {
+    custom: '<:moderation:1463375710092791932>',
+    fallback: '\uD83C\uDFF7\uFE0F', // shield
   },
 
   // Voice / activity emojis (shared across modules)
@@ -167,6 +175,60 @@ export const EMOJI_CONFIG = {
     custom: '<:time_day_expired:1462784541088415867>',
     fallback: '\u23F1\uFE0F', // stopwatch
   },
+
+  // Miscellaneous emojis
+  UTILITIES: {
+    custom: '<:utilities:1463366116033298536>',
+    fallback: '\u2699\uFE0F', // gear
+  },
+  REPORT_FLAG: {
+    custom: '<:report_flag:1463366118667190337>',
+    fallback: '\uD83D\uDEA9', // triangular flag
+  },
+  EDIT: {
+    custom: '<:edit:1463366117631197298>',
+    fallback: '\u270F\uFE0F', // pencil
+  },
+  INVITE: {
+    custom: '<:invite:1463366104767533241>',
+    fallback: '\u2795', // plus
+  },
+  ARROW_LEFT_G: {
+    custom: '<:arrow_left_g:1463366126929973455>',
+    fallback: '\u2B05\uFE0F', // left arrow
+  },
+  ARROW_RIGHT_G: {
+    custom: '<:arrow_right_g:1463366121204875275>',
+    fallback: '\u27A1\uFE0F', // right arrow
+  },
+  ADD_GREEN: {
+    custom: '<:add_green:1463366122916020466>',
+    fallback: '\u2795', // plus
+  },
+  CHEVRON_DROPDOWN: {
+    custom: '<:chevron_dropdown:1463366233121620167>',
+    fallback: '\u25BC\uFE0F', // down-pointing triangle
+  },
+  READ_CHECK: {
+    custom: '<:read_check:1463366119825084501>',
+    fallback: '\u2705', // check mark
+  },
+  NOTIFICATION_BELL: {
+    custom: '<:notification_bell:1463366109213233358>',
+    fallback: '\uD83D\uDD14', // bell
+  },
+  SLOWMODE: {
+    custom: '<:slowmode:1463366107804205240>',
+    fallback: '\u23F1\uFE0F', // stopwatch
+  },
+  EVENT_LOCATION: {
+    custom: '<:event_location:1463368464235499651>',
+    fallback: '\uD83C\uDF0D', // globe showing Americas
+  },
+  MORE_OPTIONS: {
+    custom: '<:more_options:1463368507617050833>',
+    fallback: '\u22EF', // horizontal ellipsis
+  },
 } as const;
 
 export type EmojiKey = keyof typeof EMOJI_CONFIG;
@@ -195,51 +257,77 @@ export function getEmoji(key: keyof typeof EMOJI_CONFIG): string {
 /**
  * Quick access to emojis
  *
- * NOTE: Currently using fallback emojis for reliability.
  * Custom emojis require the bot to have access to the emoji guild.
- * TODO: Re-enable custom emojis once emoji guild access is verified.
  *
  * For dynamic emoji resolution based on global setting, use getEmoji() instead.
  */
-export const EMOJI = {
-  // Status emojis - using fallbacks for reliability
-  SUCCESS: EMOJI_CONFIG.SUCCESS.fallback,
-  ERROR: EMOJI_CONFIG.ERROR.fallback,
-  WARNING: EMOJI_CONFIG.WARNING.fallback,
-  INFO: EMOJI_CONFIG.INFO.fallback,
+export const EMOJI: Record<EmojiKey, string> & {
+  // Aliases for backward compatibility
+  RED_CROSS: string;
+  TIME_DAY: string;
+  DISCONNECT_USER: string;
+  GREEN_CHECK: string;
+  DISCORD_INFO: string;
+  YELLOW_WARNING: string;
+} = {
+  // Status emojis
+  SUCCESS: EMOJI_CONFIG.SUCCESS.custom,
+  ERROR: EMOJI_CONFIG.ERROR.custom,
+  WARNING: EMOJI_CONFIG.WARNING.custom,
+  INFO: EMOJI_CONFIG.INFO.custom,
 
-  // Feature emojis - using fallbacks for reliability
-  MOD_SHIELD: EMOJI_CONFIG.MOD_SHIELD.fallback,
-  MEMBER: EMOJI_CONFIG.MEMBER.fallback,
-  VOICE: EMOJI_CONFIG.VOICE.fallback,
-  TIME: EMOJI_CONFIG.TIME.fallback,
-  DISCONNECT: EMOJI_CONFIG.DISCONNECT.fallback,
-  REPLAY: EMOJI_CONFIG.REPLAY.fallback,
-  EXIT: EMOJI_CONFIG.EXIT.fallback,
-  SUSPECTED: EMOJI_CONFIG.SUSPECTED.fallback,
+  // Feature emojis
+  MOD_SHIELD: EMOJI_CONFIG.MOD_SHIELD.custom,
+  MEMBER: EMOJI_CONFIG.MEMBER.custom,
+  VOICE: EMOJI_CONFIG.VOICE.custom,
+  TIME: EMOJI_CONFIG.TIME.custom,
+  DISCONNECT: EMOJI_CONFIG.DISCONNECT.custom,
+  REPLAY: EMOJI_CONFIG.REPLAY.custom,
+  EXIT: EMOJI_CONFIG.EXIT.custom,
+  SUSPECTED: EMOJI_CONFIG.SUSPECTED.custom,
+  MODERATION: EMOJI_CONFIG.MODERATION.custom,
+  SERVER_FOLDER: EMOJI_CONFIG.SERVER_FOLDER.custom,
 
-  // Voice / activity - using fallbacks for reliability
-  VOICE_ACTIVITIES: EMOJI_CONFIG.VOICE_ACTIVITIES.fallback,
-  VOICE_SERVER_SCREENSHARE: EMOJI_CONFIG.VOICE_SERVER_SCREENSHARE.fallback,
-  VOICE_VIDEO: EMOJI_CONFIG.VOICE_VIDEO.fallback,
-  VOICE_CHANNEL_NSFW: EMOJI_CONFIG.VOICE_CHANNEL_NSFW.fallback,
-  VOICE_CHANNEL_STAGE: EMOJI_CONFIG.VOICE_CHANNEL_STAGE.fallback,
-  VOICE_SERVER_MUTED: EMOJI_CONFIG.VOICE_SERVER_MUTED.fallback,
-  VOICE_SERVER_DEAFENED: EMOJI_CONFIG.VOICE_SERVER_DEAFENED.fallback,
-  VOICE_MUTED: EMOJI_CONFIG.VOICE_MUTED.fallback,
-  VOICE_DEAFENED: EMOJI_CONFIG.VOICE_DEAFENED.fallback,
-  VOICE_UNMUTED: EMOJI_CONFIG.VOICE_UNMUTED.fallback,
-  VOICE_UNDEAFENED: EMOJI_CONFIG.VOICE_UNDEAFENED.fallback,
-  VOICE_SOUND_PAUSE: EMOJI_CONFIG.VOICE_SOUND_PAUSE.fallback,
-  COPY_ID: EMOJI_CONFIG.COPY_ID.fallback,
-  CONNECT_TO_USER: EMOJI_CONFIG.CONNECT_TO_USER.fallback,
-  VOICE_TOGGLE: EMOJI_CONFIG.VOICE_TOGGLE.fallback,
-  TIME_DAY_EXPIRED: EMOJI_CONFIG.TIME_DAY_EXPIRED.fallback,
+  // Voice / activity
+  VOICE_ACTIVITIES: EMOJI_CONFIG.VOICE_ACTIVITIES.custom,
+  VOICE_SERVER_SCREENSHARE: EMOJI_CONFIG.VOICE_SERVER_SCREENSHARE.custom,
+  VOICE_VIDEO: EMOJI_CONFIG.VOICE_VIDEO.custom,
+  VOICE_CHANNEL_NSFW: EMOJI_CONFIG.VOICE_CHANNEL_NSFW.custom,
+  VOICE_CHANNEL_STAGE: EMOJI_CONFIG.VOICE_CHANNEL_STAGE.custom,
+  VOICE_SERVER_MUTED: EMOJI_CONFIG.VOICE_SERVER_MUTED.custom,
+  VOICE_SERVER_DEAFENED: EMOJI_CONFIG.VOICE_SERVER_DEAFENED.custom,
+  VOICE_MUTED: EMOJI_CONFIG.VOICE_MUTED.custom,
+  VOICE_DEAFENED: EMOJI_CONFIG.VOICE_DEAFENED.custom,
+  VOICE_UNMUTED: EMOJI_CONFIG.VOICE_UNMUTED.custom,
+  VOICE_UNDEAFENED: EMOJI_CONFIG.VOICE_UNDEAFENED.custom,
+  VOICE_SOUND_PAUSE: EMOJI_CONFIG.VOICE_SOUND_PAUSE.custom,
+  COPY_ID: EMOJI_CONFIG.COPY_ID.custom,
+  CONNECT_TO_USER: EMOJI_CONFIG.CONNECT_TO_USER.custom,
+  VOICE_TOGGLE: EMOJI_CONFIG.VOICE_TOGGLE.custom,
+  TIME_DAY_EXPIRED: EMOJI_CONFIG.TIME_DAY_EXPIRED.custom,
+
+  // Miscellaneous emojis
+  UTILITIES: EMOJI_CONFIG.UTILITIES.custom,
+  REPORT_FLAG: EMOJI_CONFIG.REPORT_FLAG.custom,
+  EDIT: EMOJI_CONFIG.EDIT.custom,
+  INVITE: EMOJI_CONFIG.INVITE.custom,
+  ARROW_LEFT_G: EMOJI_CONFIG.ARROW_LEFT_G.custom,
+  ARROW_RIGHT_G: EMOJI_CONFIG.ARROW_RIGHT_G.custom,
+  ADD_GREEN: EMOJI_CONFIG.ADD_GREEN.custom,
+  CHEVRON_DROPDOWN: EMOJI_CONFIG.CHEVRON_DROPDOWN.custom,
+  READ_CHECK: EMOJI_CONFIG.READ_CHECK.custom,
+  NOTIFICATION_BELL: EMOJI_CONFIG.NOTIFICATION_BELL.custom,
+  SLOWMODE: EMOJI_CONFIG.SLOWMODE.custom,
+  EVENT_LOCATION: EMOJI_CONFIG.EVENT_LOCATION.custom,
+  MORE_OPTIONS: EMOJI_CONFIG.MORE_OPTIONS.custom,
 
   // Aliases for backward compatibility
-  RED_CROSS: EMOJI_CONFIG.ERROR.fallback,
-  TIME_DAY: EMOJI_CONFIG.TIME.fallback,
-  DISCONNECT_USER: EMOJI_CONFIG.DISCONNECT.fallback,
+  RED_CROSS: EMOJI_CONFIG.ERROR.custom,
+  TIME_DAY: EMOJI_CONFIG.TIME.custom,
+  DISCONNECT_USER: EMOJI_CONFIG.DISCONNECT.custom,
+  GREEN_CHECK: EMOJI_CONFIG.SUCCESS.custom,
+  DISCORD_INFO: EMOJI_CONFIG.INFO.custom,
+  YELLOW_WARNING: EMOJI_CONFIG.WARNING.custom,
 } as const;
 
 // ============================================================================
