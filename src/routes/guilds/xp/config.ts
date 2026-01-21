@@ -44,7 +44,7 @@ export class XPConfigRoute extends Route {
 		return response.status(405).json({ error: 'Method not allowed' });
 	}
 
-	private async parseBody(request: Route.Request): Promise<any> {
+	private async parseBody(request: Route.Request): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			let body = '';
 			request.on('data', (chunk: Buffer) => {
@@ -84,7 +84,7 @@ export class XPConfigRoute extends Route {
 	/**
 	 * PUT - Update XP configuration
 	 */
-	private async handlePut(guildId: string, updateData: any, response: Route.Response) {
+	private async handlePut(guildId: string, updateData: unknown, response: Route.Response) {
 		try {
 			if (!updateData) {
 				return response.status(400).json({

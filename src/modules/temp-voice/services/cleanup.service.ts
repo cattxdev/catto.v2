@@ -119,7 +119,7 @@ export class CleanupService {
 		// Delete from Discord
 		try {
 			await channel.delete('Temp voice channel empty');
-		} catch (error: any) {
+		} catch (error) {
 			this.client.logger.error(
 				`[TempVoice] Failed to delete channel ${channelId}:`,
 				error
