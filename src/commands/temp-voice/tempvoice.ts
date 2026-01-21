@@ -724,10 +724,17 @@ export class TempVoiceCommand extends Command {
 		}
 
 		try {
-			// Update permissions
+			const oldOwnerId = tempChannel.ownerId;
+			
+			// Remove old owner's special permissions
+			await voiceChannel.permissionOverwrites.delete(oldOwnerId);
+			
+			// Give new owner management permissions
 			await voiceChannel.permissionOverwrites.edit(member.id, {
 				Connect: true,
+				ViewChannel: true,
 				Speak: true,
+				Stream: true,
 				MoveMembers: true,
 				ManageChannels: true,
 			});

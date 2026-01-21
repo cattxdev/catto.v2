@@ -141,16 +141,24 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				});
 			}
 
-			// Update database
+			// Update database - remove from denied list and add to allowed list
 			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
+			
 			const newAllowed = [...new Set([...currentAllowed, ...userIds])];
-			await this.channelService.update(channelId, { allowedUserIds: newAllowed });
+			const newDenied = currentDenied.filter(id => !userIds.includes(id)); // Remove from denied
+			
+			await this.channelService.update(channelId, { 
+				allowedUserIds: newAllowed,
+				deniedUserIds: newDenied
+			});
 
 			// Save to user preferences if customization is allowed
 			const config = await this.configService.get(interaction.guildId!);
 			if (config.allowCustomization) {
 				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
 					allowedUserIds: newAllowed,
+					deniedUserIds: newDenied
 				});
 			}
 
@@ -211,16 +219,29 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				}
 			}
 
-			// Update database
+			// Update database - remove from allowed and trusted lists, add to denied list
 			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
-			const newDenied = [...new Set([...currentDenied, ...userIds.filter(id => id !== tempChannel.ownerId)])];
-			await this.channelService.update(channelId, { deniedUserIds: newDenied });
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
+			
+			const validUserIds = userIds.filter(id => id !== tempChannel.ownerId);
+			const newDenied = [...new Set([...currentDenied, ...validUserIds])];
+			const newAllowed = currentAllowed.filter(id => !validUserIds.includes(id)); // Remove from allowed
+			const newTrusted = currentTrusted.filter(id => !validUserIds.includes(id)); // Remove from trusted
+			
+			await this.channelService.update(channelId, { 
+				deniedUserIds: newDenied,
+				allowedUserIds: newAllowed,
+				trustedUserIds: newTrusted
+			});
 
 			// Save to user preferences if customization is allowed
 			const config = await this.configService.get(interaction.guildId!);
 			if (config.allowCustomization) {
 				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
 					deniedUserIds: newDenied,
+					allowedUserIds: newAllowed,
+					trustedUserIds: newTrusted
 				});
 			}
 
@@ -264,13 +285,26 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				});
 			}
 
-			// Add trusted users permissions (same as owner)
-			for (const userId of userIds) {
-				// Don't allow trusting the owner (they already have full access)
-				if (userId === tempChannel.ownerId) {
-					continue;
+			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
+			
+			const validUserIds = userIds.filter(id => id !== tempChannel.ownerId);
+			
+			// Separate users to add and remove based on current trust status
+			const usersToAdd: string[] = [];
+			const usersToRemove: string[] = [];
+			
+			for (const userId of validUserIds) {
+				if (currentTrusted.includes(userId)) {
+					usersToRemove.push(userId);
+				} else {
+					usersToAdd.push(userId);
 				}
+			}
 
+			// Add trusted users permissions
+			for (const userId of usersToAdd) {
 				await voiceChannel.permissionOverwrites.edit(userId, {
 					Connect: true,
 					ViewChannel: true,
@@ -280,36 +314,70 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 				});
 			}
 
+			// Remove trusted users permissions (but keep them as allowed users)
+			for (const userId of usersToRemove) {
+				await voiceChannel.permissionOverwrites.edit(userId, {
+					Connect: true,
+					ViewChannel: true,
+					Speak: null,
+					Stream: null,
+					UseVAD: null,
+				});
+			}
+
 			// Update database
-			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
-			const newTrusted = [...new Set([...currentTrusted, ...userIds.filter(id => id !== tempChannel.ownerId)])];
-			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
+			const newTrusted = currentTrusted.filter(id => !usersToRemove.includes(id));
+			newTrusted.push(...usersToAdd);
+			
+			const newAllowed = [...new Set([...currentAllowed, ...usersToAdd])]; // Trusted users must be allowed
+			const newDenied = currentDenied.filter(id => !usersToAdd.includes(id)); // Remove from denied
+			
+			await this.channelService.update(channelId, { 
+				trustedUserIds: newTrusted,
+				allowedUserIds: newAllowed,
+				deniedUserIds: newDenied
+			});
 
 			// Save to user preferences if customization is allowed
 			const config = await this.configService.get(interaction.guildId!);
 			if (config.allowCustomization) {
 				await this.userPrefsService.save(interaction.guildId!, tempChannel.ownerId, {
 					trustedUserIds: newTrusted,
+					allowedUserIds: newAllowed,
+					deniedUserIds: newDenied
 				});
 			}
 
-			const userMentions = userIds.filter(id => id !== tempChannel.ownerId).map(id => `<@${id}>`).join(', ');
+			// Build response message
+			const addedMentions = usersToAdd.map(id => `<@${id}>`).join(', ');
+			const removedMentions = usersToRemove.map(id => `<@${id}>`).join(', ');
+			
+			let message = '';
+			if (addedMentions) {
+				message += `✅ Trusted ${addedMentions}. They can now manage this channel (except transfer ownership).`;
+			}
+			if (removedMentions) {
+				if (message) message += '\n';
+				message += `➖ Removed trust from ${removedMentions}.`;
+			}
+			if (!message) {
+				message = '⚠️ The channel owner is already trusted.';
+			}
+
 			return interaction.editReply({
-				content: userMentions 
-					? `✅ Trusted ${userMentions}. They can now manage this channel (except transfer ownership).`
-					: '⚠️ The channel owner is already trusted.',
+				content: message,
 				components: [],
 			});
 		} catch (error) {
-			this.container.logger.error('Failed to trust users:', error);
+			this.container.logger.error('Failed to manage trusted users:', error);
 			if (!interaction.deferred) {
 				return interaction.update({
-					content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
+					content: '❌ Failed to manage trusted users. Make sure the bot has permission to manage this channel.',
 					components: [],
 				});
 			}
 			return interaction.editReply({
-				content: '❌ Failed to trust users. Make sure the bot has permission to manage this channel.',
+				content: '❌ Failed to manage trusted users. Make sure the bot has permission to manage this channel.',
 				components: [],
 			});
 		}

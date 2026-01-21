@@ -274,16 +274,29 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 	private async handleTrustModal(interaction: ButtonInteraction) {
 		const channelId = interaction.customId.split('_')[2]!;
 		
+		// Get current temp channel to show trusted users
+		const tempChannel = await this.channelService.getByChannelId(channelId);
+		const trustedUsers = tempChannel && Array.isArray(tempChannel.trustedUserIds) 
+			? (tempChannel.trustedUserIds as string[]) 
+			: [];
+		
 		const userSelect = new UserSelectMenuBuilder()
 			.setCustomId(`tempvoice_trust_select_${channelId}`)
-			.setPlaceholder('Select user(s) to trust')
+			.setPlaceholder('Select user(s) to trust/untrust')
 			.setMinValues(1)
 			.setMaxValues(10);
 
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
+		let content = '🤝 **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).';
+		
+		if (trustedUsers.length > 0) {
+			const mentions = trustedUsers.map(id => `<@${id}>`).join(', ');
+			content += `\n\n**Currently trusted:** ${mentions}`;
+		}
+
 		return interaction.reply({
-			content: '🤝 Select the user(s) you want to trust with management permissions (they can do everything except transfer ownership):',
+			content,
 			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
