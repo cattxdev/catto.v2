@@ -101,7 +101,9 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			case 'trust':
 				return this.handleTrustModal(interaction);
 			case 'kick':
-				return this.handleKickModal(interaction);
+			return this.handleClaim(interaction, tempChannel, channelId);
+		case 'claim':
+			return this.handleClaim(interaction, tempChannel, channelId);
 			case 'settings':
 				return this.handleSettingsModal(interaction, tempChannel, channelId);
 			case 'transfer':
@@ -304,22 +306,66 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		});
 	}
 
-	private async handleKickModal(interaction: ButtonInteraction) {
-		const channelId = interaction.customId.split('_')[2]!;
+private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
+		try {
+			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
+			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+				return interaction.reply({
+					content: '❌ Voice channel not found.',
+					flags: MessageFlags.Ephemeral,
+				});
+			}
 
-		const userSelect = new UserSelectMenuBuilder()
-			.setCustomId(`tempvoice_kick_select_${channelId}`)
-			.setPlaceholder('Select user(s) to kick')
-			.setMinValues(1)
-			.setMaxValues(10);
+			const member = interaction.member as GuildMember;
 
-		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+			// Check if claimer is in the channel
+			if (member.voice.channelId !== channelId) {
+				return interaction.reply({
+					content: '❌ You must be in the channel to claim it.',
+					flags: MessageFlags.Ephemeral,
+				});
+			}
 
-		return interaction.reply({
-			content: '👢 Select the user(s) you want to kick from this channel:',
-			components: [row],
-			flags: MessageFlags.Ephemeral,
-		});
+			// Check if owner is still in the channel
+			const owner = voiceChannel.members.get(tempChannel.ownerId);
+			if (owner) {
+				return interaction.reply({
+					content: '❌ The channel owner is still present. You cannot claim this channel.',
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+
+			const oldOwnerId = tempChannel.ownerId;
+
+			// Remove old owner's special permissions
+			await voiceChannel.permissionOverwrites.delete(oldOwnerId);
+
+			// Give new owner management permissions
+			await voiceChannel.permissionOverwrites.edit(member.id, {
+				Connect: true,
+				ViewChannel: true,
+				Speak: true,
+				Stream: true,
+				MoveMembers: true,
+				ManageChannels: true,
+			});
+
+			// Update database
+			await this.channelService.update(channelId, { ownerId: member.id });
+
+			await this.controlPanelService.refresh(channelId);
+
+			return interaction.reply({
+				content: '✅ You are now the owner of this channel.',
+				flags: MessageFlags.Ephemeral,
+			});
+		} catch (error) {
+			this.container.logger.error('Failed to claim channel:', error);
+			return interaction.reply({
+				content: '❌ Failed to claim channel. Please try again.',
+				flags: MessageFlags.Ephemeral,
+			});
+		}
 	}
 
 	private async handleSettingsModal(interaction: ButtonInteraction, tempChannel: TempVoiceChannel, channelId: string) {
