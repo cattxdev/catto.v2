@@ -244,7 +244,7 @@ export class ControlPanelService {
 				.setEmoji({ id: '1463001026079621235', name: '8562replay2' })
 				.setStyle(ButtonStyle.Secondary), 
 			new ButtonBuilder()
-				.setCustomId(`tempvoice_refresh_${tempChannel.channelId}`)
+			.setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
 				.setEmoji({ id: '1463001053095006293', name: '2636securityfilter' })
 				.setStyle(ButtonStyle.Secondary)
 				.setLabel('Transfer')
