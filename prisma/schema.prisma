@@ -17,8 +17,6 @@ enum ModAction {
   KICK
   TIMEOUT
   WARN
-  MUTE
-  UNMUTE
   SOFTBAN
   TEMPBAN
   MUTE_TEXT

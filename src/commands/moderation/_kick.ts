@@ -8,7 +8,8 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseKickOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleKick(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -22,7 +23,7 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     throw error;
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   try {
     // Fetch target member
@@ -30,21 +31,28 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'Target is not a member of this server.')
+      );
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('KickMembers')) {
-      await interaction.editReply(editErrorV2('I do not have permission to kick members.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'I do not have permission to kick members.')
+      );
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply(
-        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
       );
       return;
     }
@@ -66,7 +74,7 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await editReplyV2(
+      await editReply(
         interaction,
         buildModActionErrorV2(
           result.error ?? 'Failed to kick the user.',
@@ -83,15 +91,15 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
       options.target,
       options.moderator,
       options.reason ?? 'No reason provided',
-      result.caseNumber!
+      ensureNonNull(result.caseNumber, 'logModActionV2(88): result.caseNumber')
     );
 
-    await editReplyV2(
+    await editReply(
       interaction,
       buildModActionSuccessV2(
         'Kick',
         options.target,
-        result.caseNumber!,
+        ensureNonNull(result.caseNumber, 'buildModActionSuccessV2(96): result.caseNumber'),
         options.reason ?? 'No reason provided',
         undefined,
         { dmSent: notified }
@@ -99,8 +107,9 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     );
   } catch (error) {
     interaction.client.logger.error('Error in kick command:', error);
-    await interaction
-      .editReply(editErrorV2('An unexpected error occurred while processing the kick.'))
-      .catch(() => {});
+    await editReply(
+      interaction,
+      v2.errorMessage('Error', 'An unexpected error occurred while processing the kick.')
+    ).catch(() => {});
   }
 }

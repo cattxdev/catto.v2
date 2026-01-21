@@ -16,6 +16,7 @@ import {
 } from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 /**
  * Context data for mod panel
@@ -149,7 +150,11 @@ export function buildModPanelV2(context: ModPanelContext): FluentContainer {
     .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
     .text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
     .text(formatStatsLine(stats))
-    .when(!!voiceChannelName, (c) => c.text(formatInfoRow('Voice', voiceChannelName!, EMOJI.VOICE)))
+    .when(!!voiceChannelName, (c) =>
+      c.text(
+        formatInfoRow('Voice', ensureNonNull(voiceChannelName, 'voiceChannelName'), EMOJI.VOICE)
+      )
+    )
     .text(accountLine)
     .separator()
     .actions(primaryActions, secondaryActionsRow, infoActions);
@@ -228,8 +233,12 @@ export function buildContextBundleV2(context: ModPanelContext): FluentContainer 
         .h2('Active Statuses')
         .text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
     )
-    .when(!!casesText, (c) => c.separator().h2('Recent Cases').text(casesText!))
-    .when(!!notesText, (c) => c.separator().h2('Recent Notes').text(notesText!))
+    .when(!!casesText, (c) =>
+      c.separator().h2('Recent Cases').text(ensureNonNull(notesText, 'casesText'))
+    )
+    .when(!!notesText, (c) =>
+      c.separator().h2('Recent Notes').text(ensureNonNull(notesText, 'notesText'))
+    )
     .separator()
     .actions(quickActions);
 }

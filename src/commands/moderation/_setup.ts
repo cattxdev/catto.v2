@@ -17,10 +17,11 @@ import {
   stringSelectRow,
   EMOJI,
   v2,
-  replyV2Ephemeral,
-  deferV2Ephemeral,
+  reply,
+  defer,
 } from '#lib/discord/index.js';
 import { isAdmin } from '#lib/validation/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 /**
  * Helper to build setup buttons row 1
@@ -79,14 +80,14 @@ function buildSetupRow2() {
  */
 export async function handleSetup(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2.errorMessage('Error', 'This command can only be used in a server.')
     );
   }
 
   if (!isAdmin(interaction.member as GuildMember)) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2
         .errorContainer()
@@ -95,7 +96,7 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
     );
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   const guildId = asGuildId(interaction.guild.id);
 
@@ -168,7 +169,10 @@ async function showSetupOverview(
     autoModEnabled: boolean;
   }
 ) {
-  const guild = interaction.guild!;
+  const guild = ensureNonNull(
+    interaction.guild,
+    '_setup > showSetupOverview(172): interaction.guild'
+  );
 
   // Resolve current settings
   const modLogChannel = config.modLogChannelId
@@ -202,7 +206,10 @@ async function showSetupOverview(
  */
 async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandInteraction) {
   const message = await interaction.fetchReply();
-  const guild = interaction.guild!;
+  const guild = ensureNonNull(
+    interaction.guild,
+    '_setup > handleSetupInteractions(206): interaction.guild'
+  );
   const guildId = asGuildId(guild.id);
 
   const collector = message.createMessageComponentCollector({
@@ -708,7 +715,7 @@ async function refreshOverview(
  */
 export async function handleConfigModLog(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2.errorMessage('Error', 'This command can only be used in a server.')
     );
@@ -717,7 +724,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
   const channel = interaction.options.getChannel('channel', true);
 
   if (channel.type !== ChannelType.GuildText) {
-    return replyV2Ephemeral(interaction, v2.errorMessage('Error', 'Please select a text channel.'));
+    return reply(interaction, v2.errorMessage('Error', 'Please select a text channel.'));
   }
 
   const guildId = asGuildId(interaction.guild.id);
@@ -728,7 +735,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
     create: { guildId, modLogChannelId: channel.id },
   });
 
-  await replyV2Ephemeral(
+  await reply(
     interaction,
     v2.successMessage('Configuration Updated', `Mod log channel set to <#${channel.id}>`)
   );
@@ -736,7 +743,7 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
 
 export async function handleConfigTextRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2.errorMessage('Error', 'This command can only be used in a server.')
     );
@@ -751,7 +758,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
     create: { guildId, mutedTextRole: role.id },
   });
 
-  await replyV2Ephemeral(
+  await reply(
     interaction,
     v2.successMessage('Configuration Updated', `Muted text role set to <@&${role.id}>`)
   );
@@ -759,7 +766,7 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
 
 export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2.errorMessage('Error', 'This command can only be used in a server.')
     );
@@ -774,7 +781,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
     create: { guildId, mutedVoiceRole: role.id },
   });
 
-  await replyV2Ephemeral(
+  await reply(
     interaction,
     v2.successMessage('Configuration Updated', `Muted voice role set to <@&${role.id}>`)
   );
@@ -782,7 +789,7 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
 
 export async function handleConfigView(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2.errorMessage('Error', 'This command can only be used in a server.')
     );
@@ -794,7 +801,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
   });
 
   if (!config) {
-    return replyV2Ephemeral(
+    return reply(
       interaction,
       v2
         .errorContainer()
@@ -805,7 +812,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
     );
   }
 
-  await replyV2Ephemeral(
+  await reply(
     interaction,
     v2
       .infoContainer()

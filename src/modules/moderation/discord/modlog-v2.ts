@@ -34,9 +34,8 @@ export interface ModLogEntry {
 // Action Display Mapping
 // ============================================================================
 
-const ACTION_DISPLAY: Record<
-  ModAction,
-  { emoji: string; label: string; color: number; pastTense: string }
+const ACTION_DISPLAY: Partial<
+  Record<ModAction, { emoji: string; label: string; color: number; pastTense: string }>
 > = {
   BAN: { emoji: getEmoji('ERROR'), label: 'Ban', color: COLORS.BAN, pastTense: 'banned' },
   UNBAN: {
@@ -53,47 +52,40 @@ const ACTION_DISPLAY: Record<
     pastTense: 'timed out',
   },
   WARN: { emoji: getEmoji('WARNING'), label: 'Warning', color: COLORS.WARN, pastTense: 'warned' },
-  MUTE: { emoji: getEmoji('VOICE_MUTED'), label: 'Mute', color: COLORS.MUTE, pastTense: 'muted' },
-  UNMUTE: {
-    emoji: getEmoji('VOICE_UNMUTED'),
-    label: 'Unmute',
-    color: COLORS.UNMUTE,
-    pastTense: 'unmuted',
-  },
   SOFTBAN: { emoji: getEmoji('ERROR'), label: 'Softban', color: 0xf57c00, pastTense: 'softbanned' },
   TEMPBAN: { emoji: getEmoji('ERROR'), label: 'Tempban', color: 0xb71c1c, pastTense: 'tempbanned' },
   MUTE_TEXT: {
-    emoji: getEmoji('VOICE_MUTED'),
+    emoji: getEmoji('TEXT_LIMITER'),
     label: 'Text Mute',
     color: COLORS.MUTE,
     pastTense: 'text muted',
   },
   MUTE_VOICE: {
-    emoji: getEmoji('VOICE_MUTED'),
+    emoji: getEmoji('VOICE_LIMITER'),
     label: 'Voice Mute',
     color: COLORS.MUTE,
     pastTense: 'voice muted',
   },
   MUTE_BOTH: {
-    emoji: getEmoji('VOICE_MUTED'),
+    emoji: getEmoji('MODERATION'),
     label: 'Full Mute',
     color: COLORS.MUTE,
     pastTense: 'fully muted',
   },
   UNMUTE_TEXT: {
-    emoji: getEmoji('VOICE_UNMUTED'),
+    emoji: getEmoji('TEXT_CHANNEL'),
     label: 'Text Unmute',
     color: COLORS.UNMUTE,
     pastTense: 'text unmuted',
   },
   UNMUTE_VOICE: {
-    emoji: getEmoji('VOICE_UNMUTED'),
+    emoji: getEmoji('VOICE'),
     label: 'Voice Unmute',
     color: COLORS.UNMUTE,
     pastTense: 'voice unmuted',
   },
   UNMUTE_BOTH: {
-    emoji: getEmoji('VOICE_UNMUTED'),
+    emoji: getEmoji('MODERATION'),
     label: 'Full Unmute',
     color: COLORS.UNMUTE,
     pastTense: 'fully unmuted',

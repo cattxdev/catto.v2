@@ -5,6 +5,7 @@ import { logModActionV2, notifyUser } from '../../modules/moderation/discord/emb
 import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -90,7 +91,10 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       target ?? { id: targetId, tag: targetTag },
       moderator,
       reason ?? 'No reason provided',
-      result.caseNumber!
+      ensureNonNull(
+        result.caseNumber,
+        '_softban > handleSoftban > logModActionV2(94): result.caseNumber'
+      )
     );
 
     await interaction.editReply({

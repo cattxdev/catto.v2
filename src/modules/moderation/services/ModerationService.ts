@@ -423,19 +423,19 @@ export class ModerationService {
       where: { guildId },
     });
 
+    const muteActions = new Set<ModAction>([
+      ModAction.MUTE_TEXT,
+      ModAction.MUTE_VOICE,
+      ModAction.MUTE_BOTH,
+    ]);
+
     return {
       total: cases.length,
       bans: cases.filter((c) => c.action === ModAction.BAN).length,
       kicks: cases.filter((c) => c.action === ModAction.KICK).length,
       timeouts: cases.filter((c) => c.action === ModAction.TIMEOUT).length,
       warns: cases.filter((c) => c.action === ModAction.WARN).length,
-      mutes: cases.filter(
-        (c) =>
-          c.action === ModAction.MUTE ||
-          c.action === ModAction.MUTE_TEXT ||
-          c.action === ModAction.MUTE_VOICE ||
-          c.action === ModAction.MUTE_BOTH
-      ).length,
+      mutes: cases.filter((c) => muteActions.has(c.action)).length,
     };
   }
 

@@ -26,14 +26,13 @@ export {
   buildModActionErrorV2,
 } from './panelBuilder.js';
 
-// Re-export selected items from components (backward compat layer)
-// These are re-exports from shared lib + moderation-specific extensions
+// Re-export from shared lib (commonly used in moderation)
 export {
-  // Design tokens (from shared lib)
+  // Design tokens
   COLORS,
   EMOJI,
   SPACING,
-  // Builders (from shared lib)
+  // Formatting utilities
   formatInfoRow,
   formatStatsLine,
   formatUserMention,
@@ -42,17 +41,16 @@ export {
   truncateText,
   formatPaginationInfo,
   formatDurationShort,
-  createHeader,
-  createSubheader,
-  createSmallSeparator,
-  createLargeSeparator,
-  addStandardHeader,
-  addKeyValueSection,
-  addListSection,
   createButtonRow,
   type ButtonConfig,
-  // Responses (from shared lib)
-  buildSuccessV2,
-  buildErrorV2,
-  buildLoadingV2,
+  // Reply helpers
+  reply,
+  defer,
+  editReply,
+  // Message builders
+  successMessage,
+  errorMessage,
+  warningMessage,
+  infoMessage,
+  loadingMessage,
 } from './components.js';

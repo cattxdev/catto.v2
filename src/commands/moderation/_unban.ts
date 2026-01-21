@@ -8,7 +8,8 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseUnbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleUnban(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -28,12 +29,15 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     return;
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   try {
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply(editErrorV2('I do not have permission to unban members.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'I do not have permission to unban members.')
+      );
       return;
     }
 
@@ -42,7 +46,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     try {
       ban = await options.guild.bans.fetch(options.userId);
     } catch {
-      await interaction.editReply(editErrorV2('This user is not banned.'));
+      await editReply(interaction, v2.errorMessage('Error', 'This user is not banned.'));
       return;
     }
 
@@ -56,7 +60,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     );
 
     if (!result.success) {
-      await editReplyV2(
+      await editReply(
         interaction,
         buildModActionErrorV2(result.error ?? 'Failed to unban the user.', 'Check bot permissions.')
       );
@@ -70,22 +74,29 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
       ban.user,
       options.moderator,
       options.reason ?? 'No reason provided',
-      result.caseNumber!
+      ensureNonNull(
+        result.caseNumber,
+        '_unban > handleUnban > logModActionV2(74): result.caseNumber'
+      )
     );
 
-    await editReplyV2(
+    await editReply(
       interaction,
       buildModActionSuccessV2(
         'Unban',
         ban.user,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          '_unban > handleUnban > buildModActionSuccessV2(82): result.caseNumber'
+        ),
         options.reason ?? 'No reason provided'
       )
     );
   } catch (error) {
     interaction.client.logger.error('Error in unban command:', error);
-    await interaction
-      .editReply(editErrorV2('An unexpected error occurred while processing the unban.'))
-      .catch(() => {});
+    await editReply(
+      interaction,
+      v2.errorMessage('Error', 'An unexpected error occurred while processing the unban.')
+    ).catch(() => {});
   }
 }

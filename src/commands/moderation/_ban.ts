@@ -8,8 +8,9 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseBanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
 import type { User } from 'discord.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleBan(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -23,12 +24,15 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     throw error;
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   try {
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply(editErrorV2('I do not have permission to ban members.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'I do not have permission to ban members.')
+      );
       return;
     }
 
@@ -54,8 +58,9 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
         targetMember
       );
       if (!canModerateResult.canModerate) {
-        await interaction.editReply(
-          editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+        await editReply(
+          interaction,
+          v2.errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
         );
         return;
       }
@@ -81,7 +86,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     );
 
     if (!result.success) {
-      await editReplyV2(
+      await editReply(
         interaction,
         buildModActionErrorV2(
           result.error ?? 'Failed to ban the user.',
@@ -98,7 +103,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       targetUser ?? { id: options.targetId, tag: `Unknown User (${options.targetId})` },
       options.moderator,
       options.reason ?? 'No reason provided',
-      result.caseNumber!
+      ensureNonNull(result.caseNumber, 'logModActionV2(102): result.caseNumber')
     );
 
     // Build success response
@@ -107,12 +112,12 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       tag: `Unknown User (${options.targetId})`,
     };
 
-    await editReplyV2(
+    await editReply(
       interaction,
       buildModActionSuccessV2(
         'Ban',
         successTarget as User,
-        result.caseNumber!,
+        ensureNonNull(result.caseNumber, 'buildModActionSuccessV2(117): result.caseNumber'),
         options.reason ?? 'No reason provided',
         undefined,
         { dmSent: targetMember ? notified : true }
@@ -120,8 +125,9 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     );
   } catch (error) {
     interaction.client.logger.error('Error in ban command:', error);
-    await interaction
-      .editReply(editErrorV2('An unexpected error occurred while processing the ban.'))
-      .catch(() => {});
+    await editReply(
+      interaction,
+      v2.errorMessage('Error', 'An unexpected error occurred while processing the ban.')
+    ).catch(() => {});
   }
 }

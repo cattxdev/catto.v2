@@ -1,21 +1,11 @@
 /**
  * UI Builders for Discord
  *
- * Low-level builder utilities for constructing Discord UI elements.
- * Works with both EmbedBuilder and Components V2.
+ * Low-level formatting utilities for constructing Discord UI elements.
  */
 
-import {
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  EmbedBuilder,
-  type User,
-} from 'discord.js';
-import { COLORS, SPACING, EMOJI } from './design.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, type User } from 'discord.js';
+import { COLORS, EMOJI } from './design.js';
 
 // ============================================================================
 // Text Formatting Helpers
@@ -35,7 +25,7 @@ export function formatInfoRow(label: string, value: string, emoji?: string): str
 export function formatStatsLine(stats: Record<string, string | number>): string {
   return Object.entries(stats)
     .map(([key, value]) => `**${key}:** ${value}`)
-    .join(' \u00b7 ');
+    .join(' \u00b7 '); // middle dot
 }
 
 /**
@@ -109,92 +99,6 @@ export function formatDurationShort(seconds: number): string {
 }
 
 // ============================================================================
-// Components V2 Builders
-// ============================================================================
-
-/**
- * Create a header text display
- */
-export function createHeader(title: string, icon?: string): TextDisplayBuilder {
-  const content = icon ? `# ${icon} ${title}` : `# ${title}`;
-  return new TextDisplayBuilder().setContent(content);
-}
-
-/**
- * Create a subheader text display
- */
-export function createSubheader(title: string): TextDisplayBuilder {
-  return new TextDisplayBuilder().setContent(`## ${title}`);
-}
-
-/**
- * Create a small separator
- */
-export function createSmallSeparator(): SeparatorBuilder {
-  return new SeparatorBuilder().setSpacing(SPACING.SMALL);
-}
-
-/**
- * Create a large separator
- */
-export function createLargeSeparator(): SeparatorBuilder {
-  return new SeparatorBuilder().setSpacing(SPACING.LARGE);
-}
-
-/**
- * Add a standard header section to a container
- */
-export function addStandardHeader(
-  container: ContainerBuilder,
-  title: string,
-  subtitle?: string,
-  icon?: string
-): void {
-  container.addTextDisplayComponents(createHeader(title, icon));
-  if (subtitle) {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(subtitle));
-  }
-  container.addSeparatorComponents(createSmallSeparator());
-}
-
-/**
- * Add a key-value section to a container
- */
-export function addKeyValueSection(
-  container: ContainerBuilder,
-  data: Record<string, string>,
-  title?: string
-): void {
-  if (title) {
-    container.addTextDisplayComponents(createSubheader(title));
-  }
-
-  const lines = Object.entries(data).map(([key, value]) => formatInfoRow(key, value));
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
-}
-
-/**
- * Add a list section to a container
- */
-export function addListSection(
-  container: ContainerBuilder,
-  title: string,
-  items: string[],
-  emptyMessage?: string
-): void {
-  container.addTextDisplayComponents(createSubheader(title));
-
-  if (items.length === 0) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`*${emptyMessage ?? 'No items'}*`)
-    );
-  } else {
-    const content = items.map((item) => `- ${item}`).join('\n');
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-  }
-}
-
-// ============================================================================
 // Button Configuration
 // ============================================================================
 
@@ -236,7 +140,7 @@ export function createButtonRow(buttons: ButtonConfig[]): ActionRowBuilder<Butto
 }
 
 // ============================================================================
-// Embed Builders
+// Embed Builders (Legacy - for v1 compatibility)
 // ============================================================================
 
 /**

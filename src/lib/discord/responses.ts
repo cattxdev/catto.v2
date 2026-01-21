@@ -1,8 +1,9 @@
 /**
- * Unified Response Builders for Discord
+ * Response Builders for Discord
  *
- * Provides consistent success/error response builders that work with both
- * traditional embeds and Components V2.
+ * Provides text and embed builders for simple responses.
+ * For component-based messages, use the fluent container API from v2/container.ts
+ * and the reply helpers from reply.ts.
  */
 
 import {
@@ -13,8 +14,6 @@ import {
   MessageFlags,
 } from 'discord.js';
 import { COLORS, EMOJI, ERROR_ICONS, type ErrorType } from './design.js';
-import { formatInfoRow } from './builders.js';
-import { successContainer, errorContainer, type FluentContainer } from './v2/container.js';
 
 // ============================================================================
 // Response Types
@@ -49,52 +48,6 @@ export interface ModActionSuccessData {
   reason: string;
   duration?: string;
   dmSent?: boolean;
-}
-
-// ============================================================================
-// Components V2 Builders
-// ============================================================================
-
-/**
- * Build a success response using Components V2
- */
-export function buildSuccessV2(data: SuccessData): FluentContainer {
-  const c = successContainer().h1(`${EMOJI.SUCCESS} ${data.title}`);
-
-  if (data.message) {
-    c.text(data.message);
-  }
-
-  if (data.details && Object.keys(data.details).length > 0) {
-    const detailLines = Object.entries(data.details).map(([key, value]) =>
-      formatInfoRow(key, value)
-    );
-    c.text(detailLines.join('\n'));
-  }
-
-  return c;
-}
-
-/**
- * Build an error response using Components V2
- */
-export function buildErrorV2(data: ErrorData): FluentContainer {
-  const icon = data.type ? ERROR_ICONS[data.type] : EMOJI.ERROR;
-  const title = data.title ?? 'Error';
-
-  return errorContainer()
-    .h1(`${icon} ${title}`)
-    .text(data.message)
-    .when(!!data.suggestion, (c) =>
-      c.separator().text(`${EMOJI.INFO} **Suggestion:** ${data.suggestion}`)
-    );
-}
-
-/**
- * Build a loading state response using Components V2
- */
-export function buildLoadingV2(message: string = 'Loading...'): FluentContainer {
-  return successContainer().text(`${EMOJI.TIME} ${message}`);
 }
 
 // ============================================================================
@@ -145,7 +98,7 @@ export function buildErrorEmbed(data: ErrorData): EmbedBuilder {
 }
 
 // ============================================================================
-// Plain Text Response Builders (for simpler use cases)
+// Plain Text Response Builders
 // ============================================================================
 
 /**
@@ -177,7 +130,7 @@ export function buildInfoText(message: string): string {
 }
 
 // ============================================================================
-// Interaction Reply Helpers
+// Interaction Reply Helpers (for plain text responses)
 // ============================================================================
 
 /**
@@ -215,49 +168,5 @@ export function editError(message: string): MessageEditOptions {
 export function editSuccess(message: string): MessageEditOptions {
   return {
     content: buildSuccessText(message),
-  };
-}
-
-// ============================================================================
-// V2 Interaction Reply Helpers
-// ============================================================================
-
-/**
- * Create an ephemeral V2 error reply options object
- */
-export function ephemeralErrorV2(message: string, suggestion?: string): InteractionReplyOptions {
-  return {
-    components: [buildErrorV2({ message, suggestion }).build()],
-    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-  };
-}
-
-/**
- * Create an ephemeral V2 success reply options object
- */
-export function ephemeralSuccessV2(title: string, message?: string): InteractionReplyOptions {
-  return {
-    components: [buildSuccessV2({ title, message }).build()],
-    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-  };
-}
-
-/**
- * Create an edit reply options with V2 error content
- */
-export function editErrorV2(message: string, suggestion?: string): MessageEditOptions {
-  return {
-    components: [buildErrorV2({ message, suggestion }).build()],
-    flags: MessageFlags.IsComponentsV2,
-  };
-}
-
-/**
- * Create an edit reply options with V2 success content
- */
-export function editSuccessV2(title: string, message?: string): MessageEditOptions {
-  return {
-    components: [buildSuccessV2({ title, message }).build()],
-    flags: MessageFlags.IsComponentsV2,
   };
 }

@@ -3,52 +3,38 @@
  *
  * Centralized exports for the shared Discord UI module.
  * This library provides a comprehensive framework for building Discord UIs
- * with both Components V2 and traditional embeds.
- *
- * ## Architecture
- *
- * - **v2/**: Components V2 builders (containers, text displays, separators)
- * - **v1/**: Traditional embed builders (embeds with fields, footers, etc.)
- * - **components/**: Shared components (buttons, select menus, modals)
- * - **design.ts**: Design tokens (colors, emojis, spacing)
- * - **builders.ts**: Low-level utilities (formatting, etc.)
- * - **responses.ts**: High-level response builders
- * - **customId.ts**: Custom ID encoding/decoding
- * - **types.ts**: Shared types
+ * with both component-based messages and traditional embeds.
  *
  * ## Quick Start
  *
  * ```ts
- * // V2 Container (modern fluent API)
- * import { v2 } from '#lib/discord';
- * const container = v2.successMessage('Action Complete', 'User John was updated.');
+ * import { v2, reply, defer, editReply } from '#lib/discord';
  *
- * // V2 with chaining
- * const panel = v2.primaryContainer()
- *   .h1('Dashboard')
- *   .kv({ Users: 100, Active: 50 })
- *   .divider()
- *   .actions(buttonRow);
+ * // Build a container message
+ * const message = v2.successMessage('Done!', 'Your changes have been saved.');
  *
- * // V1 Embed (traditional)
- * import { v1 } from '#lib/discord';
- * const embed = v1.buildSuccessEmbed('Operation completed successfully');
+ * // Reply to an interaction (ephemeral by default)
+ * await reply(interaction, message);
  *
- * // Components
- * import { components } from '#lib/discord';
- * const row = components.confirmationRow('confirm', 'cancel');
+ * // Or reply publicly
+ * await reply(interaction, message).public();
+ *
+ * // Deferred workflow
+ * await defer(interaction);
+ * // ... do work ...
+ * await editReply(interaction, v2.successMessage('Complete!'));
  * ```
  */
 
 // ============================================================================
-// V2 Builders (Components V2 - Fluent API)
+// Fluent Container API
 // ============================================================================
 
 import * as v2 from './v2/index.js';
 export { v2 };
 
 export {
-  // Fluent container factories
+  // Container factories
   container,
   FluentContainer,
   successContainer,
@@ -57,12 +43,13 @@ export {
   infoContainer,
   primaryContainer,
   neutralContainer,
-  // Quick builders
+  // Quick message builders
   simpleMessage,
   successMessage,
   errorMessage,
   warningMessage,
   infoMessage,
+  loadingMessage,
   // Types
   type ContainerComponent,
   type ContainerOptions,
@@ -70,7 +57,19 @@ export {
 } from './v2/index.js';
 
 // ============================================================================
-// V1 Builders (Traditional Embeds)
+// Reply Helpers (Fluent API)
+// ============================================================================
+
+export {
+  reply,
+  defer,
+  editReply,
+  type RepliableInteraction,
+  type MessageContainer,
+} from './reply.js';
+
+// ============================================================================
+// Traditional Embeds (v1)
 // ============================================================================
 
 import * as v1 from './v1/index.js';
@@ -222,7 +221,7 @@ export {
 } from './design.js';
 
 // ============================================================================
-// Low-level Builders (Legacy/Utilities)
+// Formatting Utilities
 // ============================================================================
 
 export {
@@ -237,14 +236,6 @@ export {
   // Duration formatting
   formatDuration,
   formatDurationShort,
-  // Components V2 builders (legacy names)
-  createHeader,
-  createSubheader,
-  createSmallSeparator,
-  createLargeSeparator,
-  addStandardHeader,
-  addKeyValueSection,
-  addListSection,
   // Button builders (legacy)
   createButtonRow,
   type ButtonConfig as LegacyButtonConfig,
@@ -256,7 +247,7 @@ export {
 } from './builders.js';
 
 // ============================================================================
-// Response Builders
+// Response Builders (Text & Embeds)
 // ============================================================================
 
 export {
@@ -264,28 +255,19 @@ export {
   type ErrorData,
   type SuccessData,
   type ModActionSuccessData,
-  // V2 builders
-  buildSuccessV2,
-  buildErrorV2,
-  buildLoadingV2,
   // Embed builders
-  buildSuccessEmbed as buildSuccessEmbedLegacy,
-  buildErrorEmbed as buildErrorEmbedLegacy,
+  buildSuccessEmbed as buildSuccessEmbedResponse,
+  buildErrorEmbed as buildErrorEmbedResponse,
   // Plain text
   buildSuccessText,
   buildErrorText,
   buildWarningText,
   buildInfoText,
-  // Interaction helpers
+  // Interaction helpers (plain text)
   ephemeralError,
   ephemeralSuccess,
   editError,
   editSuccess,
-  // V2 Interaction helpers
-  ephemeralErrorV2,
-  ephemeralSuccessV2,
-  editErrorV2,
-  editSuccessV2,
 } from './responses.js';
 
 // ============================================================================
@@ -321,31 +303,6 @@ export {
   getUserDisplayData,
   createTimestamp,
 } from './types.js';
-
-// ============================================================================
-// V2 Reply Helpers (Components V2 Interaction Utilities)
-// ============================================================================
-
-export {
-  // Types
-  type V2Container,
-  type V2EditReplyOptions,
-  type V2ReplyOptions,
-  // Flag constants
-  V2_EPHEMERAL_FLAGS,
-  V2_FLAGS,
-  // Defer helpers
-  deferV2Ephemeral,
-  deferV2,
-  // Reply helpers
-  replyV2,
-  replyV2Ephemeral,
-  // Edit reply helpers
-  editReplyV2,
-  // Utility functions
-  createV2ReplyOptions,
-  createV2EditOptions,
-} from './v2Reply.js';
 
 // ============================================================================
 // User Display Utilities

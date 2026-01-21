@@ -91,6 +91,15 @@ export class ModerationUserCasesRoute extends Route {
         {} as Record<string, number>
       );
 
+      const muteCount =
+        (actionCounts.MUTE_TEXT ?? 0) +
+        (actionCounts.MUTE_VOICE ?? 0) +
+        (actionCounts.MUTE_BOTH ?? 0);
+      const unmuteCount =
+        (actionCounts.UNMUTE_TEXT ?? 0) +
+        (actionCounts.UNMUTE_VOICE ?? 0) +
+        (actionCounts.UNMUTE_BOTH ?? 0);
+
       return response.json({
         userId,
         guildId,
@@ -105,8 +114,8 @@ export class ModerationUserCasesRoute extends Route {
           timeouts: actionCounts.TIMEOUT ?? 0,
           warns: actionCounts.WARN ?? 0,
           unbans: actionCounts.UNBAN ?? 0,
-          mutes: actionCounts.MUTE ?? 0,
-          unmutes: actionCounts.UNMUTE ?? 0,
+          mutes: muteCount,
+          unmutes: unmuteCount,
         },
         cases,
       });

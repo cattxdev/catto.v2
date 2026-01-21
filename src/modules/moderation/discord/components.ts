@@ -1,18 +1,16 @@
 /**
  * Moderation Components - Discord UI Adapters
  *
- * Thin wrapper around the shared Discord UI library with moderation-specific types.
- * Re-exports shared utilities for backward compatibility.
+ * Re-exports shared Discord UI library utilities for moderation module.
  */
 
-// Re-export from shared Discord library for backward compatibility
 export {
   // Design tokens
   COLORS,
   EMOJI,
   SPACING,
   type ErrorType,
-  // Builders
+  // Formatting utilities
   formatInfoRow,
   formatStatsLine,
   formatUserMention,
@@ -22,17 +20,16 @@ export {
   formatPaginationInfo,
   formatDuration,
   formatDurationShort,
-  createHeader,
-  createSubheader,
-  createSmallSeparator,
-  createLargeSeparator,
-  addStandardHeader,
-  addKeyValueSection,
-  addListSection,
   createButtonRow,
   type ButtonConfig,
-  // Responses
-  buildSuccessV2,
-  buildErrorV2,
-  buildLoadingV2,
+  // Reply helpers
+  reply,
+  defer,
+  editReply,
+  // Message builders
+  successMessage,
+  errorMessage,
+  warningMessage,
+  infoMessage,
+  loadingMessage,
 } from '#lib/discord/index.js';

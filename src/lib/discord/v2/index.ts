@@ -60,6 +60,7 @@ export {
   errorMessage,
   warningMessage,
   infoMessage,
+  loadingMessage,
   // Types
   type ContainerComponent,
   type ContainerOptions,

@@ -656,3 +656,16 @@ export function infoMessage(title: string, description?: string): FluentContaine
   }
   return c;
 }
+
+/**
+ * Build a loading/progress message
+ *
+ * @example
+ * ```ts
+ * loadingMessage()                    // "Loading..."
+ * loadingMessage('Processing...')     // "Processing..."
+ * ```
+ */
+export function loadingMessage(message: string = 'Loading...'): FluentContainer {
+  return container().text(message);
+}

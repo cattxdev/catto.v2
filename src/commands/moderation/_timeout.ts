@@ -12,7 +12,8 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseTimeoutOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleTimeout(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -33,19 +34,25 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     return;
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   try {
     const durationMs = options.durationSeconds * 1000;
     const maxDuration = 28 * 24 * 60 * 60 * 1000;
 
     if (durationMs > maxDuration) {
-      await interaction.editReply(editErrorV2('Timeout duration cannot exceed 28 days.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'Timeout duration cannot exceed 28 days.')
+      );
       return;
     }
 
     if (durationMs < 60 * 1000) {
-      await interaction.editReply(editErrorV2('Timeout duration must be at least 1 minute.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'Timeout duration must be at least 1 minute.')
+      );
       return;
     }
 
@@ -54,21 +61,28 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'Target is not a member of this server.')
+      );
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('ModerateMembers')) {
-      await interaction.editReply(editErrorV2('I do not have permission to timeout members.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'I do not have permission to timeout members.')
+      );
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply(
-        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
       );
       return;
     }
@@ -92,7 +106,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     );
 
     if (!result.success) {
-      await editReplyV2(
+      await editReply(
         interaction,
         buildModActionErrorV2(
           result.error ?? 'Failed to timeout the user.',
@@ -109,18 +123,24 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
       options.target,
       options.moderator,
       options.reason ?? 'No reason provided',
-      result.caseNumber!,
+      ensureNonNull(
+        result.caseNumber,
+        '_timeout > handleTimeout > logModActionV2(114): result.caseNumber'
+      ),
       options.durationSeconds
     );
 
     const durationText = formatDuration(options.durationSeconds);
 
-    await editReplyV2(
+    await editReply(
       interaction,
       buildModActionSuccessV2(
         'Timeout',
         options.target,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          '_timeout > handleTimeout > buildModActionSuccessV2(125): result.caseNumber'
+        ),
         options.reason ?? 'No reason provided',
         durationText,
         { dmSent: notified }
@@ -128,8 +148,9 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     );
   } catch (error) {
     interaction.client.logger.error('Error in timeout command:', error);
-    await interaction
-      .editReply(editErrorV2('An unexpected error occurred while processing the timeout.'))
-      .catch(() => {});
+    await editReply(
+      interaction,
+      v2.errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
+    ).catch(() => {});
   }
 }

@@ -8,7 +8,8 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -23,25 +24,28 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     throw error;
   }
 
-  await deferV2Ephemeral(interaction);
+  await defer(interaction);
 
   try {
     // Verify target is in guild
     try {
       await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
+      await editReply(
+        interaction,
+        v2.errorMessage('Error', 'Target is not a member of this server.')
+      );
       return;
     }
 
     // Basic validation
     if (options.target.id === options.moderator.id) {
-      await interaction.editReply(editErrorV2('You cannot warn yourself.'));
+      await editReply(interaction, v2.errorMessage('Error', 'You cannot warn yourself.'));
       return;
     }
 
     if (options.target.bot) {
-      await interaction.editReply(editErrorV2('You cannot warn bots.'));
+      await editReply(interaction, v2.errorMessage('Error', 'You cannot warn bots.'));
       return;
     }
 
@@ -62,7 +66,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await editReplyV2(
+      await editReply(
         interaction,
         buildModActionErrorV2(
           result.error ?? 'An unexpected error occurred while processing the warning.'
@@ -78,15 +82,18 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
       options.target,
       options.moderator,
       options.reason ?? 'No reason provided',
-      result.caseNumber!
+      ensureNonNull(result.caseNumber, '_warn > handleWarn > logModActionV2(82): result.caseNumber')
     );
 
-    await editReplyV2(
+    await editReply(
       interaction,
       buildModActionSuccessV2(
         'Warning',
         options.target,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          '_warn > handleWarn > buildModActionSuccessV2(90): result.caseNumber'
+        ),
         options.reason ?? 'No reason provided',
         undefined,
         { dmSent: notified }
@@ -94,8 +101,9 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     );
   } catch (error) {
     interaction.client.logger.error('Error in warn command:', error);
-    await interaction
-      .editReply(editErrorV2('An unexpected error occurred while processing the warning.'))
-      .catch(() => {});
+    await editReply(
+      interaction,
+      v2.errorMessage('Error', 'An unexpected error occurred while processing the warning.')
+    ).catch(() => {});
   }
 }
