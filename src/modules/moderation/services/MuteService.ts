@@ -10,6 +10,7 @@ import {
   type MuteTextInput,
   type MuteVoiceInput,
   type MuteBothInput,
+  type UnmuteInput,
   asMuteId,
   asCaseNumber,
 } from '../domain/types.js';
@@ -120,14 +121,10 @@ export class MuteService {
   async unmuteText(
     guild: Guild,
     targetMember: GuildMember,
-    moderatorId: UserId,
-    moderatorTag: string,
-    guildId: GuildId,
-    userId: UserId,
-    reason: string
+    input: UnmuteInput
   ): Promise<MuteResult> {
     try {
-      const config = await this.getConfig(guildId);
+      const config = await this.getConfig(input.guildId);
       const mutedRole = config?.mutedTextRole || config?.muteRoleId;
 
       if (mutedRole) {
@@ -135,7 +132,7 @@ export class MuteService {
         if (role && targetMember.roles.cache.has(role.id)) {
           await targetMember.roles.remove(
             role,
-            `Text unmute: ${reason} | Moderator: ${moderatorTag}`
+            `Text unmute: ${input.reason} | Moderator: ${input.moderatorTag}`
           );
         }
       }
@@ -143,8 +140,8 @@ export class MuteService {
       // Mark mute as inactive
       await container.prisma.mute.updateMany({
         where: {
-          guildId,
-          userId,
+          guildId: input.guildId,
+          userId: input.userId,
           type: MuteType.TEXT,
           active: true,
         },
@@ -153,17 +150,17 @@ export class MuteService {
 
       // Cancel any scheduled unmute
       const { muteScheduler } = await import('./MuteScheduler.js');
-      await muteScheduler.cancelUnmute(guildId, userId, MuteType.TEXT);
+      await muteScheduler.cancelUnmute(input.guildId, input.userId, MuteType.TEXT);
 
       // Create unmute case
       const caseNumber = await this.createMuteCase(
-        guildId,
-        userId,
+        input.guildId,
+        input.userId,
         targetMember.user.tag,
-        moderatorId,
-        moderatorTag,
+        input.moderatorId,
+        input.moderatorTag,
         ModAction.UNMUTE_TEXT,
-        reason
+        input.reason
       );
 
       return { success: true, caseNumber };
@@ -174,7 +171,7 @@ export class MuteService {
   }
 
   /**
-   * Apply a voice mute to a user (server deafen)
+   * Apply a voice mute to a user (server mute, NOT deafen)
    */
   async muteVoice(
     _guild: Guild,
@@ -184,9 +181,9 @@ export class MuteService {
     input: MuteVoiceInput
   ): Promise<MuteResult> {
     try {
-      // Server deafen the user if in voice
+      // Server mute the user if in voice (mute = can't speak, deafen = can't hear)
       if (targetMember.voice.channel) {
-        await targetMember.voice.setDeaf(
+        await targetMember.voice.setMute(
           true,
           `Voice mute: ${input.reason} | Moderator: ${moderatorTag}`
         );
@@ -261,26 +258,22 @@ export class MuteService {
   async unmuteVoice(
     _guild: Guild,
     targetMember: GuildMember,
-    moderatorId: UserId,
-    moderatorTag: string,
-    guildId: GuildId,
-    userId: UserId,
-    reason: string
+    input: UnmuteInput
   ): Promise<MuteResult> {
     try {
-      // Remove server deafen if in voice
+      // Remove server mute if in voice
       if (targetMember.voice.channel) {
-        await targetMember.voice.setDeaf(
+        await targetMember.voice.setMute(
           false,
-          `Voice unmute: ${reason} | Moderator: ${moderatorTag}`
+          `Voice unmute: ${input.reason} | Moderator: ${input.moderatorTag}`
         );
       }
 
       // Mark mute as inactive
       await container.prisma.mute.updateMany({
         where: {
-          guildId,
-          userId,
+          guildId: input.guildId,
+          userId: input.userId,
           type: MuteType.VOICE,
           active: true,
         },
@@ -289,17 +282,17 @@ export class MuteService {
 
       // Cancel any scheduled unmute
       const { muteScheduler } = await import('./MuteScheduler.js');
-      await muteScheduler.cancelUnmute(guildId, userId, MuteType.VOICE);
+      await muteScheduler.cancelUnmute(input.guildId, input.userId, MuteType.VOICE);
 
       // Create unmute case
       const caseNumber = await this.createMuteCase(
-        guildId,
-        userId,
+        input.guildId,
+        input.userId,
         targetMember.user.tag,
-        moderatorId,
-        moderatorTag,
+        input.moderatorId,
+        input.moderatorTag,
         ModAction.UNMUTE_VOICE,
-        reason
+        input.reason
       );
 
       return { success: true, caseNumber };
@@ -334,9 +327,9 @@ export class MuteService {
         }
       }
 
-      // Server deafen if in voice
+      // Server mute if in voice (mute = can't speak)
       if (targetMember.voice.channel) {
-        await targetMember.voice.setDeaf(
+        await targetMember.voice.setMute(
           true,
           `Combined mute: ${input.reason} | Moderator: ${moderatorTag}`
         );
@@ -410,14 +403,10 @@ export class MuteService {
   async unmuteBoth(
     guild: Guild,
     targetMember: GuildMember,
-    moderatorId: UserId,
-    moderatorTag: string,
-    guildId: GuildId,
-    userId: UserId,
-    reason: string
+    input: UnmuteInput
   ): Promise<MuteResult> {
     try {
-      const config = await this.getConfig(guildId);
+      const config = await this.getConfig(input.guildId);
       const mutedRole = config?.mutedTextRole || config?.muteRoleId;
 
       // Remove text mute role
@@ -426,24 +415,24 @@ export class MuteService {
         if (role && targetMember.roles.cache.has(role.id)) {
           await targetMember.roles.remove(
             role,
-            `Combined unmute: ${reason} | Moderator: ${moderatorTag}`
+            `Combined unmute: ${input.reason} | Moderator: ${input.moderatorTag}`
           );
         }
       }
 
-      // Remove server deafen if in voice
+      // Remove server mute if in voice
       if (targetMember.voice.channel) {
-        await targetMember.voice.setDeaf(
+        await targetMember.voice.setMute(
           false,
-          `Combined unmute: ${reason} | Moderator: ${moderatorTag}`
+          `Combined unmute: ${input.reason} | Moderator: ${input.moderatorTag}`
         );
       }
 
       // Mark all mute types as inactive
       await container.prisma.mute.updateMany({
         where: {
-          guildId,
-          userId,
+          guildId: input.guildId,
+          userId: input.userId,
           active: true,
         },
         data: { active: false },
@@ -451,19 +440,19 @@ export class MuteService {
 
       // Cancel any scheduled unmutes
       const { muteScheduler } = await import('./MuteScheduler.js');
-      await muteScheduler.cancelUnmute(guildId, userId, MuteType.TEXT);
-      await muteScheduler.cancelUnmute(guildId, userId, MuteType.VOICE);
-      await muteScheduler.cancelUnmute(guildId, userId, MuteType.BOTH);
+      await muteScheduler.cancelUnmute(input.guildId, input.userId, MuteType.TEXT);
+      await muteScheduler.cancelUnmute(input.guildId, input.userId, MuteType.VOICE);
+      await muteScheduler.cancelUnmute(input.guildId, input.userId, MuteType.BOTH);
 
       // Create unmute case
       const caseNumber = await this.createMuteCase(
-        guildId,
-        userId,
+        input.guildId,
+        input.userId,
         targetMember.user.tag,
-        moderatorId,
-        moderatorTag,
+        input.moderatorId,
+        input.moderatorTag,
         ModAction.UNMUTE_BOTH,
-        reason
+        input.reason
       );
 
       return { success: true, caseNumber };
@@ -532,9 +521,9 @@ export class MuteService {
       },
     });
 
-    if (activeMutes.length > 0 && member.voice.channel && !member.voice.serverDeaf) {
+    if (activeMutes.length > 0 && member.voice.channel && !member.voice.serverMute) {
       try {
-        await member.voice.setDeaf(true, 'Reapplying voice mute');
+        await member.voice.setMute(true, 'Reapplying voice mute');
         container.logger.info(
           `[MuteService] Reapplied voice mute to ${member.user.tag} in ${guildId}`
         );

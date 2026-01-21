@@ -28,7 +28,9 @@ import {
  * Parsed ban options from interaction
  */
 export interface BanOptions {
-  target: User;
+  /** Target user object (only available if user is resolvable) */
+  target?: User;
+  /** Target user ID (always available) */
   targetId: UserId;
   reason: string;
   deleteMessages: boolean;
@@ -87,6 +89,39 @@ export interface UnbanOptions {
   guild: Guild;
   guildId: GuildId;
   moderator: User;
+}
+
+/**
+ * Parsed softban options from interaction
+ */
+export interface SoftbanOptions {
+  /** Target user object (only available if user is resolvable) */
+  target?: User;
+  /** Target user ID (always available) */
+  targetId: UserId;
+  reason: string;
+  deleteDays: number;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+  moderatorMember: GuildMember;
+}
+
+/**
+ * Parsed tempban options from interaction
+ */
+export interface TempbanOptions {
+  /** Target user object (only available if user is resolvable) */
+  target?: User;
+  /** Target user ID (always available) */
+  targetId: UserId;
+  reason: string;
+  durationSeconds: DurationSeconds;
+  deleteMessages: boolean;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+  moderatorMember: GuildMember;
 }
 
 /**
@@ -162,17 +197,38 @@ function ensureGuildContext(interaction: ChatInputCommandInteraction): {
 
 /**
  * Parse ban subcommand options
+ * Accepts either `target` (user mention) or `target_id` (string ID)
  */
 export function parseBanOptions(interaction: ChatInputCommandInteraction): BanOptions {
   const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
 
-  const target = interaction.options.getUser('target', true);
+  const target = interaction.options.getUser('target');
+  const targetIdStr = interaction.options.getString('target_id');
   const reason = interaction.options.getString('reason') ?? 'No reason provided';
   const deleteMessages = interaction.options.getBoolean('delete_messages') ?? false;
 
+  // Require at least one of target or target_id
+  if (!target && !targetIdStr) {
+    throw new ValidationError(
+      'You must provide either a target user or a target_id. Use target_id for users not in the server.'
+    );
+  }
+
+  // Validate target_id if provided
+  let targetId: UserId;
+  if (targetIdStr) {
+    const validation = safeParse(snowflakeSchema, targetIdStr);
+    if (!validation.success) {
+      throw new ValidationError('Invalid user ID format. User IDs are 17-20 digit numbers.');
+    }
+    targetId = asUserId(targetIdStr);
+  } else {
+    targetId = asUserId(target!.id);
+  }
+
   return {
-    target,
-    targetId: asUserId(target.id),
+    target: target ?? undefined,
+    targetId,
     reason,
     deleteMessages,
     guild,
@@ -307,6 +363,107 @@ export function parseHistoryOptions(interaction: ChatInputCommandInteraction): H
     targetId: asUserId(target.id),
     guild,
     guildId,
+  };
+}
+
+/**
+ * Parse softban subcommand options
+ * Accepts either `target` (user mention) or `target_id` (string ID)
+ */
+export function parseSoftbanOptions(interaction: ChatInputCommandInteraction): SoftbanOptions {
+  const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target');
+  const targetIdStr = interaction.options.getString('target_id');
+  const reason = interaction.options.getString('reason') ?? 'No reason provided';
+  const deleteDays = interaction.options.getInteger('delete_days') ?? 7;
+
+  // Require at least one of target or target_id
+  if (!target && !targetIdStr) {
+    throw new ValidationError(
+      'You must provide either a target user or a target_id. Use target_id for users not in the server.'
+    );
+  }
+
+  // Validate target_id if provided
+  let targetId: UserId;
+  if (targetIdStr) {
+    const validation = safeParse(snowflakeSchema, targetIdStr);
+    if (!validation.success) {
+      throw new ValidationError('Invalid user ID format. User IDs are 17-20 digit numbers.');
+    }
+    targetId = asUserId(targetIdStr);
+  } else {
+    targetId = asUserId(target!.id);
+  }
+
+  return {
+    target: target ?? undefined,
+    targetId,
+    reason,
+    deleteDays,
+    guild,
+    guildId,
+    moderator: interaction.user,
+    moderatorMember,
+  };
+}
+
+/**
+ * Parse tempban subcommand options
+ * Accepts either `target` (user mention) or `target_id` (string ID)
+ */
+export function parseTempbanOptions(
+  interaction: ChatInputCommandInteraction
+): TempbanOptions | null {
+  const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
+
+  const target = interaction.options.getUser('target');
+  const targetIdStr = interaction.options.getString('target_id');
+  const durationStr = interaction.options.getString('duration', true);
+  const reason = interaction.options.getString('reason') ?? 'No reason provided';
+  const deleteMessages = interaction.options.getBoolean('delete_messages') ?? false;
+
+  // Require at least one of target or target_id
+  if (!target && !targetIdStr) {
+    throw new ValidationError(
+      'You must provide either a target user or a target_id. Use target_id for users not in the server.'
+    );
+  }
+
+  // Validate target_id if provided
+  let targetId: UserId;
+  if (targetIdStr) {
+    const validation = safeParse(snowflakeSchema, targetIdStr);
+    if (!validation.success) {
+      throw new ValidationError('Invalid user ID format. User IDs are 17-20 digit numbers.');
+    }
+    targetId = asUserId(targetIdStr);
+  } else {
+    targetId = asUserId(target!.id);
+  }
+
+  // Validate and parse duration
+  const durationValidation = safeParse(durationStringSchema, durationStr);
+  if (!durationValidation.success) {
+    return null; // Invalid duration format
+  }
+
+  const durationSeconds = parseDurationToSeconds(durationStr);
+  if (!durationSeconds) {
+    return null;
+  }
+
+  return {
+    target: target ?? undefined,
+    targetId,
+    reason,
+    durationSeconds,
+    deleteMessages,
+    guild,
+    guildId,
+    moderator: interaction.user,
+    moderatorMember,
   };
 }
 

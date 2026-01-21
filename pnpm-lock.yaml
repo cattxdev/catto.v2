@@ -11,9 +11,6 @@ importers:
       '@discordjs/builders':
         specifier: ^1.13.1
         version: 1.13.1
-      '@paralleldrive/cuid2':
-        specifier: 3.0.6
-        version: 3.0.6
       '@prisma/adapter-pg':
         specifier: ^7.2.0
         version: 7.2.0
@@ -443,14 +440,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@noble/hashes@2.0.1':
-    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
-    engines: {node: '>= 20.19.0'}
-
-  '@paralleldrive/cuid2@3.0.6':
-    resolution: {integrity: sha512-ujtxTTvr4fwPrzuQT7o6VLKs5BzdWetR9+/zRQ0SyK9hVIwZQllEccxgcHYXN6I3Z429y1yg3F6+uiVxMDPrLQ==}
-    hasBin: true
-
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
@@ -860,9 +849,6 @@ packages:
   bcrypt-pbkdf@1.0.2:
     resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
 
-  bignumber.js@9.3.1:
-    resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
-
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
 
@@ -1078,9 +1064,6 @@ packages:
   environment@1.1.0:
     resolution: {integrity: sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==}
     engines: {node: '>=18'}
-
-  error-causes@3.0.2:
-    resolution: {integrity: sha512-i0B8zq1dHL6mM85FGoxaJnVtx6LD5nL2v0hlpGdntg5FOSyzQ46c9lmz5qx0xRS2+PWHGOHcYxGIBC5Le2dRMw==}
 
   esbuild@0.27.2:
     resolution: {integrity: sha512-HyNQImnsOC7X9PMNaCIeAm4ISCQXs5a5YasTXVliKv4uuBo1dKrG0A+uQS8M5eXjVMnLg3WgXaKvprHlFJQffw==}
@@ -2310,14 +2293,6 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3':
     optional: true
 
-  '@noble/hashes@2.0.1': {}
-
-  '@paralleldrive/cuid2@3.0.6':
-    dependencies:
-      '@noble/hashes': 2.0.1
-      bignumber.js: 9.3.1
-      error-causes: 3.0.2
-
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
@@ -2806,8 +2781,6 @@ snapshots:
     dependencies:
       tweetnacl: 0.14.5
 
-  bignumber.js@9.3.1: {}
-
   bl@4.1.0:
     dependencies:
       buffer: 5.7.1
@@ -3052,8 +3025,6 @@ snapshots:
       once: 1.4.0
 
   environment@1.1.0: {}
-
-  error-causes@3.0.2: {}
 
   esbuild@0.27.2:
     optionalDependencies:

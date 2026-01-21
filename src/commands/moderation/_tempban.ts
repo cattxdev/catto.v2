@@ -2,13 +2,12 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
-  createModEmbed,
+  logModActionV2,
   notifyUser,
-  logToModChannel,
   formatDuration,
 } from '../../modules/moderation/discord/embeds.js';
-import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
-import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
+import { parseTempbanOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';
 
 export async function handleTempban(interaction: Subcommand.ChatInputCommandInteraction) {
@@ -20,14 +19,22 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     return;
   }
 
-  const target = interaction.options.getUser('target', true);
-  const durationStr = interaction.options.getString('duration', true);
-  const reason = interaction.options.getString('reason') ?? 'No reason provided';
-  const deleteMessages = interaction.options.getBoolean('delete_messages') ?? false;
+  // Parse options (supports both target user and target_id for users not in server)
+  let options;
+  try {
+    options = parseTempbanOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply({
+        content: `❌ ${error.message}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    throw error;
+  }
 
-  // Validate duration format
-  const validation = safeParse(durationStringSchema, durationStr);
-  if (!validation.success) {
+  if (!options) {
     await interaction.reply({
       content: '❌ Invalid duration format. Use formats like: 1h, 1d, 7d',
       flags: MessageFlags.Ephemeral,
@@ -35,14 +42,16 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     return;
   }
 
-  const durationSeconds = parseDurationToSeconds(durationStr);
-  if (!durationSeconds) {
-    await interaction.reply({
-      content: '❌ Invalid duration format.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
+  const {
+    target,
+    targetId,
+    reason,
+    durationSeconds,
+    deleteMessages,
+    guild,
+    moderator,
+    moderatorMember,
+  } = options;
 
   // Max tempban duration: 1 year
   const maxDuration = 365 * 24 * 60 * 60;
@@ -58,39 +67,42 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
 
   try {
     // Check bot permissions
-    if (!interaction.guild.members.me?.permissions.has('BanMembers')) {
+    if (!guild.members.me?.permissions.has('BanMembers')) {
       await interaction.editReply({ content: '❌ I do not have permission to ban members.' });
       return;
     }
 
-    // Fetch target member if they exist
+    // Try to fetch the target member if they're in the server
     let targetMember: GuildMember | null = null;
     try {
-      targetMember = await interaction.guild.members.fetch(target.id);
+      targetMember = await guild.members.fetch(targetId);
     } catch {
-      // User may not be in the server
+      // User is not in the server - that's fine for tempban
     }
 
-    // Check if moderator can moderate target (if target is in server)
+    // Check if moderator can moderate target (only if target is in server)
     if (targetMember) {
-      const canModerateResult = moderationService.canModerate(
-        interaction.member as GuildMember,
-        targetMember
-      );
+      const canModerateResult = moderationService.canModerate(moderatorMember, targetMember);
       if (!canModerateResult.canModerate) {
         await interaction.editReply({ content: `❌ ${canModerateResult.reason}` });
         return;
       }
 
-      // Notify user before tempban
-      await notifyUser(target, ModAction.TEMPBAN, interaction.guild, reason, durationSeconds);
+      // Notify user before tempban (only if they're in server)
+      if (target) {
+        await notifyUser(target, ModAction.TEMPBAN, guild, reason, durationSeconds);
+      }
     }
 
-    // Execute tempban via service
-    const result = await moderationService.tempban(
-      interaction.guild,
-      target,
-      interaction.user,
+    // Determine the target tag to display
+    const targetTag = target?.tag ?? `User ID: ${targetId}`;
+
+    // Execute tempban via service (use tempbanById to support users not in server)
+    const result = await moderationService.tempbanById(
+      guild,
+      targetId,
+      targetTag,
+      moderator,
       reason,
       durationSeconds,
       deleteMessages
@@ -103,19 +115,19 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel (works even without user object - will use ID)
+    await logModActionV2(
+      guild,
       ModAction.TEMPBAN,
-      target,
-      interaction.user,
-      reason,
-      result.caseNumber,
+      target ?? { id: targetId, tag: targetTag },
+      moderator,
+      reason ?? 'No reason provided',
+      result.caseNumber!,
       durationSeconds
     );
-    await logToModChannel(interaction.guild, embed);
 
     await interaction.editReply({
-      content: `✅ **${target.tag}** has been temporarily banned for **${formatDuration(durationSeconds)}**. (Case #${result.caseNumber})\n⏰ They will be automatically unbanned <t:${Math.floor((Date.now() + durationSeconds * 1000) / 1000)}:R>`,
+      content: `✅ **${targetTag}** has been temporarily banned for **${formatDuration(durationSeconds)}**. (Case #${result.caseNumber})\n⏰ They will be automatically unbanned <t:${Math.floor((Date.now() + durationSeconds * 1000) / 1000)}:R>`,
     });
   } catch (error) {
     interaction.client.logger.error('Error in tempban command:', error);

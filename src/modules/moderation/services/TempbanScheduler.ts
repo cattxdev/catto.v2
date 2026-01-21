@@ -2,6 +2,7 @@ import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import type { GuildId, UserId } from '../domain/types.js';
 import { CONFIG } from '#config';
+import { getSafeUserTag } from '#lib/discord/userDisplay.js';
 
 /**
  * Job data for tempban unban task
@@ -168,11 +169,14 @@ export class TempbanScheduler {
       // Attempt to unban
       await guild.members.unban(userId, `Tempban expired (Case #${caseNumber}): ${reason}`);
 
-      // Create unban case
+      // Create unban case with resolved user tag
       const lastCase = await container.prisma.modCase.findFirst({
         where: { guildId },
         orderBy: { caseNumber: 'desc' },
       });
+
+      // Get a proper user tag (not "Unknown#0000")
+      const userTag = await getSafeUserTag(userId);
 
       await container.prisma.modCase.create({
         data: {
@@ -180,7 +184,7 @@ export class TempbanScheduler {
           guildId,
           action: 'UNBAN',
           targetId: userId,
-          targetTag: 'Unknown#0000', // We don't have user info at this point
+          targetTag: userTag,
           moderatorId: container.client.user?.id ?? 'System',
           moderatorTag: container.client.user?.tag ?? 'System',
           reason: `Automatic unban - Tempban expired (Case #${caseNumber})`,

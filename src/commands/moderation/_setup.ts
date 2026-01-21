@@ -4,17 +4,77 @@ import {
   MessageFlags,
   ChannelType,
   PermissionFlagsBits,
-  ActionRowBuilder,
-  ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
-  ChannelSelectMenuBuilder,
-  RoleSelectMenuBuilder,
   ComponentType,
-  EmbedBuilder,
   type TextChannel,
 } from 'discord.js';
 import { asGuildId } from '../../modules/moderation/domain/types.js';
+import {
+  row,
+  button,
+  channelSelectRow,
+  roleSelectRow,
+  stringSelectRow,
+  COLORS,
+} from '#lib/discord/index.js';
+import { v1 } from '#lib/discord/index.js';
+import {
+  buildCompletionEmbed,
+  buildTimeoutEmbed,
+  buildSetupEmbed,
+} from '#root/modules/moderation/discord/v1-embeds.js';
+
+/**
+ * Helper to build setup buttons row 1
+ */
+function buildSetupRow1(modLogSet: boolean, textRoleSet: boolean, voiceRoleSet: boolean) {
+  return row(
+    button({
+      customId: 'mod_setup:mod_log',
+      label: 'Set Mod Log',
+      style: modLogSet ? ButtonStyle.Success : ButtonStyle.Primary,
+      emoji: '📋',
+    }),
+    button({
+      customId: 'mod_setup:text_role',
+      label: 'Text Mute Role',
+      style: textRoleSet ? ButtonStyle.Success : ButtonStyle.Primary,
+      emoji: '💬',
+    }),
+    button({
+      customId: 'mod_setup:voice_role',
+      label: 'Voice Mute Role',
+      style: voiceRoleSet ? ButtonStyle.Success : ButtonStyle.Secondary,
+      emoji: '🔇',
+    })
+  );
+}
+
+/**
+ * Helper to build setup buttons row 2
+ */
+function buildSetupRow2() {
+  return row(
+    button({
+      customId: 'mod_setup:warning_escalation',
+      label: 'Warning Escalation',
+      style: ButtonStyle.Secondary,
+      emoji: '⚠️',
+    }),
+    button({
+      customId: 'mod_setup:create_roles',
+      label: 'Auto-Create Roles',
+      style: ButtonStyle.Secondary,
+      emoji: '✨',
+    }),
+    button({
+      customId: 'mod_setup:done',
+      label: 'Done',
+      style: ButtonStyle.Success,
+      emoji: '✅',
+    })
+  );
+}
 
 /**
  * Handle /mod setup command - Interactive setup wizard
@@ -37,7 +97,7 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const guildId = asGuildId(interaction.guild.id);
 
@@ -59,39 +119,35 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
 /**
  * Build setup embed
  */
-function buildSetupEmbed(
+function buildSetupEmbedLocal(
   config: {
-    modLogChannelId: string | null;
-    mutedTextRole: string | null;
-    mutedVoiceRole: string | null;
     warningEscalation: unknown;
   },
   modLogChannel: { id: string } | null,
   textMuteRole: { id: string } | null,
   voiceMuteRole: { id: string } | null
-): EmbedBuilder {
-  const settingsLines = [
-    `**Mod Log Channel:** ${modLogChannel ? `<#${modLogChannel.id}>` : '`Not set`'}`,
-    `**Muted Text Role:** ${textMuteRole ? `<@&${textMuteRole.id}>` : '`Not set`'}`,
-    `**Muted Voice Role:** ${voiceMuteRole ? `<@&${voiceMuteRole.id}>` : '`Not set (using server mute)`'}`,
-    `**Warning Escalation:** ${(config.warningEscalation as { enabled?: boolean })?.enabled !== false ? '`Enabled`' : '`Disabled`'}`,
+) {
+  const settings: Record<string, string> = {
+    'Mod Log Channel': modLogChannel ? `<#${modLogChannel.id}>` : '`Not set`',
+    'Muted Text Role': textMuteRole ? `<@&${textMuteRole.id}>` : '`Not set`',
+    'Muted Voice Role': voiceMuteRole ? `<@&${voiceMuteRole.id}>` : '`Not set (using server mute)`',
+    'Warning Escalation':
+      (config.warningEscalation as { enabled?: boolean })?.enabled !== false
+        ? '`Enabled`'
+        : '`Disabled`',
+  };
+
+  const steps = [
+    'Set mod log channel (where actions are logged)',
+    'Configure muted text role',
+    'Configure muted voice role (optional)',
+    'Set up warning escalation rules',
   ];
 
-  const stepsContent = [
-    '**1.** Set mod log channel (where actions are logged)',
-    '**2.** Configure muted text role',
-    '**3.** Configure muted voice role (optional)',
-    '**4.** Set up warning escalation rules',
-  ];
-
-  return new EmbedBuilder()
-    .setTitle('Moderation Setup')
-    .setColor(0x5865f2)
-    .addFields(
-      { name: 'Current Settings', value: settingsLines.join('\n'), inline: false },
-      { name: 'Configuration Steps', value: stepsContent.join('\n'), inline: false }
-    )
-    .setFooter({ text: 'Use the buttons below or /mod config commands' });
+  return buildSetupEmbed('Moderation Setup', settings, steps, {
+    color: COLORS.PRIMARY,
+    footer: 'Use the buttons below or /mod config commands',
+  });
 }
 
 /**
@@ -121,48 +177,14 @@ async function showSetupOverview(
     ? await guild.roles.fetch(config.mutedVoiceRole).catch(() => null)
     : null;
 
-  const embed = buildSetupEmbed(config, modLogChannel, textMuteRole, voiceMuteRole);
-
-  // Action buttons
-  const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId('mod_setup:mod_log')
-      .setLabel('Set Mod Log')
-      .setStyle(modLogChannel ? ButtonStyle.Success : ButtonStyle.Primary)
-      .setEmoji('📋'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:text_role')
-      .setLabel('Text Mute Role')
-      .setStyle(textMuteRole ? ButtonStyle.Success : ButtonStyle.Primary)
-      .setEmoji('💬'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:voice_role')
-      .setLabel('Voice Mute Role')
-      .setStyle(voiceMuteRole ? ButtonStyle.Success : ButtonStyle.Secondary)
-      .setEmoji('🔇')
-  );
-
-  const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId('mod_setup:warning_escalation')
-      .setLabel('Warning Escalation')
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji('⚠️'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:create_roles')
-      .setLabel('Auto-Create Roles')
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji('✨'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:done')
-      .setLabel('Done')
-      .setStyle(ButtonStyle.Success)
-      .setEmoji('✅')
-  );
+  const embed = buildSetupEmbedLocal(config, modLogChannel, textMuteRole, voiceMuteRole);
 
   await interaction.editReply({
     embeds: [embed],
-    components: [row1, row2],
+    components: [
+      buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole),
+      buildSetupRow2(),
+    ],
   });
 
   // Wait for button interactions
@@ -187,10 +209,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
     try {
       if (customId === 'mod_setup:done') {
-        const doneEmbed = new EmbedBuilder()
-          .setTitle('Setup Complete')
-          .setDescription('Your moderation settings have been saved.')
-          .setColor(0x00ff00);
+        const doneEmbed = buildCompletionEmbed(
+          'Setup Complete',
+          'Your moderation settings have been saved.'
+        );
 
         await buttonInteraction.update({
           embeds: [doneEmbed],
@@ -201,12 +223,11 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       }
 
       if (customId === 'mod_setup:mod_log') {
-        const selectRow = new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
-          new ChannelSelectMenuBuilder()
-            .setCustomId('mod_setup:select_mod_log')
-            .setPlaceholder('Select mod log channel')
-            .setChannelTypes(ChannelType.GuildText)
-        );
+        const selectRow = channelSelectRow({
+          customId: 'mod_setup:select_mod_log',
+          placeholder: 'Select mod log channel',
+          channelTypes: [ChannelType.GuildText],
+        });
 
         await buttonInteraction.reply({
           content: '📋 **Select the channel for moderation logs:**',
@@ -251,11 +272,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       }
 
       if (customId === 'mod_setup:text_role') {
-        const selectRow = new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
-          new RoleSelectMenuBuilder()
-            .setCustomId('mod_setup:select_text_role')
-            .setPlaceholder('Select muted text role')
-        );
+        const selectRow = roleSelectRow({
+          customId: 'mod_setup:select_text_role',
+          placeholder: 'Select muted text role',
+        });
 
         await buttonInteraction.reply({
           content:
@@ -300,11 +320,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       }
 
       if (customId === 'mod_setup:voice_role') {
-        const selectRow = new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
-          new RoleSelectMenuBuilder()
-            .setCustomId('mod_setup:select_voice_role')
-            .setPlaceholder('Select muted voice role (optional)')
-        );
+        const selectRow = roleSelectRow({
+          customId: 'mod_setup:select_voice_role',
+          placeholder: 'Select muted voice role (optional)',
+        });
 
         await buttonInteraction.reply({
           content:
@@ -349,23 +368,22 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       }
 
       if (customId === 'mod_setup:warning_escalation') {
-        const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId('mod_setup:select_escalation')
-            .setPlaceholder('Configure warning escalation')
-            .addOptions([
-              {
-                label: 'Enable (Default Rules)',
-                description: '3 warns → timeout, 5 → kick, 10 → tempban',
-                value: 'enable_default',
-              },
-              {
-                label: 'Disable',
-                description: 'No automatic escalation recommendations',
-                value: 'disable',
-              },
-            ])
-        );
+        const selectRow = stringSelectRow({
+          customId: 'mod_setup:select_escalation',
+          placeholder: 'Configure warning escalation',
+          options: [
+            {
+              label: 'Enable (Default Rules)',
+              description: '3 warns → timeout, 5 → kick, 10 → tempban',
+              value: 'enable_default',
+            },
+            {
+              label: 'Disable',
+              description: 'No automatic escalation recommendations',
+              value: 'disable',
+            },
+          ],
+        });
 
         await buttonInteraction.reply({
           content:
@@ -449,7 +467,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       }
 
       if (customId === 'mod_setup:create_roles') {
-        await buttonInteraction.deferReply({ ephemeral: true });
+        await buttonInteraction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
           const config = await container.prisma.modConfig.findUnique({
@@ -466,19 +484,55 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               reason: 'Auto-created by mod setup',
             });
 
-            const channels = guild.channels.cache.filter(
+            // Text channel permissions to deny
+            const textDenyPerms = {
+              SendMessages: false,
+              AddReactions: false,
+              CreatePublicThreads: false,
+              CreatePrivateThreads: false,
+              SendMessagesInThreads: false,
+            };
+
+            // Get all text-like channels
+            const textChannels = guild.channels.cache.filter(
               (c) => c.type === ChannelType.GuildText || c.type === ChannelType.GuildForum
             );
 
-            for (const [, channel] of channels) {
+            // Get all categories
+            const categories = guild.channels.cache.filter(
+              (c) => c.type === ChannelType.GuildCategory
+            );
+
+            // Track which categories we've already configured
+            const configuredCategoryIds = new Set<string>();
+
+            // First, apply overwrites to categories (for inheritance)
+            for (const [, category] of categories) {
+              // Check if this category has any text-like children
+              const hasTextChildren = textChannels.some((c) => c.parentId === category.id);
+              if (hasTextChildren) {
+                try {
+                  await category.permissionOverwrites.create(textMuteRole, textDenyPerms);
+                  configuredCategoryIds.add(category.id);
+                } catch {
+                  // Skip categories we can't modify
+                }
+              }
+            }
+
+            // Then, only apply overwrites to channels WITHOUT a category
+            // (channels with categories inherit from the category)
+            for (const [, channel] of textChannels) {
+              // Skip channels that have a configured parent category
+              if (channel.parentId && configuredCategoryIds.has(channel.parentId)) {
+                continue;
+              }
+
               try {
-                await (channel as TextChannel).permissionOverwrites.create(textMuteRole, {
-                  SendMessages: false,
-                  AddReactions: false,
-                  CreatePublicThreads: false,
-                  CreatePrivateThreads: false,
-                  SendMessagesInThreads: false,
-                });
+                await (channel as TextChannel).permissionOverwrites.create(
+                  textMuteRole,
+                  textDenyPerms
+                );
               } catch {
                 // Skip channels we can't modify
               }
@@ -500,16 +554,48 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               reason: 'Auto-created by mod setup',
             });
 
+            // Voice channel permissions to deny
+            const voiceDenyPerms = {
+              Speak: false,
+              Stream: false,
+            };
+
+            // Get all voice-like channels
             const voiceChannels = guild.channels.cache.filter(
               (c) => c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice
             );
 
+            // Get all categories
+            const categories = guild.channels.cache.filter(
+              (c) => c.type === ChannelType.GuildCategory
+            );
+
+            // Track which categories we've already configured
+            const configuredCategoryIds = new Set<string>();
+
+            // First, apply overwrites to categories (for inheritance)
+            for (const [, category] of categories) {
+              // Check if this category has any voice-like children
+              const hasVoiceChildren = voiceChannels.some((c) => c.parentId === category.id);
+              if (hasVoiceChildren) {
+                try {
+                  await category.permissionOverwrites.create(voiceMuteRole, voiceDenyPerms);
+                  configuredCategoryIds.add(category.id);
+                } catch {
+                  // Skip categories we can't modify
+                }
+              }
+            }
+
+            // Then, only apply overwrites to channels WITHOUT a category
             for (const [, channel] of voiceChannels) {
+              // Skip channels that have a configured parent category
+              if (channel.parentId && configuredCategoryIds.has(channel.parentId)) {
+                continue;
+              }
+
               try {
-                await channel.permissionOverwrites.create(voiceMuteRole, {
-                  Speak: false,
-                  Stream: false,
-                });
+                await channel.permissionOverwrites.create(voiceMuteRole, voiceDenyPerms);
               } catch {
                 // Skip channels we can't modify
               }
@@ -525,7 +611,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
           if (createdRoles.length > 0) {
             await buttonInteraction.editReply({
-              content: `✅ **Roles created:**\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically.*`,
+              content: `✅ **Roles created:**\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically (via category inheritance where possible).*`,
             });
           } else {
             await buttonInteraction.editReply({
@@ -558,10 +644,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
   collector.on('end', async (_, reason) => {
     if (reason === 'time') {
       try {
-        const timeoutEmbed = new EmbedBuilder()
-          .setTitle('Setup Timed Out')
-          .setDescription('Run `/mod setup` again to continue.')
-          .setColor(0xff9900);
+        const timeoutEmbed = buildTimeoutEmbed(
+          'Setup Timed Out',
+          'Run `/mod setup` again to continue.'
+        );
 
         await interaction.editReply({
           embeds: [timeoutEmbed],
@@ -600,52 +686,19 @@ async function refreshOverview(
     ? await guild.roles.fetch(config.mutedVoiceRole).catch(() => null)
     : null;
 
-  const embed = buildSetupEmbed(
+  const embed = buildSetupEmbedLocal(
     config,
     modLogChannel as { id: string } | null,
     textMuteRole as { id: string } | null,
     voiceMuteRole as { id: string } | null
   );
 
-  const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId('mod_setup:mod_log')
-      .setLabel('Set Mod Log')
-      .setStyle(modLogChannel ? ButtonStyle.Success : ButtonStyle.Primary)
-      .setEmoji('📋'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:text_role')
-      .setLabel('Text Mute Role')
-      .setStyle(textMuteRole ? ButtonStyle.Success : ButtonStyle.Primary)
-      .setEmoji('💬'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:voice_role')
-      .setLabel('Voice Mute Role')
-      .setStyle(voiceMuteRole ? ButtonStyle.Success : ButtonStyle.Secondary)
-      .setEmoji('🔇')
-  );
-
-  const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId('mod_setup:warning_escalation')
-      .setLabel('Warning Escalation')
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji('⚠️'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:create_roles')
-      .setLabel('Auto-Create Roles')
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji('✨'),
-    new ButtonBuilder()
-      .setCustomId('mod_setup:done')
-      .setLabel('Done')
-      .setStyle(ButtonStyle.Success)
-      .setEmoji('✅')
-  );
-
   await interaction.editReply({
     embeds: [embed],
-    components: [row1, row2],
+    components: [
+      buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole),
+      buildSetupRow2(),
+    ],
   });
 }
 
@@ -755,39 +808,38 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
     return;
   }
 
-  const embed = new EmbedBuilder()
-    .setTitle('Moderation Config')
-    .setColor(0x5865f2)
-    .addFields(
+  const embed = v1.buildStatsEmbed(
+    'Moderation Config',
+    [
       {
-        name: 'Mod Log Channel',
-        value: config.modLogChannelId ? `<#${config.modLogChannelId}>` : '`Not set`',
-        inline: true,
+        name: 'Channels',
+        stats: {
+          'Mod Log': config.modLogChannelId ? `<#${config.modLogChannelId}>` : 'Not set',
+        },
+        inline: false,
       },
       {
-        name: 'Muted Text Role',
-        value: config.mutedTextRole ? `<@&${config.mutedTextRole}>` : '`Not set`',
-        inline: true,
+        name: 'Roles',
+        stats: {
+          'Muted Text': config.mutedTextRole ? `<@&${config.mutedTextRole}>` : 'Not set',
+          'Muted Voice': config.mutedVoiceRole ? `<@&${config.mutedVoiceRole}>` : 'Not set',
+        },
+        inline: false,
       },
       {
-        name: 'Muted Voice Role',
-        value: config.mutedVoiceRole ? `<@&${config.mutedVoiceRole}>` : '`Not set`',
-        inline: true,
+        name: 'Settings',
+        stats: {
+          'Warning Escalation':
+            (config.warningEscalation as { enabled?: boolean })?.enabled !== false
+              ? 'Enabled'
+              : 'Disabled',
+          AutoMod: config.autoModEnabled ? 'Yes' : 'No',
+        },
+        inline: false,
       },
-      {
-        name: 'Warning Escalation',
-        value:
-          (config.warningEscalation as { enabled?: boolean })?.enabled !== false
-            ? '`Enabled`'
-            : '`Disabled`',
-        inline: true,
-      },
-      {
-        name: 'AutoMod Enabled',
-        value: config.autoModEnabled ? '`Yes`' : '`No`',
-        inline: true,
-      }
-    );
+    ],
+    { color: COLORS.PRIMARY }
+  );
 
   await interaction.reply({
     embeds: [embed],

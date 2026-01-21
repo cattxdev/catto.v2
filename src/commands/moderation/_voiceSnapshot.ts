@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
 import type { GuildMember } from 'discord.js';
-import { VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
+import { EMOJI } from '#lib/discord/index.js';
 import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
@@ -31,7 +31,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     const memberCount = members.size;
 
     const lines: string[] = [
-      `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
+      `## ${EMOJI.VOICE} ${voiceChannel.name}`,
       `**Members:** ${memberCount}`,
       `**Taken:** <t:${Math.floor(Date.now() / 1000)}:F>`,
     ];

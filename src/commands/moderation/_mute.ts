@@ -2,13 +2,20 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { MuteType, ModAction } from '@prisma/client';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModActionV2, formatDuration } from '../../modules/moderation/discord/embeds.js';
 import {
-  createModEmbed,
-  logToModChannel,
-  formatDuration,
-} from '../../modules/moderation/discord/embeds.js';
+  buildModActionSuccessV2,
+  buildModActionErrorV2,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseMuteOptions, parseUnmuteOptions } from '#lib/interaction/typedOptions.js';
 import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
+import {
+  ephemeralError,
+  editErrorV2,
+  editSuccessV2,
+  deferV2Ephemeral,
+  editReplyV2,
+} from '#lib/discord/index.js';
 
 /**
  * Handle /mod mute text
@@ -16,14 +23,13 @@ import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
 export async function handleMuteText(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseMuteOptions(interaction);
   if (!options) {
-    await interaction.reply({
-      content: 'Invalid duration format. Use formats like: 10m, 1h, 2d, 1w',
-      ephemeral: true,
-    });
+    await interaction.reply(
+      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
+    );
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -31,22 +37,22 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('ManageRoles')) {
-      await interaction.editReply({
-        content: 'I do not have permission to manage roles.',
-      });
+      await interaction.editReply(editErrorV2('I do not have permission to manage roles.'));
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply({ content: canModerateResult.reason });
+      await interaction.editReply(
+        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      );
       return;
     }
 
@@ -66,38 +72,45 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content:
-          result.error ??
-          'Failed to mute the user. Please check my permissions and role hierarchy.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(
+          result.error ?? 'Failed to mute the user.',
+          'Check bot permissions and role hierarchy.'
+        )
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.MUTE_TEXT,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber,
+      options.reason ?? 'No reason provided',
+      result.caseNumber!,
       options.durationSeconds
     );
-    await logToModChannel(options.guild, embed);
 
     const durationText = options.durationSeconds
       ? formatDuration(options.durationSeconds)
-      : 'permanently';
+      : 'Permanent';
 
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been text muted ${durationText}. (Case #${result.caseNumber})`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Text Mute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided',
+        durationText
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in mute text command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the mute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the mute.'))
       .catch(() => {});
   }
 }
@@ -108,14 +121,13 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
 export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseMuteOptions(interaction);
   if (!options) {
-    await interaction.reply({
-      content: 'Invalid duration format. Use formats like: 10m, 1h, 2d, 1w',
-      ephemeral: true,
-    });
+    await interaction.reply(
+      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
+    );
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -123,22 +135,22 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('DeafenMembers')) {
-      await interaction.editReply({
-        content: 'I do not have permission to deafen members.',
-      });
+      await interaction.editReply(editErrorV2('I do not have permission to deafen members.'));
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply({ content: canModerateResult.reason });
+      await interaction.editReply(
+        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      );
       return;
     }
 
@@ -158,40 +170,42 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: result.error ?? 'Failed to mute the user. Please check my permissions.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(result.error ?? 'Failed to mute the user.', 'Check bot permissions.')
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.MUTE_VOICE,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber,
+      options.reason ?? 'No reason provided',
+      result.caseNumber!,
       options.durationSeconds
     );
-    await logToModChannel(options.guild, embed);
 
     const durationText = options.durationSeconds
       ? formatDuration(options.durationSeconds)
-      : 'permanently';
+      : 'Permanent';
 
-    const voiceNote = targetMember.voice.channel
-      ? ''
-      : '\nNote: User is not currently in voice. Mute will be applied when they join.';
-
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been voice muted ${durationText}. (Case #${result.caseNumber})${voiceNote}`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Voice Mute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided',
+        durationText
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in mute voice command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the mute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the mute.'))
       .catch(() => {});
   }
 }
@@ -202,14 +216,13 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
 export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseMuteOptions(interaction);
   if (!options) {
-    await interaction.reply({
-      content: 'Invalid duration format. Use formats like: 10m, 1h, 2d, 1w',
-      ephemeral: true,
-    });
+    await interaction.reply(
+      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
+    );
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -217,7 +230,7 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
@@ -226,16 +239,18 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
       !options.guild.members.me?.permissions.has('ManageRoles') ||
       !options.guild.members.me?.permissions.has('DeafenMembers')
     ) {
-      await interaction.editReply({
-        content: 'I do not have permission to manage roles and deafen members.',
-      });
+      await interaction.editReply(
+        editErrorV2('I do not have permission to manage roles and deafen members.')
+      );
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply({ content: canModerateResult.reason });
+      await interaction.editReply(
+        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      );
       return;
     }
 
@@ -255,38 +270,45 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content:
-          result.error ??
-          'Failed to mute the user. Please check my permissions and role hierarchy.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(
+          result.error ?? 'Failed to mute the user.',
+          'Check bot permissions and role hierarchy.'
+        )
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.MUTE_BOTH,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber,
+      options.reason ?? 'No reason provided',
+      result.caseNumber!,
       options.durationSeconds
     );
-    await logToModChannel(options.guild, embed);
 
     const durationText = options.durationSeconds
       ? formatDuration(options.durationSeconds)
-      : 'permanently';
+      : 'Permanent';
 
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been fully muted (text + voice) ${durationText}. (Case #${result.caseNumber})`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Full Mute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided',
+        durationText
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in mute both command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the mute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the mute.'))
       .catch(() => {});
   }
 }
@@ -297,7 +319,7 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
 export async function handleUnmuteText(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseUnmuteOptions(interaction);
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -305,7 +327,7 @@ export async function handleUnmuteText(interaction: Subcommand.ChatInputCommandI
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
@@ -319,47 +341,50 @@ export async function handleUnmuteText(interaction: Subcommand.ChatInputCommandI
     );
 
     if (!hasTextMute) {
-      await interaction.editReply({ content: 'User does not have an active text mute.' });
+      await interaction.editReply(editErrorV2('User does not have an active text mute.'));
       return;
     }
 
     // Execute unmute via service
-    const result = await muteService.unmuteText(
-      options.guild,
-      targetMember,
-      asUserId(interaction.user.id),
-      interaction.user.tag,
-      asGuildId(options.guild.id),
-      asUserId(options.target.id),
-      options.reason
-    );
+    const result = await muteService.unmuteText(options.guild, targetMember, {
+      guildId: asGuildId(options.guild.id),
+      userId: asUserId(options.target.id),
+      moderatorId: asUserId(interaction.user.id),
+      moderatorTag: interaction.user.tag,
+      reason: options.reason ?? 'No reason provided',
+    });
 
     if (!result.success) {
-      await interaction.editReply({
-        content: result.error ?? 'Failed to unmute the user.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(result.error ?? 'Failed to unmute the user.')
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.UNMUTE_TEXT,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      result.caseNumber!
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been text unmuted. (Case #${result.caseNumber})`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Text Unmute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided'
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in unmute text command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the unmute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the unmute.'))
       .catch(() => {});
   }
 }
@@ -370,7 +395,7 @@ export async function handleUnmuteText(interaction: Subcommand.ChatInputCommandI
 export async function handleUnmuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseUnmuteOptions(interaction);
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -378,7 +403,7 @@ export async function handleUnmuteVoice(interaction: Subcommand.ChatInputCommand
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
@@ -392,47 +417,50 @@ export async function handleUnmuteVoice(interaction: Subcommand.ChatInputCommand
     );
 
     if (!hasVoiceMute) {
-      await interaction.editReply({ content: 'User does not have an active voice mute.' });
+      await interaction.editReply(editErrorV2('User does not have an active voice mute.'));
       return;
     }
 
     // Execute unmute via service
-    const result = await muteService.unmuteVoice(
-      options.guild,
-      targetMember,
-      asUserId(interaction.user.id),
-      interaction.user.tag,
-      asGuildId(options.guild.id),
-      asUserId(options.target.id),
-      options.reason
-    );
+    const result = await muteService.unmuteVoice(options.guild, targetMember, {
+      guildId: asGuildId(options.guild.id),
+      userId: asUserId(options.target.id),
+      moderatorId: asUserId(interaction.user.id),
+      moderatorTag: interaction.user.tag,
+      reason: options.reason ?? 'No reason provided',
+    });
 
     if (!result.success) {
-      await interaction.editReply({
-        content: result.error ?? 'Failed to unmute the user.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(result.error ?? 'Failed to unmute the user.')
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.UNMUTE_VOICE,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      result.caseNumber!
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been voice unmuted. (Case #${result.caseNumber})`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Voice Unmute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided'
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in unmute voice command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the unmute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the unmute.'))
       .catch(() => {});
   }
 }
@@ -443,7 +471,7 @@ export async function handleUnmuteVoice(interaction: Subcommand.ChatInputCommand
 export async function handleUnmuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseUnmuteOptions(interaction);
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -451,7 +479,7 @@ export async function handleUnmuteBoth(interaction: Subcommand.ChatInputCommandI
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: 'Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
@@ -462,47 +490,50 @@ export async function handleUnmuteBoth(interaction: Subcommand.ChatInputCommandI
     );
 
     if (activeMutes.length === 0) {
-      await interaction.editReply({ content: 'User does not have any active mutes.' });
+      await interaction.editReply(editErrorV2('User does not have any active mutes.'));
       return;
     }
 
     // Execute unmute via service
-    const result = await muteService.unmuteBoth(
-      options.guild,
-      targetMember,
-      asUserId(interaction.user.id),
-      interaction.user.tag,
-      asGuildId(options.guild.id),
-      asUserId(options.target.id),
-      options.reason
-    );
+    const result = await muteService.unmuteBoth(options.guild, targetMember, {
+      guildId: asGuildId(options.guild.id),
+      userId: asUserId(options.target.id),
+      moderatorId: asUserId(interaction.user.id),
+      moderatorTag: interaction.user.tag,
+      reason: options.reason ?? 'No reason provided',
+    });
 
     if (!result.success) {
-      await interaction.editReply({
-        content: result.error ?? 'Failed to unmute the user.',
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(result.error ?? 'Failed to unmute the user.')
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.UNMUTE_BOTH,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      result.caseNumber!
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `**${options.target.tag}** has been fully unmuted. (Case #${result.caseNumber})`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Full Unmute',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided'
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in unmute both command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while processing the unmute.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the unmute.'))
       .catch(() => {});
   }
 }
@@ -511,11 +542,11 @@ export async function handleUnmuteBoth(interaction: Subcommand.ChatInputCommandI
  * Handle /mod mutes list
  */
 export async function handleMutesList(interaction: Subcommand.ChatInputCommandInteraction) {
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   const guild = interaction.guild;
   if (!guild) {
-    await interaction.editReply({ content: 'This command can only be used in a server.' });
+    await interaction.editReply(editErrorV2('This command can only be used in a server.'));
     return;
   }
 
@@ -539,7 +570,7 @@ export async function handleMutesList(interaction: Subcommand.ChatInputCommandIn
     if (mutes.length === 0) {
       const filterText = target ? ` for ${target.tag}` : '';
       const typeText = type ? ` of type ${type}` : '';
-      await interaction.editReply({ content: `No active mutes found${filterText}${typeText}.` });
+      await interaction.editReply(editErrorV2(`No active mutes found${filterText}${typeText}.`));
       return;
     }
 
@@ -557,15 +588,13 @@ export async function handleMutesList(interaction: Subcommand.ChatInputCommandIn
     const title = target ? `Active mutes for ${target.tag}` : 'Active mutes';
     const remaining = mutes.length > 20 ? `\n*... and ${mutes.length - 20} more*` : '';
 
-    await interaction.editReply({
-      content: `**${title}** (${mutes.length} total)\n\n${muteLines.join('\n')}${remaining}`,
-    });
+    await interaction.editReply(
+      editSuccessV2(`${title} (${mutes.length} total)`, `${muteLines.join('\n')}${remaining}`)
+    );
   } catch (error) {
     interaction.client.logger.error('Error in mutes list command:', error);
     await interaction
-      .editReply({
-        content: 'An unexpected error occurred while fetching mutes.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while fetching mutes.'))
       .catch(() => {});
   }
 }

@@ -1,11 +1,9 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import {
-  createModEmbed,
-  notifyUser,
-  logToModChannel,
-} from '../../modules/moderation/discord/embeds.js';
+import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds.js';
+import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';
 
 export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
@@ -17,47 +15,63 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     return;
   }
 
-  const target = interaction.options.getUser('target', true);
-  const reason = interaction.options.getString('reason') ?? 'No reason provided';
-  const deleteDays = interaction.options.getInteger('delete_days') ?? 7;
+  // Parse options (supports both target user and target_id for users not in server)
+  let options;
+  try {
+    options = parseSoftbanOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply({
+        content: `❌ ${error.message}`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+    throw error;
+  }
+
+  const { target, targetId, reason, deleteDays, guild, moderator, moderatorMember } = options;
 
   await interaction.deferReply();
 
   try {
     // Check bot permissions
-    if (!interaction.guild.members.me?.permissions.has('BanMembers')) {
+    if (!guild.members.me?.permissions.has('BanMembers')) {
       await interaction.editReply({ content: '❌ I do not have permission to ban members.' });
       return;
     }
 
-    // Fetch target member if they exist
+    // Try to fetch the target member if they're in the server
     let targetMember: GuildMember | null = null;
     try {
-      targetMember = await interaction.guild.members.fetch(target.id);
+      targetMember = await guild.members.fetch(targetId);
     } catch {
-      // User may not be in the server
+      // User is not in the server - that's fine for softban
     }
 
-    // Check if moderator can moderate target (if target is in server)
+    // Check if moderator can moderate target (only if target is in server)
     if (targetMember) {
-      const canModerateResult = moderationService.canModerate(
-        interaction.member as GuildMember,
-        targetMember
-      );
+      const canModerateResult = moderationService.canModerate(moderatorMember, targetMember);
       if (!canModerateResult.canModerate) {
         await interaction.editReply({ content: `❌ ${canModerateResult.reason}` });
         return;
       }
 
-      // Notify user before softban
-      await notifyUser(target, ModAction.SOFTBAN, interaction.guild, reason);
+      // Notify user before softban (only if they're in server)
+      if (target) {
+        await notifyUser(target, ModAction.SOFTBAN, guild, reason);
+      }
     }
 
-    // Execute softban via service
-    const result = await moderationService.softban(
-      interaction.guild,
-      target,
-      interaction.user,
+    // Determine the target tag to display
+    const targetTag = target?.tag ?? `User ID: ${targetId}`;
+
+    // Execute softban via service (use softbanById to support users not in server)
+    const result = await moderationService.softbanById(
+      guild,
+      targetId,
+      targetTag,
+      moderator,
       reason,
       deleteDays
     );
@@ -69,18 +83,18 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel (works even without user object - will use ID)
+    await logModActionV2(
+      guild,
       ModAction.SOFTBAN,
-      target,
-      interaction.user,
-      reason,
-      result.caseNumber
+      target ?? { id: targetId, tag: targetTag },
+      moderator,
+      reason ?? 'No reason provided',
+      result.caseNumber!
     );
-    await logToModChannel(interaction.guild, embed);
 
     await interaction.editReply({
-      content: `✅ **${target.tag}** has been softbanned (messages deleted, user unbanned). (Case #${result.caseNumber})`,
+      content: `✅ **${targetTag}** has been softbanned (messages deleted, user unbanned). (Case #${result.caseNumber})`,
     });
   } catch (error) {
     interaction.client.logger.error('Error in softban command:', error);

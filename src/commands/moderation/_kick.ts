@@ -1,13 +1,14 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds.js';
 import {
-  createModEmbed,
-  notifyUser,
-  logToModChannel,
-} from '../../modules/moderation/discord/embeds.js';
+  buildModActionSuccessV2,
+  buildModActionErrorV2,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseKickOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, editErrorV2, deferV2Ephemeral, editReplyV2 } from '#lib/discord/index.js';
 
 export async function handleKick(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -15,13 +16,13 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     options = parseKickOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await deferV2Ephemeral(interaction);
 
   try {
     // Fetch target member
@@ -29,22 +30,22 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: '❌ Target is not a member of this server.' });
+      await interaction.editReply(editErrorV2('Target is not a member of this server.'));
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('KickMembers')) {
-      await interaction.editReply({
-        content: '❌ I do not have permission to kick members.',
-      });
+      await interaction.editReply(editErrorV2('I do not have permission to kick members.'));
       return;
     }
 
     // Check if moderator can moderate target
     const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
     if (!canModerateResult.canModerate) {
-      await interaction.editReply({ content: `❌ ${canModerateResult.reason}` });
+      await interaction.editReply(
+        editErrorV2(canModerateResult.reason ?? 'You cannot moderate this user.')
+      );
       return;
     }
 
@@ -65,31 +66,41 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: `❌ ${result.error ?? 'Failed to kick the user. Please check my permissions and role hierarchy.'}`,
-      });
+      await editReplyV2(
+        interaction,
+        buildModActionErrorV2(
+          result.error ?? 'Failed to kick the user.',
+          'Check bot permissions and role hierarchy.'
+        )
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModActionV2(
+      options.guild,
       ModAction.KICK,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      result.caseNumber!
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `✅ **${options.target.tag}** has been kicked. (Case #${result.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
-    });
+    await editReplyV2(
+      interaction,
+      buildModActionSuccessV2(
+        'Kick',
+        options.target,
+        result.caseNumber!,
+        options.reason ?? 'No reason provided',
+        undefined,
+        { dmSent: notified }
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in kick command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the kick.',
-      })
+      .editReply(editErrorV2('An unexpected error occurred while processing the kick.'))
       .catch(() => {});
   }
 }

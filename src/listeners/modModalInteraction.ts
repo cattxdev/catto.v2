@@ -23,9 +23,8 @@ import { notesService } from '#root/modules/moderation/services/NotesService.js'
 import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, asDuration } from '#root/modules/moderation/domain/types.js';
 import {
-  createModEmbed,
+  logModActionV2,
   notifyUser,
-  logToModChannel,
   formatDuration,
 } from '#root/modules/moderation/discord/embeds.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
@@ -176,8 +175,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      const embed = createModEmbed(modAction, target, interaction.user, reason, result.caseNumber);
-      await logToModChannel(guild, embed);
+      await logModActionV2(guild, modAction, target, interaction.user, reason, result.caseNumber!);
 
       // Show success
       const successContainer = buildModActionSuccessV2(
@@ -347,15 +345,15 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      const embed = createModEmbed(
+      await logModActionV2(
+        guild,
         modAction,
         target,
         interaction.user,
         reason,
-        result.caseNumber,
+        result.caseNumber!,
         durationSeconds
       );
-      await logToModChannel(guild, embed);
 
       // Show success
       const successContainer = buildModActionSuccessV2(
@@ -597,15 +595,15 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      const embed = createModEmbed(
+      await logModActionV2(
+        guild,
         modAction,
         target,
         interaction.user,
         reason,
-        result.caseNumber,
-        durationSeconds ? asDuration(durationSeconds) : undefined
+        result.caseNumber!,
+        durationSeconds
       );
-      await logToModChannel(guild, embed);
 
       // Show success
       const durationText = durationSeconds ? formatDuration(durationSeconds) : undefined;

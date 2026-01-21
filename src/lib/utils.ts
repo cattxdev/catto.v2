@@ -1,37 +1,12 @@
-import { EmbedBuilder, type ColorResolvable } from 'discord.js';
-
 /**
- * Creates a success embed
+ * Utility functions
+ *
+ * Re-exports embed builders from the shared Discord library and provides
+ * additional utility functions.
  */
-export function createSuccessEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#00FF00' as ColorResolvable)
-    .setTitle(title ?? '✅ Success')
-    .setDescription(description)
-    .setTimestamp();
-}
 
-/**
- * Creates an error embed
- */
-export function createErrorEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#FF0000' as ColorResolvable)
-    .setTitle(title ?? '❌ Error')
-    .setDescription(description)
-    .setTimestamp();
-}
-
-/**
- * Creates an info embed
- */
-export function createInfoEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#0099FF' as ColorResolvable)
-    .setTitle(title ?? 'ℹ️ Information')
-    .setDescription(description)
-    .setTimestamp();
-}
+// Re-export embed builders from shared Discord library
+export { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '#lib/discord/index.js';
 
 /**
  * Formats uptime into a readable string

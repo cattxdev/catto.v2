@@ -1,21 +1,18 @@
-import {
-  ContainerBuilder,
-  TextDisplayBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  type User,
-  type GuildMember,
-} from 'discord.js';
+import { type ContainerBuilder, type User, type GuildMember } from 'discord.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import {
+  v2,
   EMOJI,
-  createSmallSeparator,
   formatInfoRow,
   formatStatsLine,
   formatRelativeTimestamp,
   truncateText,
-} from './components.js';
+  row,
+  primaryButton,
+  secondaryButton,
+  dangerButton,
+  successButton,
+} from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
 
@@ -53,19 +50,16 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
   } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
-  const container = new ContainerBuilder();
+  // Create container with primary color
+  const container = v2.primaryContainer();
 
   // Header with optional flag indicator
   const flagIndicator = activeFlags && activeFlags.length > 0 ? ` ${EMOJI.SUSPECTED}` : '';
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
-  );
+  container.addTextDisplayComponents(v2.h1(`Mod Panel${flagIndicator}`, EMOJI.MOD_SHIELD));
 
   // Target info - compact single line
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER)
-    )
+    v2.text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
   );
 
   // Stats line - grid format
@@ -76,12 +70,12 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
   if (warningsCount !== undefined) {
     stats['Warnings'] = warningsCount;
   }
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(formatStatsLine(stats)));
+  container.addTextDisplayComponents(v2.text(formatStatsLine(stats)));
 
   // Voice status - only if in voice
   if (voiceChannelName) {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(formatInfoRow('Voice', voiceChannelName, EMOJI.VOICE))
+      v2.text(formatInfoRow('Voice', voiceChannelName, EMOJI.VOICE))
     );
   }
 
@@ -90,91 +84,89 @@ export function buildModPanelV2(context: ModPanelContext): ContainerBuilder {
   if (joinedAt) {
     const joinedTs = formatRelativeTimestamp(joinedAt);
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `${EMOJI.TIME_DAY} **Joined:** ${joinedTs} \u00b7 **Account:** ${accountCreatedTs}`
-      )
+      v2.text(`${EMOJI.TIME_DAY} **Joined:** ${joinedTs} · **Account:** ${accountCreatedTs}`)
     );
   } else {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`${EMOJI.TIME_DAY} **Account:** ${accountCreatedTs}`)
+      v2.text(`${EMOJI.TIME_DAY} **Account:** ${accountCreatedTs}`)
     );
   }
 
-  container.addSeparatorComponents(createSmallSeparator());
+  container.addSeparatorComponents(v2.smallSeparator());
 
   // Primary moderation actions row (4 buttons)
-  const primaryActions = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.WARN, target.id, nonce))
-      .setLabel('Warn')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.TIMEOUT, target.id, nonce))
-      .setLabel('Timeout')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.KICK, target.id, nonce))
-      .setLabel('Kick')
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.BAN, target.id, nonce))
-      .setLabel('Ban')
-      .setStyle(ButtonStyle.Danger)
+  const primaryActions = row(
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.WARN, target.id, nonce),
+      label: 'Warn',
+    }),
+    primaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.TIMEOUT, target.id, nonce),
+      label: 'Timeout',
+    }),
+    dangerButton({
+      customId: encodeModPanelCustomId(ModPanelAction.KICK, target.id, nonce),
+      label: 'Kick',
+    }),
+    dangerButton({
+      customId: encodeModPanelCustomId(ModPanelAction.BAN, target.id, nonce),
+      label: 'Ban',
+    })
   );
 
-  // Secondary actions row (5 buttons max - includes conditional unmute)
-  const secondaryButtons: ButtonBuilder[] = [
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.MUTE_TEXT, target.id, nonce))
-      .setLabel('Mute Text')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.MUTE_VOICE, target.id, nonce))
-      .setLabel('Mute Voice')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.SOFTBAN, target.id, nonce))
-      .setLabel('Softban')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.TEMPBAN, target.id, nonce))
-      .setLabel('Tempban')
-      .setStyle(ButtonStyle.Secondary),
+  // Secondary actions row (4-5 buttons)
+  const secondaryButtons = [
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.MUTE_TEXT, target.id, nonce),
+      label: 'Mute Text',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.MUTE_VOICE, target.id, nonce),
+      label: 'Mute Voice',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.SOFTBAN, target.id, nonce),
+      label: 'Softban',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.TEMPBAN, target.id, nonce),
+      label: 'Tempban',
+    }),
   ];
 
   if (hasActiveMutes) {
     secondaryButtons.push(
-      new ButtonBuilder()
-        .setCustomId(encodeModPanelCustomId(ModPanelAction.UNMUTE, target.id, nonce))
-        .setLabel('Unmute')
-        .setStyle(ButtonStyle.Success)
+      successButton({
+        customId: encodeModPanelCustomId(ModPanelAction.UNMUTE, target.id, nonce),
+        label: 'Unmute',
+      })
     );
   }
 
-  const secondaryActions = new ActionRowBuilder<ButtonBuilder>().addComponents(...secondaryButtons);
+  const secondaryActions = row(...secondaryButtons);
 
   // Info actions row (5 buttons)
-  const infoActions = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce))
-      .setLabel('Add Note')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce))
-      .setLabel('Notes')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.VIEW_CONTEXT, target.id, nonce))
-      .setLabel('Context')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce))
-      .setLabel('History')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.REFRESH, target.id, nonce))
-      .setLabel('Refresh')
-      .setStyle(ButtonStyle.Secondary)
+  const infoActions = row(
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce),
+      label: 'Add Note',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce),
+      label: 'Notes',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.VIEW_CONTEXT, target.id, nonce),
+      label: 'Context',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce),
+      label: 'History',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.REFRESH, target.id, nonce),
+      label: 'Refresh',
+    })
   );
 
   container.addActionRowComponents(primaryActions, secondaryActions, infoActions);
@@ -189,21 +181,18 @@ export function buildContextBundleV2(context: ModPanelContext): ContainerBuilder
   const { target, recentCases, recentNotes, voiceChannelName, joinedAt, hasActiveMutes } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
-  const container = new ContainerBuilder();
+  const container = v2.infoContainer();
 
   // Header
+  v2.addHeader(container, 'Context Bundle');
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# Context Bundle`),
-    new TextDisplayBuilder().setContent(
-      formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER)
-    )
+    v2.text(formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
   );
 
-  container.addSeparatorComponents(createSmallSeparator());
+  container.addSeparatorComponents(v2.smallSeparator());
 
   // Timeline section
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`## Timeline`));
-
+  v2.addSection(container, 'Timeline', '');
   const timeline: string[] = [];
   timeline.push(
     `${EMOJI.TIME_DAY} **Account created:** ${formatRelativeTimestamp(target.createdAt)}`
@@ -217,40 +206,35 @@ export function buildContextBundleV2(context: ModPanelContext): ContainerBuilder
     timeline.push(`${EMOJI.VOICE} **Currently in voice:** ${voiceChannelName}`);
   }
 
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(timeline.join('\n')));
+  container.addTextDisplayComponents(v2.text(timeline.join('\n')));
 
   // Active statuses (if any)
   if (hasActiveMutes) {
-    container.addSeparatorComponents(createSmallSeparator());
+    container.addSeparatorComponents(v2.smallSeparator());
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## Active Statuses`),
-      new TextDisplayBuilder().setContent(
-        `${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`
-      )
+      v2.h2('Active Statuses'),
+      v2.text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
     );
   }
 
   // Recent cases
   if (recentCases.length > 0) {
-    container.addSeparatorComponents(createSmallSeparator());
+    container.addSeparatorComponents(v2.smallSeparator());
     const casesText = recentCases
       .slice(0, 5)
       .map((c) => {
         const timestamp = formatRelativeTimestamp(c.createdAt);
         const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
-        return `**#${c.caseNumber}** ${c.action} \u00b7 ${timestamp}\n  ${reasonPreview}`;
+        return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n  ${reasonPreview}`;
       })
       .join('\n');
 
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## Recent Cases`),
-      new TextDisplayBuilder().setContent(casesText)
-    );
+    container.addTextDisplayComponents(v2.h2('Recent Cases'), v2.text(casesText));
   }
 
   // Recent notes
   if (recentNotes.length > 0) {
-    container.addSeparatorComponents(createSmallSeparator());
+    container.addSeparatorComponents(v2.smallSeparator());
 
     const notesText = recentNotes
       .slice(0, 3)
@@ -261,28 +245,25 @@ export function buildContextBundleV2(context: ModPanelContext): ContainerBuilder
       })
       .join('\n');
 
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## Recent Notes`),
-      new TextDisplayBuilder().setContent(notesText)
-    );
+    container.addTextDisplayComponents(v2.h2('Recent Notes'), v2.text(notesText));
   }
 
-  container.addSeparatorComponents(createSmallSeparator());
+  container.addSeparatorComponents(v2.smallSeparator());
 
   // Quick actions
-  const quickActions = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce))
-      .setLabel('Add Note')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce))
-      .setLabel('Full History')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce))
-      .setLabel('All Notes')
-      .setStyle(ButtonStyle.Secondary)
+  const quickActions = row(
+    primaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce),
+      label: 'Add Note',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce),
+      label: 'Full History',
+    }),
+    secondaryButton({
+      customId: encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce),
+      label: 'All Notes',
+    })
   );
 
   container.addActionRowComponents(quickActions);
@@ -299,23 +280,21 @@ export function buildNotesListV2(
   page: number = 1,
   pageSize: number = 5
 ): ContainerBuilder {
-  const container = new ContainerBuilder();
+  const container = v2.container();
   const totalPages = Math.ceil(notes.length / pageSize) || 1;
   const startIdx = (page - 1) * pageSize;
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
   // Header with pagination
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# Notes for ${target.tag}`),
-    new TextDisplayBuilder().setContent(`Page ${page} of ${totalPages} (${notes.length} total)`)
+    v2.h1(`Notes for ${target.tag}`),
+    v2.text(`Page ${page} of ${totalPages} (${notes.length} total)`)
   );
 
-  container.addSeparatorComponents(createSmallSeparator());
+  container.addSeparatorComponents(v2.smallSeparator());
 
   if (pageNotes.length === 0) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('*No notes found for this user.*')
-    );
+    container.addTextDisplayComponents(v2.text('*No notes found for this user.*'));
   } else {
     for (const note of pageNotes) {
       const timestamp = formatRelativeTimestamp(note.createdAt);
@@ -323,12 +302,12 @@ export function buildNotesListV2(
         note.tags.length > 0 ? `\nTags: ${note.tags.map((t) => `\`${t}\``).join(', ')}` : '';
 
       container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `**ID:** \`${note.id}\`\n<@${note.createdById}> \u00b7 ${timestamp}${tags}\n${note.note}`
+        v2.text(
+          `**ID:** \`${note.id}\`\n<@${note.createdById}> · ${timestamp}${tags}\n${note.note}`
         )
       );
 
-      container.addSeparatorComponents(createSmallSeparator());
+      container.addSeparatorComponents(v2.smallSeparator());
     }
   }
 
@@ -343,42 +322,32 @@ export function buildModActionSuccessV2(
   target: User,
   caseNumber: number,
   reason: string,
-  duration?: string
+  duration?: string,
+  options?: { dmSent?: boolean }
 ): ContainerBuilder {
-  const container = new ContainerBuilder();
+  const c = v2.buildSuccess(`${action} Successful`, {
+    details: {
+      [`${EMOJI.MEMBER} Target`]: `${target.tag} (\`${target.id}\`)`,
+      Case: `#${caseNumber}`,
+      Reason: reason,
+      ...(duration ? { [`${EMOJI.TIME_DAY} Duration`]: duration } : {}),
+    },
+  });
 
-  const lines = [
-    `# ${EMOJI.SUCCESS} ${action} Successful`,
-    formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER),
-    formatInfoRow('Case', `#${caseNumber}`),
-    formatInfoRow('Reason', reason),
-  ];
-
-  if (duration) {
-    lines.push(formatInfoRow('Duration', duration, EMOJI.TIME_DAY));
+  if (options?.dmSent === false) {
+    c.addSeparatorComponents(v2.smallSeparator());
+    c.addTextDisplayComponents(v2.text(`${EMOJI.WARNING} Could not send DM notification to user.`));
   }
 
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')));
-
-  return container;
+  return c;
 }
 
 /**
  * Build error message with optional suggestion
  */
 export function buildModActionErrorV2(error: string, suggestion?: string): ContainerBuilder {
-  const container = new ContainerBuilder();
-
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${EMOJI.RED_CROSS} Error\n${error}`)
-  );
-
-  if (suggestion) {
-    container.addSeparatorComponents(createSmallSeparator());
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`${EMOJI.INFO} **Suggestion:** ${suggestion}`)
-    );
-  }
-
-  return container;
+  return v2.buildError(error, {
+    title: 'Error',
+    suggestion,
+  });
 }

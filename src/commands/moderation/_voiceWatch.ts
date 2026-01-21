@@ -18,9 +18,9 @@ import {
   VoiceWatchSessionSchema,
   VOICE_WATCH_CONFIG,
   VOICE_CACHE_TTL,
-  VOICE_EMOJI,
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
+import { EMOJI } from '#lib/discord/index.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 import {
   getVoiceIndicators,
@@ -133,7 +133,7 @@ function buildWatchMessage(
 ): ContainerBuilder {
   const displayName = formatMemberName(member);
 
-  const lines: string[] = [`## ${VOICE_EMOJI.member} ${displayName}`];
+  const lines: string[] = [`## ${EMOJI.MEMBER} ${displayName}`];
 
   if (voiceState.channelId && voiceState.channel) {
     const indicators = getVoiceIndicators(
@@ -152,10 +152,10 @@ function buildWatchMessage(
 
     // Show explicit indicators for streaming, video, and activities
     if (voiceState.streaming) {
-      lines.push(`${VOICE_EMOJI.serverScreenshare} **Streaming**`);
+      lines.push(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
     }
     if (voiceState.selfVideo) {
-      lines.push(`${VOICE_EMOJI.video} **Video**`);
+      lines.push(`${EMOJI.VOICE_VIDEO} **Video**`);
     }
   } else {
     lines.push('_Not in a voice channel_');
@@ -169,7 +169,7 @@ function buildWatchMessage(
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `${VOICE_EMOJI.timeDay} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `${EMOJI.TIME_DAY} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     );
 
@@ -177,11 +177,11 @@ function buildWatchMessage(
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_watch_stop:${options.targetId}`)
-      .setEmoji(VOICE_EMOJI.soundPause)
+      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(`voice_refresh_watch:${options.targetId}`)
-      .setEmoji(VOICE_EMOJI.replay)
+      .setEmoji(EMOJI.REPLAY)
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -189,15 +189,15 @@ function buildWatchMessage(
     actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`voice_join:${voiceState.channelId}`)
-        .setEmoji(VOICE_EMOJI.connectToUser)
+        .setEmoji(EMOJI.CONNECT_TO_USER)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_mute:${options.targetId}`)
-        .setEmoji(VOICE_EMOJI.voiceToggle)
+        .setEmoji(EMOJI.VOICE_TOGGLE)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_disconnect:${options.targetId}`)
-        .setEmoji(VOICE_EMOJI.disconnectUser)
+        .setEmoji(EMOJI.DISCONNECT_USER)
         .setStyle(ButtonStyle.Secondary)
     );
   }

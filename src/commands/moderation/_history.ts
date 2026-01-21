@@ -1,4 +1,5 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { MessageFlags } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { createHistoryEmbed } from '../../modules/moderation/discord/embeds.js';
 import { parseHistoryOptions } from '#lib/interaction/typedOptions.js';
@@ -10,13 +11,13 @@ export async function handleHistory(interaction: Subcommand.ChatInputCommandInte
     options = parseHistoryOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ ${error.message}`, flags: MessageFlags.Ephemeral });
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const cases = await moderationService.getUserCases(options.guildId, options.targetId);

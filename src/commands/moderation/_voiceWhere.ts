@@ -13,7 +13,8 @@ import {
 } from 'discord.js';
 import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
-import { VoiceMemberPresenceSchema, VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
+import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
+import { EMOJI } from '#lib/discord/index.js';
 import {
   getVoiceIndicators,
   formatMemberName,
@@ -43,7 +44,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const lines: string[] = [`## ${VOICE_EMOJI.member} ${formatMemberName(member)}`];
+    const lines: string[] = [`## ${EMOJI.MEMBER} ${formatMemberName(member)}`];
 
     if (inVoice && voiceState.channel && voiceState.channelId) {
       const indicators = getVoiceIndicators(
@@ -54,7 +55,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       lines.push(`**State:** ${indicators}`);
 
       if (voiceState.streaming) {
-        lines.push(`${VOICE_EMOJI.serverScreenshare} **Streaming**`);
+        lines.push(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
       }
 
       if (cached) {
@@ -82,15 +83,15 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_join:${voiceState.channelId}`)
-          .setEmoji(VOICE_EMOJI.connectToUser)
+          .setEmoji(EMOJI.CONNECT_TO_USER)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_mute:${options.targetId}`)
-          .setEmoji(VOICE_EMOJI.voiceToggle)
+          .setEmoji(EMOJI.VOICE_TOGGLE)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_disconnect:${options.targetId}`)
-          .setEmoji(VOICE_EMOJI.disconnectUser)
+          .setEmoji(EMOJI.DISCONNECT_USER)
           .setStyle(ButtonStyle.Secondary)
       );
 

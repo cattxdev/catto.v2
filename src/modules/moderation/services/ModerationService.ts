@@ -124,8 +124,22 @@ export class ModerationService {
     reason: string,
     deleteMessages: boolean
   ): Promise<ModActionResult> {
+    return this.banById(guild, target.id as UserId, target.tag, moderator, reason, deleteMessages);
+  }
+
+  /**
+   * Execute a ban action by user ID (for banning users not in the server)
+   */
+  async banById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    deleteMessages: boolean
+  ): Promise<ModActionResult> {
     try {
-      await guild.members.ban(target.id, {
+      await guild.members.ban(targetId, {
         reason: `${reason} | Moderator: ${moderator.tag}`,
         deleteMessageSeconds: deleteMessages ? 7 * 24 * 60 * 60 : 0,
       });
@@ -133,8 +147,8 @@ export class ModerationService {
       const { caseNumber } = await this.createCase({
         guildId: guild.id as GuildId,
         action: ModAction.BAN,
-        targetId: target.id as UserId,
-        targetTag: target.tag,
+        targetId: targetId,
+        targetTag: targetTag,
         moderatorId: moderator.id as UserId,
         moderatorTag: moderator.tag,
         reason,
@@ -277,24 +291,45 @@ export class ModerationService {
     reason: string,
     deleteMessagesDays: number = 7
   ): Promise<ModActionResult> {
+    return this.softbanById(
+      guild,
+      target.id as UserId,
+      target.tag,
+      moderator,
+      reason,
+      deleteMessagesDays
+    );
+  }
+
+  /**
+   * Execute a softban action by user ID (for softbanning users not in the server)
+   */
+  async softbanById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    deleteMessagesDays: number = 7
+  ): Promise<ModActionResult> {
     try {
       // Ban with message deletion
-      await guild.members.ban(target.id, {
+      await guild.members.ban(targetId, {
         reason: `[SOFTBAN] ${reason} | Moderator: ${moderator.tag}`,
         deleteMessageSeconds: deleteMessagesDays * 24 * 60 * 60,
       });
 
       // Immediately unban
       await guild.members.unban(
-        target.id,
+        targetId,
         `[SOFTBAN] Automatic unban | Moderator: ${moderator.tag}`
       );
 
       const { caseNumber } = await this.createCase({
         guildId: guild.id as GuildId,
         action: ModAction.SOFTBAN,
-        targetId: target.id as UserId,
-        targetTag: target.tag,
+        targetId: targetId,
+        targetTag: targetTag,
         moderatorId: moderator.id as UserId,
         moderatorTag: moderator.tag,
         reason,
@@ -318,12 +353,35 @@ export class ModerationService {
     durationSeconds: DurationSeconds,
     deleteMessages: boolean = false
   ): Promise<ModActionResult> {
+    return this.tempbanById(
+      guild,
+      target.id as UserId,
+      target.tag,
+      moderator,
+      reason,
+      durationSeconds,
+      deleteMessages
+    );
+  }
+
+  /**
+   * Execute a tempban action by user ID (for tempbanning users not in the server)
+   */
+  async tempbanById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    durationSeconds: DurationSeconds,
+    deleteMessages: boolean = false
+  ): Promise<ModActionResult> {
     try {
       // Import tempban scheduler dynamically to avoid circular dependencies
       const { tempbanScheduler } = await import('./TempbanScheduler.js');
 
       // Ban the user
-      await guild.members.ban(target.id, {
+      await guild.members.ban(targetId, {
         reason: `[TEMPBAN] ${reason} | Moderator: ${moderator.tag}`,
         deleteMessageSeconds: deleteMessages ? 7 * 24 * 60 * 60 : 0,
       });
@@ -332,8 +390,8 @@ export class ModerationService {
       const { caseNumber } = await this.createCase({
         guildId: guild.id as GuildId,
         action: ModAction.TEMPBAN,
-        targetId: target.id as UserId,
-        targetTag: target.tag,
+        targetId: targetId,
+        targetTag: targetTag,
         moderatorId: moderator.id as UserId,
         moderatorTag: moderator.tag,
         reason,
@@ -344,7 +402,7 @@ export class ModerationService {
       // Schedule the unban
       await tempbanScheduler.scheduleUnban(
         guild.id as GuildId,
-        target.id as UserId,
+        targetId,
         caseNumber,
         reason,
         durationSeconds * 1000

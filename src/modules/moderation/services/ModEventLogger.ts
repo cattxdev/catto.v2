@@ -7,7 +7,7 @@
 
 import { container } from '@sapphire/framework';
 import { ModAction, Prisma } from '@prisma/client';
-import { createId } from '@paralleldrive/cuid2';
+import { randomUUID } from 'node:crypto';
 import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
 
 // Event category types
@@ -130,7 +130,7 @@ class ModEventLoggerService {
    */
   async logEvent(data: Omit<ModEventData, 'eventId' | 'timestamp'>): Promise<string> {
     const event: ModEventData = {
-      eventId: createId(),
+      eventId: randomUUID(),
       timestamp: new Date(),
       ...data,
     };

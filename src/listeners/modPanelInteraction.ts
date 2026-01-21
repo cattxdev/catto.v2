@@ -196,15 +196,13 @@ export class ModPanelInteractionListener extends Listener {
         return;
       }
 
-      const result = await muteService.unmuteBoth(
-        guild,
-        targetMember,
-        asUserId(interaction.user.id),
-        interaction.user.tag,
+      const result = await muteService.unmuteBoth(guild, targetMember, {
         guildId,
         userId,
-        'Unmuted via mod panel'
-      );
+        moderatorId: asUserId(interaction.user.id),
+        moderatorTag: interaction.user.tag,
+        reason: 'Unmuted via mod panel',
+      });
 
       if (!result.success) {
         await interaction.editReply({ content: result.error ?? 'Failed to unmute user.' });

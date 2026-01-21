@@ -212,7 +212,14 @@ export class ModCommand extends Subcommand {
       .setName('ban')
       .setDescription('Ban a member from the server')
       .addUserOption((option) =>
-        option.setName('target').setDescription('The member to ban').setRequired(true)
+        option.setName('target').setDescription('The member to ban (if in server)')
+      )
+      .addStringOption((option) =>
+        option
+          .setName('target_id')
+          .setDescription('User ID to ban (for users not in server)')
+          .setMinLength(17)
+          .setMaxLength(20)
       )
       .addStringOption((option) =>
         option.setName('reason').setDescription('Reason for the ban').setMaxLength(512)
@@ -300,7 +307,14 @@ export class ModCommand extends Subcommand {
       .setName('softban')
       .setDescription('Softban a member (ban + immediate unban to delete messages)')
       .addUserOption((option) =>
-        option.setName('target').setDescription('The member to softban').setRequired(true)
+        option.setName('target').setDescription('The member to softban (if in server)')
+      )
+      .addStringOption((option) =>
+        option
+          .setName('target_id')
+          .setDescription('User ID to softban (for users not in server)')
+          .setMinLength(17)
+          .setMaxLength(20)
       )
       .addStringOption((option) =>
         option.setName('reason').setDescription('Reason for the softban').setMaxLength(512)
@@ -318,14 +332,21 @@ export class ModCommand extends Subcommand {
     return subcommand
       .setName('tempban')
       .setDescription('Temporarily ban a member')
-      .addUserOption((option) =>
-        option.setName('target').setDescription('The member to tempban').setRequired(true)
-      )
       .addStringOption((option) =>
         option
           .setName('duration')
           .setDescription('Ban duration (e.g., 1h, 1d, 7d)')
           .setRequired(true)
+      )
+      .addUserOption((option) =>
+        option.setName('target').setDescription('The member to tempban (if in server)')
+      )
+      .addStringOption((option) =>
+        option
+          .setName('target_id')
+          .setDescription('User ID to tempban (for users not in server)')
+          .setMinLength(17)
+          .setMaxLength(20)
       )
       .addStringOption((option) =>
         option.setName('reason').setDescription('Reason for the tempban').setMaxLength(512)

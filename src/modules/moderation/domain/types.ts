@@ -246,6 +246,17 @@ export interface MuteBothInput {
 }
 
 /**
+ * Input data for unmute operations (unified for all unmute types)
+ */
+export interface UnmuteInput {
+  guildId: GuildId;
+  userId: UserId;
+  moderatorId: UserId;
+  moderatorTag: string;
+  reason: string;
+}
+
+/**
  * Result from mute operations
  */
 export interface MuteResult {
@@ -279,4 +290,44 @@ export interface BulkResult {
   succeeded: number;
   failed: number;
   errors: Array<{ userId: UserId; error: string }>;
+}
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Type guard for successful ModActionResult
+ */
+export function isModActionSuccess(
+  result: ModActionResult
+): result is ModActionResult & { success: true; caseNumber: CaseNumber } {
+  return result.success === true && result.caseNumber !== undefined;
+}
+
+/**
+ * Type guard for failed ModActionResult
+ */
+export function isModActionFailure(
+  result: ModActionResult
+): result is ModActionResult & { success: false; error: string } {
+  return result.success === false;
+}
+
+/**
+ * Type guard for successful MuteResult
+ */
+export function isMuteSuccess(
+  result: MuteResult
+): result is MuteResult & { success: true; caseNumber: CaseNumber } {
+  return result.success === true && result.caseNumber !== undefined;
+}
+
+/**
+ * Type guard for failed MuteResult
+ */
+export function isMuteFailure(
+  result: MuteResult
+): result is MuteResult & { success: false; error: string } {
+  return result.success === false;
 }

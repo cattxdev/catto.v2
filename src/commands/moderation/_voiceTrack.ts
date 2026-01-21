@@ -18,9 +18,9 @@ import {
   VoiceTrackSessionSchema,
   VOICE_WATCH_CONFIG,
   VOICE_CACHE_TTL,
-  VOICE_EMOJI,
   type VoiceTrackSession,
 } from '#root/modules/voice/domain/types.js';
+import { EMOJI } from '#lib/discord/index.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
@@ -122,7 +122,7 @@ function buildTrackMessage(
   // IMPORTANT: TextDisplayBuilder.setContent() does NOT accept empty strings!
   // This is a recurring validation error. Always filter or use non-empty strings.
   const lines: string[] = [
-    `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
+    `## ${EMOJI.VOICE} ${voiceChannel.name}`,
     `**Channel:** ${channelMention(options.channelId)}`,
     `**Members:** ${memberCount}`,
     memberList,
@@ -140,27 +140,27 @@ function buildTrackMessage(
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `${VOICE_EMOJI.timeDay} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+        `${EMOJI.TIME_DAY} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
       )
     )
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_track_stop:${options.channelId}`)
-          .setEmoji(VOICE_EMOJI.soundPause)
+          .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
           .setCustomId(`voice_refresh_track:${options.channelId}`)
-          .setEmoji(VOICE_EMOJI.replay)
+          .setEmoji(EMOJI.REPLAY)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_join:${options.channelId}`)
-          .setEmoji(VOICE_EMOJI.connectToUser)
+          .setEmoji(EMOJI.CONNECT_TO_USER)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_mute_all:${options.channelId}`)
           .setLabel('All')
-          .setEmoji(VOICE_EMOJI.serverMuted)
+          .setEmoji(EMOJI.VOICE_SERVER_MUTED)
           .setStyle(ButtonStyle.Secondary)
       )
     );

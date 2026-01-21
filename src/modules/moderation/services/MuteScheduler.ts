@@ -3,6 +3,7 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { MuteType } from '@prisma/client';
 import type { GuildId, UserId } from '../domain/types.js';
 import { CONFIG } from '#config';
+import { getSafeUserTag } from '#lib/discord/userDisplay.js';
 
 /**
  * Job data for mute unmute task
@@ -195,10 +196,10 @@ export class MuteScheduler {
         }
       }
 
-      // Remove voice mute if applicable
+      // Remove voice mute if applicable (use setMute, not setDeaf)
       if ((type === MuteType.VOICE || type === MuteType.BOTH) && member?.voice.channel) {
-        if (member.voice.serverDeaf) {
-          await member.voice.setDeaf(false, 'Mute expired');
+        if (member.voice.serverMute) {
+          await member.voice.setMute(false, 'Mute expired');
         }
       }
 
@@ -208,7 +209,7 @@ export class MuteScheduler {
         data: { active: false },
       });
 
-      // Create unmute case
+      // Create unmute case with resolved user tag
       const lastCase = await container.prisma.modCase.findFirst({
         where: { guildId },
         orderBy: { caseNumber: 'desc' },
@@ -221,13 +222,16 @@ export class MuteScheduler {
             ? 'UNMUTE_VOICE'
             : 'UNMUTE_BOTH';
 
+      // Get a proper user tag (not "Unknown#0000")
+      const userTag = member?.user.tag ?? (await getSafeUserTag(userId));
+
       await container.prisma.modCase.create({
         data: {
           caseNumber: (lastCase?.caseNumber ?? 0) + 1,
           guildId,
           action,
           targetId: userId,
-          targetTag: member?.user.tag ?? 'Unknown#0000',
+          targetTag: userTag,
           moderatorId: container.client.user?.id ?? 'System',
           moderatorTag: container.client.user?.tag ?? 'System',
           reason: `Automatic unmute - Mute expired`,

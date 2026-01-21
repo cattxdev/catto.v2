@@ -1,4 +1,5 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { MessageFlags } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { createCaseEmbed } from '../../modules/moderation/discord/embeds.js';
 import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
@@ -10,13 +11,13 @@ export async function handleCase(interaction: Subcommand.ChatInputCommandInterac
     options = parseCaseOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply({ content: `❌ ${error.message}`, flags: MessageFlags.Ephemeral });
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const modCase = await moderationService.getCase(options.guildId, options.caseNumber);
