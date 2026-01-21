@@ -38,6 +38,7 @@ export interface TempVoiceConfig {
 	// Control panel
 	controlPanelEnabled: boolean;
 	controlPanelOnCreate: boolean;
+	allowCustomization: boolean;
 
 	// Logging
 	logChannelId: string | null;

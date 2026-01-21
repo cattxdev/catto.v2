@@ -141,7 +141,7 @@ class LoggingService {
 
     // Get webhook URL from database
     const config = await container.prisma.logConfig.findUnique({
-      where: { guildId },
+      where: { guildId }
     });
 
     if (!config || !config.enabled) {
@@ -164,8 +164,8 @@ class LoggingService {
     try {
       await webhook.send({
         embeds: [embedBuilder],
-        username: 'Catto Logs',
-        avatarURL: container.client.user?.displayAvatarURL(),
+        username: container.client.user?.username,
+        avatarURL: container.client.user?.displayAvatarURL()
       });
     } finally {
       webhook.destroy();

@@ -3,12 +3,13 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import type { TempVoiceConfig as PrismaTempVoiceConfig } from '@prisma/client';
 import type {
 	TempVoiceConfig,
 	TempVoiceConfigInput,
 	TempVoiceConfigUpdate,
 } from '../models/config.model';
-import { DEFAULT_TEMP_VOICE_CONFIG } from '../constants';
+import { DEFAULT_TEMP_VOICE_CONFIG, type OwnerLeaveStrategy } from '../constants';
 
 export class TempVoiceConfigService {
 	constructor(private prisma: PrismaClient) {}
@@ -125,13 +126,14 @@ export class TempVoiceConfigService {
 	/**
 	 * Map Prisma model to TypeScript interface
 	 */
-	private mapToModel(data: any): TempVoiceConfig {
+	private mapToModel(data: PrismaTempVoiceConfig): TempVoiceConfig {
 		return {
 			...data,
 			joinToCreateChannels: Array.isArray(data.joinToCreateChannels)
-				? data.joinToCreateChannels
+				? (data.joinToCreateChannels as string[])
 				: [],
-			adminRoleIds: Array.isArray(data.adminRoleIds) ? data.adminRoleIds : [],
+			adminRoleIds: Array.isArray(data.adminRoleIds) ? (data.adminRoleIds as string[]) : [],
+			ownerLeaveStrategy: data.ownerLeaveStrategy as OwnerLeaveStrategy,
 		};
 	}
 }

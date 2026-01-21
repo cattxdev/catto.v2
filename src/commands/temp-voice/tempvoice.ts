@@ -215,6 +215,14 @@ export class TempVoiceCommand extends Command {
 					ephemeral: true,
 				});
 			}
+
+			// Check if customization is allowed (except for panel/claim/transfer which are always allowed)
+			if (!config.allowCustomization && !['panel', 'claim', 'transfer'].includes(subcommand)) {
+				return interaction.reply({
+					content: '❌ Channel customization is disabled in this server.',
+					ephemeral: true,
+				});
+			}
 		}
 
 		// Route to appropriate handler
@@ -716,10 +724,17 @@ export class TempVoiceCommand extends Command {
 		}
 
 		try {
-			// Update permissions
+			const oldOwnerId = tempChannel.ownerId;
+			
+			// Remove old owner's special permissions
+			await voiceChannel.permissionOverwrites.delete(oldOwnerId);
+			
+			// Give new owner management permissions
 			await voiceChannel.permissionOverwrites.edit(member.id, {
 				Connect: true,
+				ViewChannel: true,
 				Speak: true,
+				Stream: true,
 				MoveMembers: true,
 				ManageChannels: true,
 			});

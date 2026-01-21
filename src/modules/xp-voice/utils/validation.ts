@@ -123,7 +123,8 @@ export function validateVoiceXPAward(
  */
 export function calculateSessionXP(
 	durationMinutes: number,
-	xpPerMinute: number
+	xpPerMinute: number,
+	multiplier: number = 1.0
 ): number {
-	return Math.floor(durationMinutes * xpPerMinute);
+	return Math.floor(durationMinutes * xpPerMinute * multiplier);
 }
