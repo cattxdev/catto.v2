@@ -16,7 +16,7 @@ export class VoiceXPConfigRoute extends Route {
 		});
 	}
 
-	private async parseBody(request: Route.Request): Promise<any> {
+	private async parseBody(request: Route.Request): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			let body = '';
 			request.on('data', (chunk: Buffer) => {
@@ -62,7 +62,7 @@ export class VoiceXPConfigRoute extends Route {
 		}
 	}
 
-	private async handlePut(guildId: string, body: any, response: Route.Response) {
+	private async handlePut(guildId: string, body: unknown, response: Route.Response) {
 		if (!body) {
 			return response.status(400).json({
 				error: 'Request body is required'

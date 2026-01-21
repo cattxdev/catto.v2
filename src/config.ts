@@ -13,6 +13,7 @@ const envSchema = z.object({
   OWNER_IDS: z.string().optional().transform((val) => val?.split(',').filter(Boolean) ?? []),
   DEFAULT_PREFIX: z.string().optional().default('!'),
   NODE_ENV: z.enum(['development', 'production']).optional().default('development'),
+  DEV_GUILD_ID: z.string().optional(), // Guild ID for instant command updates in development
   API_PORT: z.string().optional().default('4000').transform((val) => parseInt(val, 10)),
   API_PREFIX: z.string().optional().default('api'),
   API_ORIGIN: z.string().optional().default('*'),

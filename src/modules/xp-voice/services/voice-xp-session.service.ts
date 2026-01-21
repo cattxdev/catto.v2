@@ -13,6 +13,7 @@ import * as voiceXPRepository from '../repositories/voice-xp.repository';
 import { calculateVoiceLevel } from './voice-level-calculator.service';
 import { getVoiceXPConfig } from './voice-xp-config.service';
 import { container } from '@sapphire/framework';
+import { ReputationService } from '#modules/reputation/services/reputation.service';
 
 export async function handleVoiceJoin(voiceState: VoiceState): Promise<void> {
 	const { guild, member, channelId } = voiceState;
@@ -101,8 +102,19 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
 		};
 	}
 	
-	// Calculate XP award
-	const xpAwarded = validation.calculateSessionXP(durationMinutes, config.xpPerMinute);
+	// Get reputation boost multiplier
+	let reputationMultiplier = 1.0;
+	try {
+		const reputationService = new ReputationService(container.prisma);
+		const reputation = await reputationService.getOrCreateReputation(guild.id, member.id);
+		reputationMultiplier = reputationService.getXPBoostForTier(reputation.reputationTier);
+	} catch (error) {
+		// If reputation system fails, continue with default multiplier
+		container.logger.warn('Failed to get reputation multiplier for voice XP:', error);
+	}
+	
+	// Calculate XP award with reputation boost
+	const xpAwarded = validation.calculateSessionXP(durationMinutes, config.xpPerMinute, reputationMultiplier);
 	
 	// Award XP
 	const userXP = await voiceXPRepository.getUserVoiceXP(guild.id, member.id);

@@ -190,20 +190,27 @@ export function checkRateLimit(
  * @param minXp Minimum XP (for RANDOM)
  * @param maxXp Maximum XP (for RANDOM)
  * @param fixedXp Fixed XP amount (for FIXED)
+ * @param multiplier Optional multiplier (e.g., from reputation boost)
  * @returns XP amount to award
  */
 export function calculateXPAmount(
 	mode: 'RANDOM' | 'FIXED',
 	minXp: number,
 	maxXp: number,
-	fixedXp: number
+	fixedXp: number,
+	multiplier: number = 1.0
 ): number {
+	let baseXP: number;
+	
 	if (mode === 'FIXED') {
-		return fixedXp;
+		baseXP = fixedXp;
+	} else {
+		// RANDOM mode
+		baseXP = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
 	}
 	
-	// RANDOM mode
-	return Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
+	// Apply multiplier and round
+	return Math.floor(baseXP * multiplier);
 }
 
 /**

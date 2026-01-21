@@ -1,5 +1,6 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { UserSelectMenuInteraction, GuildMember, VoiceChannel } from 'discord.js';
+import type { TempVoiceChannel } from '@prisma/client';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
@@ -63,13 +64,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 		// Check permissions
 		const config = await this.configService.get(interaction.guildId!);
 		const member = interaction.member as GuildMember;
+		const trustedUserIds = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
 		const canManage = this.permissionsService.canManageChannel(
 			member.user.id,
 			tempChannel.ownerId,
 			config.adminRoleIds || [],
 			member.roles.cache?.map((r) => r.id) || [],
 			member.permissions?.has('Administrator') || false,
-			(tempChannel.trustedUserIds as string[]) || []
+			trustedUserIds
 		);
 		if (!canManage) {
 			try {
@@ -115,7 +117,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
 	private async handlePermit(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
@@ -140,7 +142,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 
 			// Update database
-			const currentAllowed = tempChannel.allowedUserIds || [];
+			const currentAllowed = Array.isArray(tempChannel.allowedUserIds) ? tempChannel.allowedUserIds as string[] : [];
 			const newAllowed = [...new Set([...currentAllowed, ...userIds])];
 			await this.channelService.update(channelId, { allowedUserIds: newAllowed });
 
@@ -174,7 +176,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
 	private async handleDeny(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
@@ -210,7 +212,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 
 			// Update database
-			const currentDenied = tempChannel.deniedUserIds || [];
+			const currentDenied = Array.isArray(tempChannel.deniedUserIds) ? tempChannel.deniedUserIds as string[] : [];
 			const newDenied = [...new Set([...currentDenied, ...userIds.filter(id => id !== tempChannel.ownerId)])];
 			await this.channelService.update(channelId, { deniedUserIds: newDenied });
 
@@ -246,7 +248,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
 	private async handleTrust(
 		interaction: UserSelectMenuInteraction,
-		tempChannel: any,
+		tempChannel: TempVoiceChannel,
 		channelId: string,
 		userIds: string[]
 	) {
@@ -279,7 +281,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 			}
 
 			// Update database
-			const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
+			const currentTrusted = Array.isArray(tempChannel.trustedUserIds) ? tempChannel.trustedUserIds as string[] : [];
 			const newTrusted = [...new Set([...currentTrusted, ...userIds.filter(id => id !== tempChannel.ownerId)])];
 			await this.channelService.update(channelId, { trustedUserIds: newTrusted });
 

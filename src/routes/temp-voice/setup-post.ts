@@ -32,7 +32,7 @@ export class TempVoiceSetupPostRoute extends Route {
             this.container.logger.debug('[TempVoice API] Headers:', request.headers);
 
             // Parse body if it's a string
-            let body: any = request.body;
+            let body: unknown = request.body;
             if (typeof body === 'string') {
                 try {
                     body = JSON.parse(body);
@@ -85,9 +85,10 @@ export class TempVoiceSetupPostRoute extends Route {
             }
 
             // Extract options from body
-            const categoryName = body?.categoryName || 'Temp Voice Channels';
-            const joinChannelName = body?.joinChannelName || '➕ Join to Create';
-            const logsChannelName = body?.logsChannelName || '📝 temp-voice-logs';
+            const bodyObj = body as Record<string, unknown>;
+            const categoryName = (bodyObj?.categoryName as string) || 'Temp Voice Channels';
+            const joinChannelName = (bodyObj?.joinChannelName as string) || '➕ Join to Create';
+            const logsChannelName = (bodyObj?.logsChannelName as string) || '📝 temp-voice-logs';
 
             this.container.logger.info(`[TempVoice API] Starting auto-setup for guild ${guildId}`);
 
