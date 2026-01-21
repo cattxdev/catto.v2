@@ -9,6 +9,7 @@ import {
 import { parseTempbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember, MessageFlags } from 'discord.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleTempban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -122,7 +123,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
       target ?? { id: targetId, tag: targetTag },
       moderator,
       reason ?? 'No reason provided',
-      result.caseNumber!,
+      ensureNonNull(result.caseNumber, 'tempban > handleTempban(126): result.caseNumber'),
       durationSeconds
     );
 

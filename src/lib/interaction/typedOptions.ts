@@ -23,6 +23,7 @@ import {
   asChannelId,
   asDuration,
 } from '../../modules/moderation/domain/types.js';
+import { ensureNonNull } from '../utils.js';
 
 /**
  * Parsed ban options from interaction
@@ -223,7 +224,7 @@ export function parseBanOptions(interaction: ChatInputCommandInteraction): BanOp
     }
     targetId = asUserId(targetIdStr);
   } else {
-    targetId = asUserId(target!.id);
+    targetId = asUserId(ensureNonNull(target, 'typedOptions > parseBanOptions(227): target').id);
   }
 
   return {
@@ -394,7 +395,9 @@ export function parseSoftbanOptions(interaction: ChatInputCommandInteraction): S
     }
     targetId = asUserId(targetIdStr);
   } else {
-    targetId = asUserId(target!.id);
+    targetId = asUserId(
+      ensureNonNull(target, 'typedOptions > parseSoftbanOptions(398): target').id
+    );
   }
 
   return {
@@ -440,7 +443,9 @@ export function parseTempbanOptions(
     }
     targetId = asUserId(targetIdStr);
   } else {
-    targetId = asUserId(target!.id);
+    targetId = asUserId(
+      ensureNonNull(target, 'typedOptions > parseTempbanOptions(444): target').id
+    );
   }
 
   // Validate and parse duration

@@ -16,6 +16,7 @@ import {
 } from '../domain/types.js';
 import { moderationService } from './ModerationService.js';
 import { muteService } from './MuteService.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 /**
  * Supported bulk action types
@@ -169,7 +170,7 @@ class BulkActionServiceImpl {
           member,
           moderator,
           input.reason,
-          input.duration!
+          ensureNonNull(input.duration, 'bulkTimeout > executeBulkAction(173): input.duration')
         );
         if (!result.success) {
           throw new Error(result.error || 'Timeout failed');
@@ -463,7 +464,10 @@ class BulkActionServiceImpl {
 
     // Final progress report
     if (onProgress && input.userIds.length > 0) {
-      const lastUserId = input.userIds[input.userIds.length - 1]!;
+      const lastUserId = ensureNonNull(
+        input.userIds[input.userIds.length - 1],
+        'bulkActionService > executeBulkAction(467): input.userIds[input.userIds.length - 1]'
+      );
       onProgress(input.userIds.length, input.userIds.length, lastUserId);
     }
 

@@ -14,6 +14,7 @@ import {
   asMuteId,
   asCaseNumber,
 } from '../domain/types.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 /**
  * MuteService - Handles text mutes, voice mutes, and combined mutes
@@ -104,7 +105,7 @@ export class MuteService {
           input.guildId,
           input.userId,
           MuteType.TEXT,
-          input.duration! * 1000
+          ensureNonNull(input.duration, 'muteText > scheduleUnmute(108): input.duration') * 1000
         );
       }
 
@@ -241,7 +242,7 @@ export class MuteService {
           input.guildId,
           input.userId,
           MuteType.VOICE,
-          input.duration! * 1000
+          ensureNonNull(input.duration, 'muteVoice > scheduleUnmute(245): input.duration') * 1000
         );
       }
 
@@ -386,7 +387,7 @@ export class MuteService {
           input.guildId,
           input.userId,
           MuteType.BOTH,
-          input.duration! * 1000
+          ensureNonNull(input.duration, 'muteBoth > scheduleUnmute(390): input.duration') * 1000
         );
       }
 

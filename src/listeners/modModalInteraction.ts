@@ -29,6 +29,7 @@ import {
 } from '#root/modules/moderation/discord/embeds/presets.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
+import { ensureNonNull } from '#root/lib/utils';
 
 export class ModModalInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -83,7 +84,10 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = interaction.guild!;
+      const guild = ensureNonNull(
+        interaction.guild,
+        'modModalInteraction > handleReasonModal(87): interaction.guild'
+      );
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -139,7 +143,15 @@ export class ModModalInteractionListener extends Listener {
           break;
         case 'kick':
           modAction = ModAction.KICK;
-          result = await moderationService.kick(guild, targetMember!, interaction.user, reason);
+          result = await moderationService.kick(
+            guild,
+            ensureNonNull(
+              targetMember,
+              'modModalInteraction > handleReasonModal(143): targetMember'
+            ),
+            interaction.user,
+            reason
+          );
           break;
         case 'ban':
           modAction = ModAction.BAN;
@@ -175,13 +187,26 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      await logModActionV2(guild, modAction, target, interaction.user, reason, result.caseNumber!);
+      await logModActionV2(
+        guild,
+        modAction,
+        target,
+        interaction.user,
+        reason,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleReasonModal(179): result.caseNumber'
+        )
+      );
 
       // Show success
       const successContainer = buildModActionSuccessV2(
         action.toUpperCase(),
         target,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleReasonModal(185): result.caseNumber'
+        ),
         reason
       );
       await interaction.editReply({
@@ -247,7 +272,7 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = interaction.guild!;
+      const guild = ensureNonNull(interaction.guild, 'handleDurationModal(251): interaction.guild');
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -305,7 +330,10 @@ export class ModModalInteractionListener extends Listener {
           }
           result = await moderationService.timeout(
             guild,
-            targetMember!,
+            ensureNonNull(
+              targetMember,
+              'modModalInteraction > handleDurationModal(309): targetMember'
+            ),
             interaction.user,
             reason,
             durationSeconds
@@ -351,7 +379,10 @@ export class ModModalInteractionListener extends Listener {
         target,
         interaction.user,
         reason,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleDurationModal(355): result.caseNumber'
+        ),
         durationSeconds
       );
 
@@ -359,7 +390,10 @@ export class ModModalInteractionListener extends Listener {
       const successContainer = buildModActionSuccessV2(
         action.toUpperCase(),
         target,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleDurationModal(363): result.caseNumber'
+        ),
         reason,
         formatDuration(durationSeconds)
       );
@@ -421,7 +455,12 @@ export class ModModalInteractionListener extends Listener {
       }
 
       const result = await notesService.addNote({
-        guildId: asGuildId(interaction.guildId!),
+        guildId: asGuildId(
+          ensureNonNull(
+            interaction.guildId,
+            'modModalInteraction > handleNoteModal(425): interaction.guildId'
+          )
+        ),
         userId: asUserId(targetId),
         createdById: asUserId(interaction.user.id),
         note,
@@ -490,7 +529,10 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = interaction.guild!;
+      const guild = ensureNonNull(
+        interaction.guild,
+        'modModalInteraction > handleMuteModal(494): interaction.guild'
+      );
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -601,7 +643,10 @@ export class ModModalInteractionListener extends Listener {
         target,
         interaction.user,
         reason,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleMuteModal(605): result.caseNumber'
+        ),
         durationSeconds
       );
 
@@ -610,7 +655,10 @@ export class ModModalInteractionListener extends Listener {
       const successContainer = buildModActionSuccessV2(
         `MUTE ${muteType.toUpperCase()}`,
         target,
-        result.caseNumber!,
+        ensureNonNull(
+          result.caseNumber,
+          'modModalInteraction > handleMuteModal(614): result.caseNumber'
+        ),
         reason,
         durationText
       );

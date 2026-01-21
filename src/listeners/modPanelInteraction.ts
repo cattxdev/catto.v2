@@ -35,6 +35,7 @@ import { caseService } from '#root/modules/moderation/services/CaseService.js';
 import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, CaseStatus } from '#root/modules/moderation/domain/types.js';
 import { memoryLimiter } from '#lib/rateLimit/index.js';
+import { ensureNonNull } from '#root/lib/utils';
 
 const RATE_LIMIT_MS = 2000; // 2 second cooldown per user per action
 
@@ -185,7 +186,10 @@ export class ModPanelInteractionListener extends Listener {
   private async handleUnmute(interaction: ButtonInteraction, targetId: string): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const guild = interaction.guild!;
+    const guild = ensureNonNull(
+      interaction.guild,
+      'modPanelInteraction > handleUnmute(189): interaction.guild'
+    );
     const guildId = asGuildId(guild.id);
     const userId = asUserId(targetId);
 
@@ -310,7 +314,12 @@ export class ModPanelInteractionListener extends Listener {
   private async showNotes(interaction: ButtonInteraction, targetId: string): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const guildId = asGuildId(interaction.guildId!);
+    const guildId = asGuildId(
+      ensureNonNull(
+        interaction.guildId,
+        'modPanelInteraction > showNotes(314): interaction.guildId'
+      )
+    );
     const userId = asUserId(targetId);
 
     const notes = await notesService.listNotes(guildId, userId);
@@ -332,7 +341,10 @@ export class ModPanelInteractionListener extends Listener {
   private async showContext(interaction: ButtonInteraction, targetId: string): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const guild = interaction.guild!;
+    const guild = ensureNonNull(
+      interaction.guild,
+      'modPanelInteraction > showContext(336): interaction.guild'
+    );
     const guildId = asGuildId(guild.id);
     const userId = asUserId(targetId);
 
@@ -380,7 +392,12 @@ export class ModPanelInteractionListener extends Listener {
   private async showHistory(interaction: ButtonInteraction, targetId: string): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const guildId = asGuildId(interaction.guildId!);
+    const guildId = asGuildId(
+      ensureNonNull(
+        interaction.guildId,
+        'modPanelInteraction > showHistory(384): interaction.guildId'
+      )
+    );
     const userId = asUserId(targetId);
 
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
@@ -429,7 +446,10 @@ export class ModPanelInteractionListener extends Listener {
   private async refreshPanel(interaction: ButtonInteraction, targetId: string): Promise<void> {
     await interaction.deferUpdate();
 
-    const guild = interaction.guild!;
+    const guild = ensureNonNull(
+      interaction.guild,
+      'modPanelInteraction > refreshPanel(433): interaction.guild'
+    );
     const guildId = asGuildId(guild.id);
     const userId = asUserId(targetId);
 
