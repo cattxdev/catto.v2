@@ -48,6 +48,9 @@ export const EMOJIS = {
 	ARROW_DOWN: '📉',
 	CHART: '📊',
 	
+	// Rewards and gifts
+	GIFT: '🎁',
+	
 	// Miscellaneous
 	INBOX: '📥',
 	OUTBOX: '📤',

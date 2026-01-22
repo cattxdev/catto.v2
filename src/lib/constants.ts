@@ -8,14 +8,6 @@ export const COLORS = {
   DEFAULT: '#5865F2' as ColorResolvable,
 } as const;
 
-export const EMOJIS = {
-  SUCCESS: '✅',
-  ERROR: '❌',
-  WARNING: '⚠️',
-  INFO: 'ℹ️',
-  LOADING: '⏳',
-} as const;
-
 export const MESSAGES = {
   NO_PERMISSION: 'You do not have permission to use this command.',
   GUILD_ONLY: 'This command can only be used in a server.',
