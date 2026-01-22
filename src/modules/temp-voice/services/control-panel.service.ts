@@ -17,6 +17,7 @@ import {
 	ButtonStyle,
 	ChannelType,
 } from 'discord.js';
+import { CUSTOM_EMOJIS } from '#lib/emojis';
 import { TempChannelService } from './temp-channel.service';
 
 export class ControlPanelService {
@@ -206,46 +207,46 @@ export class ControlPanelService {
 		const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_lock_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462963079485853707', name: '9577voiceprivateevent' })
+				.setEmoji(CUSTOM_EMOJIS.LOCK_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462962674542444658', name: '3500preview' })
+				.setEmoji(CUSTOM_EMOJIS.HIDE_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462995803583811725', name: '3639edit' })
+				.setEmoji(CUSTOM_EMOJIS.RENAME_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462962641105584211', name: '5837members' })
+				.setEmoji(CUSTOM_EMOJIS.LIMIT_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462995184336765074', name: '2888settings' })
+				.setEmoji(CUSTOM_EMOJIS.SETTINGS_BUTTON)
 				.setStyle(ButtonStyle.Secondary)
 		);
 
 		const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_permit_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462996719120945234', name: '1563invitepeople1' })
+				.setEmoji(CUSTOM_EMOJIS.PERMIT_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462996737127092305', name: '8056engagedinsuspectedspamactiv1' })
+				.setEmoji(CUSTOM_EMOJIS.DENY_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_trust_${tempChannel.channelId}`)
-				.setEmoji({ id: '1463062838179532821', name: '2360cross' })
+				.setEmoji(CUSTOM_EMOJIS.TRUST_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_claim_${tempChannel.channelId}`)
-				.setEmoji({ id: '1462784527670837372', name: '8562replay2' })
+				.setEmoji(CUSTOM_EMOJIS.CLAIM_BUTTON)
 				.setStyle(ButtonStyle.Secondary),
 			new ButtonBuilder()
 				.setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
-				.setEmoji({ id: '1463575177358217360', name: '2636securityfilter' })
+				.setEmoji(CUSTOM_EMOJIS.TRANSFER_BUTTON)
 				.setStyle(ButtonStyle.Secondary)
 		);
 

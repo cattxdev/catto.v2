@@ -1,6 +1,7 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ModalSubmitInteraction, GuildMember, Role } from 'discord.js';
 import { MessageFlags, VoiceChannel } from 'discord.js';
+import { EMOJIS } from '#lib/emojis';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
@@ -52,7 +53,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 		const tempChannel = await this.channelService.getByChannelId(channelId);
 		if (!tempChannel) {
 			return interaction.reply({
-				content: '❌ This temporary voice channel no longer exists.',
+				content: `${EMOJIS.ERROR} This temporary voice channel no longer exists.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -70,7 +71,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 		);
 		if (!canManage) {
 			return interaction.reply({
-				content: '❌ You do not have permission to manage this channel.',
+				content: `${EMOJIS.ERROR} You do not have permission to manage this channel.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -85,7 +86,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 				return this.handleSettingsSubmit(interaction, channelId);
 			default:
 				return interaction.reply({
-					content: '❌ Unknown modal action.',
+					content: `${EMOJIS.ERROR} Unknown modal action.`,
 					flags: MessageFlags.Ephemeral,
 				});
 		}
@@ -96,7 +97,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
 		if (newName.length < 1 || newName.length > 100) {
 			return interaction.reply({
-				content: '❌ Channel name must be between 1 and 100 characters.',
+				content: `${EMOJIS.ERROR} Channel name must be between 1 and 100 characters.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -105,7 +106,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			const voiceChannel = (await interaction.guild!.channels.fetch(channelId)) as VoiceChannel;
 			if (!voiceChannel) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -127,13 +128,13 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: `✅ Channel renamed to **${newName}**`,
+				content: `${EMOJIS.SUCCESS} Channel renamed to **${newName}**`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to rename channel:', error);
 			return interaction.reply({
-				content: '❌ Failed to rename channel. Please try again.',
+				content: `${EMOJIS.ERROR} Failed to rename channel. Please try again.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -145,7 +146,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
 		if (isNaN(limit) || limit < 0 || limit > 99) {
 			return interaction.reply({
-				content: '❌ User limit must be a number between 0 and 99.',
+				content: `${EMOJIS.ERROR} User limit must be a number between 0 and 99.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -154,7 +155,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			const voiceChannel = (await interaction.guild!.channels.fetch(channelId)) as VoiceChannel;
 			if (!voiceChannel) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -176,13 +177,13 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: `✅ User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
+				content: `${EMOJIS.SUCCESS} User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to set user limit:', error);
 			return interaction.reply({
-				content: '❌ Failed to set user limit. Please try again.',
+				content: `${EMOJIS.ERROR} Failed to set user limit. Please try again.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -195,7 +196,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 		const bitrate = parseInt(bitrateStr, 10);
 		if (isNaN(bitrate) || bitrate < 8 || bitrate > 384) {
 			return interaction.reply({
-				content: '❌ Bitrate must be between 8 and 384 kbps.',
+				content: `${EMOJIS.ERROR} Bitrate must be between 8 and 384 kbps.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -209,7 +210,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 		);
 		if (!bitrateValidation.valid) {
 			return interaction.reply({
-				content: `❌ Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
+				content: `${EMOJIS.ERROR} Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -218,7 +219,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			const voiceChannel = (await interaction.guild!.channels.fetch(channelId)) as VoiceChannel;
 			if (!voiceChannel) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -251,13 +252,13 @@ export class TempVoiceModalHandler extends InteractionHandler {
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: `✅ Settings updated:\n- Bitrate: **${bitrate}kbps**\n- Region: **${region}**`,
+				content: `${EMOJIS.SUCCESS} Settings updated:\n- Bitrate: **${bitrate}kbps**\n- Region: **${region}**`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to update settings:', error);
 			return interaction.reply({
-				content: '❌ Failed to update settings. Please try again.',
+				content: `${EMOJIS.ERROR} Failed to update settings. Please try again.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}

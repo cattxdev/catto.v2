@@ -7,6 +7,7 @@ import {
 	EmbedBuilder,
 	Colors,
 } from 'discord.js';
+import { EMOJIS, REPUTATION_EMOJIS, XP_EMOJIS } from '#lib/emojis';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { REPUTATION_TIERS, ReputationTier } from '#modules/reputation/models/reputation.model';
 import { CONFIG } from '#config';
@@ -116,17 +117,17 @@ export class ReputationCommand extends Subcommand {
 					iconURL: targetUser.displayAvatarURL(),
 				})
 				.setDescription(
-					`${tierInfo.emoji} **${stats.currentTier} Tier**\n⭐ ${stats.reputationScore} reputation points`
+					`${tierInfo.emoji} **${stats.currentTier} Tier**\n${REPUTATION_EMOJIS.SKILLED} ${stats.reputationScore} reputation points`
 				)
 				.addFields(
 					{
 						name: 'Vouches',
-						value: `📥 Received: ${stats.vouchesReceived}\n📤 Given: ${stats.vouchesGiven}`,
+						value: `${EMOJIS.INBOX} Received: ${stats.vouchesReceived}\n${EMOJIS.OUTBOX} Given: ${stats.vouchesGiven}`,
 						inline: true,
 					},
 					{
 						name: 'Breakdown',
-						value: `🤝 Helpful: ${stats.breakdown.helpful}\n😊 Friendly: ${stats.breakdown.friendly}\n⭐ Skilled: ${stats.breakdown.skilled}\n✅ Reliable: ${stats.breakdown.reliable}`,
+						value: `${REPUTATION_EMOJIS.HELPFUL} Helpful: ${stats.breakdown.helpful}\n${REPUTATION_EMOJIS.FRIENDLY} Friendly: ${stats.breakdown.friendly}\n${REPUTATION_EMOJIS.SKILLED} Skilled: ${stats.breakdown.skilled}\n${REPUTATION_EMOJIS.RELIABLE} Reliable: ${stats.breakdown.reliable}`,
 						inline: true,
 					}
 				)
@@ -144,7 +145,7 @@ export class ReputationCommand extends Subcommand {
 				});
 			} else {
 				embed.addFields({
-					name: '👑 Maximum Tier Reached!',
+					name: `${EMOJIS.CROWN} Maximum Tier Reached!`,
 					value: 'You\'ve achieved the highest reputation tier!',
 					inline: false,
 				});
@@ -161,7 +162,7 @@ export class ReputationCommand extends Subcommand {
 		} catch (error) {
 			this.container.logger.error('Failed to get reputation stats:', error);
 			return interaction.editReply({
-				content: '❌ Failed to retrieve reputation information.',
+				content: `${EMOJIS.ERROR} Failed to retrieve reputation information.`,
 			});
 		}
 	}
@@ -214,7 +215,7 @@ export class ReputationCommand extends Subcommand {
 		} catch (error) {
 			this.container.logger.error('Failed to get vouch history:', error);
 			return interaction.editReply({
-				content: '❌ Failed to retrieve vouch history.',
+				content: `${EMOJIS.ERROR} Failed to retrieve vouch history.`,
 			});
 		}
 	}
@@ -232,17 +233,17 @@ export class ReputationCommand extends Subcommand {
 
 			if (leaderboard.length === 0) {
 				return interaction.editReply({
-					content: '❌ No reputation data available yet.',
+					content: `${EMOJIS.ERROR} No reputation data available yet.`,
 				});
 			}
 
 			const embed = new EmbedBuilder()
 				.setColor(Colors.Gold)
-				.setTitle('🏆 Reputation Leaderboard')
+				.setTitle(`${EMOJIS.TROPHY} Reputation Leaderboard`)
 				.setDescription('Top 10 most reputable members')
 				.setTimestamp();
 
-			const medals = ['🥇', '🥈', '🥉'];
+			const medals = [EMOJIS.GOLD_MEDAL, EMOJIS.SILVER_MEDAL, EMOJIS.BRONZE_MEDAL];
 			const leaderboardText = leaderboard
 				.map((entry: UserReputation, index: number) => {
 					const medal = medals[index] || `**${index + 1}.**`;
@@ -261,7 +262,7 @@ export class ReputationCommand extends Subcommand {
 		} catch (error) {
 			this.container.logger.error('Failed to get leaderboard:', error);
 			return interaction.editReply({
-				content: '❌ Failed to retrieve leaderboard.',
+				content: `${EMOJIS.ERROR} Failed to retrieve leaderboard.`,
 			});
 		}
 	}
@@ -271,7 +272,7 @@ export class ReputationCommand extends Subcommand {
 
 		const embed = new EmbedBuilder()
 			.setColor(Colors.Purple)
-			.setTitle('✨ Reputation Tiers')
+			.setTitle(`${XP_EMOJIS.XP_GAIN} Reputation Tiers`)
 			.setDescription('Build your reputation to unlock amazing perks!')
 			.setTimestamp();
 
@@ -292,21 +293,21 @@ export class ReputationCommand extends Subcommand {
 	private getVouchEmoji(type: string): string {
 		switch (type) {
 			case 'helpful':
-				return '🤝';
+				return REPUTATION_EMOJIS.HELPFUL;
 			case 'friendly':
-				return '😊';
+				return REPUTATION_EMOJIS.FRIENDLY;
 			case 'skilled':
-				return '⭐';
+				return REPUTATION_EMOJIS.SKILLED;
 			case 'reliable':
-				return '✅';
+				return REPUTATION_EMOJIS.RELIABLE;
 			default:
-				return '👍';
+				return REPUTATION_EMOJIS.DEFAULT;
 		}
 	}
 
 	private createProgressBar(percentage: number, length: number = 10): string {
 		const filled = Math.round((percentage / 100) * length);
 		const empty = length - filled;
-		return '█'.repeat(filled) + '░'.repeat(empty);
+		return XP_EMOJIS.PROGRESS_BAR_FILLED.repeat(filled) + XP_EMOJIS.PROGRESS_BAR_EMPTY.repeat(empty);
 	}
 }
