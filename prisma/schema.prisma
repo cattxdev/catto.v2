@@ -115,6 +115,25 @@ model LogConfig {
   categoryId            String?  // Category for log channels
   enabled               Boolean  @default(false)
   
+  // Enable/disable specific log types
+  messagesEnabled       Boolean  @default(false)
+  voiceEnabled          Boolean  @default(false)
+  voiceStateEnabled     Boolean  @default(false)
+  ticketsEnabled        Boolean  @default(false)
+  transcriptsEnabled    Boolean  @default(false)
+  rolesEnabled          Boolean  @default(false)
+  channelsEnabled       Boolean  @default(false)
+  membersEnabled        Boolean  @default(false)
+  stageEnabled          Boolean  @default(false)
+  eventsEnabled         Boolean  @default(false)
+  pollsEnabled          Boolean  @default(false)
+  emojisEnabled         Boolean  @default(false)
+  stickersEnabled       Boolean  @default(false)
+  webhooksEnabled       Boolean  @default(false)
+  joinsEnabled          Boolean  @default(false)
+  leavesEnabled         Boolean  @default(false)
+  serverEnabled         Boolean  @default(false)
+  
   // Webhook URLs for each log type
   messagesWebhook       String?
   voiceWebhook          String?
