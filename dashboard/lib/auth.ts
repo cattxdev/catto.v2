@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { cookies } from 'next/headers';
+import { unstable_cache } from 'next/cache';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
@@ -26,30 +27,20 @@ export async function getCurrentUser(): Promise<DiscordUser | null> {
 }
 
 /**
- * Get the full user session including guilds
+ * Get the full user session including guilds (internal, uncached)
  */
-export async function getUserSession(): Promise<UserSession | null> {
+async function fetchUserSession(token: string): Promise<UserSession | null> {
   try {
-    const cookieStore = await cookies();
-    const authCookie = cookieStore.get('DASHBOARD_AUTH');
-
-    console.log('getUserSession - cookie:', authCookie ? 'present' : 'missing');
-
-    if (!authCookie) {
-      return null;
-    }
-
-    // Forward the cookie to the bot API to validate the session
-    console.log('Calling bot API at:', `${BOT_API_URL}/api/users/@me`);
+    console.log('Fetching user session from bot API...');
     const response = await axios.get(`${BOT_API_URL}/api/users/@me`, {
       headers: {
-        Cookie: `DASHBOARD_AUTH=${authCookie.value}`,
+        Cookie: `DASHBOARD_AUTH=${token}`,
       },
       withCredentials: true,
-      validateStatus: (status) => status < 500, // Don't throw on 401/403
+      validateStatus: (status) => status < 500,
     });
 
-    console.log('Bot API response:', response.status, response.data);
+    console.log('Bot API response:', response.status);
 
     if (response.status === 200 && response.data.user) {
       return {
@@ -60,7 +51,36 @@ export async function getUserSession(): Promise<UserSession | null> {
 
     return null;
   } catch (error) {
-    // Silently fail - user is just not authenticated
+    console.error('fetchUserSession error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the full user session including guilds (cached version)
+ */
+export async function getUserSession(): Promise<UserSession | null> {
+  try {
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get('DASHBOARD_AUTH');
+
+    if (!authCookie) {
+      return null;
+    }
+
+    // Create a cached version of the fetch function per user token
+    // Cache is valid for 5 minutes
+    const getCachedSession = unstable_cache(
+      async (token: string) => fetchUserSession(token),
+      ['user-session'],
+      {
+        revalidate: 300, // Cache for 5 minutes
+        tags: [`user-${authCookie.value}`]
+      }
+    );
+
+    return await getCachedSession(authCookie.value);
+  } catch (error) {
     console.error('getUserSession error:', error);
     return null;
   }
