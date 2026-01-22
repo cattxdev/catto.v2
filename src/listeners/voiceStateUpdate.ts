@@ -35,9 +35,10 @@ export class VoiceStateUpdateListener extends Listener {
       // Publish for active watchers (listener-driven updates)
       await this.notifyWatchers(guildId, userId, oldState, newState);
 
-      // Reapply voice mute if user joined a voice channel while muted
+      // Handle voice mute state when user joins a voice channel
+      // This will reapply mutes for active mutes, or remove stale mutes for expired ones
       if (!oldState.channelId && newState.channelId && newState.member) {
-        await muteService.reapplyVoiceMute(asGuildId(guildId), newState.member);
+        await muteService.handleVoiceJoin(asGuildId(guildId), newState.member);
       }
     } catch (error) {
       container.logger.error('[VoiceStateUpdate] Error processing voice state update:', error);

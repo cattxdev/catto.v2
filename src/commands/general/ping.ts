@@ -1,6 +1,6 @@
 import { Command } from '@sapphire/framework';
 import { type Message } from 'discord.js';
-import { createInfoEmbed } from '#lib/utils.js';
+import { buildInfoEmbed } from '#lib/utils.js';
 import { resolveKey } from '@sapphire/plugin-i18next';
 import { ApplyOptions } from '@sapphire/decorators';
 
@@ -44,13 +44,13 @@ export class PingCommand extends Command {
 
     const msg = await message.channel.send('Pinging...');
 
-    const embed = createInfoEmbed(
+    const embed = buildInfoEmbed(
       [
         `🏓 Pong!`,
         `**Bot Latency:** ${Math.round(this.container.client.ws.ping)}ms`,
         `**API Latency:** ${msg.createdTimestamp - message.createdTimestamp}ms`,
       ].join('\n'),
-      'Ping Statistics'
+      { title: 'Ping Statistics' }
     );
 
     return msg.edit({ content: null, embeds: [embed] });

@@ -1,35 +1,9 @@
 /**
  * Moderation Components - Discord UI Adapters
  *
- * Re-exports shared Discord UI library utilities for moderation module.
+ * This file previously re-exported utilities from #lib/discord.
+ * Those re-exports were removed as they added no value.
+ * Import directly from '#lib/discord/index.js' instead.
  */
 
-export {
-  // Design tokens
-  COLORS,
-  EMOJI,
-  SPACING,
-  type ErrorType,
-  // Formatting utilities
-  formatInfoRow,
-  formatStatsLine,
-  formatUserMention,
-  formatRelativeTimestamp,
-  formatAbsoluteTimestamp,
-  truncateText,
-  formatPaginationInfo,
-  formatDuration,
-  formatDurationShort,
-  createButtonRow,
-  type ButtonConfig,
-  // Reply helpers
-  reply,
-  defer,
-  editReply,
-  // Message builders
-  successMessage,
-  errorMessage,
-  warningMessage,
-  infoMessage,
-  loadingMessage,
-} from '#lib/discord/index.js';
+// No re-exports - import from '#lib/discord/index.js' directly

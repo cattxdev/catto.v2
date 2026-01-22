@@ -1,14 +1,14 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
+  buildModActionSuccess,
+  buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
@@ -31,21 +31,18 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     try {
       await options.guild.members.fetch(options.target.id);
     } catch {
-      await editReply(
-        interaction,
-        v2.errorMessage('Error', 'Target is not a member of this server.')
-      );
+      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
       return;
     }
 
     // Basic validation
     if (options.target.id === options.moderator.id) {
-      await editReply(interaction, v2.errorMessage('Error', 'You cannot warn yourself.'));
+      await editReply(interaction, errorMessage('Error', 'You cannot warn yourself.'));
       return;
     }
 
     if (options.target.bot) {
-      await editReply(interaction, v2.errorMessage('Error', 'You cannot warn bots.'));
+      await editReply(interaction, errorMessage('Error', 'You cannot warn bots.'));
       return;
     }
 
@@ -68,7 +65,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     if (!result.success) {
       await editReply(
         interaction,
-        buildModActionErrorV2(
+        buildModActionError(
           result.error ?? 'An unexpected error occurred while processing the warning.'
         )
       );
@@ -76,23 +73,23 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     }
 
     // Log to mod channel
-    await logModActionV2(
+    await logModAction(
       options.guild,
       ModAction.WARN,
       options.target,
       options.moderator,
       options.reason ?? 'No reason provided',
-      ensureNonNull(result.caseNumber, '_warn > handleWarn > logModActionV2(82): result.caseNumber')
+      ensureNonNull(result.caseNumber, '_warn > handleWarn > logModAction(82): result.caseNumber')
     );
 
     await editReply(
       interaction,
-      buildModActionSuccessV2(
+      buildModActionSuccess(
         'Warning',
         options.target,
         ensureNonNull(
           result.caseNumber,
-          '_warn > handleWarn > buildModActionSuccessV2(90): result.caseNumber'
+          '_warn > handleWarn > buildModActionSuccess(90): result.caseNumber'
         ),
         options.reason ?? 'No reason provided',
         undefined,
@@ -103,7 +100,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     interaction.client.logger.error('Error in warn command:', error);
     await editReply(
       interaction,
-      v2.errorMessage('Error', 'An unexpected error occurred while processing the warning.')
+      errorMessage('Error', 'An unexpected error occurred while processing the warning.')
     ).catch(() => {});
   }
 }

@@ -1,11 +1,6 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { container } from '@sapphire/framework';
+import { container as sapphireContainer } from '@sapphire/framework';
 import {
-  MessageFlags,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -20,7 +15,14 @@ import {
   VOICE_CACHE_TTL,
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
-import { EMOJI } from '#lib/discord/index.js';
+import {
+  EMOJI,
+  ephemeralError,
+  editError,
+  container,
+  editReply,
+  type FluentContainer,
+} from '#lib/discord/index.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 import {
   getVoiceIndicators,
@@ -31,26 +33,27 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
   const options = parseVoiceWatchOptions(interaction);
 
   if (!options) {
-    await interaction.reply({
-      content: 'Invalid duration format. Use formats like: 1m, 5m, 10m, 15m',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(
+      ephemeralError('Invalid duration format. Use formats like: 1m, 5m, 10m, 15m')
+    );
     return;
   }
 
   if (options.durationSeconds < VOICE_WATCH_CONFIG.minDurationSeconds) {
-    await interaction.reply({
-      content: `Minimum watch duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`,
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(
+      ephemeralError(
+        `Minimum watch duration is ${VOICE_WATCH_CONFIG.minDurationSeconds / 60} minute(s).`
+      )
+    );
     return;
   }
 
   if (options.durationSeconds > VOICE_WATCH_CONFIG.maxDurationSeconds) {
-    await interaction.reply({
-      content: `Maximum watch duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`,
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(
+      ephemeralError(
+        `Maximum watch duration is ${VOICE_WATCH_CONFIG.maxDurationSeconds / 60} minutes.`
+      )
+    );
     return;
   }
 
@@ -61,9 +64,10 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
     try {
       member = await options.guild.members.fetch(options.targetId);
     } catch {
-      await interaction.editReply({
-        content: `User **${options.target.tag}** is not a member of this server.`,
-      });
+      await editReply(
+        interaction,
+        container().text(`User **${options.target.tag}** is not a member of this server.`)
+      );
       return;
     }
 
@@ -71,11 +75,10 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
     const now = Date.now();
     const endsAt = now + options.durationSeconds * 1000;
 
-    const containerComp = buildWatchMessage(options, member, voiceState, endsAt, 0);
+    const c = buildWatchMessage(options, member, voiceState, endsAt, 0);
 
     const reply = await interaction.editReply({
-      components: [containerComp],
-      flags: MessageFlags.IsComponentsV2,
+      components: [c.build()],
       allowedMentions: { parse: [] },
     });
 
@@ -97,21 +100,21 @@ export async function handleVoiceWatch(interaction: Subcommand.ChatInputCommandI
       VOICE_CACHE_TTL.watchSession
     );
 
-    await container.redis.sadd(
+    await sapphireContainer.redis.sadd(
       CacheKey.voiceWatchByTarget(options.guildId, options.targetId),
       interaction.id
     );
-    await container.redis.expire(
+    await sapphireContainer.redis.expire(
       CacheKey.voiceWatchByTarget(options.guildId, options.targetId),
       VOICE_CACHE_TTL.watchSession
     );
 
     registerSession('watch', options.guildId, interaction.id);
   } catch (error) {
-    container.logger.error('Error in voice watch command:', error);
-    await interaction.editReply({
-      content: 'An error occurred while starting the watch.',
-    });
+    sapphireContainer.logger.error('Error in voice watch command:', error);
+    await interaction
+      .editReply(editError('An error occurred while starting the watch.'))
+      .catch(() => {});
   }
 }
 
@@ -130,10 +133,10 @@ function buildWatchMessage(
   },
   endsAt: number,
   updateCount: number
-): ContainerBuilder {
+): FluentContainer {
   const displayName = formatMemberName(member);
 
-  const lines: string[] = [`## ${EMOJI.MEMBER} ${displayName}`];
+  const c = container().h2(`${EMOJI.MEMBER} ${displayName}`);
 
   if (voiceState.channelId && voiceState.channel) {
     const indicators = getVoiceIndicators(
@@ -147,31 +150,25 @@ function buildWatchMessage(
       },
       options.targetId
     );
-    lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
-    lines.push(`**State:** ${indicators}`);
+    c.kv({
+      Channel: channelMention(voiceState.channelId),
+      State: indicators,
+    });
 
     // Show explicit indicators for streaming, video, and activities
     if (voiceState.streaming) {
-      lines.push(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+      c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
     }
     if (voiceState.selfVideo) {
-      lines.push(`${EMOJI.VOICE_VIDEO} **Video**`);
+      c.text(`${EMOJI.VOICE_VIDEO} **Video**`);
     }
   } else {
-    lines.push('_Not in a voice channel_');
+    c.text('_Not in a voice channel_');
   }
 
-  const containerComp = new ContainerBuilder().addTextDisplayComponents(
-    ...lines.map((line) => new TextDisplayBuilder().setContent(line))
+  c.separator().text(
+    `${EMOJI.TIME_DAY} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
   );
-
-  containerComp
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `${EMOJI.TIME_DAY} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
-      )
-    );
 
   // All buttons in one row (max 5 per row)
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -202,7 +199,7 @@ function buildWatchMessage(
     );
   }
 
-  containerComp.addActionRowComponents(actionRow);
+  c.actions(actionRow);
 
-  return containerComp;
+  return c;
 }

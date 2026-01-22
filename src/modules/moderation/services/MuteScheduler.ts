@@ -1,9 +1,11 @@
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
-import { MuteType } from '@prisma/client';
-import type { GuildId, UserId } from '../domain/types.js';
+import { MuteType, ModAction } from '@prisma/client';
+import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
 import { CONFIG } from '#config';
-import { getSafeUserTag } from '#lib/discord/userDisplay.js';
+import { getSafeUserTag } from '#lib/discord/index.js';
+import { logModAction } from '../discord/embeds/presets.js';
+import { ensureNonNull } from '#lib/utils';
 
 /**
  * Job data for mute unmute task
@@ -78,6 +80,86 @@ export class MuteScheduler {
 
     this.isInitialized = true;
     container.logger.info('[MuteScheduler] Initialized');
+
+    // Recover orphaned mutes from database (handles Redis data loss or missed expirations)
+    await this.recoverOrphanedMutes();
+  }
+
+  /**
+   * Recover mutes that may have been orphaned due to Redis data loss or bot downtime.
+   * This ensures all active mutes with expirations have corresponding jobs in the queue.
+   */
+  private async recoverOrphanedMutes(): Promise<void> {
+    try {
+      const now = new Date();
+
+      // Find all active mutes with expiration times
+      const activeMutes = await container.prisma.mute.findMany({
+        where: {
+          active: true,
+          expiresAt: { not: null },
+        },
+      });
+
+      if (activeMutes.length === 0) {
+        container.logger.info('[MuteScheduler] No active mutes to recover');
+        return;
+      }
+
+      // Get all delayed jobs currently in the queue
+      const delayedJobs = (await this.queue?.getDelayed()) ?? [];
+      const existingJobMuteIds = new Set(delayedJobs.map((job) => job.data.muteId));
+
+      let recovered = 0;
+      let expired = 0;
+
+      for (const mute of activeMutes) {
+        const expiresAt = ensureNonNull(
+          mute.expiresAt,
+          'MuteScheduler > recoverOrphanedMutes(117): mute.expiresAt'
+        );
+
+        // Skip if job already exists for this mute
+        if (existingJobMuteIds.has(mute.id)) {
+          continue;
+        }
+
+        if (expiresAt <= now) {
+          // Mute has already expired - process immediately
+          container.logger.info(
+            `[MuteScheduler] Processing expired mute ${mute.id} for user ${mute.userId}`
+          );
+          await this.scheduleUnmute(
+            mute.id,
+            mute.guildId as GuildId,
+            mute.userId as UserId,
+            mute.type,
+            0 // Process immediately
+          );
+          expired++;
+        } else {
+          // Mute is still active - schedule for future expiration
+          const delayMs = expiresAt.getTime() - now.getTime();
+          container.logger.info(
+            `[MuteScheduler] Recovering mute ${mute.id} for user ${mute.userId} (expires in ${Math.round(delayMs / 1000)}s)`
+          );
+          await this.scheduleUnmute(
+            mute.id,
+            mute.guildId as GuildId,
+            mute.userId as UserId,
+            mute.type,
+            delayMs
+          );
+          recovered++;
+        }
+      }
+
+      container.logger.info(
+        `[MuteScheduler] Recovery complete: ${recovered} rescheduled, ${expired} expired (processed immediately)`
+      );
+    } catch (error) {
+      container.logger.error('[MuteScheduler] Failed to recover orphaned mutes:', error);
+    }
   }
 
   /**
@@ -222,12 +304,20 @@ export class MuteScheduler {
             ? 'UNMUTE_VOICE'
             : 'UNMUTE_BOTH';
 
+      const modAction =
+        type === MuteType.TEXT
+          ? ModAction.UNMUTE_TEXT
+          : type === MuteType.VOICE
+            ? ModAction.UNMUTE_VOICE
+            : ModAction.UNMUTE_BOTH;
+
       // Get a proper user tag (not "Unknown#0000")
       const userTag = member?.user.tag ?? (await getSafeUserTag(userId));
+      const newCaseNumber = (lastCase?.caseNumber ?? 0) + 1;
 
       await container.prisma.modCase.create({
         data: {
-          caseNumber: (lastCase?.caseNumber ?? 0) + 1,
+          caseNumber: newCaseNumber,
           guildId,
           action,
           targetId: userId,
@@ -237,6 +327,18 @@ export class MuteScheduler {
           reason: `Automatic unmute - Mute expired`,
         },
       });
+
+      // Log to mod channel
+      await logModAction(
+        guild,
+        modAction,
+        { id: userId, tag: userTag },
+        'System',
+        'Automatic unmute - Mute expired',
+        newCaseNumber as CaseNumber,
+        undefined,
+        { automatic: true }
+      );
 
       container.logger.info(
         `[MuteScheduler] Successfully unmuted user ${userId} (${type}) in guild ${guildId}`

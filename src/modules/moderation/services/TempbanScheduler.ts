@@ -1,8 +1,10 @@
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
-import type { GuildId, UserId } from '../domain/types.js';
+import { ModAction } from '@prisma/client';
+import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
 import { CONFIG } from '#config';
-import { getSafeUserTag } from '#lib/discord/userDisplay.js';
+import { getSafeUserTag } from '#lib/discord/index.js';
+import { logModAction } from '../discord/embeds/presets.js';
 
 /**
  * Job data for tempban unban task
@@ -77,6 +79,127 @@ export class TempbanScheduler {
 
     this.isInitialized = true;
     container.logger.info('[TempbanScheduler] Initialized');
+
+    // Recover orphaned tempbans from database (handles Redis data loss or missed expirations)
+    await this.recoverOrphanedTempbans();
+  }
+
+  /**
+   * Recover tempbans that may have been orphaned due to Redis data loss or bot downtime.
+   * This ensures all pending tempbans have corresponding jobs in the queue.
+   */
+  private async recoverOrphanedTempbans(): Promise<void> {
+    try {
+      const now = new Date();
+
+      // Find all tempban cases that haven't been unbanned yet
+      // We identify tempbans by looking for TEMPBAN cases with expiresAt set
+      const pendingTempbans = await container.prisma.modCase.findMany({
+        where: {
+          action: 'TEMPBAN',
+          expiresAt: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (pendingTempbans.length === 0) {
+        container.logger.info('[TempbanScheduler] No tempbans to check for recovery');
+        return;
+      }
+
+      // Get all delayed jobs currently in the queue
+      const delayedJobs = (await this.queue?.getDelayed()) ?? [];
+      const existingJobKeys = new Set(
+        delayedJobs.map((job) => `${job.data.guildId}-${job.data.userId}`)
+      );
+
+      // For each tempban, check if the user is still banned and if we have a job
+      let recovered = 0;
+      let expired = 0;
+
+      for (const tempbanCase of pendingTempbans) {
+        const expiresAt = tempbanCase.expiresAt!;
+        const jobKey = `${tempbanCase.guildId}-${tempbanCase.targetId}`;
+
+        // Skip if we already have a job for this user in this guild
+        if (existingJobKeys.has(jobKey)) {
+          continue;
+        }
+
+        // Check if user is still banned
+        try {
+          const guild = await container.client.guilds.fetch(tempbanCase.guildId).catch(() => null);
+          if (!guild) continue;
+
+          const ban = await guild.bans.fetch(tempbanCase.targetId).catch(() => null);
+          if (!ban) {
+            // User is not banned anymore - they were already unbanned
+            continue;
+          }
+
+          // Check if there's a more recent UNBAN case for this user
+          const unbanCase = await container.prisma.modCase.findFirst({
+            where: {
+              guildId: tempbanCase.guildId,
+              targetId: tempbanCase.targetId,
+              action: 'UNBAN',
+              createdAt: { gt: tempbanCase.createdAt },
+            },
+          });
+
+          if (unbanCase) {
+            // User was already unbanned after this tempban
+            continue;
+          }
+
+          // User is still banned and we have no job - schedule unban
+          const reason = tempbanCase.reason ?? 'No reason provided';
+
+          if (expiresAt <= now) {
+            // Tempban has already expired - process immediately
+            container.logger.info(
+              `[TempbanScheduler] Processing expired tempban case #${tempbanCase.caseNumber} for user ${tempbanCase.targetId}`
+            );
+            await this.scheduleUnban(
+              tempbanCase.guildId as GuildId,
+              tempbanCase.targetId as UserId,
+              tempbanCase.caseNumber,
+              reason,
+              0 // Process immediately
+            );
+            expired++;
+          } else {
+            // Tempban is still active - schedule for future
+            const delayMs = expiresAt.getTime() - now.getTime();
+            container.logger.info(
+              `[TempbanScheduler] Recovering tempban case #${tempbanCase.caseNumber} for user ${tempbanCase.targetId} (expires in ${Math.round(delayMs / 1000)}s)`
+            );
+            await this.scheduleUnban(
+              tempbanCase.guildId as GuildId,
+              tempbanCase.targetId as UserId,
+              tempbanCase.caseNumber,
+              reason,
+              delayMs
+            );
+            recovered++;
+          }
+
+          // Add to set to avoid duplicate scheduling
+          existingJobKeys.add(jobKey);
+        } catch (error) {
+          container.logger.error(
+            `[TempbanScheduler] Error checking tempban case #${tempbanCase.caseNumber}:`,
+            error
+          );
+        }
+      }
+
+      container.logger.info(
+        `[TempbanScheduler] Recovery complete: ${recovered} rescheduled, ${expired} expired (processed immediately)`
+      );
+    } catch (error) {
+      container.logger.error('[TempbanScheduler] Failed to recover orphaned tempbans:', error);
+    }
   }
 
   /**
@@ -177,10 +300,11 @@ export class TempbanScheduler {
 
       // Get a proper user tag (not "Unknown#0000")
       const userTag = await getSafeUserTag(userId);
+      const newCaseNumber = (lastCase?.caseNumber ?? 0) + 1;
 
       await container.prisma.modCase.create({
         data: {
-          caseNumber: (lastCase?.caseNumber ?? 0) + 1,
+          caseNumber: newCaseNumber,
           guildId,
           action: 'UNBAN',
           targetId: userId,
@@ -190,6 +314,18 @@ export class TempbanScheduler {
           reason: `Automatic unban - Tempban expired (Case #${caseNumber})`,
         },
       });
+
+      // Log to mod channel
+      await logModAction(
+        guild,
+        ModAction.UNBAN,
+        { id: userId, tag: userTag },
+        'System',
+        `Automatic unban - Tempban expired (Case #${caseNumber})`,
+        newCaseNumber as CaseNumber,
+        undefined,
+        { automatic: true }
+      );
 
       container.logger.info(
         `[TempbanScheduler] Successfully unbanned user ${userId} in guild ${guildId}`

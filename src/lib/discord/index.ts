@@ -1,110 +1,128 @@
 /**
- * Discord UI Library
+ * DCB - Discord Component Builder
  *
- * Centralized exports for the shared Discord UI module.
- * This library provides a comprehensive framework for building Discord UIs
- * with both component-based messages and traditional embeds.
+ * A comprehensive library for building Discord UI components.
  *
- * ## Quick Start
- *
+ * @example
  * ```ts
- * import { v2, reply, defer, editReply } from '#lib/discord';
+ * import { container, successMessage, defer, reply, editReply, COLORS } from '#lib/discord';
  *
  * // Build a container message
- * const message = v2.successMessage('Done!', 'Your changes have been saved.');
+ * const msg = successMessage('Done!', 'Operation completed.');
  *
- * // Reply to an interaction (ephemeral by default)
- * await reply(interaction, message);
- *
- * // Or reply publicly
- * await reply(interaction, message).public();
+ * // Reply to an interaction
+ * await reply(interaction, msg);
  *
  * // Deferred workflow
  * await defer(interaction);
- * // ... do work ...
- * await editReply(interaction, v2.successMessage('Complete!'));
+ * await editReply(interaction, container().h1('Complete!').text('All done.'));
  * ```
  */
 
 // ============================================================================
-// Fluent Container API
+// Design Tokens
 // ============================================================================
 
-import * as v2 from './v2/index.js';
-export { v2 };
+export {
+  COLORS,
+  EMOJI,
+  EMOJI_CONFIG,
+  SPACING,
+  ERROR_ICONS,
+  getEmoji,
+  setUseCustomEmojis,
+  type EmojiKey,
+  type ErrorType,
+} from './design.js';
+
+// ============================================================================
+// Core Utilities
+// ============================================================================
 
 export {
-  // Container factories
-  container,
+  // Custom IDs
+  type ParsedCustomId,
+  encodeCustomId,
+  decodeCustomId,
+  matchesCustomId,
+  extractFirstParam,
+  extractParams,
+  encodeWithNonce,
+  stripNonce,
+  isValidCustomId,
+  sanitizeForCustomId,
+  // Formatting
+  formatInfoRow,
+  formatStatsLine,
+  formatUserMention,
+  formatRelativeTimestamp,
+  formatAbsoluteTimestamp,
+  truncateText,
+  formatPaginationInfo,
+  formatDuration,
+  formatDurationShort,
+  timestamp,
+  userMention,
+  channelMention,
+  roleMention,
+  // User display
+  type UserDisplayOptions,
+  type UserDisplayResult,
+  getUserDisplayLabel,
+  getUserDisplayLabelSync,
+  getSafeUserTag,
+  isPlaceholderTag,
+  formatUserForLog,
+  // Reply helpers
+  type RepliableInteraction,
+  type MessageContainer,
+  defer,
+  reply,
+  editReply,
+  // Types
+  type UIResponse,
+  type PaginationState,
+  type SortOptions,
+  type UserDisplayData,
+  type TimestampFormat,
+  type InteractionResult,
+  type DeferredReplyState,
+  getUserDisplayData,
+  createTimestamp,
+} from './core/index.js';
+
+// ============================================================================
+// Containers (Components V2)
+// ============================================================================
+
+export {
   FluentContainer,
+  container,
   successContainer,
   errorContainer,
   warningContainer,
   infoContainer,
   primaryContainer,
   neutralContainer,
-  // Quick message builders
   simpleMessage,
   successMessage,
   errorMessage,
   warningMessage,
   infoMessage,
   loadingMessage,
-  // Types
+  type AccentColor,
   type ContainerComponent,
   type ContainerOptions,
-  type AccentColor,
-} from './v2/index.js';
+  type FluentButtonConfig,
+  type FluentLinkButtonConfig,
+} from './containers/index.js';
 
 // ============================================================================
-// Reply Helpers (Fluent API)
+// Embeds (Traditional)
 // ============================================================================
 
 export {
-  reply,
-  defer,
-  editReply,
-  type RepliableInteraction,
-  type MessageContainer,
-} from './reply.js';
-
-// ============================================================================
-// Traditional Embeds (v1)
-// ============================================================================
-
-import * as v1 from './v1/index.js';
-export { v1 };
-
-export {
-  // Embed factories
-  embed,
-  successEmbed,
-  errorEmbed,
-  warningEmbed,
-  infoEmbed,
-  neutralEmbed,
-  // Embed extensions
-  withTitle,
-  withTimestamp,
-  withFooter,
-  withAuthor,
-  withUserAuthor,
-  withThumbnail,
-  withUserThumbnail,
-  withImage,
-  withFields,
-  withField,
-  // Pre-built templates
-  buildSuccessEmbed,
-  buildErrorEmbed,
-  buildWarningEmbed,
-  buildInfoEmbed,
-  buildStatsEmbed,
-  buildListEmbed,
-  buildUserEmbed,
-  // Fluent embed API
   FluentEmbed,
-  type EmbedTransform,
   fluentEmbed,
   fluentSuccess,
   fluentError,
@@ -114,20 +132,57 @@ export {
   pipeEmbed,
   composeEmbed,
   whenEmbed,
-  ifElseEmbed,
   withUser,
   withTimestampFooter,
-  withPoweredBy,
-} from './v1/index.js';
+  type EmbedTransform,
+  embed,
+  successEmbed,
+  errorEmbed,
+  warningEmbed,
+  infoEmbed,
+  neutralEmbed,
+  buildSuccessEmbed,
+  buildErrorEmbed,
+  buildWarningEmbed,
+  buildInfoEmbed,
+  buildStatsEmbed,
+  buildListEmbed,
+  buildUserEmbed,
+} from './embeds/index.js';
 
 // ============================================================================
 // Components (Buttons, Selects, Modals)
 // ============================================================================
 
-import * as components from './components/index.js';
-export { components };
-
 export {
+  // Button types
+  type ButtonConfig,
+  type SimpleButtonConfig,
+  type LinkButtonConfig,
+  // Button factories
+  button,
+  primaryButton,
+  secondaryButton,
+  successButton,
+  dangerButton,
+  linkButton,
+  // Row builders
+  buttonRow,
+  row,
+  // Button presets
+  confirmButton,
+  cancelButton,
+  deleteButton,
+  refreshButton,
+  backButton,
+  nextButton,
+  doneButton,
+  editButton,
+  viewButton,
+  // Preset rows
+  confirmationRow,
+  paginationRow,
+  navigationRow,
   // Select types
   type SelectOption,
   type SelectMenuConfig,
@@ -161,34 +216,6 @@ export {
   mentionableSelect,
   mentionableSelectRow,
   singleMentionableSelect,
-  // Button types
-  type ButtonConfig,
-  type SimpleButtonConfig,
-  type LinkButtonConfig,
-  // Button factories
-  button,
-  primaryButton,
-  secondaryButton,
-  successButton,
-  dangerButton,
-  linkButton,
-  // Row builders
-  buttonRow,
-  row,
-  // Button presets
-  confirmButton,
-  cancelButton,
-  deleteButton,
-  refreshButton,
-  backButton,
-  nextButton,
-  doneButton,
-  editButton,
-  viewButton,
-  // Preset rows
-  confirmationRow,
-  paginationRow,
-  navigationRow,
   // Modal types
   type TextInputConfig,
   type ModalConfig,
@@ -205,115 +232,18 @@ export {
 } from './components/index.js';
 
 // ============================================================================
-// Design Tokens
+// Plain Text Responses
 // ============================================================================
 
 export {
-  COLORS,
-  EMOJI,
-  EMOJI_CONFIG,
-  type EmojiKey,
-  SPACING,
-  ERROR_ICONS,
-  type ErrorType,
-  getEmoji,
-  setUseCustomEmojis,
-} from './design.js';
-
-// ============================================================================
-// Formatting Utilities
-// ============================================================================
-
-export {
-  // Text formatting
-  formatInfoRow,
-  formatStatsLine,
-  formatUserMention,
-  formatRelativeTimestamp,
-  formatAbsoluteTimestamp,
-  truncateText,
-  formatPaginationInfo,
-  // Duration formatting
-  formatDuration,
-  formatDurationShort,
-  // Button builders (legacy)
-  createButtonRow,
-  type ButtonConfig as LegacyButtonConfig,
-  // Embed builders (legacy)
-  createInfoEmbed,
-  createSuccessEmbed,
-  createErrorEmbed,
-  createWarningEmbed,
-} from './builders.js';
-
-// ============================================================================
-// Response Builders (Text & Embeds)
-// ============================================================================
-
-export {
-  // Types
   type ErrorData,
   type SuccessData,
-  type ModActionSuccessData,
-  // Embed builders
-  buildSuccessEmbed as buildSuccessEmbedResponse,
-  buildErrorEmbed as buildErrorEmbedResponse,
-  // Plain text
   buildSuccessText,
   buildErrorText,
   buildWarningText,
   buildInfoText,
-  // Interaction helpers (plain text)
   ephemeralError,
   ephemeralSuccess,
   editError,
   editSuccess,
 } from './responses.js';
-
-// ============================================================================
-// Custom ID Utilities
-// ============================================================================
-
-export {
-  type ParsedCustomId,
-  encodeCustomId,
-  decodeCustomId,
-  matchesCustomId,
-  extractFirstParam,
-  extractParams,
-  encodeWithNonce,
-  stripNonce,
-  isValidCustomId,
-  sanitizeForCustomId,
-} from './customId.js';
-
-// ============================================================================
-// Shared Types
-// ============================================================================
-
-export {
-  type UIResponse,
-  type MultiFormatResponseOptions,
-  type PaginationState,
-  type SortOptions,
-  type UserDisplayData,
-  type TimestampFormat,
-  type InteractionResult,
-  type DeferredReplyState,
-  getUserDisplayData,
-  createTimestamp,
-} from './types.js';
-
-// ============================================================================
-// User Display Utilities
-// ============================================================================
-
-export {
-  type UserDisplayOptions,
-  type UserDisplayResult,
-  getUserDisplayLabel,
-  getUserDisplayLabelSync,
-  getSafeUserTag,
-  isPlaceholderTag,
-  formatUserForLog,
-} from './userDisplay.js';

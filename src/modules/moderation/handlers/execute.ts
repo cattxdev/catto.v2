@@ -9,7 +9,7 @@ import type { Guild, User } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../services/ModerationService.js';
 import { muteService } from '../services/MuteService.js';
-import { notifyUser, logModActionV2 } from '../discord/embeds/presets.js';
+import { notifyUser, logModAction } from '../discord/embeds/presets.js';
 import type { ModerationContext } from './context.js';
 import type { ModActionResult, MuteResult, UserId } from '../domain/types.js';
 import { asGuildId, asUserId, asDuration } from '../domain/types.js';
@@ -35,7 +35,7 @@ export async function executeWarn(context: ModerationContext): Promise<ModAction
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.WARN,
       context.target,
@@ -69,7 +69,7 @@ export async function executeKick(context: ModerationContext): Promise<ModAction
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.KICK,
       context.target,
@@ -105,7 +105,7 @@ export async function executeBan(
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.BAN,
       context.target,
@@ -137,7 +137,7 @@ export async function executeSoftban(context: ModerationContext): Promise<ModAct
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.SOFTBAN,
       context.target,
@@ -182,7 +182,7 @@ export async function executeTimeout(context: ModerationContext): Promise<ModAct
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.TIMEOUT,
       context.target,
@@ -230,7 +230,7 @@ export async function executeTempban(
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       ModAction.TEMPBAN,
       context.target,
@@ -261,7 +261,7 @@ export async function executeUnban(
   if (result.success && result.caseNumber) {
     // We need to fetch the user for the modlog - use ID if fetch fails
     const target = await guild.client.users.fetch(userId).catch(() => null);
-    await logModActionV2(
+    await logModAction(
       guild,
       ModAction.UNBAN,
       target ?? { id: userId, tag: userTag },
@@ -340,7 +340,7 @@ export async function executeMute(
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       modAction,
       context.target,
@@ -393,7 +393,7 @@ export async function executeUnmute(
 
   // Log to mod channel on success
   if (result.success && result.caseNumber) {
-    await logModActionV2(
+    await logModAction(
       context.guild,
       modAction,
       context.target,

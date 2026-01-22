@@ -5,36 +5,17 @@
  * Custom IDs are limited to 100 characters in Discord.
  */
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Parsed custom ID data
- */
 export interface ParsedCustomId {
   module: string;
   action: string;
   params: string[];
 }
 
-/**
- * Delimiter used to separate parts of custom IDs
- */
 const DELIMITER = ':';
-
-// ============================================================================
-// Core Functions
-// ============================================================================
 
 /**
  * Encode a custom ID with module, action, and optional parameters
- *
  * Format: module:action:param1:param2:...
- *
- * @example
- * encodeCustomId('mod', 'ban', '123456789') // 'mod:ban:123456789'
- * encodeCustomId('mod', 'warn', '123456789', 'abc123') // 'mod:warn:123456789:abc123'
  */
 export function encodeCustomId(module: string, action: string, ...params: string[]): string {
   const parts = [module, action, ...params];
@@ -49,9 +30,6 @@ export function encodeCustomId(module: string, action: string, ...params: string
 
 /**
  * Decode a custom ID into its component parts
- *
- * @example
- * decodeCustomId('mod:ban:123456789') // { module: 'mod', action: 'ban', params: ['123456789'] }
  */
 export function decodeCustomId(customId: string): ParsedCustomId {
   const parts = customId.split(DELIMITER);
@@ -74,36 +52,27 @@ export function decodeCustomId(customId: string): ParsedCustomId {
  */
 export function matchesCustomId(customId: string, module: string, action?: string): boolean {
   const parsed = decodeCustomId(customId);
-
   if (parsed.module !== module) return false;
   if (action && parsed.action !== action) return false;
-
   return true;
 }
 
 /**
- * Extract the first parameter from a custom ID (common pattern: user ID)
+ * Extract the first parameter from a custom ID
  */
 export function extractFirstParam(customId: string): string | undefined {
-  const parsed = decodeCustomId(customId);
-  return parsed.params[0];
+  return decodeCustomId(customId).params[0];
 }
 
 /**
  * Extract all parameters from a custom ID
  */
 export function extractParams(customId: string): string[] {
-  const parsed = decodeCustomId(customId);
-  return parsed.params;
+  return decodeCustomId(customId).params;
 }
-
-// ============================================================================
-// Common Patterns
-// ============================================================================
 
 /**
  * Create a custom ID with a nonce for uniqueness
- * Useful for preventing interaction conflicts
  */
 export function encodeWithNonce(module: string, action: string, ...params: string[]): string {
   const nonce = Math.random().toString(36).substring(2, 8);
@@ -119,16 +88,11 @@ export function stripNonce(customId: string): string {
   return encodeCustomId(parsed.module, parsed.action, ...paramsWithoutNonce);
 }
 
-// ============================================================================
-// Validation
-// ============================================================================
-
 /**
  * Validate that a custom ID is well-formed
  */
 export function isValidCustomId(customId: string): boolean {
   if (!customId || customId.length > 100) return false;
-
   try {
     const parsed = decodeCustomId(customId);
     return parsed.module.length > 0 && parsed.action.length > 0;
@@ -138,7 +102,7 @@ export function isValidCustomId(customId: string): boolean {
 }
 
 /**
- * Sanitize a string for use in custom IDs (remove delimiter characters)
+ * Sanitize a string for use in custom IDs
  */
 export function sanitizeForCustomId(value: string): string {
   return value.replace(new RegExp(DELIMITER, 'g'), '_');

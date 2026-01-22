@@ -510,9 +510,13 @@ export class MuteService {
   }
 
   /**
-   * Reapply voice mute when user joins voice (persistence)
+   * Handle voice mute state when user joins voice channel.
+   * - Reapply voice mute if user has active mute
+   * - Remove server mute if user's mute has expired/been deactivated
    */
-  async reapplyVoiceMute(guildId: GuildId, member: GuildMember): Promise<void> {
+  async handleVoiceJoin(guildId: GuildId, member: GuildMember): Promise<void> {
+    if (!member.voice.channel) return;
+
     const activeMutes = await container.prisma.mute.findMany({
       where: {
         guildId,
@@ -522,7 +526,11 @@ export class MuteService {
       },
     });
 
-    if (activeMutes.length > 0 && member.voice.channel && !member.voice.serverMute) {
+    const hasActiveMute = activeMutes.length > 0;
+    const isServerMuted = member.voice.serverMute;
+
+    if (hasActiveMute && !isServerMuted) {
+      // User has active mute but is not server muted - reapply
       try {
         await member.voice.setMute(true, 'Reapplying voice mute');
         container.logger.info(
@@ -531,7 +539,25 @@ export class MuteService {
       } catch (error) {
         container.logger.error('[MuteService] Failed to reapply voice mute:', error);
       }
+    } else if (!hasActiveMute && isServerMuted) {
+      // User is server muted but has no active mute - this means their mute expired
+      // while they were not in voice. Remove the server mute now.
+      try {
+        await member.voice.setMute(false, 'Mute expired - removing stale server mute');
+        container.logger.info(
+          `[MuteService] Removed stale server mute from ${member.user.tag} in ${guildId} (mute expired while offline)`
+        );
+      } catch (error) {
+        container.logger.error('[MuteService] Failed to remove stale server mute:', error);
+      }
     }
+  }
+
+  /**
+   * @deprecated Use handleVoiceJoin instead
+   */
+  async reapplyVoiceMute(guildId: GuildId, member: GuildMember): Promise<void> {
+    return this.handleVoiceJoin(guildId, member);
   }
 
   /**

@@ -2,17 +2,17 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
-  logModActionV2,
+  logModAction,
   notifyUser,
   formatDuration,
 } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
+  buildModActionSuccess,
+  buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseTimeoutOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleTimeout(interaction: Subcommand.ChatInputCommandInteraction) {
@@ -43,7 +43,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     if (durationMs > maxDuration) {
       await editReply(
         interaction,
-        v2.errorMessage('Error', 'Timeout duration cannot exceed 28 days.')
+        errorMessage('Error', 'Timeout duration cannot exceed 28 days.')
       );
       return;
     }
@@ -51,7 +51,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     if (durationMs < 60 * 1000) {
       await editReply(
         interaction,
-        v2.errorMessage('Error', 'Timeout duration must be at least 1 minute.')
+        errorMessage('Error', 'Timeout duration must be at least 1 minute.')
       );
       return;
     }
@@ -61,10 +61,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await editReply(
-        interaction,
-        v2.errorMessage('Error', 'Target is not a member of this server.')
-      );
+      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
       return;
     }
 
@@ -72,7 +69,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     if (!options.guild.members.me?.permissions.has('ModerateMembers')) {
       await editReply(
         interaction,
-        v2.errorMessage('Error', 'I do not have permission to timeout members.')
+        errorMessage('Error', 'I do not have permission to timeout members.')
       );
       return;
     }
@@ -82,7 +79,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     if (!canModerateResult.canModerate) {
       await editReply(
         interaction,
-        v2.errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
+        errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
       );
       return;
     }
@@ -108,7 +105,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     if (!result.success) {
       await editReply(
         interaction,
-        buildModActionErrorV2(
+        buildModActionError(
           result.error ?? 'Failed to timeout the user.',
           'Check bot permissions and role hierarchy.'
         )
@@ -117,7 +114,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     }
 
     // Log to mod channel
-    await logModActionV2(
+    await logModAction(
       options.guild,
       ModAction.TIMEOUT,
       options.target,
@@ -125,7 +122,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
       options.reason ?? 'No reason provided',
       ensureNonNull(
         result.caseNumber,
-        '_timeout > handleTimeout > logModActionV2(114): result.caseNumber'
+        '_timeout > handleTimeout > logModAction(114): result.caseNumber'
       ),
       options.durationSeconds
     );
@@ -134,12 +131,12 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
 
     await editReply(
       interaction,
-      buildModActionSuccessV2(
+      buildModActionSuccess(
         'Timeout',
         options.target,
         ensureNonNull(
           result.caseNumber,
-          '_timeout > handleTimeout > buildModActionSuccessV2(125): result.caseNumber'
+          '_timeout > handleTimeout > buildModActionSuccess(125): result.caseNumber'
         ),
         options.reason ?? 'No reason provided',
         durationText,
@@ -150,7 +147,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     interaction.client.logger.error('Error in timeout command:', error);
     await editReply(
       interaction,
-      v2.errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
+      errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
     ).catch(() => {});
   }
 }

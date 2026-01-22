@@ -1,18 +1,22 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { type GuildMember, MessageFlags } from 'discord.js';
+import { type GuildMember } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import {
+  ephemeralError,
+  errorMessage,
+  editReply,
+  successMessage,
+  defer,
+} from '#root/lib/discord/index.js';
 
 export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
@@ -22,10 +26,7 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     options = parseSoftbanOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({
-        content: `❌ ${error.message}`,
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     throw error;
@@ -33,12 +34,15 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
 
   const { target, targetId, reason, deleteDays, guild, moderator, moderatorMember } = options;
 
-  await interaction.deferReply();
+  await defer(interaction);
 
   try {
     // Check bot permissions
     if (!guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply({ content: '❌ I do not have permission to ban members.' });
+      await editReply(
+        interaction,
+        errorMessage('Error', 'I do not have permission to ban members.')
+      );
       return;
     }
 
@@ -54,7 +58,7 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     if (targetMember) {
       const canModerateResult = moderationService.canModerate(moderatorMember, targetMember);
       if (!canModerateResult.canModerate) {
-        await interaction.editReply({ content: `❌ ${canModerateResult.reason}` });
+        await editReply(interaction, errorMessage('Error', `${canModerateResult.reason}`));
         return;
       }
 
@@ -78,14 +82,15 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: `❌ ${result.error ?? 'Failed to softban the user.'}`,
-      });
+      await editReply(
+        interaction,
+        errorMessage('Error', `${result.error ?? 'Failed to softban the user.'}`)
+      );
       return;
     }
 
     // Log to mod channel (works even without user object - will use ID)
-    await logModActionV2(
+    await logModAction(
       guild,
       ModAction.SOFTBAN,
       target ?? { id: targetId, tag: targetTag },
@@ -93,19 +98,21 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       reason ?? 'No reason provided',
       ensureNonNull(
         result.caseNumber,
-        '_softban > handleSoftban > logModActionV2(94): result.caseNumber'
+        '_softban > handleSoftban > logModAction(94): result.caseNumber'
       )
     );
 
-    await interaction.editReply({
-      content: `✅ **${targetTag}** has been softbanned (messages deleted, user unbanned). (Case #${result.caseNumber})`,
-    });
+    await editReply(
+      interaction,
+      successMessage(
+        `**${targetTag}** has been softbanned (messages deleted, user unbanned). (Case #${result.caseNumber})`
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in softban command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the softban.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the softban.')
+    ).catch(() => {});
   }
 }

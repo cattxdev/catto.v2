@@ -16,7 +16,11 @@ import {
   roleSelectRow,
   stringSelectRow,
   EMOJI,
-  v2,
+  errorMessage,
+  successMessage,
+  warningMessage,
+  errorContainer,
+  infoContainer,
   reply,
   defer,
 } from '#lib/discord/index.js';
@@ -36,13 +40,13 @@ function buildSetupRow1(modLogSet: boolean, textRoleSet: boolean, voiceRoleSet: 
     }),
     button({
       customId: 'mod_setup:text_role',
-      label: 'Text Mute Role',
+      label: 'Text mute Role',
       style: textRoleSet ? ButtonStyle.Success : ButtonStyle.Primary,
       emoji: EMOJI.TEXT_LIMITER,
     }),
     button({
       customId: 'mod_setup:voice_role',
-      label: 'Voice Mute Role',
+      label: 'Voice mute Role',
       style: voiceRoleSet ? ButtonStyle.Success : ButtonStyle.Secondary,
       emoji: EMOJI.VOICE_LIMITER,
     })
@@ -80,17 +84,13 @@ function buildSetupRow2() {
  */
 export async function handleSetup(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return reply(
-      interaction,
-      v2.errorMessage('Error', 'This command can only be used in a server.')
-    );
+    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
   }
 
   if (!isAdmin(interaction.member as GuildMember)) {
     return reply(
       interaction,
-      v2
-        .errorContainer()
+      errorContainer()
         .h1('Permission Denied')
         .text('You need Administrator permissions to configure moderation settings.')
     );
@@ -143,8 +143,7 @@ function buildSetupContainer(
     'Set up warning escalation rules',
   ];
 
-  return v2
-    .infoContainer()
+  return infoContainer()
     .h1(`${EMOJI.MOD_SHIELD} Moderation Setup`)
     .separator()
     .h2('Current Settings')
@@ -224,9 +223,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       if (customId === 'mod_setup:done') {
         await buttonInteraction.update({
           components: [
-            v2
-              .successMessage('Setup Complete', 'Your moderation settings have been saved.')
-              .build(),
+            successMessage('Setup Complete', 'Your moderation settings have been saved.').build(),
           ],
           flags: MessageFlags.IsComponentsV2,
         });
@@ -655,12 +652,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       try {
         await interaction.editReply({
           components: [
-            v2
-              .warningMessage(
-                'Setup Timed Out',
-                'The setup wizard has timed out. Run `/mod setup` again to continue.'
-              )
-              .build(),
+            warningMessage(
+              'Setup Timed Out',
+              'The setup wizard has timed out. Run `/mod setup` again to continue.'
+            ).build(),
           ],
           flags: MessageFlags.IsComponentsV2,
         });
@@ -715,16 +710,13 @@ async function refreshOverview(
  */
 export async function handleConfigModLog(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return reply(
-      interaction,
-      v2.errorMessage('Error', 'This command can only be used in a server.')
-    );
+    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
   }
 
   const channel = interaction.options.getChannel('channel', true);
 
   if (channel.type !== ChannelType.GuildText) {
-    return reply(interaction, v2.errorMessage('Error', 'Please select a text channel.'));
+    return reply(interaction, errorMessage('Error', 'Please select a text channel.'));
   }
 
   const guildId = asGuildId(interaction.guild.id);
@@ -737,16 +729,13 @@ export async function handleConfigModLog(interaction: Subcommand.ChatInputComman
 
   await reply(
     interaction,
-    v2.successMessage('Configuration Updated', `Mod log channel set to <#${channel.id}>`)
+    successMessage('Configuration Updated', `Mod log channel set to <#${channel.id}>`)
   );
 }
 
 export async function handleConfigTextRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return reply(
-      interaction,
-      v2.errorMessage('Error', 'This command can only be used in a server.')
-    );
+    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
   }
 
   const role = interaction.options.getRole('role', true);
@@ -760,16 +749,13 @@ export async function handleConfigTextRole(interaction: Subcommand.ChatInputComm
 
   await reply(
     interaction,
-    v2.successMessage('Configuration Updated', `Muted text role set to <@&${role.id}>`)
+    successMessage('Configuration Updated', `Muted text role set to <@&${role.id}>`)
   );
 }
 
 export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return reply(
-      interaction,
-      v2.errorMessage('Error', 'This command can only be used in a server.')
-    );
+    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
   }
 
   const role = interaction.options.getRole('role', true);
@@ -783,16 +769,13 @@ export async function handleConfigVoiceRole(interaction: Subcommand.ChatInputCom
 
   await reply(
     interaction,
-    v2.successMessage('Configuration Updated', `Muted voice role set to <@&${role.id}>`)
+    successMessage('Configuration Updated', `Muted voice role set to <@&${role.id}>`)
   );
 }
 
 export async function handleConfigView(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    return reply(
-      interaction,
-      v2.errorMessage('Error', 'This command can only be used in a server.')
-    );
+    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
   }
 
   const guildId = asGuildId(interaction.guild.id);
@@ -803,8 +786,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
   if (!config) {
     return reply(
       interaction,
-      v2
-        .errorContainer()
+      errorContainer()
         .h1('No Config Found')
         .text('No moderation config found.')
         .separator()
@@ -814,8 +796,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
 
   await reply(
     interaction,
-    v2
-      .infoContainer()
+    infoContainer()
       .h1(`${EMOJI.MOD_SHIELD} Moderation Config`)
       .separator()
       .kv({

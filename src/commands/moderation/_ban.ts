@@ -1,14 +1,14 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { logModActionV2, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
+  buildModActionSuccess,
+  buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseBanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, v2 } from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import type { User } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 
@@ -31,7 +31,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
       await editReply(
         interaction,
-        v2.errorMessage('Error', 'I do not have permission to ban members.')
+        errorMessage('Error', 'I do not have permission to ban members.')
       );
       return;
     }
@@ -60,7 +60,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       if (!canModerateResult.canModerate) {
         await editReply(
           interaction,
-          v2.errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
+          errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
         );
         return;
       }
@@ -88,7 +88,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     if (!result.success) {
       await editReply(
         interaction,
-        buildModActionErrorV2(
+        buildModActionError(
           result.error ?? 'Failed to ban the user.',
           'Check bot permissions and role hierarchy.'
         )
@@ -97,13 +97,13 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     }
 
     // Log to mod channel
-    await logModActionV2(
+    await logModAction(
       options.guild,
       ModAction.BAN,
       targetUser ?? { id: options.targetId, tag: `Unknown User (${options.targetId})` },
       options.moderator,
       options.reason ?? 'No reason provided',
-      ensureNonNull(result.caseNumber, 'logModActionV2(102): result.caseNumber')
+      ensureNonNull(result.caseNumber, 'logModAction(102): result.caseNumber')
     );
 
     // Build success response
@@ -114,10 +114,10 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
 
     await editReply(
       interaction,
-      buildModActionSuccessV2(
+      buildModActionSuccess(
         'Ban',
         successTarget as User,
-        ensureNonNull(result.caseNumber, 'buildModActionSuccessV2(117): result.caseNumber'),
+        ensureNonNull(result.caseNumber, 'buildModActionSuccess(117): result.caseNumber'),
         options.reason ?? 'No reason provided',
         undefined,
         { dmSent: targetMember ? notified : true }
@@ -127,7 +127,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     interaction.client.logger.error('Error in ban command:', error);
     await editReply(
       interaction,
-      v2.errorMessage('Error', 'An unexpected error occurred while processing the ban.')
+      errorMessage('Error', 'An unexpected error occurred while processing the ban.')
     ).catch(() => {});
   }
 }

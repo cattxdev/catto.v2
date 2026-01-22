@@ -24,7 +24,7 @@ import { handlePanel } from './_panel.js';
 import { handleContext } from './_context.js';
 import { handleNoteAdd, handleNoteList, handleNoteDelete } from './_note.js';
 import { handleCaseEdit, handleCaseLink, handleCaseClose } from './_caseManagement.js';
-import { handleAppealCreate, handleAppealList, handleAppealResolve } from './_appeal.js';
+
 import {
   handleMuteText,
   handleMuteVoice,
@@ -123,16 +123,7 @@ import {
         { name: 'close', chatInputRun: 'chatInputCaseClose' },
       ],
     },
-    // Appeal subcommand group
-    {
-      name: 'appeal',
-      type: 'group',
-      entries: [
-        { name: 'create', chatInputRun: 'chatInputAppealCreate' },
-        { name: 'list', chatInputRun: 'chatInputAppealList' },
-        { name: 'resolve', chatInputRun: 'chatInputAppealResolve' },
-      ],
-    },
+
     // Mute subcommand group
     {
       name: 'mute',
@@ -200,7 +191,7 @@ export class ModCommand extends Subcommand {
         .addSubcommandGroup(this.buildVoiceSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildNoteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildCaseModSubcommandGroup.bind(this))
-        .addSubcommandGroup(this.buildAppealSubcommandGroup.bind(this))
+
         .addSubcommandGroup(this.buildMuteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildUnmuteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildConfigSubcommandGroup.bind(this))
@@ -536,64 +527,6 @@ export class ModCommand extends Subcommand {
       );
   }
 
-  private buildAppealSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
-    return group
-      .setName('appeal')
-      .setDescription('Manage moderation appeals')
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('create')
-          .setDescription('Create an appeal on behalf of a user')
-          .addUserOption((option) =>
-            option.setName('target').setDescription('The user the appeal is for').setRequired(true)
-          )
-          .addStringOption((option) =>
-            option
-              .setName('reason')
-              .setDescription('Appeal reason')
-              .setRequired(true)
-              .setMaxLength(1000)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('list')
-          .setDescription('List appeals')
-          .addStringOption((option) =>
-            option
-              .setName('status')
-              .setDescription('Filter by status')
-              .addChoices(
-                { name: 'Pending', value: 'PENDING' },
-                { name: 'Approved', value: 'APPROVED' },
-                { name: 'Denied', value: 'DENIED' }
-              )
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('resolve')
-          .setDescription('Resolve an appeal')
-          .addStringOption((option) =>
-            option.setName('appeal_id').setDescription('Appeal ID').setRequired(true)
-          )
-          .addStringOption((option) =>
-            option
-              .setName('decision')
-              .setDescription('Decision')
-              .setRequired(true)
-              .addChoices({ name: 'Approve', value: 'APPROVED' }, { name: 'Deny', value: 'DENIED' })
-          )
-          .addStringOption((option) =>
-            option
-              .setName('resolution')
-              .setDescription('Resolution notes')
-              .setRequired(true)
-              .setMaxLength(500)
-          )
-      );
-  }
-
   private buildMutesSubcommand(subcommand: SlashCommandSubcommandBuilder) {
     return subcommand
       .setName('mutes')
@@ -846,19 +779,6 @@ export class ModCommand extends Subcommand {
 
   public async chatInputCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleCaseClose(interaction);
-  }
-
-  // Appeal subcommand handlers
-  public async chatInputAppealCreate(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleAppealCreate(interaction);
-  }
-
-  public async chatInputAppealList(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleAppealList(interaction);
-  }
-
-  public async chatInputAppealResolve(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleAppealResolve(interaction);
   }
 
   // Mute subcommand handlers

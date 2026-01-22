@@ -1,9 +1,9 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { MessageFlags } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { createCaseEmbed } from '../../modules/moderation/discord/embeds/presets.js';
 import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, editError, defer, editReply, infoMessage } from '#lib/discord/index.js';
 
 export async function handleCase(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -11,19 +11,19 @@ export async function handleCase(interaction: Subcommand.ChatInputCommandInterac
     options = parseCaseOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, flags: MessageFlags.Ephemeral });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await defer(interaction);
 
   try {
     const modCase = await moderationService.getCase(options.guildId, options.caseNumber);
 
     if (!modCase) {
-      await interaction.editReply({ content: `❌ Case #${options.caseNumber} not found.` });
+      await editReply(interaction, infoMessage(`Case #${options.caseNumber} not found.`));
       return;
     }
 
@@ -32,9 +32,7 @@ export async function handleCase(interaction: Subcommand.ChatInputCommandInterac
   } catch (error) {
     interaction.client.logger.error('Error in case command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while fetching the case.',
-      })
+      .editReply(editError('An unexpected error occurred while fetching the case.'))
       .catch(() => {});
   }
 }

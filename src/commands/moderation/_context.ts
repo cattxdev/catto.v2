@@ -3,7 +3,7 @@ import { MessageFlags, type GuildMember } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import {
-  buildContextBundleV2,
+  buildContextBundle,
   type ModPanelContext,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import {
@@ -13,13 +13,11 @@ import {
   type CaseEvidence,
 } from '../../modules/moderation/domain/types.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
+import { ephemeralError, editError } from '#lib/discord/index.js';
 
 export async function handleContext(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
@@ -89,7 +87,7 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
     };
 
     // Build the Components V2 context bundle
-    const container = buildContextBundleV2(context);
+    const container = buildContextBundle(context);
 
     await interaction.editReply({
       components: [container.build()],
@@ -98,9 +96,7 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
   } catch (error) {
     interaction.client.logger.error('Error in context command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while loading the context bundle.',
-      })
+      .editReply(editError('An unexpected error occurred while loading the context bundle.'))
       .catch(() => {});
   }
 }

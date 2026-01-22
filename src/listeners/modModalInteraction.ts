@@ -15,15 +15,15 @@ import {
   decodeMuteModalCustomId,
 } from '#root/modules/moderation/discord/customId.js';
 import {
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
+  buildModActionSuccess,
+  buildModActionError,
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
 import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, asDuration } from '#root/modules/moderation/domain/types.js';
 import {
-  logModActionV2,
+  logModAction,
   notifyUser,
   formatDuration,
 } from '#root/modules/moderation/discord/embeds/presets.js';
@@ -91,7 +91,7 @@ export class ModModalInteractionListener extends Listener {
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
-        const errorContainer = buildModActionErrorV2('User not found.');
+        const errorContainer = buildModActionError('User not found.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -109,7 +109,7 @@ export class ModModalInteractionListener extends Listener {
 
       // For kick/warn, user must be in server
       if ((action === 'kick' || action === 'warn') && !targetMember) {
-        const errorContainer = buildModActionErrorV2('User is not in this server.');
+        const errorContainer = buildModActionError('User is not in this server.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -121,7 +121,7 @@ export class ModModalInteractionListener extends Listener {
       if (targetMember) {
         const canModerateResult = moderationService.canModerate(member, targetMember);
         if (!canModerateResult.canModerate) {
-          const errorContainer = buildModActionErrorV2(
+          const errorContainer = buildModActionError(
             canModerateResult.reason ?? 'Cannot moderate this user.'
           );
           await interaction.editReply({
@@ -168,7 +168,7 @@ export class ModModalInteractionListener extends Listener {
           result = await moderationService.softban(guild, target, interaction.user, reason);
           break;
         default: {
-          const errorContainer = buildModActionErrorV2('Unknown action.');
+          const errorContainer = buildModActionError('Unknown action.');
           await interaction.editReply({
             components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
@@ -178,7 +178,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       if (!result.success) {
-        const errorContainer = buildModActionErrorV2(result.error ?? 'Action failed.');
+        const errorContainer = buildModActionError(result.error ?? 'Action failed.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -187,7 +187,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      await logModActionV2(
+      await logModAction(
         guild,
         modAction,
         target,
@@ -200,7 +200,7 @@ export class ModModalInteractionListener extends Listener {
       );
 
       // Show success
-      const successContainer = buildModActionSuccessV2(
+      const successContainer = buildModActionSuccess(
         action.toUpperCase(),
         target,
         ensureNonNull(
@@ -215,7 +215,7 @@ export class ModModalInteractionListener extends Listener {
       });
     } catch (error) {
       container.logger.error('[ModModalInteraction] Error in reason modal:', error);
-      const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
+      const errorContainer = buildModActionError('An unexpected error occurred.');
       await interaction
         .editReply({
           components: [errorContainer.build()],
@@ -276,7 +276,7 @@ export class ModModalInteractionListener extends Listener {
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
-        const errorContainer = buildModActionErrorV2('User not found.');
+        const errorContainer = buildModActionError('User not found.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -294,7 +294,7 @@ export class ModModalInteractionListener extends Listener {
 
       // For timeout, user must be in server
       if (action === 'timeout' && !targetMember) {
-        const errorContainer = buildModActionErrorV2('User is not in this server.');
+        const errorContainer = buildModActionError('User is not in this server.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -306,7 +306,7 @@ export class ModModalInteractionListener extends Listener {
       if (targetMember) {
         const canModerateResult = moderationService.canModerate(member, targetMember);
         if (!canModerateResult.canModerate) {
-          const errorContainer = buildModActionErrorV2(
+          const errorContainer = buildModActionError(
             canModerateResult.reason ?? 'Cannot moderate this user.'
           );
           await interaction.editReply({
@@ -354,7 +354,7 @@ export class ModModalInteractionListener extends Listener {
           );
           break;
         default: {
-          const errorContainer = buildModActionErrorV2('Unknown action.');
+          const errorContainer = buildModActionError('Unknown action.');
           await interaction.editReply({
             components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
@@ -364,7 +364,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       if (!result.success) {
-        const errorContainer = buildModActionErrorV2(result.error ?? 'Action failed.');
+        const errorContainer = buildModActionError(result.error ?? 'Action failed.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -373,7 +373,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      await logModActionV2(
+      await logModAction(
         guild,
         modAction,
         target,
@@ -387,7 +387,7 @@ export class ModModalInteractionListener extends Listener {
       );
 
       // Show success
-      const successContainer = buildModActionSuccessV2(
+      const successContainer = buildModActionSuccess(
         action.toUpperCase(),
         target,
         ensureNonNull(
@@ -403,7 +403,7 @@ export class ModModalInteractionListener extends Listener {
       });
     } catch (error) {
       container.logger.error('[ModModalInteraction] Error in duration modal:', error);
-      const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
+      const errorContainer = buildModActionError('An unexpected error occurred.');
       await interaction
         .editReply({
           components: [errorContainer.build()],
@@ -536,7 +536,7 @@ export class ModModalInteractionListener extends Listener {
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
-        const errorContainer = buildModActionErrorV2('User not found.');
+        const errorContainer = buildModActionError('User not found.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -553,7 +553,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       if (!targetMember) {
-        const errorContainer = buildModActionErrorV2('User is not in this server.');
+        const errorContainer = buildModActionError('User is not in this server.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -564,7 +564,7 @@ export class ModModalInteractionListener extends Listener {
       // Check moderation hierarchy
       const canModerateResult = moderationService.canModerate(member, targetMember);
       if (!canModerateResult.canModerate) {
-        const errorContainer = buildModActionErrorV2(
+        const errorContainer = buildModActionError(
           canModerateResult.reason ?? 'Cannot moderate this user.'
         );
         await interaction.editReply({
@@ -618,7 +618,7 @@ export class ModModalInteractionListener extends Listener {
           );
           break;
         default: {
-          const errorContainer = buildModActionErrorV2('Unknown mute type.');
+          const errorContainer = buildModActionError('Unknown mute type.');
           await interaction.editReply({
             components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
@@ -628,7 +628,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       if (!result.success) {
-        const errorContainer = buildModActionErrorV2(result.error ?? 'Mute action failed.');
+        const errorContainer = buildModActionError(result.error ?? 'Mute action failed.');
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -637,7 +637,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       // Log to mod channel
-      await logModActionV2(
+      await logModAction(
         guild,
         modAction,
         target,
@@ -652,7 +652,7 @@ export class ModModalInteractionListener extends Listener {
 
       // Show success
       const durationText = durationSeconds ? formatDuration(durationSeconds) : undefined;
-      const successContainer = buildModActionSuccessV2(
+      const successContainer = buildModActionSuccess(
         `MUTE ${muteType.toUpperCase()}`,
         target,
         ensureNonNull(
@@ -668,7 +668,7 @@ export class ModModalInteractionListener extends Listener {
       });
     } catch (error) {
       container.logger.error('[ModModalInteraction] Error in mute modal:', error);
-      const errorContainer = buildModActionErrorV2('An unexpected error occurred.');
+      const errorContainer = buildModActionError('An unexpected error occurred.');
       await interaction
         .editReply({
           components: [errorContainer.build()],

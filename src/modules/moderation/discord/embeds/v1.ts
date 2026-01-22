@@ -1,7 +1,7 @@
 import { EmbedBuilder, type ColorResolvable, type User } from 'discord.js';
 import { COLORS, EMOJI } from '#lib/discord/index.js';
 import { formatRelativeTimestamp, formatDuration, truncateText } from '#lib/discord/index.js';
-import { embed } from '#lib/discord/v1/index.js';
+import { embed } from '#lib/discord/index.js';
 
 /**
  * Moderation action types.

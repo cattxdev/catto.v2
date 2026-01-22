@@ -1,14 +1,23 @@
-// Re-export from embeds (moderation-specific)
-export {
-  formatDuration,
-  createModEmbed,
-  createUserNotificationEmbed,
-  notifyUser,
-  createCaseEmbed,
-  createHistoryEmbed,
-} from './embeds/presets.js';
+/**
+ * Moderation Discord UI Module
+ *
+ * Re-exports all moderation-specific Discord UI components.
+ */
 
-// Re-export from customId (moderation-specific)
+// Modlog builders
+export { buildModLogEntry, getModLogMessageOptions, type ModLogEntry } from './modlog.js';
+
+// Panel builders
+export {
+  type ModPanelContext,
+  buildModPanel,
+  buildContextBundle,
+  buildNotesList,
+  buildModActionSuccess,
+  buildModActionError,
+} from './panelBuilder.js';
+
+// Custom IDs
 export {
   ModPanelAction,
   encodeModPanelCustomId,
@@ -16,41 +25,29 @@ export {
   isModPanelCustomId,
 } from './customId.js';
 
-// Re-export from panelBuilder (moderation-specific)
+// Embed presets
 export {
-  type ModPanelContext,
-  buildModPanelV2,
-  buildContextBundleV2,
-  buildNotesListV2,
-  buildModActionSuccessV2,
-  buildModActionErrorV2,
-} from './panelBuilder.js';
+  formatDuration,
+  createModEmbed,
+  createUserNotificationEmbed,
+  notifyUser,
+  createCaseEmbed,
+  createHistoryEmbed,
+  logModAction,
+  logToModChannel,
+} from './embeds/presets.js';
 
-// Re-export from shared lib (commonly used in moderation)
+// Modals
 export {
-  // Design tokens
-  COLORS,
-  EMOJI,
-  SPACING,
-  // Formatting utilities
-  formatInfoRow,
-  formatStatsLine,
-  formatUserMention,
-  formatRelativeTimestamp,
-  formatAbsoluteTimestamp,
-  truncateText,
-  formatPaginationInfo,
-  formatDurationShort,
-  createButtonRow,
-  type ButtonConfig,
-  // Reply helpers
-  reply,
-  defer,
-  editReply,
-  // Message builders
-  successMessage,
-  errorMessage,
-  warningMessage,
-  infoMessage,
-  loadingMessage,
-} from './components.js';
+  reasonModal,
+  durationModal,
+  noteModal,
+  banModal,
+  tempbanModal,
+  timeoutModal,
+  warnModal,
+  kickModal,
+} from './modals.js';
+
+// Note: For shared Discord utilities (COLORS, EMOJI, formatters, reply helpers, message builders),
+// import directly from '#lib/discord/index.js'

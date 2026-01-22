@@ -2,21 +2,24 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { CaseStatus } from '@prisma/client';
 import { caseService } from '../../modules/moderation/services/CaseService.js';
 import { asGuildId } from '../../modules/moderation/domain/types.js';
-import { MessageFlags } from 'discord.js';
+import {
+  ephemeralError,
+  defer,
+  editReply,
+  errorMessage,
+  successMessage,
+} from '#lib/discord/index.js';
 
 export async function handleCaseEdit(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
   const caseNumber = interaction.options.getInteger('number', true);
   const reason = interaction.options.getString('reason', true);
 
-  await interaction.deferReply();
+  await defer(interaction);
 
   try {
     const result = await caseService.editReason(
@@ -26,46 +29,41 @@ export async function handleCaseEdit(interaction: Subcommand.ChatInputCommandInt
     );
 
     if (!result.success) {
-      await interaction.editReply({ content: `❌ ${result.error}` });
+      await editReply(interaction, errorMessage('Error', result.error ?? 'Failed to edit case.'));
       return;
     }
 
-    await interaction.editReply({
-      content: `✅ Case #${caseNumber} reason updated.\n**New Reason:** ${reason}`,
-    });
+    await editReply(
+      interaction,
+      successMessage(`Case #${caseNumber} Updated`, `**New Reason:** ${reason}`)
+    );
   } catch (error) {
     interaction.client.logger.error('Error in case edit command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while editing the case.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while editing the case.')
+    ).catch(() => {});
   }
 }
 
 export async function handleCaseLink(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
   const caseNumber = interaction.options.getInteger('number', true);
   const messageLink = interaction.options.getString('message_link', true);
 
-  // Validate message link format
   const messageLinkRegex = /^https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+$/;
   if (!messageLinkRegex.test(messageLink)) {
-    await interaction.reply({
-      content: '❌ Invalid message link format. Use a Discord message link.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(
+      ephemeralError('Invalid message link format. Use a Discord message link.')
+    );
     return;
   }
 
-  await interaction.deferReply();
+  await defer(interaction);
 
   try {
     const result = await caseService.linkEvidence(asGuildId(interaction.guild.id), caseNumber, {
@@ -73,29 +71,29 @@ export async function handleCaseLink(interaction: Subcommand.ChatInputCommandInt
     });
 
     if (!result.success) {
-      await interaction.editReply({ content: `❌ ${result.error}` });
+      await editReply(
+        interaction,
+        errorMessage('Error', result.error ?? 'Failed to link evidence.')
+      );
       return;
     }
 
-    await interaction.editReply({
-      content: `✅ Evidence linked to Case #${caseNumber}.\n**Link:** ${messageLink}`,
-    });
+    await editReply(
+      interaction,
+      successMessage(`Evidence Linked to Case #${caseNumber}`, `**Link:** ${messageLink}`)
+    );
   } catch (error) {
     interaction.client.logger.error('Error in case link command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while linking evidence.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while linking evidence.')
+    ).catch(() => {});
   }
 }
 
 export async function handleCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
@@ -103,26 +101,28 @@ export async function handleCaseClose(interaction: Subcommand.ChatInputCommandIn
   const statusStr = interaction.options.getString('status') ?? 'CLOSED';
   const status = statusStr as CaseStatus;
 
-  await interaction.deferReply();
+  await defer(interaction);
 
   try {
     const result = await caseService.closeCase(asGuildId(interaction.guild.id), caseNumber, status);
 
     if (!result.success) {
-      await interaction.editReply({ content: `❌ ${result.error}` });
+      await editReply(interaction, errorMessage('Error', result.error ?? 'Failed to close case.'));
       return;
     }
 
     const statusLabel = status === CaseStatus.VOID ? 'voided' : 'closed';
-    await interaction.editReply({
-      content: `✅ Case #${caseNumber} has been ${statusLabel}.`,
-    });
+    await editReply(
+      interaction,
+      successMessage(
+        `Case #${caseNumber} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in case close command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while closing the case.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while closing the case.')
+    ).catch(() => {});
   }
 }

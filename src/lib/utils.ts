@@ -8,7 +8,7 @@
 import { ValidationError } from './validation/zod';
 
 // Re-export embed builders from shared Discord library
-export { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '#lib/discord/index.js';
+export { buildSuccessEmbed, buildErrorEmbed, buildInfoEmbed } from '#lib/discord/index.js';
 
 /**
  * Formats uptime into a readable string

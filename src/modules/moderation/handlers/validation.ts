@@ -2,10 +2,18 @@
  * Moderation Validation
  *
  * Shared validation logic for moderation actions.
+ * Integrates with the custom permission framework from src/lib/validation/permissions.ts
  */
 
 import { moderationService } from '../services/ModerationService.js';
 import type { ModerationContext } from './context.js';
+import {
+  hasCustomPermission,
+  checkPermissions,
+  getPermissionName,
+  type CustomPermission,
+} from '#lib/validation/permissions.js';
+import type { PermissionResolvable } from 'discord.js';
 
 /**
  * Validation result
@@ -54,6 +62,41 @@ export function validateBotPermission(
 }
 
 /**
+ * Validate moderator has required Discord permission
+ */
+export function validateModeratorDiscordPermission(
+  context: ModerationContext,
+  permission: PermissionResolvable | PermissionResolvable[]
+): ValidationResult {
+  const result = checkPermissions(context.moderatorMember, permission);
+  if (!result.ok) {
+    const missing = (result as { ok: false; missing: string[] }).missing;
+    return {
+      valid: false,
+      error: `You are missing required permission(s): ${missing.join(', ')}`,
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validate moderator has required custom permission (e.g., mod.ban, mod.kick)
+ * Falls back to Discord permission mapping if custom permissions are not configured.
+ */
+export function validateModeratorCustomPermission(
+  context: ModerationContext,
+  permission: CustomPermission
+): ValidationResult {
+  if (!hasCustomPermission(context.moderatorMember, permission)) {
+    return {
+      valid: false,
+      error: `You are missing required permission: ${getPermissionName(permission)}`,
+    };
+  }
+  return { valid: true };
+}
+
+/**
  * Validate duration is within bounds for timeout (1 min - 28 days)
  */
 export function validateTimeoutDuration(durationSeconds: number): ValidationResult {
@@ -96,4 +139,47 @@ export function validateMemberAction(
     validateBotPermission(context, botPermission, permissionName),
     validateHierarchy(context)
   );
+}
+
+/**
+ * Full validation for moderation actions including custom permissions.
+ * Use this for comprehensive validation of mod actions.
+ *
+ * @param context - The moderation context
+ * @param options - Validation options
+ * @param options.botPermission - Discord permission the bot needs (bigint)
+ * @param options.botPermissionName - Human-readable name for the bot permission
+ * @param options.customPermission - Custom permission required (e.g., 'mod.ban')
+ * @param options.requireTargetInServer - Whether target must be in the server (default: true)
+ */
+export function validateFullModAction(
+  context: ModerationContext,
+  options: {
+    botPermission: bigint;
+    botPermissionName: string;
+    customPermission?: CustomPermission;
+    requireTargetInServer?: boolean;
+  }
+): ValidationResult {
+  const validations: ValidationResult[] = [];
+
+  // Check if target needs to be in server
+  if (options.requireTargetInServer !== false) {
+    validations.push(validateTargetInServer(context));
+  }
+
+  // Check bot has required permission
+  validations.push(
+    validateBotPermission(context, options.botPermission, options.botPermissionName)
+  );
+
+  // Check moderator has custom permission (if specified)
+  if (options.customPermission) {
+    validations.push(validateModeratorCustomPermission(context, options.customPermission));
+  }
+
+  // Check hierarchy (moderator can moderate target)
+  validations.push(validateHierarchy(context));
+
+  return runValidations(...validations);
 }

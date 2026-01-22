@@ -4,18 +4,16 @@ import { moderationService } from '../../modules/moderation/services/ModerationS
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import { caseService } from '../../modules/moderation/services/CaseService.js';
 import {
-  buildModPanelV2,
+  buildModPanel,
   type ModPanelContext,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { asGuildId, asUserId } from '../../modules/moderation/domain/types.js';
 import { CaseStatus } from '@prisma/client';
+import { ephemeralError, editError } from '#lib/discord/index.js';
 
 export async function handlePanel(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      flags: MessageFlags.Ephemeral,
-    });
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
@@ -59,7 +57,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
     };
 
     // Build the Components V2 panel
-    const container = buildModPanelV2(context);
+    const container = buildModPanel(context);
 
     await interaction.editReply({
       components: [container.build()],
@@ -68,9 +66,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
   } catch (error) {
     interaction.client.logger.error('Error in panel command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while loading the mod panel.',
-      })
+      .editReply(editError('An unexpected error occurred while loading the mod panel.'))
       .catch(() => {});
   }
 }

@@ -1,7 +1,6 @@
 import { type User, type GuildMember } from 'discord.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import {
-  v2,
   EMOJI,
   formatInfoRow,
   formatStatsLine,
@@ -13,6 +12,11 @@ import {
   dangerButton,
   successButton,
   type FluentContainer,
+  container,
+  primaryContainer,
+  infoContainer,
+  successContainer,
+  errorContainer,
 } from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
@@ -39,7 +43,7 @@ export interface ModPanelContext {
 /**
  * Build the mod panel Components V2 message
  */
-export function buildModPanelV2(context: ModPanelContext): FluentContainer {
+export function buildModPanel(context: ModPanelContext): FluentContainer {
   const {
     target,
     casesCount,
@@ -145,8 +149,7 @@ export function buildModPanelV2(context: ModPanelContext): FluentContainer {
     })
   );
 
-  return v2
-    .primaryContainer()
+  return primaryContainer()
     .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
     .text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
     .text(formatStatsLine(stats))
@@ -163,7 +166,7 @@ export function buildModPanelV2(context: ModPanelContext): FluentContainer {
 /**
  * Build a context bundle card using Components V2
  */
-export function buildContextBundleV2(context: ModPanelContext): FluentContainer {
+export function buildContextBundle(context: ModPanelContext): FluentContainer {
   const { target, recentCases, recentNotes, voiceChannelName, joinedAt, hasActiveMutes } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
@@ -220,8 +223,7 @@ export function buildContextBundleV2(context: ModPanelContext): FluentContainer 
     })
   );
 
-  return v2
-    .infoContainer()
+  return infoContainer()
     .h1('Context Bundle')
     .text(formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
     .separator()
@@ -246,7 +248,7 @@ export function buildContextBundleV2(context: ModPanelContext): FluentContainer 
 /**
  * Build a notes list using Components V2
  */
-export function buildNotesListV2(
+export function buildNotesList(
   target: User,
   notes: NoteData[],
   page: number = 1,
@@ -256,8 +258,7 @@ export function buildNotesListV2(
   const startIdx = (page - 1) * pageSize;
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
-  const c = v2
-    .container()
+  const c = container()
     .h1(`Notes for ${target.tag}`)
     .text(`Page ${page} of ${totalPages} (${notes.length} total)`)
     .separator();
@@ -280,7 +281,7 @@ export function buildNotesListV2(
 /**
  * Build success message for mod action
  */
-export function buildModActionSuccessV2(
+export function buildModActionSuccess(
   action: string,
   target: User,
   caseNumber: number,
@@ -289,29 +290,27 @@ export function buildModActionSuccessV2(
   options?: { dmSent?: boolean }
 ): FluentContainer {
   const details: Record<string, string> = {
-    [`${EMOJI.MEMBER} Target`]: `${target.tag} (\`${target.id}\`)`,
-    [`${EMOJI.SERVER_FOLDER} Case`]: `#${caseNumber}`,
-    [`${EMOJI.MODERATION} Reason`]: reason,
+    [`Target`]: `${target.tag} (\`${target.id}\`)`,
+    [`Reason`]: reason,
   };
-  if (duration) {
-    details[`${EMOJI.SLOWMODE} Duration`] = duration;
-  }
 
-  return v2
-    .successContainer()
+  return successContainer()
     .h1(`${EMOJI.SUCCESS} ${action} successful`)
     .kv(details)
+    .when(!!duration, (c) => c.text(`> ${EMOJI.SLOWMODE} ${duration}`))
     .when(options?.dmSent === false, (c) =>
-      c.separator().text(`${EMOJI.WARNING} Could not send DM notification to user.`)
-    );
+      c
+        .separator({ divider: true, spacing: 'small' })
+        .text(`${EMOJI.WARNING} Could not send DM notification to user.`)
+    )
+    .footerWithTimestamp(`Case #${caseNumber}`);
 }
 
 /**
  * Build error message with optional suggestion
  */
-export function buildModActionErrorV2(error: string, suggestion?: string): FluentContainer {
-  return v2
-    .errorContainer()
+export function buildModActionError(error: string, suggestion?: string): FluentContainer {
+  return errorContainer()
     .h1(`${EMOJI.ERROR} Error`)
     .text(error)
     .when(!!suggestion, (c) => c.separator().text(`${EMOJI.INFO} **Suggestion:** ${suggestion}`));

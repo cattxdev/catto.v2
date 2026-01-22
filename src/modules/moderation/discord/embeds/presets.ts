@@ -1,13 +1,38 @@
 import { container } from '@sapphire/framework';
-import { GuildMember, type User, type Guild, MessageFlags } from 'discord.js';
+import { GuildMember, type User, type Guild } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import type { DurationSeconds, CaseNumber } from '../../domain/types.js';
 import { formatDuration } from '#lib/discord/index.js';
 import * as modV1 from './v1.js';
-import { buildModLogEntryV2, type ModLogEntry } from '../modlog-v2.js';
+import { buildModLogEntry, getModLogMessageOptions, type ModLogEntry } from '../modlog.js';
 
-// Re-export formatDuration for backward compatibility
-export { formatDuration };
+// Re-export for convenience
+export { formatDuration, type ModLogEntry };
+
+const OFFENSE_WINDOW_DAYS = 30;
+
+const OFFENSE_GROUPS: Partial<Record<ModAction, { label: string; actions: ModAction[] }>> = {
+  [ModAction.WARN]: { label: 'warn', actions: [ModAction.WARN] },
+  [ModAction.TIMEOUT]: { label: 'timeout', actions: [ModAction.TIMEOUT] },
+  [ModAction.KICK]: { label: 'kick', actions: [ModAction.KICK] },
+  [ModAction.SOFTBAN]: { label: 'softban', actions: [ModAction.SOFTBAN] },
+  [ModAction.TEMPBAN]: { label: 'tempban', actions: [ModAction.TEMPBAN] },
+  [ModAction.MUTE_TEXT]: {
+    label: 'mute',
+    actions: [ModAction.MUTE_TEXT, ModAction.MUTE_VOICE, ModAction.MUTE_BOTH],
+  },
+  [ModAction.MUTE_VOICE]: {
+    label: 'mute',
+    actions: [ModAction.MUTE_TEXT, ModAction.MUTE_VOICE, ModAction.MUTE_BOTH],
+  },
+  [ModAction.MUTE_BOTH]: {
+    label: 'mute',
+    actions: [ModAction.MUTE_TEXT, ModAction.MUTE_VOICE, ModAction.MUTE_BOTH],
+  },
+};
+
+// Re-export from modlog for backward compatibility during migration
+export { buildModLogEntry, getModLogMessageOptions };
 
 /**
  * Create an embed for a moderation action
@@ -71,10 +96,10 @@ export async function notifyUser(
 }
 
 /**
- * Log moderation action to mod log channel using V2 containers
+ * Log moderation action to mod log channel
  * Non-pinging, readable, consistent format
  */
-export async function logToModChannelV2(guild: Guild, entry: ModLogEntry): Promise<void> {
+export async function logToModChannel(guild: Guild, entry: ModLogEntry): Promise<void> {
   try {
     const modConfig = await container.prisma.modConfig.findUnique({
       where: { guildId: guild.id },
@@ -86,45 +111,78 @@ export async function logToModChannelV2(guild: Guild, entry: ModLogEntry): Promi
 
     const channel = await guild.channels.fetch(modConfig.modLogChannelId);
     if (channel?.isTextBased()) {
-      const v2Container = buildModLogEntryV2(entry);
-      await channel.send({
-        components: [v2Container],
-        flags: MessageFlags.IsComponentsV2,
-        allowedMentions: { parse: [] }, // No pings
-      });
+      const messageOptions = getModLogMessageOptions(entry);
+      await channel.send(messageOptions);
     }
   } catch (error) {
-    container.logger.error('Failed to log to mod channel (V2):', error);
+    container.logger.error('Failed to log to mod channel:', error);
   }
 }
 
 /**
- * Log a moderation action to the mod channel using V2
+ * Log a moderation action to the mod channel
  * Convenience wrapper that constructs the ModLogEntry from common parameters
  */
-export async function logModActionV2(
+export async function logModAction(
   guild: Guild,
   action: ModAction,
   target: User | GuildMember | { id: string; tag?: string },
-  moderator: User,
+  moderator: User | 'System',
   reason: string,
   caseNumber: CaseNumber,
-  duration?: number
+  duration?: number,
+  options?: { automatic?: boolean }
 ): Promise<void> {
   const targetUser = target instanceof GuildMember ? target.user : target;
+  const isAutomatic = options?.automatic ?? moderator === 'System';
+  const offenseGroup = OFFENSE_GROUPS[action];
+  const shouldIncludeOffenseSummary = offenseGroup && action !== ModAction.BAN;
+  let recentOffenseCount: number | undefined;
+  let offenseLabel: string | undefined;
+
+  if (shouldIncludeOffenseSummary) {
+    const since = new Date(Date.now() - OFFENSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    recentOffenseCount = await container.prisma.modCase.count({
+      where: {
+        guildId: guild.id,
+        targetId: targetUser.id,
+        action: { in: offenseGroup.actions },
+        createdAt: { gte: since },
+      },
+    });
+    offenseLabel = offenseGroup.label;
+  }
+
   const entry: ModLogEntry = {
     action,
     caseNumber,
     targetId: targetUser.id,
     targetTag: 'tag' in targetUser ? targetUser.tag : undefined,
-    moderatorId: moderator.id,
-    moderatorTag: moderator.tag,
+    moderatorId: moderator === 'System' ? 'System' : moderator.id,
+    moderatorTag: moderator === 'System' ? 'System' : moderator.tag,
     reason: reason || 'No reason provided',
     duration,
     timestamp: new Date(),
+    automatic: isAutomatic,
+    recentOffenseCount,
+    offenseLabel,
   };
-  await logToModChannelV2(guild, entry);
+  await logToModChannel(guild, entry);
 }
+
+// ============================================================================
+// Legacy V2 aliases (for backward compatibility during migration)
+// ============================================================================
+
+/** @deprecated Use logToModChannel instead */
+export const logToModChannelV2 = logToModChannel;
+
+/** @deprecated Use buildModLogEntry instead */
+export const buildModLogEntryV2 = buildModLogEntry;
+
+// ============================================================================
+// Embed Presets
+// ============================================================================
 
 /**
  * Create a case details embed

@@ -245,6 +245,22 @@ export const EMOJI_CONFIG = {
     custom: '<:add_white:1463534575299858588>',
     fallback: '\u2795', // plus
   },
+  MIC_WITH_CHECK: {
+    custom: '<:mic_with_check_white:1463669963251519694>',
+    fallback: '\uD83D\uDCF7\uFE0F', // microphone
+  },
+  TEXT_CHANNEL_WITH_CHECK: {
+    custom: '<:text_channel_with_check_white:1463669927121649765>',
+    fallback: '\uD83D\uDCDD\uFE0F', // text channel
+  },
+  SERVER_LEAVE: {
+    custom: '<:server_leave:1462784544490000445>',
+    fallback: '\uD83D\uDEAA', // door
+  },
+  TIME_OUT: {
+    custom: '<:time_out:1463366100610842806>',
+    fallback: '\u23F1\uFE0F', // stopwatch
+  },
 } as const;
 
 export type EmojiKey = keyof typeof EMOJI_CONFIG;
@@ -340,6 +356,10 @@ export const EMOJI: Record<EmojiKey, string> & {
   VOICE_LIMITER: EMOJI_CONFIG.VOICE_LIMITER.custom,
   TEXT_LIMITER: EMOJI_CONFIG.TEXT_LIMITER.custom,
   ADD_WHITE: EMOJI_CONFIG.ADD_WHITE.custom,
+  MIC_WITH_CHECK: EMOJI_CONFIG.MIC_WITH_CHECK.custom,
+  TEXT_CHANNEL_WITH_CHECK: EMOJI_CONFIG.TEXT_CHANNEL_WITH_CHECK.custom,
+  SERVER_LEAVE: EMOJI_CONFIG.SERVER_LEAVE.custom,
+  TIME_OUT: EMOJI_CONFIG.TIME_OUT.custom,
 
   // Aliases for backward compatibility
   RED_CROSS: EMOJI_CONFIG.ERROR.custom,

@@ -24,9 +24,9 @@ import {
   encodeMuteModalCustomId,
 } from '#root/modules/moderation/discord/customId.js';
 import {
-  buildModPanelV2,
-  buildContextBundleV2,
-  buildNotesListV2,
+  buildModPanel,
+  buildContextBundle,
+  buildNotesList,
   type ModPanelContext,
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
@@ -330,7 +330,7 @@ export class ModPanelInteractionListener extends Listener {
       return;
     }
 
-    const containerComp = buildNotesListV2(target, notes);
+    const containerComp = buildNotesList(target, notes);
 
     await interaction.editReply({
       components: [containerComp.build()],
@@ -381,7 +381,7 @@ export class ModPanelInteractionListener extends Listener {
       accountCreatedAt: target.createdAt,
     };
 
-    const containerComp = buildContextBundleV2(context);
+    const containerComp = buildContextBundle(context);
 
     await interaction.editReply({
       components: [containerComp.build()],
@@ -491,7 +491,7 @@ export class ModPanelInteractionListener extends Listener {
       hasActiveMutes: activeMutes.length > 0,
     };
 
-    const containerComp = buildModPanelV2(context);
+    const containerComp = buildModPanel(context);
 
     await interaction.editReply({
       components: [containerComp.build()],

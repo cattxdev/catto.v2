@@ -1,20 +1,10 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { container } from '@sapphire/framework';
-import {
-  MessageFlags,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
-  channelMention,
-} from 'discord.js';
+import { container as sapphireContainer } from '@sapphire/framework';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, channelMention } from 'discord.js';
 import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
-import { EMOJI } from '#lib/discord/index.js';
+import { EMOJI, defer, editReply, editError, container } from '#lib/discord/index.js';
 import {
   getVoiceIndicators,
   formatMemberName,
@@ -23,7 +13,7 @@ import {
 export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
   const options = parseVoiceWhereOptions(interaction);
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await defer(interaction);
 
   try {
     const cached = await getJson(
@@ -35,49 +25,46 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     try {
       member = await options.guild.members.fetch(options.targetId);
     } catch {
-      await interaction.editReply({
-        content: `User **${options.target.tag}** is not a member of this server.`,
-      });
+      await editReply(
+        interaction,
+        container().text(`User **${options.target.tag}** is not a member of this server.`)
+      );
       return;
     }
 
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const lines: string[] = [`## ${EMOJI.MEMBER} ${formatMemberName(member)}`];
+    const c = container().h2(`${EMOJI.MEMBER} ${formatMemberName(member)}`);
 
     if (inVoice && voiceState.channel && voiceState.channelId) {
       const indicators = getVoiceIndicators(
         { ...voiceState, channelId: voiceState.channelId },
         member.id
       );
-      lines.push(`**Channel:** ${channelMention(voiceState.channelId)}`);
-      lines.push(`**State:** ${indicators}`);
+      c.kv({
+        Channel: channelMention(voiceState.channelId),
+        State: indicators,
+      });
 
       if (voiceState.streaming) {
-        lines.push(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+        c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
       }
 
       if (cached) {
         const joinedAgo = Math.floor((Date.now() - cached.timestamp) / 1000);
-        lines.push(`_Tracked for ${formatSeconds(joinedAgo)}_`);
+        c.text(`_Tracked for ${formatSeconds(joinedAgo)}_`);
       }
     } else {
-      lines.push('_Not in a voice channel_');
+      c.text('_Not in a voice channel_');
 
       if (cached) {
-        lines.push(`_Last seen <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
+        c.text(`_Last seen <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
       }
     }
 
-    const containerComp = new ContainerBuilder().addTextDisplayComponents(
-      ...lines.map((line) => new TextDisplayBuilder().setContent(line))
-    );
-
     if (inVoice && voiceState.channelId) {
-      containerComp.addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
-      );
+      c.separator();
 
       // All buttons in one row
       const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -95,18 +82,15 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
           .setStyle(ButtonStyle.Secondary)
       );
 
-      containerComp.addActionRowComponents(actionRow);
+      c.actions(actionRow);
     }
 
-    await interaction.editReply({
-      components: [containerComp],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await editReply(interaction, c);
   } catch (error) {
-    container.logger.error('Error in voice where command:', error);
-    await interaction.editReply({
-      content: 'An error occurred while checking voice location.',
-    });
+    sapphireContainer.logger.error('Error in voice where command:', error);
+    await interaction
+      .editReply(editError('An error occurred while checking voice location.'))
+      .catch(() => {});
   }
 }
 
