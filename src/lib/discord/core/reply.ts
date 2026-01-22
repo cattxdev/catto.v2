@@ -130,6 +130,7 @@ class ReplyBuilder implements PromiseLike<void> {
     const options: InteractionReplyOptions = {
       components: [resolved],
       flags,
+      allowedMentions: { parse: [] },
     };
 
     await this.interaction.reply(options);
@@ -165,6 +166,7 @@ export async function editReply(
   const options: InteractionEditReplyOptions = {
     components: [resolved],
     flags: COMPONENTS_V2,
+    allowedMentions: { parse: [] },
   };
 
   try {

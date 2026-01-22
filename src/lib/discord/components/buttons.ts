@@ -12,10 +12,11 @@ import { EMOJI } from '../design.js';
 
 /**
  * Button configuration
+ * Note: At least one of label or emoji must be provided
  */
 export interface ButtonConfig {
   customId: string;
-  label: string;
+  label?: string;
   style: ButtonStyle;
   emoji?: string;
   disabled?: boolean;
@@ -33,10 +34,11 @@ export interface LinkButtonConfig {
 
 /**
  * Simplified button config for common cases
+ * Note: At least one of label or emoji must be provided
  */
 export interface SimpleButtonConfig {
   customId: string;
-  label: string;
+  label?: string;
   emoji?: string;
   disabled?: boolean;
 }
@@ -47,10 +49,11 @@ export interface SimpleButtonConfig {
  * Create a button from config
  */
 export function button(config: ButtonConfig): ButtonBuilder {
-  const btn = new ButtonBuilder()
-    .setCustomId(config.customId)
-    .setLabel(config.label)
-    .setStyle(config.style);
+  const btn = new ButtonBuilder().setCustomId(config.customId).setStyle(config.style);
+
+  if (config.label) {
+    btn.setLabel(config.label);
+  }
 
   if (config.emoji) {
     btn.setEmoji(config.emoji);
@@ -289,7 +292,7 @@ export function paginationRow(
     buttons.push(
       secondaryButton({
         customId: `${baseCustomId}:first`,
-        label: EMOJI.ARROW_LEFT_G,
+        emoji: EMOJI.ARROW_LEFT_G,
         disabled: currentPage <= 1,
       })
     );
@@ -299,7 +302,7 @@ export function paginationRow(
   buttons.push(
     secondaryButton({
       customId: `${baseCustomId}:prev`,
-      label: EMOJI.ARROW_LEFT_G,
+      emoji: EMOJI.ARROW_LEFT_G,
       disabled: currentPage <= 1,
     })
   );
@@ -319,7 +322,7 @@ export function paginationRow(
   buttons.push(
     secondaryButton({
       customId: `${baseCustomId}:next`,
-      label: EMOJI.ARROW_RIGHT_G,
+      emoji: EMOJI.ARROW_RIGHT_G,
       disabled: currentPage >= totalPages,
     })
   );
@@ -329,7 +332,7 @@ export function paginationRow(
     buttons.push(
       secondaryButton({
         customId: `${baseCustomId}:last`,
-        label: EMOJI.ARROW_RIGHT_G,
+        emoji: EMOJI.ARROW_RIGHT_G,
         disabled: currentPage >= totalPages,
       })
     );

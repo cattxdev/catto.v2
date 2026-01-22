@@ -621,7 +621,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
             });
           } else {
             await buttonInteraction.editReply({
-              content: `${EMOJI.SUCCESS} Muted roles already exist. No changes made.`,
+              content: `${EMOJI.SUCCESS} Muted roles are already configured. To change them, use the Text/Voice mute role buttons above.`,
             });
           }
 

@@ -312,6 +312,57 @@ export function decodeMuteModalCustomId(customId: string): MuteModalCustomId | n
   return result.data;
 }
 
+// ==================== History Pagination Custom ID ====================
+
+const HISTORY_PREFIX = 'modhistory';
+
+/**
+ * Get the base custom ID for history pagination
+ * Format: modhistory:v1:{targetId}:{page}
+ * paginationRow will append :prev, :next, etc.
+ */
+export function getHistoryPaginationBase(targetId: string, page: number = 1): string {
+  return `${HISTORY_PREFIX}:${CUSTOM_ID_VERSION}:${targetId}:${page}`;
+}
+
+/**
+ * Decode a history pagination custom_id
+ * Format: modhistory:v1:{targetId}:{page}:{action}
+ * where action is 'prev', 'next', 'first', 'last', or 'info'
+ */
+export function decodeHistoryPaginationCustomId(
+  customId: string
+): { targetId: string; page: number; action: string } | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 5 || parts[0] !== HISTORY_PREFIX || parts[1] !== CUSTOM_ID_VERSION) {
+    return null;
+  }
+
+  const targetId = parts[2];
+  const pageStr = parts[3];
+  const action = parts[4];
+
+  if (!targetId || !pageStr || !action) {
+    return null;
+  }
+
+  const page = parseInt(pageStr, 10);
+
+  if (isNaN(page)) {
+    return null;
+  }
+
+  return { targetId, page, action };
+}
+
+/**
+ * Check if a custom_id is a history pagination interaction
+ */
+export function isHistoryPaginationCustomId(customId: string): boolean {
+  return customId.startsWith(`${HISTORY_PREFIX}:${CUSTOM_ID_VERSION}:`);
+}
+
 // ==================== Helper to check all mod interaction types ====================
 
 /**
@@ -323,6 +374,7 @@ export function isModInteractionCustomId(customId: string): boolean {
     customId.startsWith('modnote:') ||
     customId.startsWith('moddur:') ||
     customId.startsWith('modreason:') ||
-    customId.startsWith('modmute:')
+    customId.startsWith('modmute:') ||
+    customId.startsWith(`${HISTORY_PREFIX}:`)
   );
 }

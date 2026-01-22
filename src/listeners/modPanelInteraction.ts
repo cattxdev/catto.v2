@@ -23,7 +23,11 @@ import {
   encodeDurationModalCustomId,
   encodeNoteModalCustomId,
   encodeMuteModalCustomId,
+  isHistoryPaginationCustomId,
+  decodeHistoryPaginationCustomId,
+  getHistoryPaginationBase,
 } from '#root/modules/moderation/discord/customId.js';
+import { createHistoryEmbed } from '#root/modules/moderation/discord/embeds/presets.js';
 import {
   buildModPanel,
   buildContextBundle,
@@ -51,6 +55,13 @@ export class ModPanelInteractionListener extends Listener {
   public async run(interaction: Interaction) {
     if (!interaction.isButton()) return;
     if (!interaction.guildId) return;
+
+    // Handle history pagination separately
+    if (isHistoryPaginationCustomId(interaction.customId)) {
+      await this.handleHistoryPagination(interaction);
+      return;
+    }
+
     if (!isModPanelCustomId(interaction.customId)) return;
 
     const parsed = decodeModPanelCustomId(interaction.customId);
@@ -363,7 +374,11 @@ export class ModPanelInteractionListener extends Listener {
     await editReply(interaction, containerComp);
   }
 
-  private async showHistory(interaction: ButtonInteraction, targetId: string): Promise<void> {
+  private async showHistory(
+    interaction: ButtonInteraction,
+    targetId: string,
+    page: number = 1
+  ): Promise<void> {
     await defer(interaction);
 
     const guildId = asGuildId(
@@ -381,35 +396,12 @@ export class ModPanelInteractionListener extends Listener {
     }
 
     const cases = await moderationService.getUserCases(guildId, userId);
+    const historyEmbed = createHistoryEmbed(target, cases, {
+      page,
+      paginationCustomIdBase: getHistoryPaginationBase(targetId, page),
+    });
 
-    const c = container().h1(`History for ${target.tag}`).text(`Total cases: **${cases.length}**`);
-
-    if (cases.length === 0) {
-      c.text('*No moderation history found.*');
-    } else {
-      const casesList = cases
-        .slice(0, 10)
-        .map(
-          (modCase: {
-            createdAt: { getTime: () => number };
-            caseNumber: number;
-            action: string;
-            reason: string | null;
-          }) => {
-            const timestamp = `<t:${Math.floor(modCase.createdAt.getTime() / 1000)}:R>`;
-            return `• **#${modCase.caseNumber}** ${modCase.action} - ${timestamp}\n  ${modCase.reason ?? 'No reason'}`;
-          }
-        )
-        .join('\n\n');
-
-      c.text(casesList);
-
-      if (cases.length > 10) {
-        c.text(`\n*... and ${cases.length - 10} more cases*`);
-      }
-    }
-
-    await editReply(interaction, c);
+    await editReply(interaction, historyEmbed);
   }
 
   private async refreshPanel(interaction: ButtonInteraction, targetId: string): Promise<void> {
@@ -459,5 +451,65 @@ export class ModPanelInteractionListener extends Listener {
 
     const containerComp = buildModPanel(context);
     await editReply(interaction, containerComp);
+  }
+
+  private async handleHistoryPagination(interaction: ButtonInteraction): Promise<void> {
+    const decoded = decodeHistoryPaginationCustomId(interaction.customId);
+    if (!decoded) {
+      await interaction.reply(ephemeralError('Invalid pagination.'));
+      return;
+    }
+
+    // Permission check
+    const member = interaction.member as GuildMember;
+    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+      await interaction.reply(ephemeralError('You do not have permission to use this.'));
+      return;
+    }
+
+    // Calculate target page based on action
+    let targetPage = decoded.page;
+    if (decoded.action === 'prev') {
+      targetPage = decoded.page - 1;
+    } else if (decoded.action === 'next') {
+      targetPage = decoded.page + 1;
+    } else if (decoded.action === 'first') {
+      targetPage = 1;
+    } else if (decoded.action === 'info') {
+      // Info button is disabled, shouldn't fire
+      return;
+    }
+    // 'last' is handled by clamping below
+
+    await interaction.deferUpdate();
+
+    const guildId = asGuildId(
+      ensureNonNull(interaction.guildId, 'handleHistoryPagination > guildId')
+    );
+    const userId = asUserId(decoded.targetId);
+
+    const target = await interaction.client.users.fetch(decoded.targetId).catch(() => null);
+    if (!target) {
+      return;
+    }
+
+    const cases = await moderationService.getUserCases(guildId, userId);
+    const totalPages = Math.ceil(cases.length / 5) || 1;
+
+    // Handle 'last' action
+    if (decoded.action === 'last') {
+      targetPage = totalPages;
+    }
+
+    const clampedPage = Math.max(1, Math.min(targetPage, totalPages));
+
+    const historyEmbed = createHistoryEmbed(target, cases, {
+      page: clampedPage,
+      paginationCustomIdBase: getHistoryPaginationBase(decoded.targetId, clampedPage),
+    });
+
+    await interaction.editReply({
+      components: [historyEmbed.build()],
+    });
   }
 }

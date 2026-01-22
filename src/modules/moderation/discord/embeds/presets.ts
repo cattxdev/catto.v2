@@ -10,6 +10,7 @@ import {
   truncateText,
   EMOJI,
   COLORS,
+  paginationRow,
   type FluentContainer,
 } from '#lib/discord/index.js';
 import * as modV1 from './v1.js';
@@ -290,20 +291,34 @@ export function createCaseEmbed(modCase: {
     .footerWithTimestamp(`Case #${modCase.caseNumber}`, modCase.createdAt);
 }
 
+export interface HistoryCase {
+  caseNumber: number;
+  action: ModAction;
+  createdAt: Date;
+  reason: string | null;
+}
+
+export interface HistoryEmbedOptions {
+  page?: number;
+  pageSize?: number;
+  paginationCustomIdBase?: string;
+}
+
+const HISTORY_PAGE_SIZE = 5;
+
 /**
- * Create a history embed
+ * Create a paginated history embed
  */
 export function createHistoryEmbed(
   target: User,
-  cases: Array<{
-    caseNumber: number;
-    action: ModAction;
-    createdAt: Date;
-    reason: string | null;
-  }>
+  cases: HistoryCase[],
+  options: HistoryEmbedOptions = {}
 ): FluentContainer {
-  const maxCases = 5;
-  const recentCases = cases.slice(0, maxCases);
+  const page = options.page ?? 1;
+  const pageSize = options.pageSize ?? HISTORY_PAGE_SIZE;
+  const totalPages = Math.ceil(cases.length / pageSize) || 1;
+  const startIdx = (page - 1) * pageSize;
+  const pageCases = cases.slice(startIdx, startIdx + pageSize);
 
   const stats = {
     Total: cases.length,
@@ -313,7 +328,7 @@ export function createHistoryEmbed(
     Warns: cases.filter((c) => c.action === ModAction.WARN).length,
   };
 
-  const caseList = recentCases
+  const caseList = pageCases
     .map((c) => {
       const display = getActionDisplay(c.action);
       const timestamp = formatRelativeTimestamp(c.createdAt);
@@ -324,25 +339,30 @@ export function createHistoryEmbed(
 
   const header = `${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`;
   const c = container({ color: COLORS.WARN })
-    .beginSection() // Section wrapper to ensure thumbnail appears on the right
+    .beginSection()
     .h2(`${EMOJI.MODERATION} Moderation history`)
     .text(header)
     .text(formatStatsLine(stats, 'columns'))
     .withThumbnail(target.displayAvatarURL())
     .separator({ divider: true, spacing: 'small' });
 
-  if (recentCases.length > 0) {
+  if (pageCases.length > 0) {
     c.separator();
-    c.text(`**Recent cases (${recentCases.length} of ${cases.length})**\n${caseList}`);
+    c.text(`**Cases (page ${page} of ${totalPages})**\n${caseList}`);
   } else {
     c.text('No cases found.');
   }
 
-  if (cases.length > maxCases) {
-    c.footer(
-      `Showing ${maxCases} of ${cases.length} cases. Use /mod case <number> to view specific cases.`
+  if (totalPages > 1 && options.paginationCustomIdBase) {
+    c.actions(
+      paginationRow(options.paginationCustomIdBase, page, totalPages, {
+        showFirst: false,
+        showLast: false,
+      })
     );
   }
+
+  c.footer(`Use /mod case <number> to view specific cases.`);
 
   return c;
 }
