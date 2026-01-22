@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { getUserSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { GuildCard } from "@/components/guild-card"
+import { UserDropdown } from "@/components/user-dropdown"
 
 interface Guild {
   id: string;
@@ -35,20 +36,7 @@ export default async function GuildsPage() {
               </div>
               <h1 className="text-xl font-semibold text-gray-900">Select a Server</h1>
             </div>
-            <div className="flex items-center space-x-3">
-              {user.avatar ? (
-                <img
-                  src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`}
-                  alt={user.username}
-                  className="w-8 h-8 rounded-full"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center text-white text-sm font-semibold">
-                  {user.username[0].toUpperCase()}
-                </div>
-              )}
-              <span className="text-sm text-gray-700">{user.username}</span>
-            </div>
+            <UserDropdown user={user} />
           </div>
         </div>
       </header>
