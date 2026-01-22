@@ -215,7 +215,7 @@ export class ModPanelInteractionListener extends Listener {
       await editReply(
         interaction,
         container()
-          .h1('User Unmuted')
+          .h2('User unmuted')
           .text(`**${targetMember.user.tag}** has been unmuted.`)
           .footer(`Case #${result.caseNumber}`)
       );

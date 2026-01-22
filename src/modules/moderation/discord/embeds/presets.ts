@@ -271,7 +271,7 @@ export function createCaseEmbed(modCase: {
   const display = getActionDisplay(modCase.action);
   const reason = modCase.reason ?? 'No reason provided';
   return container({ color: display.color })
-    .h1(`${display.emoji} Case #${modCase.caseNumber}`)
+    .h2(`${display.emoji} Case #${modCase.caseNumber}`)
     .text(`${EMOJI.MODERATION} ${display.label ?? modCase.action}`)
     .text(`${EMOJI.MEMBER} ${modCase.targetTag}\n(\`${modCase.targetId}\`)`)
     .text(`${EMOJI.MOD_SHIELD} ${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`)

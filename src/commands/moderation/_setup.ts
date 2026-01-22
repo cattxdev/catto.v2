@@ -91,7 +91,7 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
     return reply(
       interaction,
       errorContainer()
-        .h1('Permission Denied')
+        .h2('Permission Denied')
         .text('You need Administrator permissions to configure moderation settings.')
     );
   }
@@ -144,7 +144,7 @@ function buildSetupContainer(
   ];
 
   return infoContainer()
-    .h1(`${EMOJI.MOD_SHIELD} Moderation Setup`)
+    .h2(`${EMOJI.MOD_SHIELD} Moderation Setup`)
     .separator()
     .h2('Current Settings')
     .kv(settings)
@@ -787,7 +787,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
     return reply(
       interaction,
       errorContainer()
-        .h1('No Config Found')
+        .h2('No Config Found')
         .text('No moderation config found.')
         .separator()
         .text(`${EMOJI.INFO} **Suggestion:** Run \`/mod setup\` to configure.`)
@@ -797,7 +797,7 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
   await reply(
     interaction,
     infoContainer()
-      .h1(`${EMOJI.MOD_SHIELD} Moderation Config`)
+      .h2(`${EMOJI.MOD_SHIELD} Moderation Config`)
       .separator()
       .kv({
         'Mod Log': config.modLogChannelId ? `<#${config.modLogChannelId}>` : '`Not set`',

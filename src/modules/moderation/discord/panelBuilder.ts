@@ -149,7 +149,7 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
   );
 
   return primaryContainer()
-    .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
+    .h2(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
     .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
       c.text(
@@ -186,7 +186,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
           .map((c) => {
             const timestamp = formatRelativeTimestamp(c.createdAt);
             const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
-            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\nWhy: ${reasonPreview}`;
+            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n> Why: \`${reasonPreview}\``;
           })
           .join('\n')
       : null;
@@ -221,7 +221,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
   );
 
   return infoContainer()
-    .h1('Context Bundle')
+    .h2('Context Bundle')
     .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .separator()
     .h2('Timeline')
@@ -262,7 +262,7 @@ export function buildNotesList(
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
   const c = container()
-    .h1(`Notes for ${target.tag}`)
+    .h2(`Notes for ${target.tag}`)
     .text(`Page ${page} of ${totalPages} (${notes.length} total)`)
     .separator();
 
@@ -298,7 +298,7 @@ export function buildModActionSuccess(
   };
 
   return successContainer()
-    .h1(`${EMOJI.SUCCESS} ${action} successful`)
+    .h2(`${EMOJI.SUCCESS} ${action} successful`)
     .kv(details)
     .when(!!duration, (c) => c.text(`> ${EMOJI.SLOWMODE} ${duration}`))
     .when(options?.dmSent === false, (c) =>
@@ -314,7 +314,7 @@ export function buildModActionSuccess(
  */
 export function buildModActionError(error: string, suggestion?: string): FluentContainer {
   return errorContainer()
-    .h1(`${EMOJI.ERROR} Error`)
+    .h2(`${EMOJI.ERROR} Error`)
     .text(error)
     .when(!!suggestion, (c) => c.separator().text(`${EMOJI.INFO} **Suggestion:** ${suggestion}`));
 }

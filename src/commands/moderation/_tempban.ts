@@ -125,7 +125,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     await editReply(
       interaction,
       successContainer()
-        .h1(`${EMOJI.SUCCESS} Tempban Successful`)
+        .h2(`${EMOJI.SUCCESS} Tempban successful`)
         .kv({
           [`${EMOJI.MEMBER} Target`]: `${targetTag}`,
           [`${EMOJI.SERVER_FOLDER} Case`]: `#${result.caseNumber}`,

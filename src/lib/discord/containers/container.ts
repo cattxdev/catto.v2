@@ -161,7 +161,7 @@ export class FluentContainer {
    * @example
    * container()
    *   .beginSection()
-   *     .h1('Moderation History')
+   *     .h2('Moderation History')
    *     .text(`User: ${user.tag}`)
    *     .kv({ Bans: 2, Warns: 8 })
    *   .withThumbnail(user.avatarURL())
@@ -210,13 +210,13 @@ export class FluentContainer {
    * @example
    * // Simple: single text with thumbnail
    * container()
-   *   .h1('User Profile').withThumbnail(user.avatarURL())
+   *   .h2('User Profile').withThumbnail(user.avatarURL())
    *
    * @example
    * // Combined: multiple texts merged into one section with thumbnail
    * container()
    *   .beginSection()
-   *     .h1('Moderation History')
+   *     .h2('Moderation History')
    *     .text(`User: ${user.tag}`)
    *     .kv({ Bans: 2, Warns: 8 })
    *   .withThumbnail(user.avatarURL())

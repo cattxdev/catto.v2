@@ -24,7 +24,7 @@ export function simpleMessage(...lines: string[]): FluentContainer {
  * Success message with title and optional description
  */
 export function successMessage(title: string, description?: string): FluentContainer {
-  const c = successContainer().h1(title);
+  const c = successContainer().h2(title);
   if (description) c.text(description);
   return c;
 }
@@ -33,7 +33,7 @@ export function successMessage(title: string, description?: string): FluentConta
  * Error message with title and optional description
  */
 export function errorMessage(title: string, description?: string): FluentContainer {
-  const c = errorContainer().h1(title);
+  const c = errorContainer().h2(title);
   if (description) c.text(description);
   return c;
 }
@@ -42,7 +42,7 @@ export function errorMessage(title: string, description?: string): FluentContain
  * Warning message with title and optional description
  */
 export function warningMessage(title: string, description?: string): FluentContainer {
-  const c = warningContainer().h1(title);
+  const c = warningContainer().h2(title);
   if (description) c.text(description);
   return c;
 }
@@ -51,7 +51,7 @@ export function warningMessage(title: string, description?: string): FluentConta
  * Info message with title and optional description
  */
 export function infoMessage(title: string, description?: string): FluentContainer {
-  const c = infoContainer().h1(title);
+  const c = infoContainer().h2(title);
   if (description) c.text(description);
   return c;
 }

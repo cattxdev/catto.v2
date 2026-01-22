@@ -105,7 +105,7 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     await editReply(
       interaction,
       successMessage(
-        `**${targetTag}** has been softbanned (messages deleted, user unbanned). (Case #${result.caseNumber})`
+        `**${targetTag}** has been softbanned (messages deleted, user unbanned). \n-# (Case #${result.caseNumber})`
       )
     );
   } catch (error) {
