@@ -36,6 +36,11 @@ export class ReadyListener extends Listener {
       const { modEventLogger } = await import('../modules/moderation/services/ModEventLogger.js');
       await modEventLogger.initialize();
       this.container.logger.info('Moderation event logger initialized');
+
+      const { voiceMuteAllScheduler } =
+        await import('../modules/voice/services/VoiceMuteAllScheduler.js');
+      await voiceMuteAllScheduler.initialize();
+      this.container.logger.info('Voice mute-all scheduler initialized');
     } catch (error) {
       this.container.logger.error('Failed to initialize moderation scheduler:', error);
     }
@@ -113,6 +118,11 @@ export class ReadyListener extends Listener {
         const { modEventLogger } = await import('../modules/moderation/services/ModEventLogger.js');
         await modEventLogger.shutdown();
         this.container.logger.info('Moderation event logger shut down');
+
+        const { voiceMuteAllScheduler } =
+          await import('../modules/voice/services/VoiceMuteAllScheduler.js');
+        await voiceMuteAllScheduler.shutdown();
+        this.container.logger.info('Voice mute-all scheduler shut down');
       } catch (error) {
         this.container.logger.error('Error shutting down scheduler:', error);
       }

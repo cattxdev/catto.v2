@@ -2,11 +2,9 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits,
   type Guild,
   type VoiceState,
   type GuildMember,
-  type PermissionResolvable,
   channelMention,
   userMention,
 } from 'discord.js';
@@ -17,23 +15,10 @@ import {
 } from '../domain/types.js';
 import { EMOJI, container, type FluentContainer } from '#lib/discord/index.js';
 import { embeddedActivityTracker } from './embeddedActivity.js';
+import { hasVoiceModPermissions } from '#lib/validation/permissions.js';
 
-/**
- * Voice moderation permissions that qualify a member for the mod shield indicator
- */
-const VOICE_MOD_PERMISSIONS: PermissionResolvable[] = [
-  PermissionFlagsBits.MuteMembers,
-  PermissionFlagsBits.DeafenMembers,
-  PermissionFlagsBits.MoveMembers,
-  PermissionFlagsBits.KickMembers,
-];
-
-/**
- * Check if a member has voice moderation permissions (mute/deafen, move, kick)
- */
-export function hasVoiceModPermissions(member: GuildMember): boolean {
-  return VOICE_MOD_PERMISSIONS.every((perm) => member.permissions.has(perm));
-}
+// Re-export for backward compatibility
+export { hasVoiceModPermissions };
 
 /**
  * Get the mod shield indicator if a member has voice moderation permissions
@@ -254,7 +239,7 @@ export function buildTrackMessage(
     new ButtonBuilder()
       .setCustomId(`voice_mute_all:${session.channelId}`)
       .setLabel('All')
-      .setEmoji(EMOJI.VOICE_SERVER_MUTED)
+      .setEmoji(EMOJI.VOICE_TOGGLE)
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -447,7 +432,7 @@ export function buildTrackMessageFromParams(params: TrackMessageParams): FluentC
     new ButtonBuilder()
       .setCustomId(`voice_mute_all:${params.channelId}`)
       .setLabel('All')
-      .setEmoji(EMOJI.VOICE_SERVER_MUTED)
+      .setEmoji(EMOJI.VOICE_TOGGLE)
       .setStyle(ButtonStyle.Secondary)
   );
 

@@ -366,3 +366,83 @@ export function createHistoryEmbed(
 
   return c;
 }
+
+// Voice Mute-All Modlog Summary
+
+export interface VoiceMuteAllLogEntry {
+  /** Whether mute-all was enabled (true) or disabled (false) */
+  enabled: boolean;
+  /** Voice channel ID */
+  channelId: string;
+  /** Voice channel name */
+  channelName: string;
+  /** User who triggered the toggle */
+  moderatorId: string;
+  /** Tag of the moderator */
+  moderatorTag: string;
+  /** Number of users muted (on enable) or unmuted (on disable) */
+  affectedCount: number;
+  /** Number of users in the ignorelist (already muted before toggle) */
+  ignoredCount: number;
+  /** Number of users pending unmute on next join (on disable only) */
+  pendingUnmuteCount?: number;
+}
+
+/**
+ * Build a modlog entry for voice mute-all toggle actions.
+ * This is a special entry that doesn't create a DB case.
+ */
+export function buildVoiceMuteAllLogEntry(entry: VoiceMuteAllLogEntry): FluentContainer {
+  const emoji = entry.enabled ? EMOJI.VOICE_SERVER_MUTED : EMOJI.MIC_WITH_CHECK;
+  const color = entry.enabled ? COLORS.MUTE : COLORS.UNMUTE;
+  const action = entry.enabled ? 'Mute All Enabled' : 'Mute All Disabled';
+
+  const details = [
+    `**Channel:** <#${entry.channelId}>`,
+    `**${entry.enabled ? 'Muted' : 'Unmuted'}:** ${entry.affectedCount} member(s)`,
+    `**Ignored (already muted):** ${entry.ignoredCount} member(s)`,
+  ];
+
+  if (!entry.enabled && entry.pendingUnmuteCount !== undefined && entry.pendingUnmuteCount > 0) {
+    details.push(`**Pending unmute on rejoin:** ${entry.pendingUnmuteCount} member(s)`);
+  }
+
+  const c = container({ color })
+    .h2(`${emoji} Voice ${action}`)
+    .text(details.join('\n'))
+    .text(`\n-# Moderator: <@${entry.moderatorId}> (${entry.moderatorId})`)
+    .footerWithTimestamp(`Voice Channel: ${entry.channelName}`);
+
+  return c;
+}
+
+/**
+ * Log a voice mute-all action to the mod channel.
+ * This does NOT create a DB case - it's for auditing only.
+ */
+export async function logVoiceMuteAllAction(
+  guild: Guild,
+  entry: VoiceMuteAllLogEntry
+): Promise<void> {
+  try {
+    const modConfig = await sapphireContainer.prisma.modConfig.findUnique({
+      where: { guildId: guild.id },
+    });
+
+    if (!modConfig?.modLogChannelId) {
+      return;
+    }
+
+    const channel = await guild.channels.fetch(modConfig.modLogChannelId);
+    if (channel?.isTextBased()) {
+      const fluentContainer = buildVoiceMuteAllLogEntry(entry);
+      await channel.send({
+        components: [fluentContainer.build()],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [] },
+      });
+    }
+  } catch (error) {
+    sapphireContainer.logger.error('Failed to log voice mute-all action to mod channel:', error);
+  }
+}

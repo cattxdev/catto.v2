@@ -97,7 +97,7 @@ export interface VoiceWatchConfig {
 
 export const VOICE_WATCH_CONFIG: VoiceWatchConfig = {
   minIntervalMs: 2000, // Minimum 2s between message edits
-  maxUpdates: 60, // Max 60 updates per session
+  maxUpdates: 50, // Max 60 updates per session
   maxDurationSeconds: 15 * 60, // 15 minutes max
   minDurationSeconds: 60, // 1 minute min
 };
@@ -106,6 +106,23 @@ export const VOICE_CACHE_TTL = {
   memberPresence: 300, // 5 minutes for voice presence
   watchSession: 16 * 60, // 16 minutes (slightly longer than max watch)
   trackSession: 16 * 60,
+  muteAllState: 60 * 60, // 60 minutes for mute-all state
 } as const;
 
-// Emojis are defined in the shared Discord UI framework (`src/lib/discord/design.ts`).
+/**
+ * Mute-all duration constant (60 minutes)
+ */
+export const MUTE_ALL_DURATION_MS = 2 * 60 * 1000;
+
+/**
+ * Voice mute-all toggle state stored in Redis
+ */
+export const VoiceMuteAllStateSchema = z.object({
+  enabled: z.boolean(),
+  enabledAt: z.number(),
+  expiresAt: z.number(),
+  initiatorId: z.string(),
+  channelId: z.string(),
+});
+
+export type VoiceMuteAllState = z.infer<typeof VoiceMuteAllStateSchema>;

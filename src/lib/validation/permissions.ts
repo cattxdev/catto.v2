@@ -186,6 +186,94 @@ export function canManageChannels(member: GuildMember | null | undefined): boole
   return hasPermission(member, PermissionFlagsBits.ManageChannels);
 }
 
+/**
+ * Check if a member has Mute Members permission.
+ */
+export function canMuteMembers(member: GuildMember | null | undefined): boolean {
+  return hasPermission(member, PermissionFlagsBits.MuteMembers);
+}
+
+/**
+ * Check if a member has Deafen Members permission.
+ */
+export function canDeafenMembers(member: GuildMember | null | undefined): boolean {
+  return hasPermission(member, PermissionFlagsBits.DeafenMembers);
+}
+
+/**
+ * Check if a member has Move Members permission.
+ */
+export function canMoveMembers(member: GuildMember | null | undefined): boolean {
+  return hasPermission(member, PermissionFlagsBits.MoveMembers);
+}
+
+// Moderator Detection
+
+/**
+ * Permissions that indicate a user is a moderator.
+ * Having ANY of these permissions qualifies someone as a moderator.
+ */
+const MODERATOR_PERMISSIONS: PermissionResolvable[] = [
+  PermissionFlagsBits.Administrator,
+  PermissionFlagsBits.ModerateMembers,
+  PermissionFlagsBits.KickMembers,
+  PermissionFlagsBits.BanMembers,
+  PermissionFlagsBits.ManageMessages,
+  PermissionFlagsBits.MuteMembers,
+  PermissionFlagsBits.DeafenMembers,
+  PermissionFlagsBits.MoveMembers,
+  PermissionFlagsBits.ManageGuild,
+];
+
+/**
+ * Voice-specific moderation permissions.
+ * These are the permissions needed to fully moderate voice channels.
+ * Used for mod shield indicators and voice mod detection.
+ */
+const VOICE_MOD_PERMISSIONS: PermissionResolvable[] = [
+  PermissionFlagsBits.MuteMembers,
+  PermissionFlagsBits.DeafenMembers,
+  PermissionFlagsBits.MoveMembers,
+  PermissionFlagsBits.KickMembers,
+];
+
+/**
+ * Check if a member is a moderator (has any moderation permission).
+ * This is a broad check - having ANY mod permission qualifies.
+ */
+export function isModerator(member: GuildMember | null | undefined): boolean {
+  if (!member) return false;
+  return MODERATOR_PERMISSIONS.some((perm) => member.permissions.has(perm));
+}
+
+/**
+ * Check if a member has voice moderation permissions.
+ * Requires ALL of: MuteMembers, DeafenMembers, MoveMembers.
+ */
+export function hasVoiceModPermissions(member: GuildMember | null | undefined): boolean {
+  if (!member) return false;
+  return VOICE_MOD_PERMISSIONS.every((perm) => member.permissions.has(perm));
+}
+
+/**
+ * Check if a member has any voice moderation permission.
+ * Having ANY of MuteMembers, DeafenMembers, or MoveMembers qualifies.
+ */
+export function hasAnyVoiceModPermission(member: GuildMember | null | undefined): boolean {
+  if (!member) return false;
+  return VOICE_MOD_PERMISSIONS.some((perm) => member.permissions.has(perm));
+}
+
+/**
+ * Get all moderator permissions a member has.
+ */
+export function getModeratorPermissions(
+  member: GuildMember | null | undefined
+): PermissionResolvable[] {
+  if (!member) return [];
+  return MODERATOR_PERMISSIONS.filter((perm) => member.permissions.has(perm));
+}
+
 // Custom Permission Checks (Future Implementation Stubs)
 
 /**

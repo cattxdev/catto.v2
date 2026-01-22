@@ -15,6 +15,8 @@ import {
   asCaseNumber,
 } from '../domain/types.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { getJson, CacheKey } from '#lib/cache/index.js';
+import { VoiceMuteAllStateSchema } from '#root/modules/voice/domain/types.js';
 
 /**
  * MuteService - Handles text mutes, voice mutes, and combined mutes
@@ -513,9 +515,12 @@ export class MuteService {
    * Handle voice mute state when user joins voice channel.
    * - Reapply voice mute if user has active mute
    * - Remove server mute if user's mute has expired/been deactivated
+   *   (but NOT if they're muted by an active mute-all session)
    */
   async handleVoiceJoin(guildId: GuildId, member: GuildMember): Promise<void> {
     if (!member.voice.channel) return;
+
+    const channelId = member.voice.channel.id;
 
     const activeMutes = await container.prisma.mute.findMany({
       where: {
@@ -540,8 +545,19 @@ export class MuteService {
         container.logger.error('[MuteService] Failed to reapply voice mute:', error);
       }
     } else if (!hasActiveMute && isServerMuted) {
-      // User is server muted but has no active mute - this means their mute expired
-      // while they were not in voice. Remove the server mute now.
+      // User is server muted but has no active DB mute.
+      // Before removing as "stale", check if they're muted by an active mute-all session.
+      const isMutedByMuteAll = await this.isInMuteAllAffectedSet(guildId, channelId, member.id);
+
+      if (isMutedByMuteAll) {
+        // User is muted by mute-all - don't unmute them
+        container.logger.debug(
+          `[MuteService] Not removing server mute from ${member.user.tag} - muted by active mute-all in channel ${channelId}`
+        );
+        return;
+      }
+
+      // No mute-all holding them - remove the stale server mute
       try {
         await member.voice.setMute(false, 'Mute expired - removing stale server mute');
         container.logger.info(
@@ -551,6 +567,30 @@ export class MuteService {
         container.logger.error('[MuteService] Failed to remove stale server mute:', error);
       }
     }
+  }
+
+  /**
+   * Check if a user is in an active mute-all affected set for a channel
+   */
+  private async isInMuteAllAffectedSet(
+    guildId: string,
+    channelId: string,
+    userId: string
+  ): Promise<boolean> {
+    // Check if mute-all is enabled for this channel
+    const stateKey = CacheKey.voiceMuteAllState(guildId, channelId);
+    const muteAllState = await getJson(stateKey, VoiceMuteAllStateSchema);
+
+    if (!muteAllState?.enabled) return false;
+
+    // Check if mute-all has expired
+    if (Date.now() >= muteAllState.expiresAt) return false;
+
+    // Check if user is in the affected set
+    const affectedKey = CacheKey.voiceMuteAllAffected(guildId, channelId);
+    const isAffected = await container.redis.sismember(affectedKey, userId);
+
+    return isAffected === 1;
   }
 
   /**

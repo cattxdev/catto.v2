@@ -1,9 +1,13 @@
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { MuteType, ModAction } from '@prisma/client';
+import type { GuildMember } from 'discord.js';
 import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
+import { asGuildId } from '../domain/types.js';
 import { CONFIG } from '#config';
 import { getSafeUserTag } from '#lib/discord/index.js';
+import { getJson, CacheKey } from '#lib/cache/index.js';
+import { VoiceMuteAllStateSchema, VOICE_CACHE_TTL } from '#root/modules/voice/domain/types.js';
 import { logModAction } from '../discord/embeds/presets.js';
 import { ensureNonNull } from '#lib/utils';
 
@@ -281,7 +285,17 @@ export class MuteScheduler {
       // Remove voice mute if applicable (use setMute, not setDeaf)
       if ((type === MuteType.VOICE || type === MuteType.BOTH) && member?.voice.channel) {
         if (member.voice.serverMute) {
-          await member.voice.setMute(false, 'Mute expired');
+          const brandedGuildId = asGuildId(guildId);
+          const shouldSuppress = await this.shouldSuppressVoiceUnmute(brandedGuildId, member);
+
+          if (shouldSuppress) {
+            await this.deferVoiceUnmuteForMuteAll(brandedGuildId, member);
+            container.logger.info(
+              `[MuteScheduler] Suppressed voice unmute for ${userId} (mute-all active in channel ${member.voice.channelId})`
+            );
+          } else {
+            await member.voice.setMute(false, 'Mute expired');
+          }
         }
       }
 
@@ -355,6 +369,40 @@ export class MuteScheduler {
   async getPendingCount(): Promise<number> {
     if (!this.queue) return 0;
     return this.queue.getDelayedCount();
+  }
+
+  /**
+   * Check if voice unmute should be suppressed due to active mute-all in the channel
+   */
+  private async shouldSuppressVoiceUnmute(guildId: GuildId, member: GuildMember): Promise<boolean> {
+    const channelId = member.voice.channelId;
+    if (!channelId) return false;
+
+    const stateKey = CacheKey.voiceMuteAllState(guildId, channelId);
+    const muteAllState = await getJson(stateKey, VoiceMuteAllStateSchema);
+
+    if (!muteAllState?.enabled) return false;
+    if (Date.now() >= muteAllState.expiresAt) return false;
+
+    return true;
+  }
+
+  /**
+   * Ensure the member is tracked for unmute when mute-all ends or they change channel
+   */
+  private async deferVoiceUnmuteForMuteAll(guildId: GuildId, member: GuildMember): Promise<void> {
+    const channelId = member.voice.channelId;
+    if (!channelId) return;
+
+    const ignoreKey = CacheKey.voiceMuteAllIgnore(guildId, channelId);
+    const affectedKey = CacheKey.voiceMuteAllAffected(guildId, channelId);
+
+    await container.redis.sadd(affectedKey, member.id);
+    await container.redis.srem(ignoreKey, member.id);
+
+    // Refresh TTLs to keep sets alive for the duration
+    await container.redis.expire(affectedKey, VOICE_CACHE_TTL.muteAllState);
+    await container.redis.expire(ignoreKey, VOICE_CACHE_TTL.muteAllState);
   }
 
   /**
