@@ -15,8 +15,9 @@ interface Guild {
 export default async function GuildPage({
   params,
 }: {
-  params: { guildId: string };
+  params: Promise<{ guildId: string }>;
 }) {
+  const { guildId } = await params;
   const session = await getUserSession();
   
   if (!session) {
@@ -24,7 +25,7 @@ export default async function GuildPage({
   }
 
   const { user, guilds } = session;
-  const guild = guilds.find((g: Guild) => g.id === params.guildId);
+  const guild = guilds.find((g: Guild) => g.id === guildId);
 
   // Check if user has access to this guild
   if (!guild) {

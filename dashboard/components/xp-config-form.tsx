@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 interface XPConfig {
@@ -27,6 +27,19 @@ interface XPConfig {
   tableThresholds: number[];
 }
 
+interface Channel {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  color: number;
+  position: number;
+}
+
 interface XPConfigFormProps {
   guildId: string;
   initialConfig: XPConfig;
@@ -35,9 +48,40 @@ interface XPConfigFormProps {
 export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormProps) {
   const router = useRouter();
   const [config, setConfig] = useState<XPConfig>(initialConfig);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Fetch channels and roles
+  useEffect(() => {
+    const fetchChannelsAndRoles = async () => {
+      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
+      
+      try {
+        const response = await fetch(`${BOT_API_URL}/api/guilds/${guildId}/channels-roles`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setChannels(data.channels || []);
+          setRoles(data.roles || []);
+        } else {
+          console.error('Failed to fetch channels and roles:', response.status, response.statusText);
+        }
+      } catch (err) {
+        console.error('Failed to fetch channels and roles:', err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchChannelsAndRoles();
+  }, [guildId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +89,10 @@ export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormPro
     setError(null);
     setSuccess(false);
 
-    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000/api';
+    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
     try {
-      const response = await fetch(`${BOT_API_URL}/guilds/${guildId}/xp/config`, {
+      const response = await fetch(`${BOT_API_URL}/api/guilds/${guildId}/xp/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -70,11 +114,6 @@ export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormPro
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleArrayInput = (field: 'allowedChannels' | 'ignoredChannels' | 'ignoredRoles', value: string) => {
-    const items = value.split(',').map(id => id.trim()).filter(id => id.length > 0);
-    setConfig(prev => ({ ...prev, [field]: items }));
   };
 
   return (
@@ -270,49 +309,124 @@ export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormPro
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Channel & Role Filters</h2>
         
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Allowed Channels
-            </label>
-            <input
-              type="text"
-              value={config.allowedChannels.join(', ')}
-              onChange={(e) => handleArrayInput('allowedChannels', e.target.value)}
-              placeholder="Channel IDs separated by commas (empty = all channels)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">Leave empty to allow all channels</p>
+        {isLoadingData ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-[#5865F2]"></div>
+            <p className="text-sm text-gray-500 mt-2">Loading channels and roles...</p>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Allowed Channels
+              </label>
+              <div className="border border-gray-300 rounded-md p-2 max-h-48 overflow-y-auto">
+                {channels.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-2 px-2">No channels available</p>
+                ) : (
+                  <>
+                    <label className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.allowedChannels.length === 0}
+                        onChange={() => setConfig(prev => ({ ...prev, allowedChannels: [] }))}
+                        className="w-4 h-4 text-[#5865F2] border-gray-300 rounded focus:ring-[#5865F2]"
+                      />
+                      <span className="text-sm font-medium text-gray-700">All Channels (Default)</span>
+                    </label>
+                    <div className="border-t border-gray-200 my-2"></div>
+                    {channels.map(channel => (
+                      <label key={channel.id} className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={config.allowedChannels.includes(channel.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setConfig(prev => ({ ...prev, allowedChannels: [...prev.allowedChannels, channel.id] }));
+                            } else {
+                              setConfig(prev => ({ ...prev, allowedChannels: prev.allowedChannels.filter(id => id !== channel.id) }));
+                            }
+                          }}
+                          className="w-4 h-4 text-[#5865F2] border-gray-300 rounded focus:ring-[#5865F2]"
+                        />
+                        <span className="text-sm text-gray-700"># {channel.name}</span>
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Leave empty to allow all channels</p>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ignored Channels
-            </label>
-            <input
-              type="text"
-              value={config.ignoredChannels.join(', ')}
-              onChange={(e) => handleArrayInput('ignoredChannels', e.target.value)}
-              placeholder="Channel IDs separated by commas"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">Users won't earn XP in these channels</p>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ignored Channels
+              </label>
+              <div className="border border-gray-300 rounded-md p-2 max-h-48 overflow-y-auto">
+                {channels.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-2 px-2">No channels available</p>
+                ) : (
+                  channels.map(channel => (
+                    <label key={channel.id} className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.ignoredChannels.includes(channel.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setConfig(prev => ({ ...prev, ignoredChannels: [...prev.ignoredChannels, channel.id] }));
+                          } else {
+                            setConfig(prev => ({ ...prev, ignoredChannels: prev.ignoredChannels.filter(id => id !== channel.id) }));
+                          }
+                        }}
+                        className="w-4 h-4 text-[#5865F2] border-gray-300 rounded focus:ring-[#5865F2]"
+                      />
+                      <span className="text-sm text-gray-700"># {channel.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Users won't earn XP in these channels</p>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ignored Roles
-            </label>
-            <input
-              type="text"
-              value={config.ignoredRoles.join(', ')}
-              onChange={(e) => handleArrayInput('ignoredRoles', e.target.value)}
-              placeholder="Role IDs separated by commas"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">Users with these roles won't earn XP</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ignored Roles
+              </label>
+              <div className="border border-gray-300 rounded-md p-2 max-h-48 overflow-y-auto">
+                {roles.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-2 px-2">No roles available</p>
+                ) : (
+                  roles.map(role => (
+                    <label key={role.id} className="flex items-center space-x-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.ignoredRoles.includes(role.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setConfig(prev => ({ ...prev, ignoredRoles: [...prev.ignoredRoles, role.id] }));
+                          } else {
+                            setConfig(prev => ({ ...prev, ignoredRoles: prev.ignoredRoles.filter(id => id !== role.id) }));
+                          }
+                        }}
+                        className="w-4 h-4 text-[#5865F2] border-gray-300 rounded focus:ring-[#5865F2]"
+                      />
+                      <div className="flex items-center space-x-2">
+                        {role.color > 0 && (
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: `#${role.color.toString(16).padStart(6, '0')}` }}
+                          ></div>
+                        )}
+                        <span className="text-sm text-gray-700">{role.name}</span>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Users with these roles won't earn XP</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Level-Up Announcements */}
