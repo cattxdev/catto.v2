@@ -6,7 +6,6 @@ dist
 .env.development
 .DS_Store
 coverage
-logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
