@@ -17,8 +17,8 @@ export class VouchCommand extends Command {
 	public constructor(context: Command.LoaderContext, options: Command.Options) {
 		super(context, {
 			...options,
-			name: 'vouch',
-			description: 'Vouch for another member to increase their reputation',
+			name: 'rep',
+			description: 'Give reputation to another member to increase their standing',
 		});
 	}
 
@@ -30,13 +30,13 @@ export class VouchCommand extends Command {
 				.addUserOption((option) =>
 					option
 						.setName('user')
-						.setDescription('The user you want to vouch for')
+						.setDescription('The user you want to give reputation to')
 						.setRequired(true)
 				)
 				.addStringOption((option) =>
 					option
 						.setName('type')
-						.setDescription('What type of vouch is this?')
+						.setDescription('What type of reputation is this?')
 						.setRequired(true)
 						.addChoices(
 							{ name: '🤝 Helpful - They helped you or others', value: VouchType.HELPFUL },
@@ -48,7 +48,7 @@ export class VouchCommand extends Command {
 				.addStringOption((option) =>
 					option
 						.setName('reason')
-						.setDescription('Why are you vouching for them? (optional)')
+						.setDescription('Why are you giving them reputation? (optional)')
 						.setMaxLength(200)
 						.setRequired(false)
 				),
@@ -110,9 +110,9 @@ export class VouchCommand extends Command {
 
 			const embed = new EmbedBuilder()
 				.setColor(Colors.Green)
-				.setTitle('✅ Vouch Submitted!')
+				.setTitle('✅ Reputation Given!')
 				.setDescription(
-					`${vouchEmoji} You vouched for ${targetUser} as **${vouchType}**!${
+					`${vouchEmoji} You gave reputation to ${targetUser} as **${vouchType}**!${
 						reason ? `\n\n*"${reason}"*` : ''
 					}`
 				)
