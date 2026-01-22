@@ -170,9 +170,7 @@ export async function logModAction(
   await logToModChannel(guild, entry);
 }
 
-// ============================================================================
 // Legacy V2 aliases (for backward compatibility during migration)
-// ============================================================================
 
 /** @deprecated Use logToModChannel instead */
 export const logToModChannelV2 = logToModChannel;
@@ -180,9 +178,7 @@ export const logToModChannelV2 = logToModChannel;
 /** @deprecated Use buildModLogEntry instead */
 export const buildModLogEntryV2 = buildModLogEntry;
 
-// ============================================================================
 // Embed Presets
-// ============================================================================
 
 /**
  * Create a case details embed

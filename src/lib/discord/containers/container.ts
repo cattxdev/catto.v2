@@ -342,9 +342,7 @@ export class FluentContainer {
   }
 }
 
-// ============================================================================
 // Factory Functions
-// ============================================================================
 
 export function container(options: ContainerOptions = {}): FluentContainer {
   return new FluentContainer(options);

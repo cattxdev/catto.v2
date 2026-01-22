@@ -14,10 +14,9 @@ import {
   ActionRowBuilder,
   ChannelType,
 } from 'discord.js';
+import { EMOJI } from '../design';
 
-// ============================================================================
 // Types
-// ============================================================================
 
 /**
  * Option for string select menus
@@ -77,9 +76,7 @@ export interface MentionableSelectConfig extends SelectMenuConfig {
   defaultMentionables?: string[];
 }
 
-// ============================================================================
 // String Select Menu Builders
-// ============================================================================
 
 /**
  * Create a string select menu
@@ -145,14 +142,14 @@ export function yesNoSelect(
         label: options?.yesLabel ?? 'Yes',
         value: 'yes',
         description: options?.yesDescription,
-        emoji: '✅',
+        emoji: EMOJI.GREEN_CHECK,
         default: options?.defaultValue === 'yes',
       },
       {
         label: options?.noLabel ?? 'No',
         value: 'no',
         description: options?.noDescription,
-        emoji: '❌',
+        emoji: EMOJI.ERROR,
         default: options?.defaultValue === 'no',
       },
     ],
@@ -186,9 +183,7 @@ export function pageSelect(
   });
 }
 
-// ============================================================================
 // Channel Select Menu Builders
-// ============================================================================
 
 /**
  * Create a channel select menu
@@ -286,9 +281,7 @@ export function categorySelect(
   });
 }
 
-// ============================================================================
 // Role Select Menu Builders
-// ============================================================================
 
 /**
  * Create a role select menu
@@ -365,9 +358,7 @@ export function multiRoleSelect(
   });
 }
 
-// ============================================================================
 // User Select Menu Builders
-// ============================================================================
 
 /**
  * Create a user select menu
@@ -444,9 +435,7 @@ export function multiUserSelect(
   });
 }
 
-// ============================================================================
 // Mentionable Select Menu Builders
-// ============================================================================
 
 /**
  * Create a mentionable select menu (users and roles)

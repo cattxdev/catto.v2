@@ -8,9 +8,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { EMOJI } from '../design.js';
 
-// ============================================================================
 // Types
-// ============================================================================
 
 /**
  * Button configuration
@@ -43,9 +41,7 @@ export interface SimpleButtonConfig {
   disabled?: boolean;
 }
 
-// ============================================================================
 // Button Factories
-// ============================================================================
 
 /**
  * Create a button from config
@@ -120,9 +116,7 @@ export function linkButton(url: string, label: string, emoji?: string): ButtonBu
   return btn;
 }
 
-// ============================================================================
 // Action Row Builders
-// ============================================================================
 
 /**
  * Create a button row from button configs
@@ -142,9 +136,7 @@ export function row(...buttons: ButtonBuilder[]): ActionRowBuilder<ButtonBuilder
   return new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
 }
 
-// ============================================================================
 // Preset Buttons
-// ============================================================================
 
 /**
  * Create a confirm button
@@ -153,7 +145,7 @@ export function confirmButton(customId: string, label: string = 'Confirm'): Butt
   return successButton({
     customId,
     label,
-    emoji: '✅',
+    emoji: EMOJI.GREEN_CHECK,
   });
 }
 
@@ -197,7 +189,7 @@ export function backButton(customId: string, label: string = 'Back'): ButtonBuil
   return secondaryButton({
     customId,
     label,
-    emoji: '◀️',
+    emoji: EMOJI.ARROW_LEFT_G,
   });
 }
 
@@ -208,7 +200,7 @@ export function nextButton(customId: string, label: string = 'Next'): ButtonBuil
   return secondaryButton({
     customId,
     label,
-    emoji: '▶️',
+    emoji: EMOJI.ARROW_RIGHT_G,
   });
 }
 
@@ -219,7 +211,7 @@ export function doneButton(customId: string, label: string = 'Done'): ButtonBuil
   return successButton({
     customId,
     label,
-    emoji: '✅',
+    emoji: EMOJI.GREEN_CHECK,
   });
 }
 
@@ -230,7 +222,7 @@ export function editButton(customId: string, label: string = 'Edit'): ButtonBuil
   return primaryButton({
     customId,
     label,
-    emoji: '✏️',
+    emoji: EMOJI.EDIT,
   });
 }
 
@@ -241,13 +233,11 @@ export function viewButton(customId: string, label: string = 'View'): ButtonBuil
   return secondaryButton({
     customId,
     label,
-    emoji: '👁️',
+    emoji: EMOJI.MORE_OPTIONS,
   });
 }
 
-// ============================================================================
 // Preset Action Rows
-// ============================================================================
 
 /**
  * Create a confirmation row with confirm and cancel buttons
@@ -266,12 +256,12 @@ export function confirmationRow(
     ? dangerButton({
         customId: confirmId,
         label: options?.confirmLabel ?? 'Confirm',
-        emoji: '✅',
+        emoji: EMOJI.GREEN_CHECK,
       })
     : successButton({
         customId: confirmId,
         label: options?.confirmLabel ?? 'Confirm',
-        emoji: '✅',
+        emoji: EMOJI.GREEN_CHECK,
       });
 
   const cancelBtn = cancelButton(cancelId, options?.cancelLabel);
@@ -299,7 +289,7 @@ export function paginationRow(
     buttons.push(
       secondaryButton({
         customId: `${baseCustomId}:first`,
-        label: '⏮️',
+        label: EMOJI.ARROW_LEFT_G,
         disabled: currentPage <= 1,
       })
     );
@@ -309,7 +299,7 @@ export function paginationRow(
   buttons.push(
     secondaryButton({
       customId: `${baseCustomId}:prev`,
-      label: '◀️',
+      label: EMOJI.ARROW_LEFT_G,
       disabled: currentPage <= 1,
     })
   );
@@ -329,7 +319,7 @@ export function paginationRow(
   buttons.push(
     secondaryButton({
       customId: `${baseCustomId}:next`,
-      label: '▶️',
+      label: EMOJI.ARROW_RIGHT_G,
       disabled: currentPage >= totalPages,
     })
   );
@@ -339,7 +329,7 @@ export function paginationRow(
     buttons.push(
       secondaryButton({
         customId: `${baseCustomId}:last`,
-        label: '⏭️',
+        label: EMOJI.ARROW_RIGHT_G,
         disabled: currentPage >= totalPages,
       })
     );

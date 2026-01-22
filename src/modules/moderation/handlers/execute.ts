@@ -14,9 +14,7 @@ import type { ModerationContext } from './context.js';
 import type { ModActionResult, MuteResult, UserId } from '../domain/types.js';
 import { asGuildId, asUserId, asDuration } from '../domain/types.js';
 
-// ============================================================================
 // Core Action Executors
-// ============================================================================
 
 /**
  * Execute a warn action
@@ -274,9 +272,7 @@ export async function executeUnban(
   return result;
 }
 
-// ============================================================================
 // Mute Action Executors
-// ============================================================================
 
 /**
  * Mute type for execution

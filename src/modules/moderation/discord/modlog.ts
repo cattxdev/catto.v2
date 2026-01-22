@@ -20,9 +20,7 @@ import {
   formatUserMention,
 } from '#lib/discord/index.js';
 
-// ============================================================================
 // Types
-// ============================================================================
 
 export interface ModLogEntry {
   action: ModAction;
@@ -42,9 +40,7 @@ export interface ModLogEntry {
   offenseLabel?: string;
 }
 
-// ============================================================================
 // Action Display Mapping
-// ============================================================================
 
 const ACTION_DISPLAY: Record<
   string,
@@ -154,9 +150,7 @@ function buildOffenseSummary(entry: ModLogEntry, offenseWindow: number): string 
   return `This is their ${ordinal} ${entry.offenseLabel} in the last ${offenseWindow} days.`;
 }
 
-// ============================================================================
 // Builders
-// ============================================================================
 
 /**
  * Build a fluent container for a modlog entry

@@ -292,9 +292,7 @@ export interface BulkResult {
   errors: Array<{ userId: UserId; error: string }>;
 }
 
-// ============================================================================
 // Type Guards
-// ============================================================================
 
 /**
  * Type guard for successful ModActionResult

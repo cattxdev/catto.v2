@@ -7,9 +7,7 @@
 
 import { SeparatorSpacingSize } from 'discord.js';
 
-// ============================================================================
 // Colors
-// ============================================================================
 
 /**
  * Semantic color palette for embeds and UI elements
@@ -38,9 +36,7 @@ export const COLORS = {
   UNMUTE: 0x9e9e9e,
 } as const;
 
-// ============================================================================
 // Emojis
-// ============================================================================
 
 /**
  * Custom emoji definitions with fallback support
@@ -385,9 +381,7 @@ export const EMOJI: Record<EmojiKey, string> & {
   YELLOW_WARNING: EMOJI_CONFIG.WARNING.custom,
 } as const;
 
-// ============================================================================
 // Spacing
-// ============================================================================
 
 /**
  * Separator spacing sizes for Components V2
@@ -397,9 +391,7 @@ export const SPACING = {
   LARGE: SeparatorSpacingSize.Large,
 } as const;
 
-// ============================================================================
 // Error Types
-// ============================================================================
 
 /**
  * Standardized error types for consistent error handling across modules

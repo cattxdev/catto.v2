@@ -1,9 +1,7 @@
 import type { GuildMember, PermissionResolvable, Snowflake } from 'discord.js';
 import { PermissionFlagsBits } from 'discord.js';
 
-// ============================================================================
 // Types
-// ============================================================================
 
 export type PermissionCheckResult = { ok: true } | { ok: false; missing: string[] };
 
@@ -103,9 +101,7 @@ export interface PermissionResolver {
   invalidateCache(guildId: Snowflake, userId?: Snowflake): void;
 }
 
-// ============================================================================
 // Discord Permission Checks (Current Implementation)
-// ============================================================================
 
 /**
  * Check if a member has the required Discord permissions.
@@ -190,9 +186,7 @@ export function canManageChannels(member: GuildMember | null | undefined): boole
   return hasPermission(member, PermissionFlagsBits.ManageChannels);
 }
 
-// ============================================================================
 // Custom Permission Checks (Future Implementation Stubs)
-// ============================================================================
 
 /**
  * Check if a member has a custom permission.
@@ -265,9 +259,7 @@ export function getEffectiveCustomPermissions(
   return [];
 }
 
-// ============================================================================
 // Permission Mapping (Discord <-> Custom)
-// ============================================================================
 
 /**
  * Default mapping from custom permissions to Discord permissions.
@@ -305,9 +297,7 @@ function hasDiscordPermissionFallback(
   return hasPermission(member, discordPerm);
 }
 
-// ============================================================================
 // Utility Functions
-// ============================================================================
 
 /**
  * Get a human-readable permission name.

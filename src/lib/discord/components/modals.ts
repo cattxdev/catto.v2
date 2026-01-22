@@ -13,9 +13,7 @@ import {
   type ModalActionRowComponentBuilder,
 } from 'discord.js';
 
-// ============================================================================
 // Types
-// ============================================================================
 
 /**
  * Text input configuration
@@ -40,9 +38,7 @@ export interface ModalConfig {
   inputs: TextInputConfig[];
 }
 
-// ============================================================================
 // Text Input Builders
-// ============================================================================
 
 /**
  * Create a text input from config
@@ -129,9 +125,7 @@ export function inputRow(
   return new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(input);
 }
 
-// ============================================================================
 // Modal Builders
-// ============================================================================
 
 /**
  * Create a modal from config
