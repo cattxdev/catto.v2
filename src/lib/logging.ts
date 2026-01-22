@@ -2,6 +2,7 @@ import { EmbedBuilder, WebhookClient, Colors } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { CONFIG } from '#config';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
 
 export enum LogType {
     Messages = 'messages',
@@ -22,25 +23,6 @@ export enum LogType {
     Leaves = 'leaves',
     Server = 'server'
 }
-type WebhookField =
-    'messagesWebhook' |
-    'voiceWebhook' |
-    'voiceStateWebhook' |
-    'ticketsWebhook' |
-    'transcriptsWebhook' |
-    'rolesWebhook' |
-    'channelsWebhook' |
-    'membersWebhook' |
-    'stageWebhook' |
-    'eventsWebhook' |
-    'pollsWebhook' |
-    'emojisWebhook' |
-    'stickersWebhook' |
-    'webhooksWebhook' |
-    'joinsWebhook' |
-    'leavesWebhook' |
-    'serverWebhook';
-
 
 interface LogJobData {
     guildId: string;
@@ -175,28 +157,15 @@ class LoggingService {
      * Get webhook URL for a specific log type
      */
     private getWebhookUrl(config: NonNullable<Awaited<ReturnType<typeof container.prisma.logConfig.findUnique>>>, type: LogType): string | null {
-        const fieldMap: Record<LogType, WebhookField> = {
-            [LogType.Messages]: 'messagesWebhook',
-            [LogType.Voice]: 'voiceWebhook',
-            [LogType.VoiceState]: 'voiceStateWebhook',
-            [LogType.Tickets]: 'ticketsWebhook',
-            [LogType.Transcripts]: 'transcriptsWebhook',
-            [LogType.Roles]: 'rolesWebhook',
-            [LogType.Channels]: 'channelsWebhook',
-            [LogType.Members]: 'membersWebhook',
-            [LogType.Stage]: 'stageWebhook',
-            [LogType.Events]: 'eventsWebhook',
-            [LogType.Polls]: 'pollsWebhook',
-            [LogType.Emojis]: 'emojisWebhook',
-            [LogType.Stickers]: 'stickersWebhook',
-            [LogType.Webhooks]: 'webhooksWebhook',
-            [LogType.Joins]: 'joinsWebhook',
-            [LogType.Leaves]: 'leavesWebhook',
-            [LogType.Server]: 'serverWebhook'
-        };
+        const definition = LOG_CHANNEL_DEFINITIONS[type];
+        if (!definition) return null;
 
-        const field = fieldMap[type];
-        return config[field] || null;
+        // Check if this log type is enabled
+        const isEnabled = (config as any)[definition.enabledField];
+        if (!isEnabled) return null;
+
+        // Return webhook URL
+        return (config as any)[definition.webhookField] || null;
     }
 
     /**
