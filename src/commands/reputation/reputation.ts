@@ -130,7 +130,7 @@ export class ReputationCommand extends Subcommand {
 						inline: true,
 					}
 				)
-				.setFooter({ text: `Use /vouch to vouch for ${isOwn ? 'others' : 'this user'}` })
+				.setFooter({ text: `Use /rep to give reputation to ${isOwn ? 'others' : 'this user'}` })
 				.setTimestamp();
 
 			// Add next tier info
@@ -284,7 +284,7 @@ export class ReputationCommand extends Subcommand {
 			});
 		}
 
-		embed.setFooter({ text: 'Use /vouch to help others gain reputation!' });
+		embed.setFooter({ text: 'Use /rep to help others gain reputation!' });
 
 		return interaction.editReply({ embeds: [embed] });
 	}
