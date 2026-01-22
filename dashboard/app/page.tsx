@@ -3,10 +3,18 @@ import { WelcomeMessage } from "@/components/welcome-message"
 import { LoginButton } from "@/components/login-button"
 import { HowItWorksModal } from "@/components/how-it-works-modal"
 import { getCurrentUser } from "@/lib/auth"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 
 export default async function Home() {
   const user = await getCurrentUser();
+  
+  console.log('Home page - user:', user);
+  
+  // Redirect to guilds page if user is authenticated
+  if (user) {
+    redirect('/guilds');
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center">
@@ -24,8 +32,10 @@ export default async function Home() {
           <p className="text-gray-500 text-sm">Manage your Discord bot dashboard</p>
         </div>
 
-        {/* Main content: welcome message or login button */}
-        <div className="w-full mt-8">{user ? <WelcomeMessage user={user} /> : <LoginButton />}</div>
+        {/* Main content: login button */}
+        <div className="w-full mt-8">
+          <LoginButton />
+        </div>
 
         {/* Gray line separator */}
         <div className="w-full border-t border-gray-200 my-8"></div>

@@ -17,8 +17,11 @@ export class AuthenticatedMiddleware extends Middleware {
 			return;
 		}
 
-		// Check if the request has authentication
-		if (!request.auth) {
+		// Check if the request has authentication cookie
+		const authCookieName = 'DASHBOARD_AUTH';
+		const authToken = request.headers.cookie?.split('; ').find(c => c.startsWith(`${authCookieName}=`))?.split('=')[1];
+		
+		if (!authToken) {
 			response.status(401).json({
 				error: 'Unauthorized',
 				message: 'You must be logged in to access this resource'

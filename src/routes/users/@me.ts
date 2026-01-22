@@ -9,13 +9,17 @@ export class UserMeRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
 		super(context, {
 			...options,
-			route: 'users/@me'
+			route: 'users/@me',
+			methods: ['GET']
 		});
 	}
 
 	public async run(request: ApiRequest, response: ApiResponse) {
-		// The authenticated middleware should have validated the auth
-		if (!request.auth) {
+		// Get the auth token from cookie
+		const authCookieName = 'DASHBOARD_AUTH';
+		const authToken = request.headers.cookie?.split('; ').find(c => c.startsWith(`${authCookieName}=`))?.split('=')[1];
+		
+		if (!authToken) {
 			return response.status(HttpCodes.Unauthorized).json({
 				error: 'Unauthorized',
 				message: 'You must be logged in to access this resource'
@@ -26,7 +30,7 @@ export class UserMeRoute extends Route {
 			// Fetch user data from Discord API
 			const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
 				headers: {
-					Authorization: `Bearer ${request.auth.token}`
+					Authorization: `Bearer ${authToken}`
 				}
 			});
 
@@ -43,7 +47,7 @@ export class UserMeRoute extends Route {
 			try {
 				const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
 					headers: {
-						Authorization: `Bearer ${request.auth.token}`
+						Authorization: `Bearer ${authToken}`
 					}
 				});
 

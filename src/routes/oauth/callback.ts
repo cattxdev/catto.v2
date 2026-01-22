@@ -50,36 +50,14 @@ export class OAuthCallbackRoute extends Route {
 				}
 			);
 
-			const { access_token, refresh_token, expires_in } = tokenResponse.data;
+			const { access_token } = tokenResponse.data;
 
-			// Fetch user data
-			const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
-				headers: {
-					Authorization: `Bearer ${access_token}`
-				}
-			});
-
-			const user = userResponse.data;
-
-			// Set auth cookie (Sapphire format) - base64 encode to avoid invalid characters
-			const authData = JSON.stringify({
-				token: access_token,
-				refresh: refresh_token,
-				expires: Date.now() + (expires_in * 1000),
-				user_id: user.id
-			});
-			
-			const encodedAuthData = Buffer.from(authData).toString('base64');
-
-			response.cookies.add(server.auth.cookie!, encodedAuthData, {
-				maxAge: expires_in,
-				httpOnly: true,
-				path: '/'
-			});
-
-			// Redirect back to dashboard
+			// Instead of setting cookie here, redirect to dashboard with token
+			// Dashboard will set the cookie on its own domain
 			const redirectUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-			return response.status(302).setHeader('Location', redirectUrl).text('');
+			const callbackUrl = `${redirectUrl}/api/auth/callback?token=${encodeURIComponent(access_token)}`;
+			
+			return response.status(302).setHeader('Location', callbackUrl).text('');
 
 		} catch (error) {
 			this.container.logger.error('OAuth callback error:', error);
