@@ -261,10 +261,9 @@ export function parseKickOptions(interaction: ChatInputCommandInteraction): Kick
 
 /**
  * Parse timeout subcommand options
+ * @throws {ValidationError} If duration format is invalid
  */
-export function parseTimeoutOptions(
-  interaction: ChatInputCommandInteraction
-): TimeoutOptions | null {
+export function parseTimeoutOptions(interaction: ChatInputCommandInteraction): TimeoutOptions {
   const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
 
   const target = interaction.options.getUser('target', true);
@@ -273,12 +272,12 @@ export function parseTimeoutOptions(
 
   const validation = safeParse(durationStringSchema, durationStr);
   if (!validation.success) {
-    return null; // Caller handles invalid format
+    throw new ValidationError('Invalid duration format. Use formats like: 10m, 1h, 1d, 7d');
   }
 
   const durationSeconds = parseDurationToSeconds(durationStr);
   if (!durationSeconds) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 10m, 1h, 1d, 7d');
   }
 
   return {
@@ -315,8 +314,9 @@ export function parseWarnOptions(interaction: ChatInputCommandInteraction): Warn
 
 /**
  * Parse unban subcommand options
+ * @throws {ValidationError} If user ID format is invalid
  */
-export function parseUnbanOptions(interaction: ChatInputCommandInteraction): UnbanOptions | null {
+export function parseUnbanOptions(interaction: ChatInputCommandInteraction): UnbanOptions {
   const { guild, guildId } = ensureGuildContext(interaction);
 
   const userId = interaction.options.getString('user_id', true);
@@ -324,7 +324,7 @@ export function parseUnbanOptions(interaction: ChatInputCommandInteraction): Unb
 
   const validation = safeParse(snowflakeSchema, userId);
   if (!validation.success) {
-    return null; // Invalid user ID format
+    throw new ValidationError('Invalid user ID format. User IDs are 17-20 digit numbers.');
   }
 
   return {
@@ -415,10 +415,9 @@ export function parseSoftbanOptions(interaction: ChatInputCommandInteraction): S
 /**
  * Parse tempban subcommand options
  * Accepts either `target` (user mention) or `target_id` (string ID)
+ * @throws {ValidationError} If target/duration format is invalid
  */
-export function parseTempbanOptions(
-  interaction: ChatInputCommandInteraction
-): TempbanOptions | null {
+export function parseTempbanOptions(interaction: ChatInputCommandInteraction): TempbanOptions {
   const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
 
   const target = interaction.options.getUser('target');
@@ -451,12 +450,12 @@ export function parseTempbanOptions(
   // Validate and parse duration
   const durationValidation = safeParse(durationStringSchema, durationStr);
   if (!durationValidation.success) {
-    return null; // Invalid duration format
+    throw new ValidationError('Invalid duration format. Use formats like: 10m, 1h, 1d, 7d');
   }
 
   const durationSeconds = parseDurationToSeconds(durationStr);
   if (!durationSeconds) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 10m, 1h, 1d, 7d');
   }
 
   return {
@@ -541,10 +540,11 @@ export function parseVoiceWhereOptions(
 
 /**
  * Parse voice watch subcommand options
+ * @throws {ValidationError} If duration format is invalid
  */
 export function parseVoiceWatchOptions(
   interaction: ChatInputCommandInteraction
-): VoiceWatchOptions | null {
+): VoiceWatchOptions {
   const { guild, guildId } = ensureGuildContext(interaction);
 
   const target = interaction.options.getUser('target', true);
@@ -552,12 +552,12 @@ export function parseVoiceWatchOptions(
 
   const validation = safeParse(durationStringSchema, durationStr);
   if (!validation.success) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 1m, 5m, 10m, 15m');
   }
 
   const durationSeconds = parseDurationToSeconds(durationStr);
   if (!durationSeconds) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 1m, 5m, 10m, 15m');
   }
 
   return {
@@ -572,23 +572,24 @@ export function parseVoiceWatchOptions(
 
 /**
  * Parse voice snapshot subcommand options
+ * @throws {ValidationError} If channel is not a voice channel
  */
 export function parseVoiceSnapshotOptions(
   interaction: ChatInputCommandInteraction
-): VoiceSnapshotOptions | null {
+): VoiceSnapshotOptions {
   const { guild, guildId } = ensureGuildContext(interaction);
 
   const channel = interaction.options.getChannel('channel', true);
 
   // Check if channel is voice-based by type
   if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
-    return null;
+    throw new ValidationError('Please select a voice or stage channel.');
   }
 
   // Fetch the actual channel from the guild cache
   const voiceChannel = guild.channels.cache.get(channel.id);
   if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-    return null;
+    throw new ValidationError('Could not find the voice channel.');
   }
 
   return {
@@ -602,10 +603,11 @@ export function parseVoiceSnapshotOptions(
 
 /**
  * Parse voice track subcommand options
+ * @throws {ValidationError} If channel or duration is invalid
  */
 export function parseVoiceTrackOptions(
   interaction: ChatInputCommandInteraction
-): VoiceTrackOptions | null {
+): VoiceTrackOptions {
   const { guild, guildId } = ensureGuildContext(interaction);
 
   const channel = interaction.options.getChannel('channel', true);
@@ -613,23 +615,23 @@ export function parseVoiceTrackOptions(
 
   // Check if channel is voice-based by type
   if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
-    return null;
+    throw new ValidationError('Please select a voice or stage channel.');
   }
 
   // Fetch the actual channel from the guild cache
   const voiceChannel = guild.channels.cache.get(channel.id);
   if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-    return null;
+    throw new ValidationError('Could not find the voice channel.');
   }
 
   const validation = safeParse(durationStringSchema, durationStr);
   if (!validation.success) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 1m, 5m, 10m, 15m');
   }
 
   const durationSeconds = parseDurationToSeconds(durationStr);
   if (!durationSeconds) {
-    return null;
+    throw new ValidationError('Invalid duration format. Use formats like: 1m, 5m, 10m, 15m');
   }
 
   return {
@@ -673,8 +675,9 @@ export interface UnmuteOptions {
 
 /**
  * Parse mute subcommand options (with optional duration)
+ * @throws {ValidationError} If duration format is invalid
  */
-export function parseMuteOptions(interaction: ChatInputCommandInteraction): MuteOptions | null {
+export function parseMuteOptions(interaction: ChatInputCommandInteraction): MuteOptions {
   const { guild, guildId, moderatorMember } = ensureGuildContext(interaction);
 
   const target = interaction.options.getUser('target', true);
@@ -685,7 +688,7 @@ export function parseMuteOptions(interaction: ChatInputCommandInteraction): Mute
   if (durationStr) {
     const validation = safeParse(durationStringSchema, durationStr);
     if (!validation.success) {
-      return null;
+      throw new ValidationError('Invalid duration format. Use formats like: 10m, 1h, 1d, 7d');
     }
     durationSeconds = parseDurationToSeconds(durationStr) ?? undefined;
   }

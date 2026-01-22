@@ -24,11 +24,6 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     throw error;
   }
 
-  if (!options) {
-    await interaction.reply(ephemeralError('Invalid user ID format.'));
-    return;
-  }
-
   await defer(interaction);
 
   try {

@@ -1,10 +1,25 @@
-import { container } from '@sapphire/framework';
-import { GuildMember, type User, type Guild } from 'discord.js';
+import { container as sapphireContainer } from '@sapphire/framework';
+import { GuildMember, type User, type Guild, MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import type { DurationSeconds, CaseNumber } from '../../domain/types.js';
-import { formatDuration } from '#lib/discord/index.js';
+import {
+  container,
+  formatDuration,
+  formatRelativeTimestamp,
+  formatStatsLine,
+  truncateText,
+  EMOJI,
+  COLORS,
+  type FluentContainer,
+} from '#lib/discord/index.js';
 import * as modV1 from './v1.js';
-import { buildModLogEntry, getModLogMessageOptions, type ModLogEntry } from '../modlog.js';
+import {
+  buildModLogEntry,
+  getActionDisplay,
+  getModLogMessageOptions,
+  type ModLogEntry,
+} from '../modlog.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 // Re-export for convenience
 export { formatDuration, type ModLogEntry };
@@ -34,6 +49,37 @@ const OFFENSE_GROUPS: Partial<Record<ModAction, { label: string; actions: ModAct
 // Re-export from modlog for backward compatibility during migration
 export { buildModLogEntry, getModLogMessageOptions };
 
+const NOTIFICATION_FLAGS = MessageFlags.IsComponentsV2;
+
+const MOD_ACTION_NOTIFICATIONS: Record<ModAction, { verb: string; emoji: string; color: number }> =
+  {
+    [ModAction.WARN]: { verb: 'warned', emoji: EMOJI.WARNING, color: COLORS.WARN },
+    [ModAction.KICK]: { verb: 'kicked', emoji: EMOJI.SERVER_LEAVE, color: COLORS.KICK },
+    [ModAction.BAN]: { verb: 'banned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
+    [ModAction.SOFTBAN]: { verb: 'softbanned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
+    [ModAction.TEMPBAN]: { verb: 'temporarily banned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
+    [ModAction.TIMEOUT]: { verb: 'timed out', emoji: EMOJI.TIME_OUT, color: COLORS.TIMEOUT },
+    [ModAction.MUTE_TEXT]: { verb: 'muted (text)', emoji: EMOJI.TEXT_LIMITER, color: COLORS.MUTE },
+    [ModAction.MUTE_VOICE]: {
+      verb: 'muted (voice)',
+      emoji: EMOJI.VOICE_SERVER_MUTED,
+      color: COLORS.MUTE,
+    },
+    [ModAction.MUTE_BOTH]: { verb: 'muted', emoji: EMOJI.VOICE_SERVER_MUTED, color: COLORS.MUTE },
+    [ModAction.UNMUTE_TEXT]: {
+      verb: 'unmuted (text)',
+      emoji: EMOJI.TEXT_CHANNEL_WITH_CHECK,
+      color: COLORS.UNMUTE,
+    },
+    [ModAction.UNMUTE_VOICE]: {
+      verb: 'unmuted (voice)',
+      emoji: EMOJI.MIC_WITH_CHECK,
+      color: COLORS.UNMUTE,
+    },
+    [ModAction.UNMUTE_BOTH]: { verb: 'unmuted', emoji: EMOJI.SUCCESS, color: COLORS.UNMUTE },
+    [ModAction.UNBAN]: { verb: 'unbanned', emoji: EMOJI.SUCCESS, color: COLORS.SUCCESS },
+  };
+
 /**
  * Create an embed for a moderation action
  */
@@ -60,17 +106,39 @@ export function createModEmbed(
 }
 
 /**
- * Create a DM notification embed for the target user
+ * Create a DM notification message for the target user using DCB.
  */
 export function createUserNotificationEmbed(
   action: ModAction,
   guild: Guild,
   reason: string,
   duration?: DurationSeconds
-) {
-  return modV1.buildUserNotificationEmbed(action, guild, reason || 'No reason provided', {
-    duration,
-  });
+): FluentContainer {
+  const notification =
+    MOD_ACTION_NOTIFICATIONS[action] ??
+    ({ verb: action.toLowerCase(), emoji: EMOJI.MODERATION, color: COLORS.INFO } as const);
+
+  const resolvedReason = reason || 'No reason provided';
+  const details = [
+    `**Server:** ${guild.name}`,
+    `**Reason:** ${resolvedReason}`,
+    duration ? `**Duration:** ${formatDuration(duration)}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const c = container({ color: notification.color }).h2(
+    `${notification.emoji} You have been ${notification.verb}`
+  );
+
+  const iconUrl = guild.iconURL();
+  if (iconUrl) {
+    c.sectionWithThumbnail(details, iconUrl);
+  } else {
+    c.text(details);
+  }
+
+  return c.footerWithTimestamp();
 }
 
 /**
@@ -85,12 +153,15 @@ export async function notifyUser(
 ): Promise<boolean> {
   try {
     const user = target instanceof GuildMember ? target.user : target;
-    const embed = createUserNotificationEmbed(action, guild, reason, duration);
+    const message = createUserNotificationEmbed(action, guild, reason, duration);
 
-    await user.send({ embeds: [embed] });
+    await user.send({
+      components: [message.build()],
+      flags: NOTIFICATION_FLAGS,
+    });
     return true;
   } catch {
-    container.logger.warn(`Failed to DM user ${target.id}`);
+    sapphireContainer.logger.warn(`Failed to DM user ${target.id}`);
     return false;
   }
 }
@@ -101,7 +172,7 @@ export async function notifyUser(
  */
 export async function logToModChannel(guild: Guild, entry: ModLogEntry): Promise<void> {
   try {
-    const modConfig = await container.prisma.modConfig.findUnique({
+    const modConfig = await sapphireContainer.prisma.modConfig.findUnique({
       where: { guildId: guild.id },
     });
 
@@ -115,7 +186,7 @@ export async function logToModChannel(guild: Guild, entry: ModLogEntry): Promise
       await channel.send(messageOptions);
     }
   } catch (error) {
-    container.logger.error('Failed to log to mod channel:', error);
+    sapphireContainer.logger.error('Failed to log to mod channel:', error);
   }
 }
 
@@ -142,7 +213,7 @@ export async function logModAction(
 
   if (shouldIncludeOffenseSummary) {
     const since = new Date(Date.now() - OFFENSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    recentOffenseCount = await container.prisma.modCase.count({
+    recentOffenseCount = await sapphireContainer.prisma.modCase.count({
       where: {
         guildId: guild.id,
         targetId: targetUser.id,
@@ -195,20 +266,28 @@ export function createCaseEmbed(modCase: {
   duration: number | null;
   expiresAt: Date | null;
   guildId: string;
-}) {
-  return modV1.buildCaseEmbed({
-    caseNumber: modCase.caseNumber,
-    action: modCase.action,
-    targetTag: modCase.targetTag,
-    targetId: modCase.targetId,
-    moderatorTag: modCase.moderatorTag,
-    moderatorId: modCase.moderatorId,
-    reason: modCase.reason,
-    createdAt: modCase.createdAt,
-    duration: modCase.duration,
-    expiresAt: modCase.expiresAt,
-    guildId: modCase.guildId,
-  });
+}): FluentContainer {
+  const display = getActionDisplay(modCase.action);
+  const reason = modCase.reason ?? 'No reason provided';
+  return container({ color: display.color })
+    .h1(`${display.emoji} Case #${modCase.caseNumber}`)
+    .text(`${EMOJI.MODERATION} ${display.label ?? modCase.action}`)
+    .text(`${EMOJI.MEMBER} ${modCase.targetTag}\n(\`${modCase.targetId}\`)`)
+    .text(`${EMOJI.MOD_SHIELD} ${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`)
+    .text(`${EMOJI.REPORT_FLAG} ${reason}`)
+    .text(`${EMOJI.TIME_DAY} ${formatRelativeTimestamp(modCase.createdAt)}`)
+    .when(!!modCase.duration, (c) =>
+      c.text(
+        `${EMOJI.SLOWMODE} **Duration** ${formatDuration(ensureNonNull(modCase.duration, 'presets > createCaseEmbed(270): modCase.duration'))}`
+      )
+    )
+    .when(!!modCase.expiresAt, (c) =>
+      c.text(
+        `${EMOJI.TIME_DAY_EXPIRED} **Expires** ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
+      )
+    )
+    .text(`${EMOJI.SERVER_FOLDER} **Guild** ${modCase.guildId}`)
+    .footerWithTimestamp(`Case #${modCase.caseNumber}`, modCase.createdAt);
 }
 
 /**
@@ -222,9 +301,48 @@ export function createHistoryEmbed(
     createdAt: Date;
     reason: string | null;
   }>
-) {
-  return modV1.buildHistoryEmbed(target, cases, {
-    maxCases: 10,
-    showStats: true,
-  });
+): FluentContainer {
+  const maxCases = 5;
+  const recentCases = cases.slice(0, maxCases);
+
+  const stats = {
+    Total: cases.length,
+    Bans: cases.filter((c) => c.action === ModAction.BAN || c.action === ModAction.TEMPBAN).length,
+    Kicks: cases.filter((c) => c.action === ModAction.KICK).length,
+    Timeouts: cases.filter((c) => c.action === ModAction.TIMEOUT).length,
+    Warns: cases.filter((c) => c.action === ModAction.WARN).length,
+  };
+
+  const caseList = recentCases
+    .map((c) => {
+      const display = getActionDisplay(c.action);
+      const timestamp = formatRelativeTimestamp(c.createdAt);
+      const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
+      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+    })
+    .join('\n');
+
+  const header = `${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`;
+  const c = container({ color: COLORS.WARN })
+    .beginSection() // Section wrapper to ensure thumbnail appears on the right
+    .h2(`${EMOJI.MODERATION} Moderation history`)
+    .text(header)
+    .text(formatStatsLine(stats, 'columns'))
+    .withThumbnail(target.displayAvatarURL())
+    .separator({ divider: true, spacing: 'small' });
+
+  if (recentCases.length > 0) {
+    c.separator();
+    c.text(`**Recent cases (${recentCases.length} of ${cases.length})**\n${caseList}`);
+  } else {
+    c.text('No cases found.');
+  }
+
+  if (cases.length > maxCases) {
+    c.footer(
+      `Showing ${maxCases} of ${cases.length} cases. Use /mod case <number> to view specific cases.`
+    );
+  }
+
+  return c;
 }

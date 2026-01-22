@@ -159,7 +159,7 @@ export async function handleWatchUpdate(
       return;
     }
 
-    const components = buildWatchMessage(session, newState, guild);
+    const components = buildWatchMessage(session, newState, guild).build();
 
     const updatedSession: VoiceWatchSession = {
       ...session,
@@ -240,7 +240,7 @@ export async function handleTrackUpdate(
       return;
     }
 
-    const components = buildTrackMessage(session, voiceChannel, guild);
+    const components = buildTrackMessage(session, voiceChannel, guild).build();
 
     const updatedSession: VoiceTrackSession = {
       ...session,
@@ -291,7 +291,7 @@ export async function stopWatch(
         reason,
         Date.now() - session.startedAt,
         session.updateCount
-      );
+      ).build();
 
       await message.edit({
         components: [endedMessage],
@@ -332,7 +332,7 @@ export async function stopTrack(
         reason,
         Date.now() - session.startedAt,
         session.updateCount
-      );
+      ).build();
 
       await message.edit({
         components: [endedMessage],
@@ -379,7 +379,7 @@ export async function forceRefreshWatch(
     const message = await channel.messages.fetch(session.messageId).catch(() => null);
     if (!message) return false;
 
-    const components = buildWatchMessage(session, targetMember.voice, guild);
+    const components = buildWatchMessage(session, targetMember.voice, guild).build();
 
     await message.edit({
       components: [components],
@@ -415,7 +415,7 @@ export async function forceRefreshTrack(
     const message = await channel.messages.fetch(session.messageId).catch(() => null);
     if (!message) return false;
 
-    const components = buildTrackMessage(session, voiceChannel, guild);
+    const components = buildTrackMessage(session, voiceChannel, guild).build();
 
     await message.edit({
       components: [components],

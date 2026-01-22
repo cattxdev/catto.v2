@@ -52,11 +52,20 @@ export interface FluentLinkButtonConfig {
  */
 export class FluentContainer {
   private builder: ContainerBuilder;
+  private lastTextContent: string | null = null;
+  private accumulatedText: string[] | null = null;
 
   constructor(options: ContainerOptions = {}) {
     this.builder = new ContainerBuilder();
     if (options.color) this.builder.setAccentColor(options.color);
     if (options.spoiler) this.builder.setSpoiler(true);
+  }
+
+  /**
+   * Whether we're currently accumulating text for a combined section
+   */
+  private get isAccumulating(): boolean {
+    return this.accumulatedText !== null;
   }
 
   // --------------------------------------------------------------------------
@@ -78,7 +87,12 @@ export class FluentContainer {
   // --------------------------------------------------------------------------
 
   text(content: string): this {
-    this.builder.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+    if (this.isAccumulating && this.accumulatedText) {
+      this.accumulatedText.push(content);
+    } else {
+      this.builder.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+      this.lastTextContent = content;
+    }
     return this;
   }
 
@@ -137,6 +151,102 @@ export class FluentContainer {
     const unix = Math.floor((date ?? new Date()).getTime() / 1000);
     const ts = `<t:${unix}:R>`;
     return this.footer(prefix ? `${prefix} · ${ts}` : ts);
+  }
+
+  /**
+   * Starts accumulating text content for a combined section.
+   * All text methods (text, h1, h2, kv, etc.) called after this will be combined
+   * into a single text block until `withThumbnail()` or `endSection()` is called.
+   *
+   * @example
+   * container()
+   *   .beginSection()
+   *     .h1('Moderation History')
+   *     .text(`User: ${user.tag}`)
+   *     .kv({ Bans: 2, Warns: 8 })
+   *   .withThumbnail(user.avatarURL())
+   *   .divider()
+   *   .text('More content outside the section')
+   */
+  beginSection(): this {
+    if (this.isAccumulating) {
+      throw new Error('Already in a section. Call withThumbnail() or endSection() first.');
+    }
+    this.accumulatedText = [];
+    return this;
+  }
+
+  /**
+   * Ends the current section and commits accumulated text as a plain text display.
+   * Use this if you started a section with beginSection() but don't want a thumbnail.
+   */
+  endSection(): this {
+    if (!this.isAccumulating || !this.accumulatedText) {
+      throw new Error('Not in a section. Call beginSection() first.');
+    }
+
+    const content = this.accumulatedText.join('\n');
+    this.accumulatedText = null;
+
+    if (content) {
+      this.builder.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
+      this.lastTextContent = content;
+    }
+
+    return this;
+  }
+
+  /**
+   * Converts text content into a section with a thumbnail accessory.
+   *
+   * If called after `beginSection()`, combines all accumulated text into one section.
+   * If called after a single text method, converts just that text into a section.
+   *
+   * The thumbnail will appear on the right side of the text content, matching Discord's
+   * standard section-with-thumbnail layout (similar to how embed thumbnails work).
+   *
+   * @param url - The URL of the thumbnail image
+   *
+   * @example
+   * // Simple: single text with thumbnail
+   * container()
+   *   .h1('User Profile').withThumbnail(user.avatarURL())
+   *
+   * @example
+   * // Combined: multiple texts merged into one section with thumbnail
+   * container()
+   *   .beginSection()
+   *     .h1('Moderation History')
+   *     .text(`User: ${user.tag}`)
+   *     .kv({ Bans: 2, Warns: 8 })
+   *   .withThumbnail(user.avatarURL())
+   */
+  withThumbnail(url: string): this {
+    let content: string;
+
+    if (this.isAccumulating && this.accumulatedText) {
+      // Combine all accumulated text
+      content = this.accumulatedText.join('\n');
+      this.accumulatedText = null;
+    } else if (this.lastTextContent) {
+      // Use the last single text component
+      content = this.lastTextContent;
+      // Remove the last component (which was a TextDisplayBuilder)
+      this.builder.components.pop();
+    } else {
+      throw new Error(
+        'withThumbnail must be called after beginSection() or a text method (text, h1, h2, h3, etc.)'
+      );
+    }
+
+    // Create a section with the content and a thumbnail accessory
+    const section = new SectionBuilder()
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(content))
+      .setThumbnailAccessory(new ThumbnailBuilder().setURL(url));
+
+    this.builder.addSectionComponents(section);
+    this.lastTextContent = null;
+    return this;
   }
 
   // --------------------------------------------------------------------------

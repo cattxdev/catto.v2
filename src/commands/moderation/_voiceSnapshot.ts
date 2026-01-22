@@ -2,15 +2,20 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { container as sapphireContainer } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
 import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 import { EMOJI, ephemeralError, editError, container, editReply } from '#lib/discord/index.js';
 import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseVoiceSnapshotOptions(interaction);
-
-  if (!options) {
-    await interaction.reply(ephemeralError('Please select a valid voice channel.'));
-    return;
+  let options;
+  try {
+    options = parseVoiceSnapshotOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   await interaction.deferReply();

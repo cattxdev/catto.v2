@@ -16,7 +16,6 @@ export {
 } from './customId.js';
 
 export {
-  formatInfoRow,
   formatStatsLine,
   formatUserMention,
   formatRelativeTimestamp,

@@ -27,8 +27,8 @@ export async function handleCase(interaction: Subcommand.ChatInputCommandInterac
       return;
     }
 
-    const embed = createCaseEmbed(modCase);
-    await interaction.editReply({ embeds: [embed] });
+    const message = createCaseEmbed(modCase);
+    await editReply(interaction, message);
   } catch (error) {
     interaction.client.logger.error('Error in case command:', error);
     await interaction

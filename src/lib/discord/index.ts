@@ -48,7 +48,6 @@ export {
   isValidCustomId,
   sanitizeForCustomId,
   // Formatting
-  formatInfoRow,
   formatStatsLine,
   formatUserMention,
   formatRelativeTimestamp,
@@ -235,3 +234,21 @@ export {
   editError,
   editSuccess,
 } from './responses.js';
+
+// ============================================================================
+// Command Handlers
+// ============================================================================
+
+export {
+  type HandlerResult,
+  type ModerationContext,
+  type TargetContext,
+  type ErrorHandlerOptions,
+  parseWithValidation,
+  fetchMemberSafe,
+  checkCanModerate,
+  requireMember,
+  checkBotPermission,
+  withDeferredHandler,
+  validateModerationTarget,
+} from './handlers.js';

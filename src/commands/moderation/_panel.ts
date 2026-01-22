@@ -53,7 +53,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
       notesCount: notes.length,
       recentCases: userRecentCases,
       recentNotes: notes.slice(0, 3),
-      voiceChannelName: targetMember?.voice.channel?.name ?? null,
+      voiceChannelId: targetMember?.voice.channel?.id ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
       hasActiveMutes: activeMutes.length > 0,

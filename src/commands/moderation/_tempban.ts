@@ -37,13 +37,6 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     throw error;
   }
 
-  if (!options) {
-    await interaction.reply(
-      ephemeralError('Invalid duration format. Use formats like: 1h, 1d, 7d')
-    );
-    return;
-  }
-
   const {
     target,
     targetId,

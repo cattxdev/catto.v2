@@ -1,19 +1,20 @@
-import { Listener, container } from '@sapphire/framework';
+import { Listener, container as sapphireContainer } from '@sapphire/framework';
 import {
   Events,
   type Interaction,
-  MessageFlags,
-  ContainerBuilder,
-  TextDisplayBuilder,
   type ButtonInteraction,
   PermissionFlagsBits,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  type ModalActionRowComponentBuilder,
   type GuildMember,
 } from 'discord.js';
+import {
+  container,
+  defer,
+  editReply,
+  errorMessage,
+  ephemeralError,
+  formModal,
+  paragraphModal,
+} from '#lib/discord/index.js';
 import {
   isModPanelCustomId,
   decodeModPanelCustomId,
@@ -54,10 +55,7 @@ export class ModPanelInteractionListener extends Listener {
 
     const parsed = decodeModPanelCustomId(interaction.customId);
     if (!parsed) {
-      await interaction.reply({
-        content: '❌ Invalid interaction.',
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.reply(ephemeralError('Invalid interaction.'));
       return;
     }
 
@@ -65,20 +63,18 @@ export class ModPanelInteractionListener extends Listener {
     const rateLimitKey = `modpanel:${interaction.user.id}:${parsed.action}`;
     const rateLimitResult = memoryLimiter.throttle(rateLimitKey, { minIntervalMs: RATE_LIMIT_MS });
     if (!rateLimitResult.allowed) {
-      await interaction.reply({
-        content: `⏳ Please wait ${Math.ceil((rateLimitResult.retryAfterMs ?? RATE_LIMIT_MS) / 1000)}s before using this again.`,
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.reply(
+        ephemeralError(
+          `Please wait ${Math.ceil((rateLimitResult.retryAfterMs ?? RATE_LIMIT_MS) / 1000)}s before using this again.`
+        )
+      );
       return;
     }
 
     // Permission check
     const member = interaction.member as GuildMember;
     if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: '❌ You do not have permission to use this.',
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.reply(ephemeralError('You do not have permission to use this.'));
       return;
     }
 
@@ -131,18 +127,12 @@ export class ModPanelInteractionListener extends Listener {
           break;
 
         default:
-          await interaction.reply({
-            content: 'Unknown action.',
-            flags: MessageFlags.Ephemeral,
-          });
+          await interaction.reply(ephemeralError('Unknown action.'));
       }
     } catch (error) {
-      container.logger.error('[ModPanelInteraction] Error handling interaction:', error);
+      sapphireContainer.logger.error('[ModPanelInteraction] Error handling interaction:', error);
       await interaction
-        .reply({
-          content: 'An error occurred while processing your request.',
-          flags: MessageFlags.Ephemeral,
-        })
+        .reply(ephemeralError('An error occurred while processing your request.'))
         .catch(() => {});
     }
   }
@@ -152,39 +142,34 @@ export class ModPanelInteractionListener extends Listener {
     muteType: 'text' | 'voice',
     targetId: string
   ): Promise<void> {
-    const modal = new ModalBuilder()
-      .setCustomId(encodeMuteModalCustomId(muteType, targetId))
-      .setTitle(`Mute User (${muteType === 'text' ? 'Text' : 'Voice'})`);
-
-    const durationInput = new TextInputBuilder()
-      .setCustomId('duration')
-      .setLabel('Duration (leave empty for permanent)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('1h, 1d, 7d')
-      .setRequired(false)
-      .setMaxLength(10);
-
-    const reasonInput = new TextInputBuilder()
-      .setCustomId('reason')
-      .setLabel('Reason')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Enter the reason for this mute...')
-      .setRequired(true)
-      .setMaxLength(512);
-
-    const durationRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
-      durationInput
+    const modal = formModal(
+      encodeMuteModalCustomId(muteType, targetId),
+      `Mute User (${muteType === 'text' ? 'Text' : 'Voice'})`,
+      [
+        {
+          id: 'duration',
+          label: 'Duration (leave empty for permanent)',
+          type: 'short',
+          placeholder: '1h, 1d, 7d',
+          required: false,
+          maxLength: 10,
+        },
+        {
+          id: 'reason',
+          label: 'Reason',
+          type: 'paragraph',
+          placeholder: 'Enter the reason for this mute...',
+          required: true,
+          maxLength: 512,
+        },
+      ]
     );
-    const reasonRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
-      reasonInput
-    );
-    modal.addComponents(durationRow, reasonRow);
 
     await interaction.showModal(modal);
   }
 
   private async handleUnmute(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await defer(interaction);
 
     const guild = ensureNonNull(
       interaction.guild,
@@ -196,7 +181,7 @@ export class ModPanelInteractionListener extends Listener {
     try {
       const targetMember = await guild.members.fetch(targetId).catch(() => null);
       if (!targetMember) {
-        await interaction.editReply({ content: 'User not found in this server.' });
+        await editReply(interaction, errorMessage('Error', 'User not found in this server.'));
         return;
       }
 
@@ -209,16 +194,26 @@ export class ModPanelInteractionListener extends Listener {
       });
 
       if (!result.success) {
-        await interaction.editReply({ content: result.error ?? 'Failed to unmute user.' });
+        await editReply(
+          interaction,
+          errorMessage('Error', result.error ?? 'Failed to unmute user.')
+        );
         return;
       }
 
-      await interaction.editReply({
-        content: `**${targetMember.user.tag}** has been unmuted. (Case #${result.caseNumber})`,
-      });
+      await editReply(
+        interaction,
+        container()
+          .h1('User Unmuted')
+          .text(`**${targetMember.user.tag}** has been unmuted.`)
+          .footer(`Case #${result.caseNumber}`)
+      );
     } catch (error) {
-      container.logger.error('[ModPanelInteraction] Error handling unmute:', error);
-      await interaction.editReply({ content: 'An error occurred while processing the unmute.' });
+      sapphireContainer.logger.error('[ModPanelInteraction] Error handling unmute:', error);
+      await editReply(
+        interaction,
+        errorMessage('Error', 'An error occurred while processing the unmute.')
+      );
     }
   }
 
@@ -227,22 +222,17 @@ export class ModPanelInteractionListener extends Listener {
     action: string,
     targetId: string
   ): Promise<void> {
-    const modal = new ModalBuilder()
-      .setCustomId(
-        encodeReasonModalCustomId(action as 'warn' | 'kick' | 'ban' | 'softban', targetId)
-      )
-      .setTitle(`${action.charAt(0).toUpperCase() + action.slice(1)} User`);
-
-    const reasonInput = new TextInputBuilder()
-      .setCustomId('reason')
-      .setLabel('Reason')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Enter the reason for this action...')
-      .setRequired(true)
-      .setMaxLength(512);
-
-    const row = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(reasonInput);
-    modal.addComponents(row);
+    const modal = paragraphModal(
+      encodeReasonModalCustomId(action as 'warn' | 'kick' | 'ban' | 'softban', targetId),
+      `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+      {
+        customId: 'reason',
+        label: 'Reason',
+        placeholder: 'Enter the reason for this action...',
+        required: true,
+        maxLength: 512,
+      }
+    );
 
     await interaction.showModal(modal);
   }
@@ -252,67 +242,57 @@ export class ModPanelInteractionListener extends Listener {
     action: string,
     targetId: string
   ): Promise<void> {
-    const modal = new ModalBuilder()
-      .setCustomId(encodeDurationModalCustomId(action as 'timeout' | 'tempban', targetId))
-      .setTitle(`${action.charAt(0).toUpperCase() + action.slice(1)} User`);
-
-    const durationInput = new TextInputBuilder()
-      .setCustomId('duration')
-      .setLabel('Duration (e.g., 10m, 1h, 1d)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('1h')
-      .setRequired(true)
-      .setMaxLength(10);
-
-    const reasonInput = new TextInputBuilder()
-      .setCustomId('reason')
-      .setLabel('Reason')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Enter the reason for this action...')
-      .setRequired(true)
-      .setMaxLength(512);
-
-    const durationRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
-      durationInput
+    const modal = formModal(
+      encodeDurationModalCustomId(action as 'timeout' | 'tempban', targetId),
+      `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+      [
+        {
+          id: 'duration',
+          label: 'Duration (e.g., 10m, 1h, 1d)',
+          type: 'short',
+          placeholder: '1h',
+          required: true,
+          maxLength: 10,
+        },
+        {
+          id: 'reason',
+          label: 'Reason',
+          type: 'paragraph',
+          placeholder: 'Enter the reason for this action...',
+          required: true,
+          maxLength: 512,
+        },
+      ]
     );
-    const reasonRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
-      reasonInput
-    );
-    modal.addComponents(durationRow, reasonRow);
 
     await interaction.showModal(modal);
   }
 
   private async showNoteModal(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    const modal = new ModalBuilder()
-      .setCustomId(encodeNoteModalCustomId('add', targetId))
-      .setTitle('Add Moderator Note');
-
-    const noteInput = new TextInputBuilder()
-      .setCustomId('note')
-      .setLabel('Note')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Enter your note about this user...')
-      .setRequired(true)
-      .setMaxLength(1000);
-
-    const tagsInput = new TextInputBuilder()
-      .setCustomId('tags')
-      .setLabel('Tags (comma-separated, optional)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('toxic, raid, spam')
-      .setRequired(false)
-      .setMaxLength(100);
-
-    const noteRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(noteInput);
-    const tagsRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(tagsInput);
-    modal.addComponents(noteRow, tagsRow);
+    const modal = formModal(encodeNoteModalCustomId('add', targetId), 'Add Moderator Note', [
+      {
+        id: 'note',
+        label: 'Note',
+        type: 'paragraph',
+        placeholder: 'Enter your note about this user...',
+        required: true,
+        maxLength: 1000,
+      },
+      {
+        id: 'tags',
+        label: 'Tags (comma-separated, optional)',
+        type: 'short',
+        placeholder: 'toxic, raid, spam',
+        required: false,
+        maxLength: 100,
+      },
+    ]);
 
     await interaction.showModal(modal);
   }
 
   private async showNotes(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await defer(interaction);
 
     const guildId = asGuildId(
       ensureNonNull(
@@ -326,20 +306,16 @@ export class ModPanelInteractionListener extends Listener {
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
     if (!target) {
-      await interaction.editReply({ content: '❌ User not found.' });
+      await editReply(interaction, errorMessage('Error', 'User not found.'));
       return;
     }
 
     const containerComp = buildNotesList(target, notes);
-
-    await interaction.editReply({
-      components: [containerComp.build()],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await editReply(interaction, containerComp);
   }
 
   private async showContext(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await defer(interaction);
 
     const guild = ensureNonNull(
       interaction.guild,
@@ -350,7 +326,7 @@ export class ModPanelInteractionListener extends Listener {
 
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
     if (!target) {
-      await interaction.editReply({ content: '❌ User not found.' });
+      await editReply(interaction, errorMessage('Error', 'User not found.'));
       return;
     }
 
@@ -384,15 +360,11 @@ export class ModPanelInteractionListener extends Listener {
     };
 
     const containerComp = buildContextBundle(context);
-
-    await interaction.editReply({
-      components: [containerComp.build()],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await editReply(interaction, containerComp);
   }
 
   private async showHistory(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await defer(interaction);
 
     const guildId = asGuildId(
       ensureNonNull(
@@ -404,45 +376,40 @@ export class ModPanelInteractionListener extends Listener {
 
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
     if (!target) {
-      await interaction.editReply({ content: '❌ User not found.' });
+      await editReply(interaction, errorMessage('Error', 'User not found.'));
       return;
     }
 
     const cases = await moderationService.getUserCases(guildId, userId);
 
-    const container = new ContainerBuilder();
-
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# 📜 History for ${target.tag}`),
-      new TextDisplayBuilder().setContent(`Total cases: **${cases.length}**`)
-    );
+    const c = container().h1(`History for ${target.tag}`).text(`Total cases: **${cases.length}**`);
 
     if (cases.length === 0) {
-      container.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('*No moderation history found.*')
-      );
+      c.text('*No moderation history found.*');
     } else {
       const casesList = cases
         .slice(0, 10)
-        .map((c) => {
-          const timestamp = `<t:${Math.floor(c.createdAt.getTime() / 1000)}:R>`;
-          return `• **#${c.caseNumber}** ${c.action} - ${timestamp}\n  ${c.reason ?? 'No reason'}`;
-        })
+        .map(
+          (modCase: {
+            createdAt: { getTime: () => number };
+            caseNumber: number;
+            action: string;
+            reason: string | null;
+          }) => {
+            const timestamp = `<t:${Math.floor(modCase.createdAt.getTime() / 1000)}:R>`;
+            return `• **#${modCase.caseNumber}** ${modCase.action} - ${timestamp}\n  ${modCase.reason ?? 'No reason'}`;
+          }
+        )
         .join('\n\n');
 
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(casesList));
+      c.text(casesList);
 
       if (cases.length > 10) {
-        container.addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`\n*... and ${cases.length - 10} more cases*`)
-        );
+        c.text(`\n*... and ${cases.length - 10} more cases*`);
       }
     }
 
-    await interaction.editReply({
-      components: [container],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await editReply(interaction, c);
   }
 
   private async refreshPanel(interaction: ButtonInteraction, targetId: string): Promise<void> {
@@ -457,10 +424,7 @@ export class ModPanelInteractionListener extends Listener {
 
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
     if (!target) {
-      await interaction.followUp({
-        content: '❌ User not found.',
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.followUp(ephemeralError('User not found.'));
       return;
     }
 
@@ -494,10 +458,6 @@ export class ModPanelInteractionListener extends Listener {
     };
 
     const containerComp = buildModPanel(context);
-
-    await interaction.editReply({
-      components: [containerComp.build()],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await editReply(interaction, containerComp);
   }
 }

@@ -1,13 +1,7 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { container as sapphireContainer } from '@sapphire/framework';
-import {
-  type GuildMember,
-  channelMention,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-} from 'discord.js';
-import { parseVoiceTrackOptions, type VoiceTrackOptions } from '#lib/interaction/typedOptions.js';
+import { parseVoiceTrackOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 import { setJson, CacheKey } from '#lib/cache/index.js';
 import {
   VoiceTrackSessionSchema,
@@ -15,26 +9,20 @@ import {
   VOICE_CACHE_TTL,
   type VoiceTrackSession,
 } from '#root/modules/voice/domain/types.js';
-import {
-  EMOJI,
-  ephemeralError,
-  editError,
-  container,
-  type FluentContainer,
-} from '#lib/discord/index.js';
+import { ephemeralError, editError, editReply, defer } from '#lib/discord/index.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
-import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
+import { buildTrackMessageFromParams } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseVoiceTrackOptions(interaction);
-
-  if (!options) {
-    await interaction.reply(
-      ephemeralError(
-        'Invalid channel or duration. Please select a voice channel and use formats like: 1m, 5m, 10m, 15m'
-      )
-    );
-    return;
+  let options;
+  try {
+    options = parseVoiceTrackOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   if (options.durationSeconds < VOICE_WATCH_CONFIG.minDurationSeconds) {
@@ -55,19 +43,22 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
     return;
   }
 
-  await interaction.deferReply();
+  await defer(interaction).public();
 
   try {
     const voiceChannel = options.channel;
     const now = Date.now();
     const endsAt = now + options.durationSeconds * 1000;
 
-    const c = buildTrackMessage(options, voiceChannel, endsAt, 0);
-
-    const reply = await interaction.editReply({
-      components: [c.build()],
-      allowedMentions: { parse: [] },
+    const c = buildTrackMessageFromParams({
+      channelId: options.channelId,
+      channelName: voiceChannel.name,
+      members: voiceChannel.members,
+      endsAt,
+      updateCount: 0,
     });
+
+    const reply = await editReply(interaction, c);
 
     const session: VoiceTrackSession = {
       channelId: options.channelId,
@@ -102,63 +93,4 @@ export async function handleVoiceTrack(interaction: Subcommand.ChatInputCommandI
       .editReply(editError('An error occurred while starting the track.'))
       .catch(() => {});
   }
-}
-
-function buildTrackMessage(
-  options: VoiceTrackOptions,
-  voiceChannel: { name: string; members: Map<string, GuildMember> },
-  endsAt: number,
-  updateCount: number
-): FluentContainer {
-  const members = voiceChannel.members;
-  const memberCount = members.size;
-
-  const memberLines = Array.from(members.values())
-    .slice(0, 10)
-    .map((member: GuildMember) =>
-      formatVoiceMemberLine(member, { useMention: true, channelId: options.channelId })
-    );
-
-  const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
-
-  const c = container()
-    .h2(`${EMOJI.VOICE} ${voiceChannel.name}`)
-    .kv({
-      Channel: channelMention(options.channelId),
-      Members: memberCount.toString(),
-    })
-    .text(memberList);
-
-  if (memberCount > 10) {
-    c.text(`_... and ${memberCount - 10} more_`);
-  }
-
-  c.separator().text(
-    `${EMOJI.TIME_DAY} <t:${Math.floor(endsAt / 1000)}:R> • Updates: ${updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
-  );
-
-  // All buttons in one row
-  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`voice_track_stop:${options.channelId}`)
-      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId(`voice_refresh_track:${options.channelId}`)
-      .setEmoji(EMOJI.REPLAY)
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`voice_join:${options.channelId}`)
-      .setEmoji(EMOJI.CONNECT_TO_USER)
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`voice_mute_all:${options.channelId}`)
-      .setLabel('All')
-      .setEmoji(EMOJI.VOICE_SERVER_MUTED)
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  c.actions(actionRow);
-
-  return c;
 }

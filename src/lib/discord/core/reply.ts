@@ -9,11 +9,12 @@
  * await defer(interaction);           // ephemeral
  * await defer(interaction).public();  // visible
  * await reply(interaction, container);
- * await editReply(interaction, container);
+ * const msg = await editReply(interaction, container);
  * ```
  */
 
 import {
+  DiscordAPIError,
   MessageFlags,
   ContainerBuilder,
   type ChatInputCommandInteraction,
@@ -21,6 +22,7 @@ import {
   type ModalSubmitInteraction,
   type InteractionEditReplyOptions,
   type InteractionReplyOptions,
+  type Message,
 } from 'discord.js';
 import type { FluentContainer } from '../containers/container.js';
 
@@ -35,11 +37,36 @@ const COMPONENTS_V2 = MessageFlags.IsComponentsV2;
 const EPHEMERAL = MessageFlags.Ephemeral;
 const COMPONENTS_V2_EPHEMERAL = COMPONENTS_V2 | EPHEMERAL;
 
+/**
+ * Discord API error code for invalid form body
+ */
+const DISCORD_ERROR_INVALID_FORM_BODY = 50035;
+
 function resolveContainer(container: MessageContainer): ContainerBuilder {
   if ('build' in container && typeof container.build === 'function') {
     return container.build();
   }
   return container as ContainerBuilder;
+}
+
+/**
+ * Wraps Discord API errors to provide more helpful error messages,
+ * especially for Components V2 related issues.
+ */
+function wrapComponentsV2Error(error: unknown, context: string): never {
+  if (error instanceof DiscordAPIError && error.code === DISCORD_ERROR_INVALID_FORM_BODY) {
+    const rawError = error.rawError as { errors?: Record<string, unknown> };
+    const errorStr = JSON.stringify(rawError);
+
+    // Check for common Components V2 errors
+    if (errorStr.includes('UNION_TYPE_CHOICES') || errorStr.includes('type')) {
+      throw new Error(
+        `[DCB] Components V2 error in ${context}: Missing MessageFlags.IsComponentsV2 flag or invalid component structure. ` +
+          `Original error: ${error.message}`
+      );
+    }
+  }
+  throw error;
 }
 
 /**
@@ -127,12 +154,12 @@ export function reply(
 }
 
 /**
- * Edit a previously deferred reply.
+ * Edit a previously deferred reply. Returns the message for further use.
  */
 export async function editReply(
   interaction: RepliableInteraction,
   container: MessageContainer
-): Promise<void> {
+): Promise<Message> {
   const resolved = resolveContainer(container);
 
   const options: InteractionEditReplyOptions = {
@@ -140,5 +167,9 @@ export async function editReply(
     flags: COMPONENTS_V2,
   };
 
-  await interaction.editReply(options);
+  try {
+    return await interaction.editReply(options);
+  } catch (error) {
+    wrapComponentsV2Error(error, 'editReply');
+  }
 }

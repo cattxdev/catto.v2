@@ -7,20 +7,38 @@
 import type { User } from 'discord.js';
 
 /**
- * Format an info row: "emoji **Label:** value"
+ * Format key-value pairs into a stats line
+ * @param stats - Key-value pairs to format
+ * @param mode - 'inline' (default): "Key1: val1 · Key2: val2", 'columns': side-by-side columns
  */
-export function formatInfoRow(label: string, value: string, emoji?: string): string {
-  const prefix = emoji ? `${emoji} ` : '';
-  return `${prefix}**${label}:** ${value}`;
-}
+export function formatStatsLine(
+  stats: Record<string, string | number>,
+  mode: 'inline' | 'columns' = 'inline'
+): string {
+  const entries = Object.entries(stats);
 
-/**
- * Format key-value pairs into a stats line with middle dots
- */
-export function formatStatsLine(stats: Record<string, string | number>): string {
-  return Object.entries(stats)
-    .map(([key, value]) => `**${key}:** ${value}`)
-    .join(' · ');
+  if (mode === 'inline') {
+    return entries.map(([key, value]) => `**${key}:** ${value}`).join(' · ');
+  }
+
+  // Columns mode: split entries into two columns displayed side by side
+  const midpoint = Math.ceil(entries.length / 2);
+  const leftColumn = entries.slice(0, midpoint);
+  const rightColumn = entries.slice(midpoint);
+
+  const rows: string[] = [];
+  for (let i = 0; i < leftColumn.length; i++) {
+    const leftEntry = leftColumn[i];
+    const rightEntry = rightColumn[i];
+
+    if (!leftEntry) continue;
+
+    const left = `**${leftEntry[0]}:** ${leftEntry[1]}`;
+    const right = rightEntry ? `**${rightEntry[0]}:** ${rightEntry[1]}` : '';
+    rows.push(right ? `${left} · ${right}` : left);
+  }
+
+  return rows.join('\n');
 }
 
 /**

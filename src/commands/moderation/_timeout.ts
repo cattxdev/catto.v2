@@ -27,13 +27,6 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     throw error;
   }
 
-  if (!options) {
-    await interaction.reply(
-      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
-    );
-    return;
-  }
-
   await defer(interaction);
 
   try {

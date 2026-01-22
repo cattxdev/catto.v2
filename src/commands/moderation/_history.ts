@@ -5,9 +5,6 @@ import { parseHistoryOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { ephemeralError, editError, defer, editReply, infoMessage } from '#lib/discord/index.js';
 
-// Note: Uses hybrid approach - embeds for history display (rich formatting),
-// DCB containers for simple messages (empty history, errors)
-
 export async function handleHistory(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
   try {
@@ -30,8 +27,8 @@ export async function handleHistory(interaction: Subcommand.ChatInputCommandInte
       return;
     }
 
-    const embed = createHistoryEmbed(options.target, cases);
-    await interaction.editReply({ embeds: [embed] });
+    const message = createHistoryEmbed(options.target, cases);
+    await editReply(interaction, message);
   } catch (error) {
     interaction.client.logger.error('Error in history command:', error);
     await interaction

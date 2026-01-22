@@ -2,7 +2,6 @@ import { type User, type GuildMember } from 'discord.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import {
   EMOJI,
-  formatInfoRow,
   formatStatsLine,
   formatRelativeTimestamp,
   truncateText,
@@ -71,8 +70,8 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
   // Account info line
   const accountCreatedTs = formatRelativeTimestamp(target.createdAt);
   const accountLine = joinedAt
-    ? `${EMOJI.TIME_DAY} **Joined:** ${formatRelativeTimestamp(joinedAt)} · **Account:** ${accountCreatedTs}`
-    : `${EMOJI.TIME_DAY} **Account:** ${accountCreatedTs}`;
+    ? `${EMOJI.INVITE_USER} ${formatRelativeTimestamp(joinedAt)} · ${EMOJI.TIME_DAY} ${accountCreatedTs}`
+    : `${EMOJI.TIME_DAY} ${accountCreatedTs}`;
 
   // Primary moderation actions row (4 buttons)
   const primaryActions = row(
@@ -151,19 +150,15 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
 
   return primaryContainer()
     .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
-    .text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
-    .text(formatStatsLine(stats))
+    .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
       c.text(
-        formatInfoRow(
-          'Voice',
-          ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId'),
-          EMOJI.VOICE
-        )
+        `${EMOJI.VOICE} <#${ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId')}>`
       )
     )
     .text(accountLine)
     .separator()
+    .footer(formatStatsLine(stats))
     .actions(primaryActions, secondaryActionsRow, infoActions);
 }
 

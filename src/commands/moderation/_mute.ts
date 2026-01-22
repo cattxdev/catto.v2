@@ -8,6 +8,7 @@ import {
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
 import { parseMuteOptions, parseUnmuteOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
 import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
 import {
   ephemeralError,
@@ -22,12 +23,15 @@ import { ensureNonNull } from '#root/lib/utils.js';
  * Handle /mod mute text
  */
 export async function handleMuteText(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseMuteOptions(interaction);
-  if (!options) {
-    await interaction.reply(
-      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
-    );
-    return;
+  let options;
+  try {
+    options = parseMuteOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   await defer(interaction);
@@ -131,12 +135,15 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
  * Handle /mod mute voice
  */
 export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseMuteOptions(interaction);
-  if (!options) {
-    await interaction.reply(
-      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
-    );
-    return;
+  let options;
+  try {
+    options = parseMuteOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   await defer(interaction);
@@ -237,12 +244,15 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
  * Handle /mod mute both
  */
 export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseMuteOptions(interaction);
-  if (!options) {
-    await interaction.reply(
-      ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 2d, 1w')
-    );
-    return;
+  let options;
+  try {
+    options = parseMuteOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   await defer(interaction);
