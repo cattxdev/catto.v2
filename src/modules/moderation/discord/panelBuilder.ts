@@ -1,10 +1,13 @@
 import { type User, type GuildMember } from 'discord.js';
+import { ModAction } from '@prisma/client';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
+import { getActionDisplay } from './modlog.js';
 import {
   EMOJI,
   formatStatsLine,
   formatRelativeTimestamp,
   truncateText,
+  userMention,
   row,
   primaryButton,
   secondaryButton,
@@ -178,18 +181,17 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
     timeline.push(`${EMOJI.VOICE} <#${voiceChannelId}>`);
   }
 
-  // Format recent cases
-  const casesText =
-    recentCases.length > 0
-      ? recentCases
-          .slice(0, 5)
-          .map((c) => {
-            const timestamp = formatRelativeTimestamp(c.createdAt);
-            const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
-            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n> Why: \`${reasonPreview}\``;
-          })
-          .join('\n')
-      : null;
+  // Format recent cases (using same style as createHistoryEmbed, no pagination)
+  const recentCaseList = recentCases
+    .slice(0, 5)
+    .map((c) => {
+      const display = getActionDisplay(c.action as ModAction);
+      const timestamp = formatRelativeTimestamp(c.createdAt);
+      const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
+      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+    })
+    .join('\n');
+  const casesText = recentCases.length > 0 ? `**Cases**\n${recentCaseList}` : 'No cases found.';
 
   // Format recent notes
   const notesText =
@@ -222,7 +224,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h2('Context Bundle')
-    .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
+    .text(`${EMOJI.MEMBER} ${target.tag} (${userMention(target.id)}) · \`${target.id}\``)
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))
@@ -232,12 +234,9 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
         .h2('Active statuses')
         .text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
     )
-    .when(!!casesText, (c) =>
-      c
-        .separator()
-        .h2('Recent actions')
-        .text(ensureNonNull(casesText, 'panelBuilder > buildContextBundle > casesText'))
-    )
+    .separator()
+    .h2('Recent actions')
+    .text(casesText)
     .when(!!notesText, (c) =>
       c
         .separator()
@@ -286,14 +285,15 @@ export function buildNotesList(
  */
 export function buildModActionSuccess(
   action: string,
-  target: User,
+  target: User | { id: string; tag: string },
   caseNumber: number,
   reason: string,
   duration?: string,
   options?: { dmSent?: boolean }
 ): FluentContainer {
+  const targetTag = target.tag;
   const details: Record<string, string> = {
-    [`Target`]: `${target.tag} (\`${target.id}\`)`,
+    [`Target`]: `${targetTag} (\`${target.id}\`)`,
     [`Reason`]: reason,
   };
 

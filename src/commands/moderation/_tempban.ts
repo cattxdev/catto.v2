@@ -6,19 +6,15 @@ import {
   notifyUser,
   formatDuration,
 } from '../../modules/moderation/discord/embeds/presets.js';
-import { buildModActionError } from '../../modules/moderation/discord/panelBuilder.js';
+import {
+  buildModActionError,
+  buildModActionSuccess,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseTempbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import {
-  ephemeralError,
-  defer,
-  editReply,
-  errorMessage,
-  successContainer,
-  EMOJI,
-} from '#lib/discord/index.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 
 export async function handleTempban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -120,19 +116,18 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
       durationSeconds
     );
 
-    const unbanTimestamp = Math.floor((Date.now() + durationSeconds * 1000) / 1000);
-
     await editReply(
       interaction,
-      successContainer()
-        .h2(`${EMOJI.SUCCESS} Tempban successful`)
-        .kv({
-          [`${EMOJI.MEMBER} Target`]: `${targetTag}`,
-          [`${EMOJI.SERVER_FOLDER} Case`]: `#${result.caseNumber}`,
-          [`${EMOJI.SLOWMODE} Duration`]: formatDuration(durationSeconds),
-        })
-        .separator()
-        .footer(`Auto-unban <t:${unbanTimestamp}:R>`)
+      buildModActionSuccess(
+        'Tempban',
+        target ?? { id: targetId, tag: targetTag },
+        ensureNonNull(
+          result.caseNumber,
+          '_tempban > handleTempban > buildModActionSuccess: result.caseNumber'
+        ),
+        reason ?? 'No reason provided',
+        formatDuration(durationSeconds)
+      )
     );
   } catch (error) {
     interaction.client.logger.error('Error in tempban command:', error);

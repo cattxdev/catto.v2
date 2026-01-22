@@ -499,9 +499,12 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               SendMessagesInThreads: false,
             };
 
-            // Get all text-like channels
+            // Get all text-like channels (including voice channels which now have text chat)
             const textChannels = guild.channels.cache.filter(
               (c) => c.type === ChannelType.GuildText || c.type === ChannelType.GuildForum
+            );
+            const voiceChannels = guild.channels.cache.filter(
+              (c) => c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice
             );
 
             // Get all categories
@@ -513,10 +516,11 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
             const configuredCategoryIds = new Set<string>();
 
             // First, apply overwrites to categories (for inheritance)
+            // Include categories with text OR voice children (voice channels have text chat)
             for (const [, category] of categories) {
-              // Check if this category has any text-like children
               const hasTextChildren = textChannels.some((c) => c.parentId === category.id);
-              if (hasTextChildren) {
+              const hasVoiceChildren = voiceChannels.some((c) => c.parentId === category.id);
+              if (hasTextChildren || hasVoiceChildren) {
                 try {
                   await category.permissionOverwrites.create(textMuteRole, textDenyPerms);
                   configuredCategoryIds.add(category.id);
@@ -526,11 +530,20 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               }
             }
 
-            // Then, only apply overwrites to channels WITHOUT a category
-            // (channels with categories inherit from the category)
+            // Then, apply overwrites to channels that do NOT inherit
+            // from a configured parent category:
+            // - Channels without a parent category (orphans)
+            // - Channels with an unconfigured parent category
+            // - Channels that are NOT synced with their parent category (permissionsLocked === false)
             for (const [, channel] of textChannels) {
-              // Skip channels that have a configured parent category
-              if (channel.parentId && configuredCategoryIds.has(channel.parentId)) {
+              const parentCategory = channel.parentId ? categories.get(channel.parentId) : null;
+              const isInConfiguredCategory =
+                parentCategory && configuredCategoryIds.has(parentCategory.id);
+              const isSyncedWithParent =
+                'permissionsLocked' in channel && channel.permissionsLocked;
+
+              // Skip channels that are synced with a configured parent category
+              if (isInConfiguredCategory && isSyncedWithParent) {
                 continue;
               }
 
@@ -539,6 +552,26 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
                   textMuteRole,
                   textDenyPerms
                 );
+              } catch {
+                // Skip channels we can't modify
+              }
+            }
+
+            // Also apply text mute to voice channels (they have text chat now)
+            for (const [, channel] of voiceChannels) {
+              const parentCategory = channel.parentId ? categories.get(channel.parentId) : null;
+              const isInConfiguredCategory =
+                parentCategory && configuredCategoryIds.has(parentCategory.id);
+              const isSyncedWithParent =
+                'permissionsLocked' in channel && channel.permissionsLocked;
+
+              // Skip channels that are synced with a configured parent category
+              if (isInConfiguredCategory && isSyncedWithParent) {
+                continue;
+              }
+
+              try {
+                await channel.permissionOverwrites.create(textMuteRole, textDenyPerms);
               } catch {
                 // Skip channels we can't modify
               }
@@ -593,10 +626,20 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               }
             }
 
-            // Then, only apply overwrites to channels WITHOUT a category
+            // Then, apply overwrites to channels that do NOT inherit
+            // from a configured parent category:
+            // - Channels without a parent category (orphans)
+            // - Channels with an unconfigured parent category
+            // - Channels that are NOT synced with their parent category (permissionsLocked === false)
             for (const [, channel] of voiceChannels) {
-              // Skip channels that have a configured parent category
-              if (channel.parentId && configuredCategoryIds.has(channel.parentId)) {
+              const parentCategory = channel.parentId ? categories.get(channel.parentId) : null;
+              const isInConfiguredCategory =
+                parentCategory && configuredCategoryIds.has(parentCategory.id);
+              const isSyncedWithParent =
+                'permissionsLocked' in channel && channel.permissionsLocked;
+
+              // Skip channels that are synced with a configured parent category
+              if (isInConfiguredCategory && isSyncedWithParent) {
                 continue;
               }
 

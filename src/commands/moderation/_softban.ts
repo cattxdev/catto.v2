@@ -2,17 +2,15 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
+import {
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import {
-  ephemeralError,
-  errorMessage,
-  editReply,
-  successMessage,
-  defer,
-} from '#root/lib/discord/index.js';
+import { ephemeralError, errorMessage, editReply, defer } from '#root/lib/discord/index.js';
 
 export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -84,7 +82,10 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     if (!result.success) {
       await editReply(
         interaction,
-        errorMessage('Error', `${result.error ?? 'Failed to softban the user.'}`)
+        buildModActionError(
+          result.error ?? 'Failed to softban the user.',
+          'Check bot permissions and role hierarchy.'
+        )
       );
       return;
     }
@@ -104,8 +105,14 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
 
     await editReply(
       interaction,
-      successMessage(
-        `**${targetTag}** has been softbanned (messages deleted, user unbanned). \n-# (Case #${result.caseNumber})`
+      buildModActionSuccess(
+        'Softban',
+        target ?? { id: targetId, tag: targetTag },
+        ensureNonNull(
+          result.caseNumber,
+          '_softban > handleSoftban > buildModActionSuccess: result.caseNumber'
+        ),
+        reason ?? 'No reason provided'
       )
     );
   } catch (error) {
