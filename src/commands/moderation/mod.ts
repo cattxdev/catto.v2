@@ -34,13 +34,7 @@ import {
   handleUnmuteBoth,
   handleMutesList,
 } from './_mute.js';
-import {
-  handleSetup,
-  handleConfigModLog,
-  handleConfigTextRole,
-  handleConfigVoiceRole,
-  handleConfigView,
-} from './_setup.js';
+import { handleSetup } from './_setup.js';
 
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
@@ -154,17 +148,6 @@ import {
       name: 'setup',
       chatInputRun: 'chatInputSetup',
     },
-    // Config subcommand group
-    {
-      name: 'config',
-      type: 'group',
-      entries: [
-        { name: 'modlog', chatInputRun: 'chatInputConfigModLog' },
-        { name: 'textrole', chatInputRun: 'chatInputConfigTextRole' },
-        { name: 'voicerole', chatInputRun: 'chatInputConfigVoiceRole' },
-        { name: 'view', chatInputRun: 'chatInputConfigView' },
-      ],
-    },
   ],
 })
 export class ModCommand extends Subcommand {
@@ -194,7 +177,6 @@ export class ModCommand extends Subcommand {
 
         .addSubcommandGroup(this.buildMuteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildUnmuteSubcommandGroup.bind(this))
-        .addSubcommandGroup(this.buildConfigSubcommandGroup.bind(this))
     );
   }
 
@@ -657,43 +639,6 @@ export class ModCommand extends Subcommand {
       .setDescription('Interactive setup wizard for moderation settings (Admin only)');
   }
 
-  private buildConfigSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
-    return group
-      .setName('config')
-      .setDescription('Configure moderation settings')
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('modlog')
-          .setDescription('Set the mod log channel')
-          .addChannelOption((option) =>
-            option
-              .setName('channel')
-              .setDescription('The channel for moderation logs')
-              .setRequired(true)
-              .addChannelTypes(ChannelType.GuildText)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('textrole')
-          .setDescription('Set the muted text role')
-          .addRoleOption((option) =>
-            option.setName('role').setDescription('The role for text mutes').setRequired(true)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('voicerole')
-          .setDescription('Set the muted voice role')
-          .addRoleOption((option) =>
-            option.setName('role').setDescription('The role for voice mutes').setRequired(true)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand.setName('view').setDescription('View current moderation config')
-      );
-  }
-
   public async chatInputBan(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleBan(interaction);
   }
@@ -815,22 +760,5 @@ export class ModCommand extends Subcommand {
   // Setup handler
   public async chatInputSetup(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleSetup(interaction);
-  }
-
-  // Config subcommand handlers
-  public async chatInputConfigModLog(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleConfigModLog(interaction);
-  }
-
-  public async chatInputConfigTextRole(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleConfigTextRole(interaction);
-  }
-
-  public async chatInputConfigVoiceRole(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleConfigVoiceRole(interaction);
-  }
-
-  public async chatInputConfigView(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleConfigView(interaction);
   }
 }
