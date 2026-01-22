@@ -51,6 +51,7 @@
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/plugin-subcommands": "^7.0.1",
     "@sapphire/utilities": "^3.17.3",
+    "axios": "^1.13.2",
     "bullmq": "^5.66.5",
     "discord-api-types": "^0.38.37",
     "discord.js": "~14.25.1",
