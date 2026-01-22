@@ -1,6 +1,7 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction, GuildMember, Role } from 'discord.js';
 import { MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, UserSelectMenuBuilder } from 'discord.js';
+import { EMOJIS } from '#lib/emojis';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
@@ -53,7 +54,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		const tempChannel = await this.channelService.getByChannelId(channelId);
 		if (!tempChannel) {
 			return interaction.reply({
-				content: '❌ This temporary voice channel no longer exists.',
+				content: `${EMOJIS.ERROR} This temporary voice channel no longer exists.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -71,7 +72,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		);
 		if (!canManage) {
 			return interaction.reply({
-				content: '❌ You do not have permission to manage this channel.',
+				content: `${EMOJIS.ERROR} You do not have permission to manage this channel.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -79,7 +80,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		// Check if customization is allowed (except for refresh and transfer which are always allowed)
 		if (!config.allowCustomization && !['refresh', 'transfer'].includes(action)) {
 			return interaction.reply({
-				content: '❌ Channel customization is disabled in this server.',
+				content: `${EMOJIS.ERROR} Channel customization is disabled in this server.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -114,7 +115,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 				return this.handleTransferModal(interaction, channelId);
 			default:
 				return interaction.reply({
-					content: '❌ Unknown action.',
+					content: `${EMOJIS.ERROR} Unknown action.`,
 					flags: MessageFlags.Ephemeral,
 				});
 		}
@@ -125,7 +126,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -148,13 +149,13 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: newLockState ? '🔒 Channel locked.' : '🔓 Channel unlocked.',
+				content: newLockState ? `${EMOJIS.LOCKED} Channel locked.` : `${EMOJIS.UNLOCKED} Channel unlocked.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to toggle lock:', error);
 			return interaction.reply({
-				content: '❌ Failed to toggle lock.',
+				content: `${EMOJIS.ERROR} Failed to toggle lock.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -165,7 +166,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -188,13 +189,13 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: newHiddenState ? '👁️‍🗨️ Channel hidden.' : '👁️ Channel visible.',
+				content: newHiddenState ? `${EMOJIS.HIDDEN} Channel hidden.` : `${EMOJIS.VISIBLE} Channel visible.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to toggle visibility:', error);
 			return interaction.reply({
-				content: '❌ Failed to toggle visibility.',
+				content: `${EMOJIS.ERROR} Failed to toggle visibility.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -251,7 +252,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
 		return interaction.reply({
-			content: '👤 Select the user(s) you want to permit access to this channel:',
+			content: `${EMOJIS.PERMIT} Select the user(s) you want to permit access to this channel:`,
 			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
@@ -269,7 +270,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
 		return interaction.reply({
-			content: '🚫 Select the user(s) you want to deny access to this channel:',
+			content: `${EMOJIS.DENY} Select the user(s) you want to deny access to this channel:`,
 			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
@@ -292,7 +293,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
-		let content = '🤝 **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).';
+		let content = `${EMOJIS.TRUST} **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).`;
 
 		if (trustedUsers.length > 0) {
 			const mentions = trustedUsers.map(id => `<@${id}>`).join(', ');
@@ -311,7 +312,7 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 			const voiceChannel = await interaction.guild!.channels.fetch(channelId);
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -321,7 +322,7 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 			// Check if claimer is in the channel
 			if (member.voice.channelId !== channelId) {
 				return interaction.reply({
-					content: '❌ You must be in the channel to claim it.',
+					content: `${EMOJIS.ERROR} You must be in the channel to claim it.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -330,7 +331,7 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 			const owner = voiceChannel.members.get(tempChannel.ownerId);
 			if (owner) {
 				return interaction.reply({
-					content: '❌ The channel owner is still present. You cannot claim this channel.',
+					content: `${EMOJIS.ERROR} The channel owner is still present. You cannot claim this channel.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -356,13 +357,13 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: '✅ You are now the owner of this channel.',
+				content: `${EMOJIS.SUCCESS} You are now the owner of this channel.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to claim channel:', error);
 			return interaction.reply({
-				content: '❌ Failed to claim channel. Please try again.',
+				content: `${EMOJIS.ERROR} Failed to claim channel. Please try again.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
@@ -408,7 +409,7 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 		const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
 		return interaction.reply({
-			content: '👑 Select the user you want to transfer ownership to:',
+			content: `${EMOJIS.TRANSFER} Select the user you want to transfer ownership to:`,
 			components: [row],
 			flags: MessageFlags.Ephemeral,
 		});
@@ -421,7 +422,7 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 
 			if (!voiceChannel || !voiceChannel.isVoiceBased()) {
 				return interaction.reply({
-					content: '❌ Voice channel not found.',
+					content: `${EMOJIS.ERROR} Voice channel not found.`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
@@ -460,13 +461,13 @@ private async handleClaim(interaction: ButtonInteraction, tempChannel: TempVoice
 			await this.controlPanelService.refresh(channelId);
 
 			return interaction.reply({
-				content: '✅ Channel reset to default settings.',
+				content: `${EMOJIS.SUCCESS} Channel reset to default settings.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		} catch (error) {
 			this.container.logger.error('Failed to reset channel:', error);
 			return interaction.reply({
-				content: '❌ Failed to reset channel.',
+				content: `${EMOJIS.ERROR} Failed to reset channel.`,
 				flags: MessageFlags.Ephemeral,
 			});
 		}
