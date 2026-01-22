@@ -1,10 +1,5 @@
-/**
- * Voice XP User Stats Route
- * GET /api/guilds/:guildId/voice-xp/users/:userId
- */
-
+import { getVoiceUserStats } from '#root/modules/xp-voice';
 import { Route } from '@sapphire/plugin-api';
-import { getVoiceUserStats } from '../../../modules/xp-voice/services';
 
 export class VoiceXPStatsRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

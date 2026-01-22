@@ -1,10 +1,5 @@
-/**
- * Voice XP User Sessions Route
- * GET /api/guilds/:guildId/voice-xp/users/:userId/sessions
- */
-
 import { Route } from '@sapphire/plugin-api';
-import { getUserVoiceSessions } from '../../../modules/xp-voice/repositories';
+import { getUserVoiceSessions } from '#root/modules/xp-voice';
 
 export class VoiceXPSessionsRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

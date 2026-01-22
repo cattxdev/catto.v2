@@ -1,10 +1,5 @@
-/**
- * Voice XP Leaderboard Route
- * GET /api/guilds/:guildId/voice-xp/leaderboard
- */
-
+import { getVoiceLeaderboard } from '#root/modules/xp-voice';
 import { Route } from '@sapphire/plugin-api';
-import { getVoiceLeaderboard } from '../../../modules/xp-voice/services';
 
 export class VoiceXPLeaderboardRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
