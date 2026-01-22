@@ -7,6 +7,7 @@ import {
 	EmbedBuilder,
 	Colors,
 } from 'discord.js';
+import { EMOJIS, REPUTATION_EMOJIS, XP_EMOJIS } from '#lib/emojis';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { VouchType, REPUTATION_TIERS } from '#modules/reputation/models/reputation.model';
 import { CONFIG } from '#config';
@@ -39,10 +40,10 @@ export class VouchCommand extends Command {
 						.setDescription('What type of reputation is this?')
 						.setRequired(true)
 						.addChoices(
-							{ name: '🤝 Helpful - They helped you or others', value: VouchType.HELPFUL },
-							{ name: '😊 Friendly - They\'re welcoming and positive', value: VouchType.FRIENDLY },
-							{ name: '⭐ Skilled - They\'re knowledgeable/talented', value: VouchType.SKILLED },
-							{ name: '✅ Reliable - They\'re dependable and trustworthy', value: VouchType.RELIABLE }
+							{ name: `${REPUTATION_EMOJIS.HELPFUL} Helpful - They helped you or others`, value: VouchType.HELPFUL },
+							{ name: `${REPUTATION_EMOJIS.FRIENDLY} Friendly - They're welcoming and positive`, value: VouchType.FRIENDLY },
+							{ name: `${REPUTATION_EMOJIS.SKILLED} Skilled - They're knowledgeable/talented`, value: VouchType.SKILLED },
+							{ name: `${REPUTATION_EMOJIS.RELIABLE} Reliable - They're dependable and trustworthy`, value: VouchType.RELIABLE }
 						)
 				)
 				.addStringOption((option) =>
@@ -110,7 +111,7 @@ export class VouchCommand extends Command {
 
 			const embed = new EmbedBuilder()
 				.setColor(Colors.Green)
-				.setTitle('✅ Reputation Given!')
+				.setTitle(`${EMOJIS.SUCCESS} Reputation Given!`)
 				.setDescription(
 					`${vouchEmoji} You gave reputation to ${targetUser} as **${vouchType}**!${
 						reason ? `\n\n*"${reason}"*` : ''
@@ -119,7 +120,7 @@ export class VouchCommand extends Command {
 				.addFields(
 					{
 						name: 'Their Reputation',
-						value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n⭐ ${stats.reputationScore} points`,
+						value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n${REPUTATION_EMOJIS.SKILLED} ${stats.reputationScore} points`,
 						inline: true,
 					},
 					{
@@ -145,7 +146,7 @@ export class VouchCommand extends Command {
 		} catch (error) {
 			this.container.logger.error('Failed to submit vouch:', error);
 			return interaction.editReply({
-				content: '❌ Failed to submit vouch. Please try again later.',
+				content: `${EMOJIS.ERROR} Failed to submit vouch. Please try again later.`,
 			});
 		}
 	}
@@ -153,21 +154,21 @@ export class VouchCommand extends Command {
 	private getVouchEmoji(type: VouchType): string {
 		switch (type) {
 			case VouchType.HELPFUL:
-				return '🤝';
+				return REPUTATION_EMOJIS.HELPFUL;
 			case VouchType.FRIENDLY:
-				return '😊';
+				return REPUTATION_EMOJIS.FRIENDLY;
 			case VouchType.SKILLED:
-				return '⭐';
+				return REPUTATION_EMOJIS.SKILLED;
 			case VouchType.RELIABLE:
-				return '✅';
+				return REPUTATION_EMOJIS.RELIABLE;
 			default:
-				return '👍';
+				return REPUTATION_EMOJIS.DEFAULT;
 		}
 	}
 
 	private createProgressBar(percentage: number, length: number = 10): string {
 		const filled = Math.round((percentage / 100) * length);
 		const empty = length - filled;
-		return '█'.repeat(filled) + '░'.repeat(empty);
+		return XP_EMOJIS.PROGRESS_BAR_FILLED.repeat(filled) + XP_EMOJIS.PROGRESS_BAR_EMPTY.repeat(empty);
 	}
 }
