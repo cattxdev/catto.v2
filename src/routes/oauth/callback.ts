@@ -61,15 +61,17 @@ export class OAuthCallbackRoute extends Route {
 
 			const user = userResponse.data;
 
-			// Set auth cookie (Sapphire format)
+			// Set auth cookie (Sapphire format) - base64 encode to avoid invalid characters
 			const authData = JSON.stringify({
 				token: access_token,
 				refresh: refresh_token,
 				expires: Date.now() + (expires_in * 1000),
 				user_id: user.id
 			});
+			
+			const encodedAuthData = Buffer.from(authData).toString('base64');
 
-			response.cookies.add(server.auth.cookie!, authData, {
+			response.cookies.add(server.auth.cookie!, encodedAuthData, {
 				maxAge: expires_in,
 				httpOnly: true,
 				path: '/'
