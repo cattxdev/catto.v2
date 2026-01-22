@@ -189,10 +189,6 @@ export const EMOJI_CONFIG = {
     custom: '<:edit:1463366117631197298>',
     fallback: '\u270F\uFE0F', // pencil
   },
-  INVITE: {
-    custom: '<:invite:1463366104767533241>',
-    fallback: '\u2795', // plus
-  },
   ARROW_LEFT_G: {
     custom: '<:arrow_left_g:1463366126929973455>',
     fallback: '\u2B05\uFE0F', // left arrow
@@ -260,6 +256,22 @@ export const EMOJI_CONFIG = {
   TIME_OUT: {
     custom: '<:time_out:1463366100610842806>',
     fallback: '\u23F1\uFE0F', // stopwatch
+  },
+  INVITE_USER: {
+    custom: '<:invite_user:1463743915965288532>',
+    fallback: '\u2795', // plus
+  },
+  CREATE_CHANNEL: {
+    custom: '<:create_channel:1463745157873537098>',
+    fallback: '\uD83D\uDCCE', // channel
+  },
+  RED_TRASH: {
+    custom: '<:red_trash:1463744840021049442>',
+    fallback: '\uD83D\uDDD1', // trash
+  },
+  RED_SHIELD: {
+    custom: '<:red_shield:1463744820395900939>',
+    fallback: '\uD83D\uDEE1\uFE0F', // shield
   },
 } as const;
 
@@ -342,7 +354,6 @@ export const EMOJI: Record<EmojiKey, string> & {
   UTILITIES: EMOJI_CONFIG.UTILITIES.custom,
   REPORT_FLAG: EMOJI_CONFIG.REPORT_FLAG.custom,
   EDIT: EMOJI_CONFIG.EDIT.custom,
-  INVITE: EMOJI_CONFIG.INVITE.custom,
   ARROW_LEFT_G: EMOJI_CONFIG.ARROW_LEFT_G.custom,
   ARROW_RIGHT_G: EMOJI_CONFIG.ARROW_RIGHT_G.custom,
   ADD_GREEN: EMOJI_CONFIG.ADD_GREEN.custom,
@@ -360,6 +371,10 @@ export const EMOJI: Record<EmojiKey, string> & {
   TEXT_CHANNEL_WITH_CHECK: EMOJI_CONFIG.TEXT_CHANNEL_WITH_CHECK.custom,
   SERVER_LEAVE: EMOJI_CONFIG.SERVER_LEAVE.custom,
   TIME_OUT: EMOJI_CONFIG.TIME_OUT.custom,
+  INVITE_USER: EMOJI_CONFIG.INVITE_USER.custom,
+  CREATE_CHANNEL: EMOJI_CONFIG.CREATE_CHANNEL.custom,
+  RED_TRASH: EMOJI_CONFIG.RED_TRASH.custom,
+  RED_SHIELD: EMOJI_CONFIG.RED_SHIELD.custom,
 
   // Aliases for backward compatibility
   RED_CROSS: EMOJI_CONFIG.ERROR.custom,

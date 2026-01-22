@@ -2,6 +2,7 @@ import { Subcommand } from '@sapphire/plugin-subcommands';
 import { MessageFlags, type GuildMember } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
+import { muteService } from '../../modules/moderation/services/MuteService.js';
 import {
   buildContextBundle,
   type ModPanelContext,
@@ -44,9 +45,10 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
     }
 
     // Gather context data in parallel
-    const [userCases, notes] = await Promise.all([
+    const [userCases, notes, activeMutes] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
+      muteService.getActiveMutes(guildId, userId),
     ]);
 
     // Filter cases within window
@@ -81,9 +83,10 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
       notesCount: notes.length,
       recentCases: recentCases.slice(0, 10),
       recentNotes: recentNotes.slice(0, 5),
-      voiceChannelName: targetMember?.voice.channel?.name ?? null,
+      voiceChannelId: targetMember?.voice.channel?.id ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
+      hasActiveMutes: activeMutes.length > 0,
     };
 
     // Build the Components V2 context bundle

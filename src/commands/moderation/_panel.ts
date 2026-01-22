@@ -3,6 +3,7 @@ import { MessageFlags, type GuildMember } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import { caseService } from '../../modules/moderation/services/CaseService.js';
+import { muteService } from '../../modules/moderation/services/MuteService.js';
 import {
   buildModPanel,
   type ModPanelContext,
@@ -34,9 +35,10 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
     }
 
     // Gather context data in parallel
-    const [userCases, notes] = await Promise.all([
+    const [userCases, notes, activeMutes] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
+      muteService.getActiveMutes(guildId, userId),
     ]);
 
     // Get recent cases with extended data
@@ -54,6 +56,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
       voiceChannelName: targetMember?.voice.channel?.name ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
+      hasActiveMutes: activeMutes.length > 0,
     };
 
     // Build the Components V2 panel

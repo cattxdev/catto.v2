@@ -361,9 +361,10 @@ export class ModPanelInteractionListener extends Listener {
       // User may not be in the server
     }
 
-    const [userCases, notes] = await Promise.all([
+    const [userCases, notes, activeMutes] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
+      muteService.getActiveMutes(guildId, userId),
     ]);
 
     const recentCases = await caseService.getCasesByStatus(guildId, CaseStatus.OPEN);
@@ -376,9 +377,10 @@ export class ModPanelInteractionListener extends Listener {
       notesCount: notes.length,
       recentCases: userRecentCases,
       recentNotes: notes.slice(0, 5),
-      voiceChannelName: targetMember?.voice.channel?.name ?? null,
+      voiceChannelId: targetMember?.voice.channel?.id ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
+      hasActiveMutes: activeMutes.length > 0,
     };
 
     const containerComp = buildContextBundle(context);
@@ -485,7 +487,7 @@ export class ModPanelInteractionListener extends Listener {
       notesCount: notes.length,
       recentCases: userRecentCases,
       recentNotes: notes.slice(0, 3),
-      voiceChannelName: targetMember?.voice.channel?.name ?? null,
+      voiceChannelId: targetMember?.voice.channel?.id ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
       hasActiveMutes: activeMutes.length > 0,

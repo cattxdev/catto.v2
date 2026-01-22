@@ -33,7 +33,7 @@ export interface ModPanelContext {
   warningsCount?: number;
   recentCases: ExtendedCaseData[];
   recentNotes: NoteData[];
-  voiceChannelName: string | null;
+  voiceChannelId: string | null;
   joinedAt: Date | null;
   accountCreatedAt: Date;
   hasActiveMutes?: boolean;
@@ -49,7 +49,7 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     casesCount,
     notesCount,
     warningsCount,
-    voiceChannelName,
+    voiceChannelId,
     joinedAt,
     hasActiveMutes,
     activeFlags,
@@ -153,9 +153,13 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     .h1(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
     .text(formatInfoRow('Target', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
     .text(formatStatsLine(stats))
-    .when(!!voiceChannelName, (c) =>
+    .when(!!voiceChannelId, (c) =>
       c.text(
-        formatInfoRow('Voice', ensureNonNull(voiceChannelName, 'voiceChannelName'), EMOJI.VOICE)
+        formatInfoRow(
+          'Voice',
+          ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId'),
+          EMOJI.VOICE
+        )
       )
     )
     .text(accountLine)
@@ -167,18 +171,16 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
  * Build a context bundle card using Components V2
  */
 export function buildContextBundle(context: ModPanelContext): FluentContainer {
-  const { target, recentCases, recentNotes, voiceChannelName, joinedAt, hasActiveMutes } = context;
+  const { target, recentCases, recentNotes, voiceChannelId, joinedAt, hasActiveMutes } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
 
   // Build timeline entries
-  const timeline: string[] = [
-    `${EMOJI.TIME_DAY} **Account created:** ${formatRelativeTimestamp(target.createdAt)}`,
-  ];
+  const timeline: string[] = [`${EMOJI.TIME_DAY} ${formatRelativeTimestamp(target.createdAt)}`];
   if (joinedAt) {
-    timeline.push(`${EMOJI.TIME_DAY} **Joined server:** ${formatRelativeTimestamp(joinedAt)}`);
+    timeline.push(`${EMOJI.INVITE_USER} ${formatRelativeTimestamp(joinedAt)}`);
   }
-  if (voiceChannelName) {
-    timeline.push(`${EMOJI.VOICE} **Currently in voice:** ${voiceChannelName}`);
+  if (voiceChannelId) {
+    timeline.push(`${EMOJI.VOICE} <#${voiceChannelId}>`);
   }
 
   // Format recent cases
@@ -189,7 +191,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
           .map((c) => {
             const timestamp = formatRelativeTimestamp(c.createdAt);
             const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason';
-            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\n  ${reasonPreview}`;
+            return `**#${c.caseNumber}** ${c.action} · ${timestamp}\nWhy: ${reasonPreview}`;
           })
           .join('\n')
       : null;
@@ -225,23 +227,29 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h1('Context Bundle')
-    .text(formatInfoRow('User', `${target.tag} (\`${target.id}\`)`, EMOJI.MEMBER))
+    .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))
     .when(!!hasActiveMutes, (c) =>
       c
         .separator()
-        .h2('Active Statuses')
+        .h2('Active statuses')
         .text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
     )
     .when(!!casesText, (c) =>
-      c.separator().h2('Recent Cases').text(ensureNonNull(notesText, 'casesText'))
+      c
+        .separator()
+        .h2('Recent actions')
+        .text(ensureNonNull(casesText, 'panelBuilder > buildContextBundle > casesText'))
     )
     .when(!!notesText, (c) =>
-      c.separator().h2('Recent Notes').text(ensureNonNull(notesText, 'notesText'))
+      c
+        .separator()
+        .h2('Recent notes')
+        .text(ensureNonNull(notesText, 'panelBuilder > buildContextBundle > notesText'))
     )
-    .separator()
+    .separator({ divider: true, spacing: 'small' })
     .actions(quickActions);
 }
 
