@@ -12,6 +12,11 @@ export class AuthenticatedMiddleware extends Middleware {
 	}
 
 	public override async run(request: ApiRequest, response: ApiResponse): Promise<void> {
+		// Skip authentication for OAuth routes
+		if (request.url?.includes('/oauth/')) {
+			return;
+		}
+
 		// Check if the request has authentication
 		if (!request.auth) {
 			response.status(401).json({
