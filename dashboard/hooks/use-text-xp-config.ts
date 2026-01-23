@@ -59,7 +59,7 @@ export function useTextXPConfig(guildId: string) {
       setLoading(true);
       textXPService
         .getConfig(guildId)
-        .then((data) => setConfig(data.config))
+        .then((data) => setConfig(data))
         .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch config'))
         .finally(() => setLoading(false));
     },
