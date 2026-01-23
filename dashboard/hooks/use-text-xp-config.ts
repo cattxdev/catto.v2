@@ -17,7 +17,8 @@ export function useTextXPConfig(guildId: string) {
         setError(null);
         const data = await textXPService.getConfig(guildId);
         if (mounted) {
-          setConfig(data.config);
+          setConfig(data);
+        }
         }
       } catch (err) {
         if (mounted) {
