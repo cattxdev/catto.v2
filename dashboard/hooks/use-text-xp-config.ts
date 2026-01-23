@@ -41,7 +41,8 @@ export function useTextXPConfig(guildId: string) {
     try {
       setError(null);
       const updated = await textXPService.updateConfig(guildId, updates);
-      setConfig(updated.config);
+      setConfig(updated);
+      return { success: true, data: updated };
       return { success: true, data: updated.config };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update config';
