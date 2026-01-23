@@ -17,8 +17,7 @@ export function useTextXPConfig(guildId: string) {
         setError(null);
         const data = await textXPService.getConfig(guildId);
         if (mounted) {
-          setConfig(data);
-        }
+          setConfig(data.config);
         }
       } catch (err) {
         if (mounted) {
@@ -42,8 +41,7 @@ export function useTextXPConfig(guildId: string) {
     try {
       setError(null);
       const updated = await textXPService.updateConfig(guildId, updates);
-      setConfig(updated);
-      return { success: true, data: updated };
+      setConfig(updated.config);
       return { success: true, data: updated.config };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update config';
@@ -61,7 +59,7 @@ export function useTextXPConfig(guildId: string) {
       setLoading(true);
       textXPService
         .getConfig(guildId)
-        .then((data) => setConfig(data))
+        .then((data) => setConfig(data.config))
         .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch config'))
         .finally(() => setLoading(false));
     },

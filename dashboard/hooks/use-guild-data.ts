@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { guildService, type Channel, type Role } from '@/lib/services/guild.service';
+import { guildService } from '@/lib/services/guild.service';
+import type { Channel, Role } from '@/lib/types';
 
 export function useGuildData(guildId: string) {
   const [channels, setChannels] = useState<Channel[]>([]);

@@ -1,6 +1,6 @@
 import { LogoutButton } from "./logout-button"
 import Image from "next/image"
-import type { DiscordUser } from "@/lib/auth"
+import type { DiscordUser } from "@/lib/types"
 
 export function WelcomeMessage({ user }: { user: DiscordUser }) {
   // Construct Discord avatar URL

@@ -3,14 +3,7 @@ import { getUserSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { GuildCard } from "@/components/guild-card"
 import { UserDropdown } from "@/components/user-dropdown"
-
-interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-}
+import type { Guild } from "@/lib/types"
 
 export default async function GuildsPage() {
   const session = await getUserSession();

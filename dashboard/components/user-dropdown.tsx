@@ -2,13 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-
-interface DiscordUser {
-  id: string;
-  username: string;
-  discriminator: string;
-  avatar: string | null;
-}
+import type { DiscordUser } from "@/lib/types"
 
 interface UserDropdownProps {
   user: DiscordUser;

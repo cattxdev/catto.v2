@@ -2,19 +2,7 @@
 
 import Link from "next/link"
 import { UserDropdown } from "@/components/user-dropdown"
-
-interface Guild {
-    id: string;
-    name: string;
-    icon: string | null;
-}
-
-interface User {
-    id: string;
-    username: string;
-    discriminator: string;
-    avatar: string | null;
-}
+import type { Guild, User } from "@/lib/types"
 
 interface GuildPageLayoutProps {
     guild: Guild;

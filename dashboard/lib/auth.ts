@@ -1,31 +1,9 @@
 import axios from 'axios';
 import { cookies } from 'next/headers';
 import { unstable_cache } from 'next/cache';
+import type { DiscordUser, UserSession } from './types';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
-
-export interface DiscordUser {
-  id: string;
-  username: string;
-  discriminator: string;
-  avatar: string | null;
-  verified?: boolean;
-  email?: string;
-}
-
-export interface DiscordGuild {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-  features: string[];
-}
-
-export interface UserSession {
-  user: DiscordUser;
-  guilds: DiscordGuild[];
-}
 
 /**
  * Get the current authenticated user and their guilds from the session cookie

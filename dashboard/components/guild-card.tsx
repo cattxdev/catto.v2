@@ -1,14 +1,7 @@
 "use client"
 
 import Link from "next/link"
-
-interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-}
+import type { Guild } from "@/lib/types"
 
 export function GuildCard({ guild }: { guild: Guild }) {
   const guildIconUrl = guild.icon

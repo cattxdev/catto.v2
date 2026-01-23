@@ -1,22 +1,5 @@
 import { botApi } from '@/lib/api';
-
-export interface Channel {
-  id: string;
-  name: string;
-  type: string;
-}
-
-export interface Role {
-  id: string;
-  name: string;
-  color: number;
-  position: number;
-}
-
-export interface GuildData {
-  channels: Channel[];
-  roles: Role[];
-}
+import type { GuildData } from '@/lib/types';
 
 export const guildService = {
   /**

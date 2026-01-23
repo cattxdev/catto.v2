@@ -1,22 +1,10 @@
 import { getUserSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-
-interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-}
+import type { Guild, User } from '@/lib/types';
 
 interface GuildPageData {
   guild: Guild;
-  user: {
-    id: string;
-    username: string;
-    discriminator: string;
-    avatar: string | null;
-  };
+  user: User;
   token: string;
 }
 
