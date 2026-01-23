@@ -15,6 +15,8 @@ import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 export async function handleTempban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -33,16 +35,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     throw error;
   }
 
-  const {
-    target,
-    targetId,
-    reason,
-    durationSeconds,
-    deleteMessages,
-    guild,
-    moderator,
-    moderatorMember,
-  } = options;
+  const { target, targetId, reason, durationSeconds, deleteMessages, guild, moderator } = options;
 
   const maxDuration = 365 * 24 * 60 * 60;
   if (durationSeconds > maxDuration) {
@@ -51,6 +44,16 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
   }
 
   await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
 
   try {
     if (!guild.members.me?.permissions.has('BanMembers')) {
@@ -69,12 +72,9 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     }
 
     if (targetMember) {
-      const canModerateResult = moderationService.canModerate(moderatorMember, targetMember);
-      if (!canModerateResult.canModerate) {
-        await editReply(
-          interaction,
-          errorMessage('Error', canModerateResult.reason ?? 'Cannot moderate this user.')
-        );
+      const hierarchyResult = gate.checkHierarchy(targetMember);
+      if (isFail(hierarchyResult)) {
+        await editReply(interaction, errorMessage('Error', hierarchyResult.message));
         return;
       }
 

@@ -1,7 +1,6 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { MuteType, ModAction } from '@prisma/client';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
-import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, formatDuration } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccess,
@@ -18,6 +17,8 @@ import {
   successMessage,
 } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 /**
  * Handle /mod mute text
@@ -35,6 +36,16 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
   }
 
   await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
 
   try {
     // Fetch target member
@@ -55,13 +66,10 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
       return;
     }
 
-    // Check if moderator can moderate target
-    const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
-    if (!canModerateResult.canModerate) {
-      await editReply(
-        interaction,
-        errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
-      );
+    // Check hierarchy using Gate
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
       return;
     }
 
@@ -148,6 +156,16 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
 
   await defer(interaction);
 
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
+
   try {
     // Fetch target member
     let targetMember;
@@ -167,13 +185,10 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
       return;
     }
 
-    // Check if moderator can moderate target
-    const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
-    if (!canModerateResult.canModerate) {
-      await editReply(
-        interaction,
-        errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
-      );
+    // Check hierarchy using Gate
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
       return;
     }
 
@@ -257,6 +272,16 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
 
   await defer(interaction);
 
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
+
   try {
     // Fetch target member
     let targetMember;
@@ -279,13 +304,10 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
       return;
     }
 
-    // Check if moderator can moderate target
-    const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
-    if (!canModerateResult.canModerate) {
-      await editReply(
-        interaction,
-        errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
-      );
+    // Check hierarchy using Gate
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
       return;
     }
 

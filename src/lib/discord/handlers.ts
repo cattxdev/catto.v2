@@ -5,13 +5,16 @@
  * Provides consistent patterns for:
  * - Pre-defer validation with ephemeral errors
  * - Deferred workflow with error handling
- * - Target member fetching and validation
- * - Permission/hierarchy checks
+ * - Target member fetching
+ *
+ * For hierarchy validation and authorization, use the Gate system:
+ * - Gate.checkHierarchy() for hierarchy validation
+ * - Gate.requireAuth() for authorization
+ * - Gate.requirePunitive() for combined auth + target + hierarchy validation
  */
 
 import type { ChatInputCommandInteraction, Guild, GuildMember, User } from 'discord.js';
 import { ValidationError } from '#lib/validation/zod.js';
-import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
 import { ephemeralError, defer, editReply, errorMessage } from './index.js';
 import type { FluentContainer } from './containers/container.js';
 
@@ -90,21 +93,6 @@ export async function fetchMemberSafe(guild: Guild, userId: string): Promise<Gui
 }
 
 /**
- * Check if the moderator can moderate the target.
- * Returns an error container if they cannot, null if they can.
- */
-export function checkCanModerate(
-  moderator: GuildMember,
-  target: GuildMember
-): FluentContainer | null {
-  const result = moderationService.canModerate(moderator, target);
-  if (!result.canModerate) {
-    return errorMessage('Error', result.reason ?? 'You cannot moderate this user.');
-  }
-  return null;
-}
-
-/**
  * Require the target to be a member of the guild.
  * Sends an error reply if not found.
  *
@@ -168,37 +156,4 @@ export async function withDeferredHandler(
     }
     await editReply(interaction, errorMessage('Error', `${errorPrefix}.`)).catch(() => {});
   }
-}
-
-/**
- * Common pre-checks for moderation commands targeting a user.
- * Validates that the target exists and the moderator can moderate them.
- *
- * @returns Error container if checks fail, null if all pass
- */
-export async function validateModerationTarget(
-  guild: Guild,
-  targetId: string,
-  moderatorMember: GuildMember,
-  options: {
-    requireInGuild?: boolean;
-    checkHierarchy?: boolean;
-  } = {}
-): Promise<{ error: FluentContainer } | { member: GuildMember | null }> {
-  const { requireInGuild = false, checkHierarchy = true } = options;
-
-  const targetMember = await fetchMemberSafe(guild, targetId);
-
-  if (requireInGuild && !targetMember) {
-    return { error: errorMessage('Error', 'Target is not a member of this server.') };
-  }
-
-  if (checkHierarchy && targetMember) {
-    const canMod = checkCanModerate(moderatorMember, targetMember);
-    if (canMod) {
-      return { error: canMod };
-    }
-  }
-
-  return { member: targetMember };
 }

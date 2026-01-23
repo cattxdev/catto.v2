@@ -11,6 +11,7 @@ import {
 import { asGuildId, asUserId } from '../../modules/moderation/domain/types.js';
 import { CaseStatus } from '@prisma/client';
 import { ephemeralError, editError } from '#lib/discord/index.js';
+import { getAllowedModPanelActions } from '#lib/validation/permissionResolver.js';
 
 export async function handlePanel(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild) {
@@ -35,10 +36,12 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
     }
 
     // Gather context data in parallel
-    const [userCases, notes, activeMutes] = await Promise.all([
+    const caller = interaction.member as GuildMember;
+    const [userCases, notes, activeMutes, allowedActions] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
       muteService.getActiveMutes(guildId, userId),
+      getAllowedModPanelActions(caller),
     ]);
 
     // Get recent cases with extended data
@@ -57,6 +60,7 @@ export async function handlePanel(interaction: Subcommand.ChatInputCommandIntera
       joinedAt: targetMember?.joinedAt ?? null,
       accountCreatedAt: target.createdAt,
       hasActiveMutes: activeMutes.length > 0,
+      allowedActions,
     };
 
     // Build the Components V2 panel

@@ -1,11 +1,5 @@
 import { Listener, container as sapphireContainer } from '@sapphire/framework';
-import {
-  Events,
-  type Interaction,
-  type ButtonInteraction,
-  PermissionFlagsBits,
-  type GuildMember,
-} from 'discord.js';
+import { Events, type Interaction, type ButtonInteraction, type GuildMember } from 'discord.js';
 import {
   container,
   defer,
@@ -32,6 +26,7 @@ import {
   buildModPanel,
   buildContextBundle,
   buildNotesList,
+  modPanelActionToCommandKey,
   type ModPanelContext,
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
@@ -41,8 +36,34 @@ import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, CaseStatus } from '#root/modules/moderation/domain/types.js';
 import { memoryLimiter } from '#lib/rateLimit/index.js';
 import { ensureNonNull } from '#root/lib/utils';
+import { getAllowedModPanelActions } from '#lib/validation/permissionResolver.js';
+import { isFail, type Gate } from '#lib/validation/Gate.js';
+import { getGate } from '#lib/validation/gateContext.js';
 
-const RATE_LIMIT_MS = 2000; // 2 second cooldown per user per action
+const RATE_LIMIT_MS = 2000;
+
+/** Actions that require hierarchy validation (punitive actions) */
+const PUNITIVE_ACTIONS = new Set<string>([
+  ModPanelAction.WARN,
+  ModPanelAction.KICK,
+  ModPanelAction.BAN,
+  ModPanelAction.SOFTBAN,
+  ModPanelAction.TIMEOUT,
+  ModPanelAction.TEMPBAN,
+  ModPanelAction.MUTE_TEXT,
+  ModPanelAction.MUTE_VOICE,
+  ModPanelAction.UNMUTE,
+]);
+
+/** Actions that require target to be a guild member */
+const MEMBER_REQUIRED_ACTIONS = new Set<string>([
+  ModPanelAction.WARN,
+  ModPanelAction.KICK,
+  ModPanelAction.TIMEOUT,
+  ModPanelAction.MUTE_TEXT,
+  ModPanelAction.MUTE_VOICE,
+  ModPanelAction.UNMUTE,
+]);
 
 export class ModPanelInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -70,6 +91,13 @@ export class ModPanelInteractionListener extends Listener {
       return;
     }
 
+    // Use shared Gate context (already initialized by 00-gateContext.ts)
+    const gate = getGate(interaction);
+    if (!gate) {
+      await interaction.reply(ephemeralError('This can only be used in a server.'));
+      return;
+    }
+
     // Rate limit check
     const rateLimitKey = `modpanel:${interaction.user.id}:${parsed.action}`;
     const rateLimitResult = memoryLimiter.throttle(rateLimitKey, { minIntervalMs: RATE_LIMIT_MS });
@@ -82,14 +110,36 @@ export class ModPanelInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply(ephemeralError('You do not have permission to use this.'));
+    // Authorization check using Gate
+    const commandKey = modPanelActionToCommandKey(parsed.action);
+    const authResult = await gate.checkAuth(commandKey);
+    if (isFail(authResult)) {
+      await gate.deny(authResult);
       return;
     }
 
     const targetId = parsed.targetId;
+
+    // For punitive actions, validate hierarchy before proceeding using Gate
+    if (PUNITIVE_ACTIONS.has(parsed.action)) {
+      const requiresMember = MEMBER_REQUIRED_ACTIONS.has(parsed.action);
+      const targetMember = await gate.resolveMember(targetId);
+
+      // Check if member is required but not found
+      if (requiresMember && !targetMember) {
+        await interaction.reply(ephemeralError('User is not in this server.'));
+        return;
+      }
+
+      // Check hierarchy if we have a member
+      if (targetMember) {
+        const hierarchyResult = gate.checkHierarchy(targetMember);
+        if (isFail(hierarchyResult)) {
+          await gate.deny(hierarchyResult);
+          return;
+        }
+      }
+    }
 
     try {
       switch (parsed.action) {
@@ -114,7 +164,7 @@ export class ModPanelInteractionListener extends Listener {
           break;
 
         case ModPanelAction.UNMUTE:
-          await this.handleUnmute(interaction, targetId);
+          await this.handleUnmute(interaction, targetId, gate);
           break;
 
         case ModPanelAction.ADD_NOTE:
@@ -126,7 +176,7 @@ export class ModPanelInteractionListener extends Listener {
           break;
 
         case ModPanelAction.VIEW_CONTEXT:
-          await this.showContext(interaction, targetId);
+          await this.showContext(interaction, targetId, gate);
           break;
 
         case ModPanelAction.VIEW_HISTORY:
@@ -134,7 +184,7 @@ export class ModPanelInteractionListener extends Listener {
           break;
 
         case ModPanelAction.REFRESH:
-          await this.refreshPanel(interaction, targetId);
+          await this.refreshPanel(interaction, targetId, gate);
           break;
 
         default:
@@ -179,24 +229,25 @@ export class ModPanelInteractionListener extends Listener {
     await interaction.showModal(modal);
   }
 
-  private async handleUnmute(interaction: ButtonInteraction, targetId: string): Promise<void> {
+  private async handleUnmute(
+    interaction: ButtonInteraction,
+    targetId: string,
+    gate: Gate
+  ): Promise<void> {
     await defer(interaction);
 
-    const guild = ensureNonNull(
-      interaction.guild,
-      'modPanelInteraction > handleUnmute(189): interaction.guild'
-    );
-    const guildId = asGuildId(guild.id);
+    const guildId = asGuildId(gate.guild.id);
     const userId = asUserId(targetId);
 
     try {
-      const targetMember = await guild.members.fetch(targetId).catch(() => null);
+      // Target and hierarchy already validated in run()
+      const targetMember = await gate.guild.members.fetch(targetId).catch(() => null);
       if (!targetMember) {
         await editReply(interaction, errorMessage('Error', 'User not found in this server.'));
         return;
       }
 
-      const result = await muteService.unmuteBoth(guild, targetMember, {
+      const result = await muteService.unmuteBoth(gate.guild, targetMember, {
         guildId,
         userId,
         moderatorId: asUserId(interaction.user.id),
@@ -306,87 +357,38 @@ export class ModPanelInteractionListener extends Listener {
     await defer(interaction);
 
     const guildId = asGuildId(
-      ensureNonNull(
-        interaction.guildId,
-        'modPanelInteraction > showNotes(314): interaction.guildId'
-      )
+      ensureNonNull(interaction.guildId, 'modPanelInteraction > showNotes > guildId')
     );
     const userId = asUserId(targetId);
+
+    const target = await interaction.client.users.fetch(targetId).catch(() => null);
+    if (!target) {
+      await editReply(interaction, errorMessage('Error', 'User not found.'));
+      return;
+    }
 
     const notes = await notesService.listNotes(guildId, userId);
-    const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
-    if (!target) {
-      await editReply(interaction, errorMessage('Error', 'User not found.'));
+    if (notes.length === 0) {
+      await editReply(
+        interaction,
+        container().h3('No notes').text(`**${target.tag}** has no moderator notes.`)
+      );
       return;
     }
 
-    const containerComp = buildNotesList(target, notes);
-    await editReply(interaction, containerComp);
+    const notesList = buildNotesList(target, notes);
+    await editReply(interaction, notesList);
   }
 
-  private async showContext(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await defer(interaction);
-
-    const guild = ensureNonNull(
-      interaction.guild,
-      'modPanelInteraction > showContext(336): interaction.guild'
-    );
-    const guildId = asGuildId(guild.id);
-    const userId = asUserId(targetId);
-
-    const target = await interaction.client.users.fetch(targetId).catch(() => null);
-    if (!target) {
-      await editReply(interaction, errorMessage('Error', 'User not found.'));
-      return;
-    }
-
-    let targetMember: GuildMember | null = null;
-    try {
-      targetMember = await guild.members.fetch(targetId);
-    } catch {
-      // User may not be in the server
-    }
-
-    const [userCases, notes, activeMutes] = await Promise.all([
-      moderationService.getUserCases(guildId, userId),
-      notesService.listNotes(guildId, userId),
-      muteService.getActiveMutes(guildId, userId),
-    ]);
-
-    const recentCases = await caseService.getCasesByStatus(guildId, CaseStatus.OPEN);
-    const userRecentCases = recentCases.filter((c) => c.targetId === targetId).slice(0, 5);
-
-    const context: ModPanelContext = {
-      target,
-      targetMember,
-      casesCount: userCases.length,
-      notesCount: notes.length,
-      recentCases: userRecentCases,
-      recentNotes: notes.slice(0, 5),
-      voiceChannelId: targetMember?.voice.channel?.id ?? null,
-      joinedAt: targetMember?.joinedAt ?? null,
-      accountCreatedAt: target.createdAt,
-      hasActiveMutes: activeMutes.length > 0,
-    };
-
-    const containerComp = buildContextBundle(context);
-    await editReply(interaction, containerComp);
-  }
-
-  private async showHistory(
+  private async showContext(
     interaction: ButtonInteraction,
     targetId: string,
-    page: number = 1
+    gate: Gate
   ): Promise<void> {
     await defer(interaction);
 
-    const guildId = asGuildId(
-      ensureNonNull(
-        interaction.guildId,
-        'modPanelInteraction > showHistory(384): interaction.guildId'
-      )
-    );
+    const guildId = asGuildId(gate.guild.id);
     const userId = asUserId(targetId);
 
     const target = await interaction.client.users.fetch(targetId).catch(() => null);
@@ -395,38 +397,14 @@ export class ModPanelInteractionListener extends Listener {
       return;
     }
 
-    const cases = await moderationService.getUserCases(guildId, userId);
-    const historyEmbed = createHistoryEmbed(target, cases, {
-      page,
-      paginationCustomIdBase: getHistoryPaginationBase(targetId, page),
-    });
-
-    await editReply(interaction, historyEmbed);
-  }
-
-  private async refreshPanel(interaction: ButtonInteraction, targetId: string): Promise<void> {
-    await interaction.deferUpdate();
-
-    const guild = ensureNonNull(
-      interaction.guild,
-      'modPanelInteraction > refreshPanel(433): interaction.guild'
-    );
-    const guildId = asGuildId(guild.id);
-    const userId = asUserId(targetId);
-
-    const target = await interaction.client.users.fetch(targetId).catch(() => null);
-    if (!target) {
-      await interaction.followUp(ephemeralError('User not found.'));
-      return;
-    }
-
     let targetMember: GuildMember | null = null;
     try {
-      targetMember = await guild.members.fetch(targetId);
+      targetMember = await gate.guild.members.fetch(targetId);
     } catch {
       // User may not be in the server
     }
 
+    // Gather data for context
     const [userCases, notes, activeMutes] = await Promise.all([
       moderationService.getUserCases(guildId, userId),
       notesService.listNotes(guildId, userId),
@@ -449,6 +427,82 @@ export class ModPanelInteractionListener extends Listener {
       hasActiveMutes: activeMutes.length > 0,
     };
 
+    const contextBundle = buildContextBundle(context);
+    await editReply(interaction, contextBundle);
+  }
+
+  private async showHistory(interaction: ButtonInteraction, targetId: string): Promise<void> {
+    await defer(interaction);
+
+    const guildId = asGuildId(
+      ensureNonNull(interaction.guildId, 'modPanelInteraction > showHistory > guildId')
+    );
+    const userId = asUserId(targetId);
+    const page = 1;
+
+    const target = await interaction.client.users.fetch(targetId).catch(() => null);
+    if (!target) {
+      await editReply(interaction, errorMessage('Error', 'User not found.'));
+      return;
+    }
+
+    const cases = await moderationService.getUserCases(guildId, userId);
+    const historyEmbed = createHistoryEmbed(target, cases, {
+      page,
+      paginationCustomIdBase: getHistoryPaginationBase(targetId, page),
+    });
+
+    await editReply(interaction, historyEmbed);
+  }
+
+  private async refreshPanel(
+    interaction: ButtonInteraction,
+    targetId: string,
+    gate: Gate
+  ): Promise<void> {
+    await interaction.deferUpdate();
+
+    const guildId = asGuildId(gate.guild.id);
+    const userId = asUserId(targetId);
+
+    const target = await interaction.client.users.fetch(targetId).catch(() => null);
+    if (!target) {
+      await interaction.followUp(ephemeralError('User not found.'));
+      return;
+    }
+
+    let targetMember: GuildMember | null = null;
+    try {
+      targetMember = await gate.guild.members.fetch(targetId);
+    } catch {
+      // User may not be in the server
+    }
+
+    const caller = gate.member;
+    const [userCases, notes, activeMutes, allowedActions] = await Promise.all([
+      moderationService.getUserCases(guildId, userId),
+      notesService.listNotes(guildId, userId),
+      muteService.getActiveMutes(guildId, userId),
+      getAllowedModPanelActions(caller),
+    ]);
+
+    const recentCases = await caseService.getCasesByStatus(guildId, CaseStatus.OPEN);
+    const userRecentCases = recentCases.filter((c) => c.targetId === targetId).slice(0, 5);
+
+    const context: ModPanelContext = {
+      target,
+      targetMember,
+      casesCount: userCases.length,
+      notesCount: notes.length,
+      recentCases: userRecentCases,
+      recentNotes: notes.slice(0, 3),
+      voiceChannelId: targetMember?.voice.channel?.id ?? null,
+      joinedAt: targetMember?.joinedAt ?? null,
+      accountCreatedAt: target.createdAt,
+      hasActiveMutes: activeMutes.length > 0,
+      allowedActions,
+    };
+
     const containerComp = buildModPanel(context);
     await editReply(interaction, containerComp);
   }
@@ -460,10 +514,9 @@ export class ModPanelInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply(ephemeralError('You do not have permission to use this.'));
+    // Use shared Gate context and check authorization
+    const gate = getGate(interaction);
+    if (!gate || !(await gate.requireAuth('mod.history'))) {
       return;
     }
 

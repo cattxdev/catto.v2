@@ -40,6 +40,28 @@ export interface ModPanelContext {
   accountCreatedAt: Date;
   hasActiveMutes?: boolean;
   activeFlags?: string[];
+  allowedActions?: Set<string>;
+}
+
+const MOD_PANEL_ACTION_MAP: Record<string, string> = {
+  [ModPanelAction.WARN]: 'mod.warn',
+  [ModPanelAction.KICK]: 'mod.kick',
+  [ModPanelAction.BAN]: 'mod.ban',
+  [ModPanelAction.SOFTBAN]: 'mod.softban',
+  [ModPanelAction.TIMEOUT]: 'mod.timeout',
+  [ModPanelAction.TEMPBAN]: 'mod.tempban',
+  [ModPanelAction.MUTE_TEXT]: 'mod.mute.text',
+  [ModPanelAction.MUTE_VOICE]: 'mod.mute.voice',
+  [ModPanelAction.UNMUTE]: 'mod.unmute.both',
+  [ModPanelAction.ADD_NOTE]: 'mod.note.add',
+  [ModPanelAction.VIEW_NOTES]: 'mod.note.list',
+  [ModPanelAction.VIEW_CONTEXT]: 'mod.context',
+  [ModPanelAction.VIEW_HISTORY]: 'mod.history',
+  [ModPanelAction.REFRESH]: 'mod.panel',
+};
+
+export function modPanelActionToCommandKey(action: string): string {
+  return MOD_PANEL_ACTION_MAP[action] ?? 'mod.panel';
 }
 
 /**
@@ -55,8 +77,15 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     joinedAt,
     hasActiveMutes,
     activeFlags,
+    allowedActions,
   } = context;
   const nonce = Math.random().toString(36).substring(2, 8);
+
+  const isAllowed = (action: string): boolean => {
+    if (!allowedActions) return true;
+    const commandKey = MOD_PANEL_ACTION_MAP[action];
+    return commandKey ? allowedActions.has(commandKey) : true;
+  };
 
   // Header with optional flag indicator
   const flagIndicator = activeFlags && activeFlags.length > 0 ? ` ${EMOJI.SUSPECTED}` : '';
@@ -76,47 +105,76 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     ? `${EMOJI.INVITE_USER} ${formatRelativeTimestamp(joinedAt)} · ${EMOJI.TIME_DAY} ${accountCreatedTs}`
     : `${EMOJI.TIME_DAY} ${accountCreatedTs}`;
 
-  // Primary moderation actions row (4 buttons)
-  const primaryActions = row(
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.WARN, target.id, nonce),
-      label: 'Warn',
-    }),
-    primaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.TIMEOUT, target.id, nonce),
-      label: 'Timeout',
-    }),
-    dangerButton({
-      customId: encodeModPanelCustomId(ModPanelAction.KICK, target.id, nonce),
-      label: 'Kick',
-    }),
-    dangerButton({
-      customId: encodeModPanelCustomId(ModPanelAction.BAN, target.id, nonce),
-      label: 'Ban',
-    })
-  );
+  // Primary moderation actions row (filter by allowed)
+  const primaryButtons = [];
+  if (isAllowed(ModPanelAction.WARN)) {
+    primaryButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.WARN, target.id, nonce),
+        label: 'Warn',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.TIMEOUT)) {
+    primaryButtons.push(
+      primaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.TIMEOUT, target.id, nonce),
+        label: 'Timeout',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.KICK)) {
+    primaryButtons.push(
+      dangerButton({
+        customId: encodeModPanelCustomId(ModPanelAction.KICK, target.id, nonce),
+        label: 'Kick',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.BAN)) {
+    primaryButtons.push(
+      dangerButton({
+        customId: encodeModPanelCustomId(ModPanelAction.BAN, target.id, nonce),
+        label: 'Ban',
+      })
+    );
+  }
 
-  // Secondary actions row (4-5 buttons)
-  const secondaryButtons = [
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.MUTE_TEXT, target.id, nonce),
-      label: 'Mute Text',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.MUTE_VOICE, target.id, nonce),
-      label: 'Mute Voice',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.SOFTBAN, target.id, nonce),
-      label: 'Softban',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.TEMPBAN, target.id, nonce),
-      label: 'Tempban',
-    }),
-  ];
-
-  if (hasActiveMutes) {
+  // Secondary actions row (filter by allowed)
+  const secondaryButtons = [];
+  if (isAllowed(ModPanelAction.MUTE_TEXT)) {
+    secondaryButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.MUTE_TEXT, target.id, nonce),
+        label: 'Mute Text',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.MUTE_VOICE)) {
+    secondaryButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.MUTE_VOICE, target.id, nonce),
+        label: 'Mute Voice',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.SOFTBAN)) {
+    secondaryButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.SOFTBAN, target.id, nonce),
+        label: 'Softban',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.TEMPBAN)) {
+    secondaryButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.TEMPBAN, target.id, nonce),
+        label: 'Tempban',
+      })
+    );
+  }
+  if (hasActiveMutes && isAllowed(ModPanelAction.UNMUTE)) {
     secondaryButtons.push(
       successButton({
         customId: encodeModPanelCustomId(ModPanelAction.UNMUTE, target.id, nonce),
@@ -125,33 +183,50 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     );
   }
 
-  const secondaryActionsRow = row(...secondaryButtons);
+  // Info actions row (filter by allowed)
+  const infoButtons = [];
+  if (isAllowed(ModPanelAction.ADD_NOTE)) {
+    infoButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce),
+        label: 'Add Note',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.VIEW_NOTES)) {
+    infoButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce),
+        label: 'Notes',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.VIEW_CONTEXT)) {
+    infoButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.VIEW_CONTEXT, target.id, nonce),
+        label: 'Context',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.VIEW_HISTORY)) {
+    infoButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce),
+        label: 'History',
+      })
+    );
+  }
+  if (isAllowed(ModPanelAction.REFRESH)) {
+    infoButtons.push(
+      secondaryButton({
+        customId: encodeModPanelCustomId(ModPanelAction.REFRESH, target.id, nonce),
+        label: 'Refresh',
+      })
+    );
+  }
 
-  // Info actions row (5 buttons)
-  const infoActions = row(
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.ADD_NOTE, target.id, nonce),
-      label: 'Add Note',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.VIEW_NOTES, target.id, nonce),
-      label: 'Notes',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.VIEW_CONTEXT, target.id, nonce),
-      label: 'Context',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.VIEW_HISTORY, target.id, nonce),
-      label: 'History',
-    }),
-    secondaryButton({
-      customId: encodeModPanelCustomId(ModPanelAction.REFRESH, target.id, nonce),
-      label: 'Refresh',
-    })
-  );
-
-  return primaryContainer()
+  const result = primaryContainer()
     .h2(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
     .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
@@ -161,8 +236,18 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
     )
     .text(accountLine)
     .separator()
-    .footer(formatStatsLine(stats))
-    .actions(primaryActions, secondaryActionsRow, infoActions);
+    .footer(formatStatsLine(stats));
+
+  const actionRows = [];
+  if (primaryButtons.length > 0) actionRows.push(row(...primaryButtons));
+  if (secondaryButtons.length > 0) actionRows.push(row(...secondaryButtons));
+  if (infoButtons.length > 0) actionRows.push(row(...infoButtons));
+
+  if (actionRows.length > 0) {
+    result.actions(...actionRows);
+  }
+
+  return result;
 }
 
 /**

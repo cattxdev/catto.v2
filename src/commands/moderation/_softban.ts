@@ -11,6 +11,8 @@ import { ValidationError } from '#lib/validation/zod.js';
 import { type GuildMember } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { ephemeralError, errorMessage, editReply, defer } from '#root/lib/discord/index.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
   if (!interaction.guild || !interaction.member) {
@@ -30,9 +32,19 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     throw error;
   }
 
-  const { target, targetId, reason, deleteDays, guild, moderator, moderatorMember } = options;
+  const { target, targetId, reason, deleteDays, guild, moderator } = options;
 
   await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
 
   try {
     // Check bot permissions
@@ -52,11 +64,11 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       // User is not in the server - that's fine for softban
     }
 
-    // Check if moderator can moderate target (only if target is in server)
+    // Check hierarchy using Gate (only if target is in server)
     if (targetMember) {
-      const canModerateResult = moderationService.canModerate(moderatorMember, targetMember);
-      if (!canModerateResult.canModerate) {
-        await editReply(interaction, errorMessage('Error', `${canModerateResult.reason}`));
+      const hierarchyResult = gate.checkHierarchy(targetMember);
+      if (isFail(hierarchyResult)) {
+        await editReply(interaction, errorMessage('Error', hierarchyResult.message));
         return;
       }
 
