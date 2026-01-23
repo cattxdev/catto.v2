@@ -13,9 +13,18 @@ export interface DiscordUser {
   email?: string;
 }
 
+export interface DiscordGuild {
+  id: string;
+  name: string;
+  icon: string | null;
+  owner: boolean;
+  permissions: string;
+  features: string[];
+}
+
 export interface UserSession {
   user: DiscordUser;
-  guilds: any[];
+  guilds: DiscordGuild[];
 }
 
 /**
@@ -45,7 +54,7 @@ async function fetchUserSession(token: string): Promise<UserSession | null> {
     if (response.status === 200 && response.data.user) {
       return {
         user: response.data.user,
-        guilds: response.data.guilds || []
+        guilds: response.data.guilds || [],
       };
     }
 
@@ -75,7 +84,7 @@ export async function getUserSession(): Promise<UserSession | null> {
       ['user-session'],
       {
         revalidate: 300, // Cache for 5 minutes
-        tags: [`user-${authCookie.value}`]
+        tags: [`user-${authCookie.value}`],
       }
     );
 
