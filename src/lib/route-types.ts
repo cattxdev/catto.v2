@@ -5,5 +5,5 @@
 import type { Route } from '@sapphire/plugin-api';
 
 export interface RouteRequestWithBody extends Route.Request {
-	body?: any;
+  body?: unknown;
 }

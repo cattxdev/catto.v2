@@ -50,11 +50,18 @@ export class RewardIntegration {
       const claimResults: RewardClaimResult[] = [];
 
       for (const reward of eligibility.rewards) {
+        if (!reward.id) {
+          container.logger.warn(
+            `Reward ${reward.name} has no ID, skipping claim for ${userId} in ${guildId}`
+          );
+          continue;
+        }
+
         try {
           const result = await this.rewardService.claimReward(
             guildId,
             userId,
-            reward.id!,
+            reward.id,
             newLevel,
             totalXp,
             guild,
@@ -64,28 +71,20 @@ export class RewardIntegration {
           claimResults.push(result);
 
           if (result.success) {
-            container.logger.info(
-              `Reward claimed: ${reward.name} by ${userId} in ${guildId}`
-            );
+            container.logger.info(`Reward claimed: ${reward.name} by ${userId} in ${guildId}`);
           } else {
             container.logger.warn(
               `Failed to claim reward: ${reward.name} for ${userId} in ${guildId}: ${result.error}`
             );
           }
         } catch (error) {
-          container.logger.error(
-            `Error claiming reward ${reward.id} for ${userId}:`,
-            error
-          );
+          container.logger.error(`Error claiming reward ${reward.id} for ${userId}:`, error);
         }
       }
 
       return claimResults;
     } catch (error) {
-      container.logger.error(
-        `Error processing text level-up rewards for ${userId}:`,
-        error
-      );
+      container.logger.error(`Error processing text level-up rewards for ${userId}:`, error);
       return [];
     }
   }
@@ -120,11 +119,18 @@ export class RewardIntegration {
       const claimResults: RewardClaimResult[] = [];
 
       for (const reward of eligibility.rewards) {
+        if (!reward.id) {
+          container.logger.warn(
+            `Voice reward ${reward.name} has no ID, skipping claim for ${userId} in ${guildId}`
+          );
+          continue;
+        }
+
         try {
           const result = await this.rewardService.claimReward(
             guildId,
             userId,
-            reward.id!,
+            reward.id,
             newLevel,
             totalXp,
             guild,
@@ -143,19 +149,13 @@ export class RewardIntegration {
             );
           }
         } catch (error) {
-          container.logger.error(
-            `Error claiming voice reward ${reward.id} for ${userId}:`,
-            error
-          );
+          container.logger.error(`Error claiming voice reward ${reward.id} for ${userId}:`, error);
         }
       }
 
       return claimResults;
     } catch (error) {
-      container.logger.error(
-        `Error processing voice level-up rewards for ${userId}:`,
-        error
-      );
+      container.logger.error(`Error processing voice level-up rewards for ${userId}:`, error);
       return [];
     }
   }
@@ -208,10 +208,17 @@ export class RewardIntegration {
       const claimResults: RewardClaimResult[] = [];
 
       for (const reward of eligibility.rewards) {
+        if (!reward.id) {
+          container.logger.warn(
+            `Reward ${reward.name} has no ID, skipping claim for ${userId} in ${guildId}`
+          );
+          continue;
+        }
+
         const result = await this.rewardService.claimReward(
           guildId,
           userId,
-          reward.id!,
+          reward.id,
           currentLevel,
           currentXp,
           guild,
@@ -223,10 +230,7 @@ export class RewardIntegration {
 
       return claimResults;
     } catch (error) {
-      container.logger.error(
-        `Error checking missing rewards for ${userId}:`,
-        error
-      );
+      container.logger.error(`Error checking missing rewards for ${userId}:`, error);
       return [];
     }
   }

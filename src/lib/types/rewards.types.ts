@@ -9,49 +9,49 @@
 
 export enum RewardType {
   // Role-based rewards
-  ROLE_ADD = 'ROLE_ADD',                    // Add a role
-  ROLE_REMOVE = 'ROLE_REMOVE',              // Remove a role
-  ROLE_STACK = 'ROLE_STACK',                // Add role, keep previous
-  ROLE_REPLACE = 'ROLE_REPLACE',            // Replace with new role
-  
+  ROLE_ADD = 'ROLE_ADD', // Add a role
+  ROLE_REMOVE = 'ROLE_REMOVE', // Remove a role
+  ROLE_STACK = 'ROLE_STACK', // Add role, keep previous
+  ROLE_REPLACE = 'ROLE_REPLACE', // Replace with new role
+
   // Permission rewards
-  PERMISSION_GRANT = 'PERMISSION_GRANT',    // Grant specific permissions
-  PERMISSION_REVOKE = 'PERMISSION_REVOKE',  // Revoke permissions
-  
+  PERMISSION_GRANT = 'PERMISSION_GRANT', // Grant specific permissions
+  PERMISSION_REVOKE = 'PERMISSION_REVOKE', // Revoke permissions
+
   // Channel access
-  CHANNEL_ACCESS = 'CHANNEL_ACCESS',        // Grant channel access
-  CHANNEL_REVOKE = 'CHANNEL_REVOKE',        // Revoke channel access
-  CATEGORY_ACCESS = 'CATEGORY_ACCESS',      // Grant category access
-  
+  CHANNEL_ACCESS = 'CHANNEL_ACCESS', // Grant channel access
+  CHANNEL_REVOKE = 'CHANNEL_REVOKE', // Revoke channel access
+  CATEGORY_ACCESS = 'CATEGORY_ACCESS', // Grant category access
+
   // Economy rewards
-  CURRENCY_GRANT = 'CURRENCY_GRANT',        // Award virtual currency
+  CURRENCY_GRANT = 'CURRENCY_GRANT', // Award virtual currency
   CURRENCY_MULTIPLIER = 'CURRENCY_MULTIPLIER', // Permanent currency boost
-  
+
   // XP rewards
-  XP_MULTIPLIER = 'XP_MULTIPLIER',          // XP boost (temporary or permanent)
-  XP_BONUS = 'XP_BONUS',                    // One-time XP bonus
-  DOUBLE_XP_TOKEN = 'DOUBLE_XP_TOKEN',      // Activatable XP boost
-  
+  XP_MULTIPLIER = 'XP_MULTIPLIER', // XP boost (temporary or permanent)
+  XP_BONUS = 'XP_BONUS', // One-time XP bonus
+  DOUBLE_XP_TOKEN = 'DOUBLE_XP_TOKEN', // Activatable XP boost
+
   // Social rewards
-  NICKNAME_UNLOCK = 'NICKNAME_UNLOCK',      // Can change nickname freely
-  COLOR_UNLOCK = 'COLOR_UNLOCK',            // Choose role color
-  CUSTOM_STATUS = 'CUSTOM_STATUS',          // Custom status/title
-  PROFILE_BADGE = 'PROFILE_BADGE',          // Visual badge
-  
+  NICKNAME_UNLOCK = 'NICKNAME_UNLOCK', // Can change nickname freely
+  COLOR_UNLOCK = 'COLOR_UNLOCK', // Choose role color
+  CUSTOM_STATUS = 'CUSTOM_STATUS', // Custom status/title
+  PROFILE_BADGE = 'PROFILE_BADGE', // Visual badge
+
   // Feature unlocks
-  COMMAND_UNLOCK = 'COMMAND_UNLOCK',        // Unlock bot commands
-  FEATURE_UNLOCK = 'FEATURE_UNLOCK',        // Unlock bot features
-  EMBED_UNLOCK = 'EMBED_UNLOCK',            // Can post embeds/links
-  
+  COMMAND_UNLOCK = 'COMMAND_UNLOCK', // Unlock bot commands
+  FEATURE_UNLOCK = 'FEATURE_UNLOCK', // Unlock bot features
+  EMBED_UNLOCK = 'EMBED_UNLOCK', // Can post embeds/links
+
   // Voice-specific
-  VOICE_PRIORITY = 'VOICE_PRIORITY',        // Priority speaker
-  VOICE_SOUNDBOARD = 'VOICE_SOUNDBOARD',    // Soundboard access
-  VOICE_ACTIVITY = 'VOICE_ACTIVITY',        // Activity detection priority
-  
+  VOICE_PRIORITY = 'VOICE_PRIORITY', // Priority speaker
+  VOICE_SOUNDBOARD = 'VOICE_SOUNDBOARD', // Soundboard access
+  VOICE_ACTIVITY = 'VOICE_ACTIVITY', // Activity detection priority
+
   // Special rewards
-  CUSTOM_REWARD = 'CUSTOM_REWARD',          // Custom logic reward
-  WEBHOOK_TRIGGER = 'WEBHOOK_TRIGGER',      // Trigger external webhook
-  ANNOUNCEMENT = 'ANNOUNCEMENT',            // Server announcement
+  CUSTOM_REWARD = 'CUSTOM_REWARD', // Custom logic reward
+  WEBHOOK_TRIGGER = 'WEBHOOK_TRIGGER', // Trigger external webhook
+  ANNOUNCEMENT = 'ANNOUNCEMENT', // Server announcement
 }
 
 export enum XPType {
@@ -73,12 +73,12 @@ export enum RewardStatus {
 export interface RoleRewardData {
   roleId: string;
   action: 'ADD' | 'REMOVE' | 'STACK' | 'REPLACE';
-  removeRoles?: string[];  // Roles to remove when adding (for REPLACE)
+  removeRoles?: string[]; // Roles to remove when adding (for REPLACE)
 }
 
 export interface PermissionRewardData {
-  permissions: string[];  // Discord permission flags
-  channelIds?: string[];  // Specific channels (optional)
+  permissions: string[]; // Discord permission flags
+  channelIds?: string[]; // Specific channels (optional)
 }
 
 export interface ChannelAccessRewardData {
@@ -90,12 +90,12 @@ export interface ChannelAccessRewardData {
 
 export interface CurrencyRewardData {
   amount: number;
-  currencyType?: string;  // e.g., 'coins', 'tokens', 'points'
+  currencyType?: string; // e.g., 'coins', 'tokens', 'points'
   reason?: string;
 }
 
 export interface MultiplierRewardData {
-  multiplier: number;      // e.g., 1.5 for 50% bonus
+  multiplier: number; // e.g., 1.5 for 50% bonus
   durationMinutes?: number; // null = permanent
   stackable?: boolean;
   xpType?: 'TEXT' | 'VOICE' | 'BOTH';
@@ -115,7 +115,7 @@ export interface CommandUnlockData {
 }
 
 export interface AnnouncementRewardData {
-  channelId?: string;      // null = level-up announcement channel
+  channelId?: string; // null = level-up announcement channel
   message: string;
   embedConfig?: {
     title?: string;
@@ -129,13 +129,13 @@ export interface AnnouncementRewardData {
 
 export interface WebhookRewardData {
   webhookUrl: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   headers?: Record<string, string>;
 }
 
 export interface CustomRewardData {
   customType: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export type RewardData =
@@ -241,7 +241,7 @@ export const PRESET_TEMPLATES: Record<string, RewardTemplateConfig> = {
       },
     ],
   },
-  
+
   ECONOMY_FOCUS: {
     name: 'Economy Rewards',
     description: 'Currency and multiplier rewards',
@@ -268,7 +268,7 @@ export const PRESET_TEMPLATES: Record<string, RewardTemplateConfig> = {
       },
     ],
   },
-  
+
   CHANNEL_ACCESS: {
     name: 'Progressive Channel Access',
     description: 'Unlock channels as you level up',
@@ -285,7 +285,7 @@ export const PRESET_TEMPLATES: Record<string, RewardTemplateConfig> = {
       },
     ],
   },
-  
+
   VOICE_SPECIALIST: {
     name: 'Voice Activity Rewards',
     description: 'Rewards specifically for voice activity',
