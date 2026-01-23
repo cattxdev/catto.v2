@@ -1,44 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-interface XPConfig {
-  enabled: boolean;
-  cooldownSec: number;
-  xpMode: 'RANDOM' | 'FIXED';
-  minXp: number;
-  maxXp: number;
-  fixedXp: number;
-  minMessageLength: number;
-  maxXpPerMinute: number | null;
-  allowedChannels: string[];
-  ignoredChannels: string[];
-  ignoredRoles: string[];
-  announceLevelUp: boolean;
-  announceChannelId: string | null;
-  messageTemplate: string;
-  embedEnabled: boolean;
-  embedColor: number;
-  levelCurveType: 'FORMULA' | 'TABLE';
-  formulaBase: number;
-  formulaExponent: number;
-  formulaOffset: number;
-  tableThresholds: number[];
-}
-
-interface Channel {
-  id: string;
-  name: string;
-  type: string;
-}
-
-interface Role {
-  id: string;
-  name: string;
-  color: number;
-  position: number;
-}
+import type { XPConfig } from "@/lib/services/text-xp.service"
+import { textXPService } from "@/lib/services/text-xp.service"
+import { useGuildData } from "@/hooks/use-guild-data"
 
 interface XPConfigFormProps {
   guildId: string;
@@ -48,40 +14,10 @@ interface XPConfigFormProps {
 export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormProps) {
   const router = useRouter();
   const [config, setConfig] = useState<XPConfig>(initialConfig);
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const { channels, roles, textChannels, loading: isLoadingData } = useGuildData(guildId);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  // Fetch channels and roles
-  useEffect(() => {
-    const fetchChannelsAndRoles = async () => {
-      const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
-      
-      try {
-        const response = await fetch(`${BOT_API_URL}/api/guilds/${guildId}/channels-roles`, {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setChannels(data.channels || []);
-          setRoles(data.roles || []);
-        } else {
-          console.error('Failed to fetch channels and roles:', response.status, response.statusText);
-        }
-      } catch (err) {
-        console.error('Failed to fetch channels and roles:', err);
-      } finally {
-        setIsLoadingData(false);
-      }
-    };
-
-    fetchChannelsAndRoles();
-  }, [guildId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,23 +25,8 @@ export default function XPConfigForm({ guildId, initialConfig }: XPConfigFormPro
     setError(null);
     setSuccess(false);
 
-    const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
-
     try {
-      const response = await fetch(`${BOT_API_URL}/api/guilds/${guildId}/xp/config`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update configuration');
-      }
-
+      await textXPService.updateConfig(guildId, config);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       router.refresh();

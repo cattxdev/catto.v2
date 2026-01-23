@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic"
 import { getGuildPageData } from "@/lib/server"
 import GuildPageLayout from "@/components/guild-page-layout"
-import TextXPConfigPage from "@/components/text-xp-config-page"
+import VoiceXPConfigPage from "@/components/voice-xp-config-page"
 
-export default async function TextXPPage({
+export default async function VoiceXPPage({
     params,
 }: {
     params: Promise<{ guildId: string }>;
@@ -12,8 +12,8 @@ export default async function TextXPPage({
     const { guild, user } = await getGuildPageData(guildId);
 
     return (
-        <GuildPageLayout guild={guild} user={user} activeTab="text-xp" pageTitle="Text XP Configuration">
-            <TextXPConfigPage guildId={guildId} />
+        <GuildPageLayout guild={guild} user={user} activeTab="voice-xp" pageTitle="Voice XP Configuration">
+            <VoiceXPConfigPage guildId={guildId} />
         </GuildPageLayout>
     );
 }
