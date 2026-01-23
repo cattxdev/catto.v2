@@ -10,8 +10,17 @@ import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
+  // Create gate for validation
+  const gate = Gate.from(interaction);
+  if (!gate) {
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
+    return;
+  }
+
+  // Parse options
   let options;
   try {
     options = parseWarnOptions(interaction);
@@ -24,28 +33,23 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     throw error;
   }
 
+  // Resolve target and check hierarchy (authorization already checked by precondition)
+  const targetMember = await gate.resolveMember(options.target.id);
+  if (!targetMember) {
+    await interaction.reply(ephemeralError('Target is not a member of this server.'));
+    return;
+  }
+
+  // Check hierarchy
+  const hierarchyResult = gate.checkHierarchy(targetMember);
+  if (isFail(hierarchyResult)) {
+    await gate.deny(hierarchyResult);
+    return;
+  }
+
   await defer(interaction);
 
   try {
-    // Verify target is in guild
-    try {
-      await options.guild.members.fetch(options.target.id);
-    } catch {
-      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
-      return;
-    }
-
-    // Basic validation
-    if (options.target.id === options.moderator.id) {
-      await editReply(interaction, errorMessage('Error', 'You cannot warn yourself.'));
-      return;
-    }
-
-    if (options.target.bot) {
-      await editReply(interaction, errorMessage('Error', 'You cannot warn bots.'));
-      return;
-    }
-
     // Notify user before warn
     const notified = await notifyUser(
       options.target,

@@ -34,6 +34,22 @@ enum MuteType {
   BOTH    // Both text and voice muted
 }
 
+// Permission system enums
+enum PermissionSubjectType {
+  USER
+  ROLE
+}
+
+enum PermissionResourceType {
+  COMMAND
+  CATEGORY
+}
+
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
 // Moderation case status
 enum CaseStatus {
   OPEN
@@ -346,4 +362,23 @@ model ScheduledTask {
   @@index([executeAt])
   @@index([processed, executeAt])
   @@map("scheduled_tasks")
+}
+
+// Permission Grants for custom permission system
+model PermissionGrant {
+  id            String                 @id @default(cuid())
+  guildId       String
+  subjectType   PermissionSubjectType
+  subjectId     String                 // Discord user or role ID
+  resourceType  PermissionResourceType
+  resourceKey   String                 // Command key (e.g., "mod.warn") or category key (e.g., "moderation")
+  effect        PermissionEffect
+  createdById   String?                // Moderator who created this grant
+  createdAt     DateTime               @default(now())
+
+  @@unique([guildId, subjectType, subjectId, resourceType, resourceKey])
+  @@index([guildId])
+  @@index([guildId, subjectType, subjectId])
+  @@index([guildId, resourceType, resourceKey])
+  @@map("permission_grants")
 }

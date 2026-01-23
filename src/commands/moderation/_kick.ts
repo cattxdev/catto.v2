@@ -10,6 +10,8 @@ import { parseKickOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 export async function handleKick(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -24,6 +26,16 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
   }
 
   await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
 
   try {
     // Fetch target member
@@ -44,13 +56,10 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
       return;
     }
 
-    // Check if moderator can moderate target
-    const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
-    if (!canModerateResult.canModerate) {
-      await editReply(
-        interaction,
-        errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
-      );
+    // Check hierarchy using Gate
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
       return;
     }
 

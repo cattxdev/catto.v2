@@ -39,7 +39,6 @@ import { handleSetup } from './_setup.js';
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
   description: 'Moderation commands',
-  requiredUserPermissions: [PermissionFlagsBits.ModerateMembers],
   requiredClientPermissions: [PermissionFlagsBits.ModerateMembers],
   subcommands: [
     {
@@ -156,7 +155,7 @@ export class ModCommand extends Subcommand {
       builder
         .setName(this.name)
         .setDescription(this.description)
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .setDefaultMemberPermissions(null) // Show to all users, Gate handles authorization via PermissionGatePrecondition
         .setContexts(InteractionContextType.Guild)
         .addSubcommand(this.buildBanSubcommand)
         .addSubcommand(this.buildKickSubcommand)

@@ -1,12 +1,5 @@
 import { Listener, container } from '@sapphire/framework';
-import {
-  Events,
-  type Interaction,
-  MessageFlags,
-  type GuildMember,
-  type ModalSubmitInteraction,
-  PermissionFlagsBits,
-} from 'discord.js';
+import { Events, type Interaction, MessageFlags, type ModalSubmitInteraction } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import {
   decodeReasonModalCustomId,
@@ -30,6 +23,9 @@ import {
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
 import { ensureNonNull } from '#root/lib/utils';
+import { isFail, type Gate } from '#lib/validation/Gate.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { resolveModalKey } from '#lib/validation/resourceKey.js';
 
 export class ModModalInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -57,6 +53,38 @@ export class ModModalInteractionListener extends Listener {
     }
   }
 
+  /**
+   * Get Gate from context and validate authorization for the modal action.
+   * Returns null and sends error if validation fails.
+   */
+  private async requireGateWithAuth(interaction: ModalSubmitInteraction): Promise<Gate | null> {
+    const gate = getGate(interaction);
+    if (!gate) {
+      await interaction.reply({
+        content: '❌ This can only be used in a server.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return null;
+    }
+
+    // Resolve resource key from modal custom ID
+    const resourceKey = resolveModalKey(interaction);
+    if (!resourceKey) {
+      await interaction.reply({
+        content: '❌ Invalid modal data.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return null;
+    }
+
+    // Check authorization
+    if (!(await gate.requireAuth(resourceKey))) {
+      return null; // Error already sent by requireAuth
+    }
+
+    return gate;
+  }
+
   private async handleReasonModal(interaction: ModalSubmitInteraction): Promise<void> {
     const parsed = decodeReasonModalCustomId(interaction.customId);
     if (!parsed) {
@@ -67,15 +95,9 @@ export class ModModalInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: '❌ You do not have permission to use this.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    // Use shared Gate context with auth check
+    const gate = await this.requireGateWithAuth(interaction);
+    if (!gate) return;
 
     const reason = interaction.fields.getTextInputValue('reason');
     const targetId = parsed.targetId;
@@ -84,10 +106,6 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = ensureNonNull(
-        interaction.guild,
-        'modModalInteraction > handleReasonModal(87): interaction.guild'
-      );
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -99,16 +117,11 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Get target member if exists
-      let targetMember: GuildMember | null = null;
-      try {
-        targetMember = await guild.members.fetch(targetId);
-      } catch {
-        // User may not be in the server
-      }
+      // Determine if member is required for this action
+      const requiresMember = action === 'kick' || action === 'warn';
+      const targetMember = await gate.resolveMember(targetId);
 
-      // For kick/warn, user must be in server
-      if ((action === 'kick' || action === 'warn') && !targetMember) {
+      if (requiresMember && !targetMember) {
         const errorContainer = buildModActionError('User is not in this server.');
         await interaction.editReply({
           components: [errorContainer.build()],
@@ -117,13 +130,11 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Check moderation hierarchy
+      // Check hierarchy if we have a member
       if (targetMember) {
-        const canModerateResult = moderationService.canModerate(member, targetMember);
-        if (!canModerateResult.canModerate) {
-          const errorContainer = buildModActionError(
-            canModerateResult.reason ?? 'Cannot moderate this user.'
-          );
+        const hierarchyResult = gate.checkHierarchy(targetMember);
+        if (isFail(hierarchyResult)) {
+          const errorContainer = buildModActionError(hierarchyResult.message);
           await interaction.editReply({
             components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
@@ -139,16 +150,13 @@ export class ModModalInteractionListener extends Listener {
       switch (action) {
         case 'warn':
           modAction = ModAction.WARN;
-          result = await moderationService.warn(guild, target, interaction.user, reason);
+          result = await moderationService.warn(gate.guild, target, interaction.user, reason);
           break;
         case 'kick':
           modAction = ModAction.KICK;
           result = await moderationService.kick(
-            guild,
-            ensureNonNull(
-              targetMember,
-              'modModalInteraction > handleReasonModal(143): targetMember'
-            ),
+            gate.guild,
+            ensureNonNull(targetMember, 'handleReasonModal > targetMember for kick'),
             interaction.user,
             reason
           );
@@ -156,16 +164,16 @@ export class ModModalInteractionListener extends Listener {
         case 'ban':
           modAction = ModAction.BAN;
           // Notify before ban
-          await notifyUser(target, ModAction.BAN, guild, reason);
-          result = await moderationService.ban(guild, target, interaction.user, reason, false);
+          await notifyUser(target, ModAction.BAN, gate.guild, reason);
+          result = await moderationService.ban(gate.guild, target, interaction.user, reason, false);
           break;
         case 'softban':
           modAction = ModAction.SOFTBAN;
           // Notify before softban
           if (targetMember) {
-            await notifyUser(target, ModAction.SOFTBAN, guild, reason);
+            await notifyUser(target, ModAction.SOFTBAN, gate.guild, reason);
           }
-          result = await moderationService.softban(guild, target, interaction.user, reason);
+          result = await moderationService.softban(gate.guild, target, interaction.user, reason);
           break;
         default: {
           const errorContainer = buildModActionError('Unknown action.');
@@ -188,25 +196,19 @@ export class ModModalInteractionListener extends Listener {
 
       // Log to mod channel
       await logModAction(
-        guild,
+        gate.guild,
         modAction,
         target,
         interaction.user,
         reason,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleReasonModal(179): result.caseNumber'
-        )
+        ensureNonNull(result.caseNumber, 'handleReasonModal > result.caseNumber for log')
       );
 
       // Show success
       const successContainer = buildModActionSuccess(
         action.toUpperCase(),
         target,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleReasonModal(185): result.caseNumber'
-        ),
+        ensureNonNull(result.caseNumber, 'handleReasonModal > result.caseNumber for success'),
         reason
       );
       await interaction.editReply({
@@ -235,15 +237,9 @@ export class ModModalInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: '❌ You do not have permission to use this.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    // Use shared Gate context with auth check
+    const gate = await this.requireGateWithAuth(interaction);
+    if (!gate) return;
 
     const durationStr = interaction.fields.getTextInputValue('duration');
     const reason = interaction.fields.getTextInputValue('reason');
@@ -272,7 +268,6 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = ensureNonNull(interaction.guild, 'handleDurationModal(251): interaction.guild');
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -284,13 +279,8 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Get target member if exists
-      let targetMember: GuildMember | null = null;
-      try {
-        targetMember = await guild.members.fetch(targetId);
-      } catch {
-        // User may not be in the server
-      }
+      // Resolve target member
+      const targetMember = await gate.resolveMember(targetId);
 
       // For timeout, user must be in server
       if (action === 'timeout' && !targetMember) {
@@ -302,13 +292,11 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Check moderation hierarchy
+      // Check hierarchy if we have a member
       if (targetMember) {
-        const canModerateResult = moderationService.canModerate(member, targetMember);
-        if (!canModerateResult.canModerate) {
-          const errorContainer = buildModActionError(
-            canModerateResult.reason ?? 'Cannot moderate this user.'
-          );
+        const hierarchyResult = gate.checkHierarchy(targetMember);
+        if (isFail(hierarchyResult)) {
+          const errorContainer = buildModActionError(hierarchyResult.message);
           await interaction.editReply({
             components: [errorContainer.build()],
             flags: MessageFlags.IsComponentsV2,
@@ -326,14 +314,11 @@ export class ModModalInteractionListener extends Listener {
           modAction = ModAction.TIMEOUT;
           // Notify before timeout
           if (targetMember) {
-            await notifyUser(target, ModAction.TIMEOUT, guild, reason, durationSeconds);
+            await notifyUser(target, ModAction.TIMEOUT, gate.guild, reason, durationSeconds);
           }
           result = await moderationService.timeout(
-            guild,
-            ensureNonNull(
-              targetMember,
-              'modModalInteraction > handleDurationModal(309): targetMember'
-            ),
+            gate.guild,
+            ensureNonNull(targetMember, 'handleDurationModal > targetMember for timeout'),
             interaction.user,
             reason,
             durationSeconds
@@ -343,10 +328,10 @@ export class ModModalInteractionListener extends Listener {
           modAction = ModAction.TEMPBAN;
           // Notify before tempban
           if (targetMember) {
-            await notifyUser(target, ModAction.TEMPBAN, guild, reason, durationSeconds);
+            await notifyUser(target, ModAction.TEMPBAN, gate.guild, reason, durationSeconds);
           }
           result = await moderationService.tempban(
-            guild,
+            gate.guild,
             target,
             interaction.user,
             reason,
@@ -374,28 +359,23 @@ export class ModModalInteractionListener extends Listener {
 
       // Log to mod channel
       await logModAction(
-        guild,
+        gate.guild,
         modAction,
         target,
         interaction.user,
         reason,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleDurationModal(355): result.caseNumber'
-        ),
+        ensureNonNull(result.caseNumber, 'handleDurationModal > result.caseNumber for log'),
         durationSeconds
       );
 
       // Show success
+      const durationText = formatDuration(durationSeconds);
       const successContainer = buildModActionSuccess(
         action.toUpperCase(),
         target,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleDurationModal(363): result.caseNumber'
-        ),
+        ensureNonNull(result.caseNumber, 'handleDurationModal > result.caseNumber for success'),
         reason,
-        formatDuration(durationSeconds)
+        durationText
       );
       await interaction.editReply({
         components: [successContainer.build()],
@@ -423,15 +403,9 @@ export class ModModalInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: '❌ You do not have permission to use this.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    // Use shared Gate context with auth check
+    const gate = await this.requireGateWithAuth(interaction);
+    if (!gate) return;
 
     const note = interaction.fields.getTextInputValue('note');
     const tagsStr = interaction.fields.getTextInputValue('tags');
@@ -455,12 +429,7 @@ export class ModModalInteractionListener extends Listener {
       }
 
       const result = await notesService.addNote({
-        guildId: asGuildId(
-          ensureNonNull(
-            interaction.guildId,
-            'modModalInteraction > handleNoteModal(425): interaction.guildId'
-          )
-        ),
+        guildId: asGuildId(gate.guild.id),
         userId: asUserId(targetId),
         createdById: asUserId(interaction.user.id),
         note,
@@ -497,15 +466,9 @@ export class ModModalInteractionListener extends Listener {
       return;
     }
 
-    // Permission check
-    const member = interaction.member as GuildMember;
-    if (!member?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-      await interaction.reply({
-        content: 'You do not have permission to use this.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    // Use shared Gate context with auth check
+    const gate = await this.requireGateWithAuth(interaction);
+    if (!gate) return;
 
     const durationStr = interaction.fields.getTextInputValue('duration');
     const reason = interaction.fields.getTextInputValue('reason');
@@ -529,10 +492,6 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const guild = ensureNonNull(
-        interaction.guild,
-        'modModalInteraction > handleMuteModal(494): interaction.guild'
-      );
       const target = await interaction.client.users.fetch(targetId).catch(() => null);
 
       if (!target) {
@@ -544,14 +503,8 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Get target member
-      let targetMember: GuildMember | null = null;
-      try {
-        targetMember = await guild.members.fetch(targetId);
-      } catch {
-        // User may not be in the server
-      }
-
+      // Resolve target member (required for mutes)
+      const targetMember = await gate.resolveMember(targetId);
       if (!targetMember) {
         const errorContainer = buildModActionError('User is not in this server.');
         await interaction.editReply({
@@ -561,12 +514,10 @@ export class ModModalInteractionListener extends Listener {
         return;
       }
 
-      // Check moderation hierarchy
-      const canModerateResult = moderationService.canModerate(member, targetMember);
-      if (!canModerateResult.canModerate) {
-        const errorContainer = buildModActionError(
-          canModerateResult.reason ?? 'Cannot moderate this user.'
-        );
+      // Check hierarchy
+      const hierarchyResult = gate.checkHierarchy(targetMember);
+      if (isFail(hierarchyResult)) {
+        const errorContainer = buildModActionError(hierarchyResult.message);
         await interaction.editReply({
           components: [errorContainer.build()],
           flags: MessageFlags.IsComponentsV2,
@@ -579,7 +530,7 @@ export class ModModalInteractionListener extends Listener {
       let modAction: ModAction;
 
       const muteInput = {
-        guildId: asGuildId(guild.id),
+        guildId: asGuildId(gate.guild.id),
         userId: asUserId(targetId),
         createdById: asUserId(interaction.user.id),
         reason,
@@ -590,7 +541,7 @@ export class ModModalInteractionListener extends Listener {
         case 'text':
           modAction = ModAction.MUTE_TEXT;
           result = await muteService.muteText(
-            guild,
+            gate.guild,
             targetMember,
             asUserId(interaction.user.id),
             interaction.user.tag,
@@ -600,7 +551,7 @@ export class ModModalInteractionListener extends Listener {
         case 'voice':
           modAction = ModAction.MUTE_VOICE;
           result = await muteService.muteVoice(
-            guild,
+            gate.guild,
             targetMember,
             asUserId(interaction.user.id),
             interaction.user.tag,
@@ -610,7 +561,7 @@ export class ModModalInteractionListener extends Listener {
         case 'both':
           modAction = ModAction.MUTE_BOTH;
           result = await muteService.muteBoth(
-            guild,
+            gate.guild,
             targetMember,
             asUserId(interaction.user.id),
             interaction.user.tag,
@@ -638,15 +589,12 @@ export class ModModalInteractionListener extends Listener {
 
       // Log to mod channel
       await logModAction(
-        guild,
+        gate.guild,
         modAction,
         target,
         interaction.user,
         reason,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleMuteModal(605): result.caseNumber'
-        ),
+        ensureNonNull(result.caseNumber, 'handleMuteModal > result.caseNumber for log'),
         durationSeconds
       );
 
@@ -655,10 +603,7 @@ export class ModModalInteractionListener extends Listener {
       const successContainer = buildModActionSuccess(
         `MUTE ${muteType.toUpperCase()}`,
         target,
-        ensureNonNull(
-          result.caseNumber,
-          'modModalInteraction > handleMuteModal(614): result.caseNumber'
-        ),
+        ensureNonNull(result.caseNumber, 'handleMuteModal > result.caseNumber for success'),
         reason,
         durationText
       );

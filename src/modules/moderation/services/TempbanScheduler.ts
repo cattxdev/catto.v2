@@ -4,6 +4,7 @@ import { ModAction } from '@prisma/client';
 import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
 import { CONFIG } from '#config';
 import { getSafeUserTag } from '#lib/discord/index.js';
+import { ensureNonNull } from '#lib/utils.js';
 import { logModAction } from '../discord/embeds/presets.js';
 
 /**
@@ -118,7 +119,10 @@ export class TempbanScheduler {
       let expired = 0;
 
       for (const tempbanCase of pendingTempbans) {
-        const expiresAt = tempbanCase.expiresAt!;
+        const expiresAt = ensureNonNull(
+          tempbanCase.expiresAt,
+          'TempbanScheduler.ts > recoverOrphanedTempbans > tempbanCase > expiresAt'
+        );
         const jobKey = `${tempbanCase.guildId}-${tempbanCase.targetId}`;
 
         // Skip if we already have a job for this user in this guild

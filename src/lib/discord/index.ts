@@ -246,9 +246,7 @@ export {
   type ErrorHandlerOptions,
   parseWithValidation,
   fetchMemberSafe,
-  checkCanModerate,
   requireMember,
   checkBotPermission,
   withDeferredHandler,
-  validateModerationTarget,
 } from './handlers.js';
