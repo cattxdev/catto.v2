@@ -1,10 +1,5 @@
-/**
- * Voice XP Guild Reset Route
- * POST /api/guilds/:guildId/voice-xp/reset/guild
- */
-
 import { Route } from '@sapphire/plugin-api';
-import { resetGuildVoiceXP } from '../../../modules/xp-voice/repositories';
+import { resetGuildVoiceXP } from '#root/modules/xp-voice';
 
 export class VoiceXPResetGuildRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

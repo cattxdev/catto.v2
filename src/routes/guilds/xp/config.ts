@@ -1,11 +1,5 @@
-/**
- * XP Configuration Route
- * GET/PUT /api/guilds/:guildId/xp/config
- */
-
+import { configService, validateUpdateXPConfig } from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
-import { configService } from '../../../modules/xp-text/services';
-import { validateUpdateXPConfig } from '../../../modules/xp-text/dtos/update-xp-config.dto';
 
 export class XPConfigRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

@@ -1,11 +1,5 @@
-/**
- * XP Reset User Route
- * POST /api/guilds/:guildId/xp/reset/user
- * Body: { userId: string, reason?: string }
- */
-
 import { Route } from '@sapphire/plugin-api';
-import { resetUserXP } from '../../../modules/xp-text/repositories/xp-text.repository';
+import { resetUserXP } from '#root/modules/xp-text';
 
 export class XPResetUserRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

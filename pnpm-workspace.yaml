@@ -1,3 +1,6 @@
+packages:
+  - 'dashboard'
+
 onlyBuiltDependencies:
   - cpu-features
   - protobufjs
