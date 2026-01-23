@@ -4,12 +4,12 @@ import axios from 'axios';
 
 // Augment the ApiRequest type to include guildAccess
 declare module '@sapphire/plugin-api' {
-	interface ApiRequest {
-		guildAccess?: {
-			hasAccess: boolean;
-			isAdmin: boolean;
-		};
-	}
+  interface ApiRequest {
+    guildAccess?: {
+      hasAccess: boolean;
+      isAdmin: boolean;
+    };
+  }
 }
 
 /**
@@ -17,73 +17,74 @@ declare module '@sapphire/plugin-api' {
  * Requires the authenticated middleware to run first
  */
 export class GuildAccessMiddleware extends Middleware {
-	public constructor(context: Middleware.LoaderContext, options: MiddlewareOptions) {
-		super(context, {
-			...options,
-			position: 30 // Run after authenticated middleware
-		});
-	}
+  public constructor(context: Middleware.LoaderContext, options: MiddlewareOptions) {
+    super(context, {
+      ...options,
+      position: 30, // Run after authenticated middleware
+    });
+  }
 
-	public override async run(request: ApiRequest, response: ApiResponse): Promise<void> {
-		// Skip if no auth (let authenticated middleware handle it)
-		if (!request.auth) {
-			return;
-		}
+  public override async run(request: ApiRequest, response: ApiResponse): Promise<void> {
+    // Skip if no auth (let authenticated middleware handle it)
+    if (!request.auth) {
+      return;
+    }
 
-		// Extract guild ID from route params
-		const guildId = request.params.guildId;
-		
-		if (!guildId) {
-			// Not a guild-specific route, skip this middleware
-			return;
-		}
+    // Extract guild ID from route params
+    const guildId = request.params.guildId;
 
-		try {
-			// Fetch user's guilds from Discord API using the OAuth token
-			const guilds = await this.fetchUserGuilds(request.auth.token);
+    if (!guildId) {
+      // Not a guild-specific route, skip this middleware
+      return;
+    }
 
-			// Check if user has access to this guild
-			const hasAccess = guilds.some((guild) => guild.id === guildId);
+    try {
+      // Fetch user's guilds from Discord API using the OAuth token
+      const guilds = await this.fetchUserGuilds(request.auth.token);
 
-			if (!hasAccess) {
-				response.status(403).json({
-					error: 'Forbidden',
-					message: 'You do not have access to this guild'
-				});
-				return;
-			}
+      // Check if user has access to this guild
+      const hasAccess = guilds.some((guild) => guild.id === guildId);
 
-			// Optional: Check if user has admin permissions in the guild
-			// You can add more granular permission checks here
-			const userGuild = guilds.find((guild) => guild.id === guildId);
-			const hasAdminPermissions = userGuild ? (BigInt(userGuild.permissions) & 0x8n) === 0x8n : false;
+      if (!hasAccess) {
+        response.status(403).json({
+          error: 'Forbidden',
+          message: 'You do not have access to this guild',
+        });
+        return;
+      }
 
-			// Store guild access info in request for use in routes
-			request.guildAccess = {
-				hasAccess: true,
-				isAdmin: hasAdminPermissions
-			};
+      // Optional: Check if user has admin permissions in the guild
+      // You can add more granular permission checks here
+      const userGuild = guilds.find((guild) => guild.id === guildId);
+      const hasAdminPermissions = userGuild
+        ? (BigInt(userGuild.permissions) & 0x8n) === 0x8n
+        : false;
 
-		} catch (error) {
-			this.container.logger.error('Error checking guild access:', error);
-			response.status(500).json({
-				error: 'Internal Server Error',
-				message: 'Failed to verify guild access'
-			});
-			return;
-		}
-	}
+      // Store guild access info in request for use in routes
+      request.guildAccess = {
+        hasAccess: true,
+        isAdmin: hasAdminPermissions,
+      };
+    } catch (error) {
+      this.container.logger.error('Error checking guild access:', error);
+      response.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to verify guild access',
+      });
+      return;
+    }
+  }
 
-	private async fetchUserGuilds(token: string): Promise<RESTGetAPICurrentUserGuildsResult> {
-		const response = await axios.get<RESTGetAPICurrentUserGuildsResult>(
-			'https://discord.com/api/v10/users/@me/guilds',
-			{
-				headers: {
-					Authorization: `Bearer ${token}`
-				}
-			}
-		);
+  private async fetchUserGuilds(token: string): Promise<RESTGetAPICurrentUserGuildsResult> {
+    const response = await axios.get<RESTGetAPICurrentUserGuildsResult>(
+      'https://discord.com/api/v10/users/@me/guilds',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-		return response.data;
-	}
+    return response.data;
+  }
 }

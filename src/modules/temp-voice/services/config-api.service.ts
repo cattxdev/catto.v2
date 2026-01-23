@@ -14,192 +14,196 @@ const configService = new TempVoiceConfigService(container.prisma);
  * API request payload for creating/updating temp voice config
  */
 export interface TempVoiceConfigApiInput {
-	enabled?: boolean;
-	joinChannelIds?: string[];
-	namingScheme?: 'username' | 'custom' | 'displayname' | 'sequential';
-	customNamingPattern?: string | null;
-	userLimit?: number;
-	bitrate?: number;
-	defaultCategoryId?: string | null;
-	autoDeleteEmpty?: boolean;
-	deleteEmptyAfterMs?: number;
-	autoDeleteOwnerLeave?: boolean;
-	deleteOwnerLeaveAfterMs?: number;
-	allowOwnerTransfer?: boolean;
-	allowOwnerManagement?: boolean;
-	maxChannelsPerUser?: number;
-	logChannelId?: string | null;
-	logWebhook?: string | null;
+  enabled?: boolean;
+  joinChannelIds?: string[];
+  namingScheme?: 'username' | 'custom' | 'displayname' | 'sequential';
+  customNamingPattern?: string | null;
+  userLimit?: number;
+  bitrate?: number;
+  defaultCategoryId?: string | null;
+  autoDeleteEmpty?: boolean;
+  deleteEmptyAfterMs?: number;
+  autoDeleteOwnerLeave?: boolean;
+  deleteOwnerLeaveAfterMs?: number;
+  allowOwnerTransfer?: boolean;
+  allowOwnerManagement?: boolean;
+  maxChannelsPerUser?: number;
+  logChannelId?: string | null;
+  logWebhook?: string | null;
 }
 
 /**
  * Static wrapper for temp voice configuration operations
  */
 export class TempVoiceConfigServiceStatic {
-	/**
-	 * Get configuration for a guild (returns null if not found)
-	 */
-	static async getConfig(guildId: string) {
-		const config = await configService.getOrNull(guildId);
-		
-		if (!config) {
-			return null;
-		}
+  /**
+   * Get configuration for a guild (returns null if not found)
+   */
+  static async getConfig(guildId: string) {
+    const config = await configService.getOrNull(guildId);
 
-		// Map to API response format
-		return {
-			guildId: config.guildId,
-			enabled: config.enabled,
-			joinChannelIds: config.joinToCreateChannels,
-			namingScheme: 'username' as const, // Default mapping
-			customNamingPattern: config.defaultNameTemplate,
-			userLimit: config.defaultUserLimit,
-			bitrate: config.defaultBitrate ?? 64000,
-			defaultCategoryId: config.categoryId,
-			autoDeleteEmpty: config.deleteDelaySeconds > 0,
-			deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-		autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-			deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-			allowOwnerTransfer: true, // Default value
-			allowOwnerManagement: config.controlPanelEnabled,
-			maxChannelsPerUser: config.maxChannelsPerUser,
-			logChannelId: config.logChannelId,
-			createdAt: config.createdAt,
-			updatedAt: config.updatedAt,
-		};
-	}
+    if (!config) {
+      return null;
+    }
 
-	/**
-	 * Create configuration for a guild
-	 */
-	static async createConfig(guildId: string, data: TempVoiceConfigApiInput) {
-		// Map API input to service input
-		const serviceData: Partial<TempVoiceConfigInput> = {
-			enabled: data.enabled,
-			joinToCreateChannels: data.joinChannelIds || [],
-			defaultNameTemplate: data.customNamingPattern || '{username}\'s Channel',
-			defaultUserLimit: data.userLimit ?? 0,
-			defaultBitrate: data.bitrate ?? 64000,
-			categoryId: data.defaultCategoryId,
-			deleteDelaySeconds: Math.floor((data.deleteEmptyAfterMs ?? 60000) / 1000),
-			ownerLeaveStrategy: data.autoDeleteOwnerLeave ? OwnerLeaveStrategy.DELETE : OwnerLeaveStrategy.KEEP,
-			maxChannelsPerUser: data.maxChannelsPerUser ?? 1,
-			logChannelId: data.logChannelId,
-		logWebhook: data.logWebhook,
-		controlPanelEnabled: data.allowOwnerManagement ?? true,
-	};
+    // Map to API response format
+    return {
+      guildId: config.guildId,
+      enabled: config.enabled,
+      joinChannelIds: config.joinToCreateChannels,
+      namingScheme: 'username' as const, // Default mapping
+      customNamingPattern: config.defaultNameTemplate,
+      userLimit: config.defaultUserLimit,
+      bitrate: config.defaultBitrate ?? 64000,
+      defaultCategoryId: config.categoryId,
+      autoDeleteEmpty: config.deleteDelaySeconds > 0,
+      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
+      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
+      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
+      allowOwnerTransfer: true, // Default value
+      allowOwnerManagement: config.controlPanelEnabled,
+      maxChannelsPerUser: config.maxChannelsPerUser,
+      logChannelId: config.logChannelId,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
+  }
 
-	const config = await configService.create(guildId, serviceData);
+  /**
+   * Create configuration for a guild
+   */
+  static async createConfig(guildId: string, data: TempVoiceConfigApiInput) {
+    // Map API input to service input
+    const serviceData: Partial<TempVoiceConfigInput> = {
+      enabled: data.enabled,
+      joinToCreateChannels: data.joinChannelIds || [],
+      defaultNameTemplate: data.customNamingPattern || "{username}'s Channel",
+      defaultUserLimit: data.userLimit ?? 0,
+      defaultBitrate: data.bitrate ?? 64000,
+      categoryId: data.defaultCategoryId,
+      deleteDelaySeconds: Math.floor((data.deleteEmptyAfterMs ?? 60000) / 1000),
+      ownerLeaveStrategy: data.autoDeleteOwnerLeave
+        ? OwnerLeaveStrategy.DELETE
+        : OwnerLeaveStrategy.KEEP,
+      maxChannelsPerUser: data.maxChannelsPerUser ?? 1,
+      logChannelId: data.logChannelId,
+      logWebhook: data.logWebhook,
+      controlPanelEnabled: data.allowOwnerManagement ?? true,
+    };
 
-	// Map to API response format
-	return {
-			guildId: config.guildId,
-			enabled: config.enabled,
-			joinChannelIds: config.joinToCreateChannels,
-			namingScheme: 'username' as const,
-			customNamingPattern: config.defaultNameTemplate,
-			userLimit: config.defaultUserLimit,
-			bitrate: config.defaultBitrate ?? 64000,
-			defaultCategoryId: config.categoryId,
-			autoDeleteEmpty: config.deleteDelaySeconds > 0,
-			deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-		autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-			deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-			allowOwnerTransfer: true,
-			allowOwnerManagement: config.controlPanelEnabled,
-			maxChannelsPerUser: config.maxChannelsPerUser,
-			logChannelId: config.logChannelId,
-			createdAt: config.createdAt,
-			updatedAt: config.updatedAt,
-		};
-	}
+    const config = await configService.create(guildId, serviceData);
 
-	/**
-	 * Update configuration for a guild
-	 */
-	static async updateConfig(guildId: string, data: Partial<TempVoiceConfigApiInput>) {
-		// Map API input to service input
-		const serviceData: TempVoiceConfigUpdate = {
-			...(data.enabled !== undefined && { enabled: data.enabled }),
-			...(data.joinChannelIds && { joinToCreateChannels: data.joinChannelIds }),
-			...(data.customNamingPattern !== undefined && {
-				defaultNameTemplate: data.customNamingPattern ?? undefined,
-			}),
-			...(data.userLimit !== undefined && { defaultUserLimit: data.userLimit }),
-			...(data.bitrate !== undefined && { defaultBitrate: data.bitrate }),
-			...(data.defaultCategoryId !== undefined && {
-				categoryId: data.defaultCategoryId ?? undefined,
-			}),
-			...(data.deleteEmptyAfterMs !== undefined && {
-				deleteDelaySeconds: Math.floor(data.deleteEmptyAfterMs / 1000),
-			}),
-			...(data.autoDeleteOwnerLeave !== undefined && {
-				ownerLeaveStrategy: data.autoDeleteOwnerLeave ? OwnerLeaveStrategy.DELETE : OwnerLeaveStrategy.KEEP,
-			}),
-			...(data.allowOwnerManagement !== undefined && {
-				controlPanelEnabled: data.allowOwnerManagement,
-			}),
-			...(data.maxChannelsPerUser !== undefined && {
-				maxChannelsPerUser: data.maxChannelsPerUser,
-			}),
-			...(data.logChannelId !== undefined && { logChannelId: data.logChannelId ?? undefined }),
-		};
+    // Map to API response format
+    return {
+      guildId: config.guildId,
+      enabled: config.enabled,
+      joinChannelIds: config.joinToCreateChannels,
+      namingScheme: 'username' as const,
+      customNamingPattern: config.defaultNameTemplate,
+      userLimit: config.defaultUserLimit,
+      bitrate: config.defaultBitrate ?? 64000,
+      defaultCategoryId: config.categoryId,
+      autoDeleteEmpty: config.deleteDelaySeconds > 0,
+      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
+      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
+      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
+      allowOwnerTransfer: true,
+      allowOwnerManagement: config.controlPanelEnabled,
+      maxChannelsPerUser: config.maxChannelsPerUser,
+      logChannelId: config.logChannelId,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
+  }
 
-		const config = await configService.update(guildId, serviceData);
+  /**
+   * Update configuration for a guild
+   */
+  static async updateConfig(guildId: string, data: Partial<TempVoiceConfigApiInput>) {
+    // Map API input to service input
+    const serviceData: TempVoiceConfigUpdate = {
+      ...(data.enabled !== undefined && { enabled: data.enabled }),
+      ...(data.joinChannelIds && { joinToCreateChannels: data.joinChannelIds }),
+      ...(data.customNamingPattern !== undefined && {
+        defaultNameTemplate: data.customNamingPattern ?? undefined,
+      }),
+      ...(data.userLimit !== undefined && { defaultUserLimit: data.userLimit }),
+      ...(data.bitrate !== undefined && { defaultBitrate: data.bitrate }),
+      ...(data.defaultCategoryId !== undefined && {
+        categoryId: data.defaultCategoryId ?? undefined,
+      }),
+      ...(data.deleteEmptyAfterMs !== undefined && {
+        deleteDelaySeconds: Math.floor(data.deleteEmptyAfterMs / 1000),
+      }),
+      ...(data.autoDeleteOwnerLeave !== undefined && {
+        ownerLeaveStrategy: data.autoDeleteOwnerLeave
+          ? OwnerLeaveStrategy.DELETE
+          : OwnerLeaveStrategy.KEEP,
+      }),
+      ...(data.allowOwnerManagement !== undefined && {
+        controlPanelEnabled: data.allowOwnerManagement,
+      }),
+      ...(data.maxChannelsPerUser !== undefined && {
+        maxChannelsPerUser: data.maxChannelsPerUser,
+      }),
+      ...(data.logChannelId !== undefined && { logChannelId: data.logChannelId ?? undefined }),
+    };
 
-		// Map to API response format
-		return {
-			guildId: config.guildId,
-			enabled: config.enabled,
-			joinChannelIds: config.joinToCreateChannels,
-			namingScheme: 'username' as const,
-			customNamingPattern: config.defaultNameTemplate,
-			userLimit: config.defaultUserLimit,
-			bitrate: config.defaultBitrate ?? 64000,
-			defaultCategoryId: config.categoryId,
-			autoDeleteEmpty: config.deleteDelaySeconds > 0,
-			deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-			autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-			deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-			allowOwnerTransfer: true,
-			allowOwnerManagement: config.controlPanelEnabled,
-			maxChannelsPerUser: config.maxChannelsPerUser,
-			logChannelId: config.logChannelId,
-			createdAt: config.createdAt,
-			updatedAt: config.updatedAt,
-		};
-	}
+    const config = await configService.update(guildId, serviceData);
 
-	/**
-	 * Delete configuration for a guild
-	 */
-	static async deleteConfig(guildId: string): Promise<void> {
-		await configService.delete(guildId);
-	}
+    // Map to API response format
+    return {
+      guildId: config.guildId,
+      enabled: config.enabled,
+      joinChannelIds: config.joinToCreateChannels,
+      namingScheme: 'username' as const,
+      customNamingPattern: config.defaultNameTemplate,
+      userLimit: config.defaultUserLimit,
+      bitrate: config.defaultBitrate ?? 64000,
+      defaultCategoryId: config.categoryId,
+      autoDeleteEmpty: config.deleteDelaySeconds > 0,
+      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
+      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
+      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
+      allowOwnerTransfer: true,
+      allowOwnerManagement: config.controlPanelEnabled,
+      maxChannelsPerUser: config.maxChannelsPerUser,
+      logChannelId: config.logChannelId,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
+  }
 
-	/**
-	 * Add a join-to-create channel
-	 */
-	static async addJoinChannel(guildId: string, channelId: string) {
-		const joinChannels = await configService.addJoinChannel(guildId, channelId);
-		const config = await configService.getOrNull(guildId);
+  /**
+   * Delete configuration for a guild
+   */
+  static async deleteConfig(guildId: string): Promise<void> {
+    await configService.delete(guildId);
+  }
 
-		return {
-			joinChannelIds: joinChannels,
-			...config,
-		};
-	}
+  /**
+   * Add a join-to-create channel
+   */
+  static async addJoinChannel(guildId: string, channelId: string) {
+    const joinChannels = await configService.addJoinChannel(guildId, channelId);
+    const config = await configService.getOrNull(guildId);
 
-	/**
-	 * Remove a join-to-create channel
-	 */
-	static async removeJoinChannel(guildId: string, channelId: string) {
-		const joinChannels = await configService.removeJoinChannel(guildId, channelId);
-		const config = await configService.getOrNull(guildId);
+    return {
+      joinChannelIds: joinChannels,
+      ...config,
+    };
+  }
 
-		return {
-			joinChannelIds: joinChannels,
-			...config,
-		};
-	}
+  /**
+   * Remove a join-to-create channel
+   */
+  static async removeJoinChannel(guildId: string, channelId: string) {
+    const joinChannels = await configService.removeJoinChannel(guildId, channelId);
+    const config = await configService.getOrNull(guildId);
+
+    return {
+      joinChannelIds: joinChannels,
+      ...config,
+    };
+  }
 }

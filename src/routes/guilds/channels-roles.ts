@@ -2,65 +2,64 @@ import { Route } from '@sapphire/plugin-api';
 import { ChannelType } from 'discord.js';
 
 export class GuildChannelsRolesRoute extends Route {
-	public constructor(context: Route.LoaderContext, options: Route.Options) {
-		super(context, {
-			...options,
-			route: 'guilds/[guildId]/channels-roles',
-			methods: ['GET']
-		});
-	}
+  public constructor(context: Route.LoaderContext, options: Route.Options) {
+    super(context, {
+      ...options,
+      route: 'guilds/[guildId]/channels-roles',
+      methods: ['GET'],
+    });
+  }
 
-	public async run(request: Route.Request, response: Route.Response) {
-		const { guildId } = request.params;
+  public async run(request: Route.Request, response: Route.Response) {
+    const { guildId } = request.params;
 
-		if (!guildId) {
-			return response.status(400).json({
-				error: 'Guild ID is required'
-			});
-		}
+    if (!guildId) {
+      return response.status(400).json({
+        error: 'Guild ID is required',
+      });
+    }
 
-		try {
-			// Get Discord guild
-			const guild = this.container.client.guilds.cache.get(guildId);
-			
-			if (!guild) {
-				return response.status(404).json({
-					error: 'Guild not found or bot is not in the guild'
-				});
-			}
+    try {
+      // Get Discord guild
+      const guild = this.container.client.guilds.cache.get(guildId);
 
-			// Get text channels
-			const textChannels = guild.channels.cache
-				.filter(channel => channel.type === ChannelType.GuildText)
-				.map(channel => ({
-					id: channel.id,
-					name: channel.name,
-					type: 'text'
-				}))
-				.sort((a, b) => a.name.localeCompare(b.name));
+      if (!guild) {
+        return response.status(404).json({
+          error: 'Guild not found or bot is not in the guild',
+        });
+      }
 
-			// Get roles (exclude @everyone)
-			const roles = guild.roles.cache
-				.filter(role => role.id !== guild.id)
-				.map(role => ({
-					id: role.id,
-					name: role.name,
-					color: role.color,
-					position: role.position
-				}))
-				.sort((a, b) => b.position - a.position);
+      // Get text channels
+      const textChannels = guild.channels.cache
+        .filter((channel) => channel.type === ChannelType.GuildText)
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          type: 'text',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-			return response.json({
-				success: true,
-				channels: textChannels,
-				roles
-			});
+      // Get roles (exclude @everyone)
+      const roles = guild.roles.cache
+        .filter((role) => role.id !== guild.id)
+        .map((role) => ({
+          id: role.id,
+          name: role.name,
+          color: role.color,
+          position: role.position,
+        }))
+        .sort((a, b) => b.position - a.position);
 
-		} catch (error) {
-			this.container.logger.error('Error fetching guild channels and roles:', error);
-			return response.status(500).json({
-				error: 'Internal server error'
-			});
-		}
-	}
+      return response.json({
+        success: true,
+        channels: textChannels,
+        roles,
+      });
+    } catch (error) {
+      this.container.logger.error('Error fetching guild channels and roles:', error);
+      return response.status(500).json({
+        error: 'Internal server error',
+      });
+    }
+  }
 }

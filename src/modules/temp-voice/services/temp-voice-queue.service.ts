@@ -14,347 +14,353 @@ import { PermissionsService } from './permissions.service';
 import { UserPreferencesService } from './user-preferences.service';
 
 interface CreateChannelJobData {
-	type: 'create';
-	guildId: string;
-	userId: string;
-	sourceChannelId: string;
-	timestamp: number;
+  type: 'create';
+  guildId: string;
+  userId: string;
+  sourceChannelId: string;
+  timestamp: number;
 }
 
 interface DeleteChannelJobData {
-	type: 'delete';
-	guildId: string;
-	channelId: string;
-	reason: string;
-	timestamp: number;
+  type: 'delete';
+  guildId: string;
+  channelId: string;
+  reason: string;
+  timestamp: number;
 }
 
 type TempVoiceJobData = CreateChannelJobData | DeleteChannelJobData;
 
 class TempVoiceQueueService {
-	private queue: Queue<TempVoiceJobData>;
-	private worker: Worker<TempVoiceJobData>;
-	private readonly QUEUE_NAME = 'temp-voice-operations';
+  private queue: Queue<TempVoiceJobData>;
+  private worker: Worker<TempVoiceJobData>;
+  private readonly QUEUE_NAME = 'temp-voice-operations';
 
-	constructor() {
-		const connection = {
-			host: CONFIG.REDIS_HOST,
-			port: CONFIG.REDIS_PORT,
-			password: CONFIG.REDIS_PASSWORD,
-			db: CONFIG.REDIS_DB
-		};
+  constructor() {
+    const connection = {
+      host: CONFIG.REDIS_HOST,
+      port: CONFIG.REDIS_PORT,
+      password: CONFIG.REDIS_PASSWORD,
+      db: CONFIG.REDIS_DB,
+    };
 
-		// Create queue for adding jobs
-		this.queue = new Queue<TempVoiceJobData>(this.QUEUE_NAME, {
-			connection,
-			defaultJobOptions: {
-				attempts: 3,
-				backoff: {
-					type: 'exponential',
-					delay: 2000 // 2s, then 4s, then 8s
-				},
-				removeOnComplete: {
-					age: 1800, // Keep completed jobs for 30 minutes
-					count: 500
-				},
-				removeOnFail: {
-					age: 86400 // Keep failed jobs for 24 hours
-				}
-			}
-		});
+    // Create queue for adding jobs
+    this.queue = new Queue<TempVoiceJobData>(this.QUEUE_NAME, {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000, // 2s, then 4s, then 8s
+        },
+        removeOnComplete: {
+          age: 1800, // Keep completed jobs for 30 minutes
+          count: 500,
+        },
+        removeOnFail: {
+          age: 86400, // Keep failed jobs for 24 hours
+        },
+      },
+    });
 
-		// Create worker to process jobs
-		this.worker = new Worker<TempVoiceJobData>(
-			this.QUEUE_NAME,
-			async (job: Job<TempVoiceJobData>) => this.processJob(job),
-			{
-				connection,
-				concurrency: 1, // Process one operation at a time per guild to avoid race conditions
-				limiter: {
-					max: 10, // Max 10 operations
-					duration: 10000 // Per 10 seconds (Discord rate limit friendly)
-				}
-			}
-		);
+    // Create worker to process jobs
+    this.worker = new Worker<TempVoiceJobData>(
+      this.QUEUE_NAME,
+      async (job: Job<TempVoiceJobData>) => this.processJob(job),
+      {
+        connection,
+        concurrency: 1, // Process one operation at a time per guild to avoid race conditions
+        limiter: {
+          max: 10, // Max 10 operations
+          duration: 10000, // Per 10 seconds (Discord rate limit friendly)
+        },
+      }
+    );
 
-		// Worker event handlers
-		this.worker.on('completed', (job) => {
-			container.logger.debug(
-				`[TempVoice Queue] Job ${job.id} (${job.data.type}) completed for guild ${job.data.guildId}`
-			);
-		});
+    // Worker event handlers
+    this.worker.on('completed', (job) => {
+      container.logger.debug(
+        `[TempVoice Queue] Job ${job.id} (${job.data.type}) completed for guild ${job.data.guildId}`
+      );
+    });
 
-		this.worker.on('failed', (job, err) => {
-			container.logger.error(
-				`[TempVoice Queue] Job ${job?.id} (${job?.data?.type}) failed:`,
-				err
-			);
-		});
+    this.worker.on('failed', (job, err) => {
+      container.logger.error(`[TempVoice Queue] Job ${job?.id} (${job?.data?.type}) failed:`, err);
+    });
 
-		this.worker.on('error', (err) => {
-			container.logger.error('[TempVoice Queue] Worker error:', err);
-		});
+    this.worker.on('error', (err) => {
+      container.logger.error('[TempVoice Queue] Worker error:', err);
+    });
 
-		this.worker.on('active', (job) => {
-			container.logger.info(
-				`[TempVoice Queue] Job ${job.id} (${job.data.type}) is now active for guild ${job.data.guildId}`
-			);
-		});
+    this.worker.on('active', (job) => {
+      container.logger.info(
+        `[TempVoice Queue] Job ${job.id} (${job.data.type}) is now active for guild ${job.data.guildId}`
+      );
+    });
 
-		container.logger.info('[TempVoice Queue] Service initialized');
-	}
+    container.logger.info('[TempVoice Queue] Service initialized');
+  }
 
-	/**
-	 * Process a temp voice job
-	 */
-	private async processJob(job: Job<TempVoiceJobData>): Promise<void> {
-		const { data } = job;
+  /**
+   * Process a temp voice job
+   */
+  private async processJob(job: Job<TempVoiceJobData>): Promise<void> {
+    const { data } = job;
 
-		if (data.type === 'create') {
-			await this.processCreate(data);
-		} else if (data.type === 'delete') {
-			await this.processDelete(data);
-		}
-	}
+    if (data.type === 'create') {
+      await this.processCreate(data);
+    } else if (data.type === 'delete') {
+      await this.processDelete(data);
+    }
+  }
 
-	/**
-	 * Process channel creation
-	 */
-	private async processCreate(data: CreateChannelJobData): Promise<void> {
-		const { guildId, userId, sourceChannelId } = data;
+  /**
+   * Process channel creation
+   */
+  private async processCreate(data: CreateChannelJobData): Promise<void> {
+    const { guildId, userId, sourceChannelId } = data;
 
-		try {
-			const guild = container.client.guilds.cache.get(guildId);
-			if (!guild) {
-				container.logger.warn(`[TempVoice Queue] Guild ${guildId} not found`);
-				return;
-			}
+    try {
+      const guild = container.client.guilds.cache.get(guildId);
+      if (!guild) {
+        container.logger.warn(`[TempVoice Queue] Guild ${guildId} not found`);
+        return;
+      }
 
-			const member = await guild.members.fetch(userId).catch(() => null);
-			if (!member) {
-				container.logger.warn(`[TempVoice Queue] Member ${userId} not found in guild ${guildId}`);
-				return;
-			}
+      const member = await guild.members.fetch(userId).catch(() => null);
+      if (!member) {
+        container.logger.warn(`[TempVoice Queue] Member ${userId} not found in guild ${guildId}`);
+        return;
+      }
 
-			// Get config
-			const configService = new TempVoiceConfigService(container.prisma);
-			const config = await configService.getOrNull(guildId);
-			if (!config || !config.enabled) {
-				container.logger.warn(`[TempVoice Queue] Config not found or disabled for guild ${guildId}`);
-				return;
-			}
+      // Get config
+      const configService = new TempVoiceConfigService(container.prisma);
+      const config = await configService.getOrNull(guildId);
+      if (!config || !config.enabled) {
+        container.logger.warn(
+          `[TempVoice Queue] Config not found or disabled for guild ${guildId}`
+        );
+        return;
+      }
 
-			// Create services
-			const permissionsService = new PermissionsService();
-			const channelService = new TempChannelService(container.prisma, permissionsService);
-			const controlPanelService = new ControlPanelService(container.client, channelService);
+      // Create services
+      const permissionsService = new PermissionsService();
+      const channelService = new TempChannelService(container.prisma, permissionsService);
+      const controlPanelService = new ControlPanelService(container.client, channelService);
 
-			// Create the channel
-			const channel = await channelService.createChannel(guild, member, config, sourceChannelId);
+      // Create the channel
+      const channel = await channelService.createChannel(guild, member, config, sourceChannelId);
 
-			// Move user to the new channel
-			try {
-				const voiceState = member.voice;
-				if (voiceState?.channelId) {
-					await voiceState.setChannel(channel);
-				}
-			} catch (error) {
-				container.logger.error(
-					`[TempVoice Queue] Failed to move user ${userId} to channel ${channel.id}:`,
-					error
-				);
-			}
+      // Move user to the new channel
+      try {
+        const voiceState = member.voice;
+        if (voiceState?.channelId) {
+          await voiceState.setChannel(channel);
+        }
+      } catch (error) {
+        container.logger.error(
+          `[TempVoice Queue] Failed to move user ${userId} to channel ${channel.id}:`,
+          error
+        );
+      }
 
-			// Send control panel if enabled
-			if (config.controlPanelOnCreate && config.controlPanelEnabled) {
-				await controlPanelService.send(channel.id, member);
-			}
+      // Send control panel if enabled
+      if (config.controlPanelOnCreate && config.controlPanelEnabled) {
+        await controlPanelService.send(channel.id, member);
+      }
 
-			// Log to configured log channel if enabled
-			if (config.logWebhook) {
-				try {
-					const webhook = new WebhookClient({ url: config.logWebhook });
-					const embed = new EmbedBuilder()
-						.setTitle('🎙️ Temporary Voice Channel Created')
-						.setDescription(`${member} created a temporary voice channel`)
-						.addFields(
-							{ name: 'Channel', value: `${channel.name} (<#${channel.id}>)`, inline: true },
-							{ name: 'Owner', value: `${member.user.tag} (${member.id})`, inline: true },
-						)
-						.setColor(Colors.Green)
-						.setTimestamp();
-					
-					await webhook.send({ embeds: [embed] });
-					webhook.destroy();
-				} catch (error) {
-					container.logger.error('[TempVoice Queue] Failed to send creation log:', error);
-				}
-			}
+      // Log to configured log channel if enabled
+      if (config.logWebhook) {
+        try {
+          const webhook = new WebhookClient({ url: config.logWebhook });
+          const embed = new EmbedBuilder()
+            .setTitle('🎙️ Temporary Voice Channel Created')
+            .setDescription(`${member} created a temporary voice channel`)
+            .addFields(
+              { name: 'Channel', value: `${channel.name} (<#${channel.id}>)`, inline: true },
+              { name: 'Owner', value: `${member.user.tag} (${member.id})`, inline: true }
+            )
+            .setColor(Colors.Green)
+            .setTimestamp();
 
-			container.logger.info(
-				`[TempVoice Queue] Created temp channel ${channel.id} for user ${userId} in guild ${guildId}`
-			);
-		} catch (error) {
-			container.logger.error(
-				`[TempVoice Queue] Error creating temp channel for user ${userId}:`,
-				error
-			);
-			throw error; // Re-throw to trigger retry
-		}
-	}
+          await webhook.send({ embeds: [embed] });
+          webhook.destroy();
+        } catch (error) {
+          container.logger.error('[TempVoice Queue] Failed to send creation log:', error);
+        }
+      }
 
-	/**
-	 * Process channel deletion
-	 */
-	private async processDelete(data: DeleteChannelJobData): Promise<void> {
-		const { guildId, channelId, reason } = data;
+      container.logger.info(
+        `[TempVoice Queue] Created temp channel ${channel.id} for user ${userId} in guild ${guildId}`
+      );
+    } catch (error) {
+      container.logger.error(
+        `[TempVoice Queue] Error creating temp channel for user ${userId}:`,
+        error
+      );
+      throw error; // Re-throw to trigger retry
+    }
+  }
 
-		container.logger.info(
-			`[TempVoice Queue] Processing delete job for channel ${channelId} in guild ${guildId}`
-		);
+  /**
+   * Process channel deletion
+   */
+  private async processDelete(data: DeleteChannelJobData): Promise<void> {
+    const { guildId, channelId, reason } = data;
 
-		try {
-			const guild = container.client.guilds.cache.get(guildId);
-			if (!guild) {
-				container.logger.warn(`[TempVoice Queue] Guild ${guildId} not found for deletion`);
-				return;
-			}
+    container.logger.info(
+      `[TempVoice Queue] Processing delete job for channel ${channelId} in guild ${guildId}`
+    );
 
-			// Get config for logging
-			const configService = new TempVoiceConfigService(container.prisma);
-			const config = await configService.getOrNull(guildId);
+    try {
+      const guild = container.client.guilds.cache.get(guildId);
+      if (!guild) {
+        container.logger.warn(`[TempVoice Queue] Guild ${guildId} not found for deletion`);
+        return;
+      }
 
-			// Get channel data before deletion to save preferences
-			const permissionsService = new PermissionsService();
-			const channelService = new TempChannelService(container.prisma, permissionsService);
-			const tempChannel = await channelService.getByChannelId(channelId);
+      // Get config for logging
+      const configService = new TempVoiceConfigService(container.prisma);
+      const config = await configService.getOrNull(guildId);
 
-			// Save user preferences before deleting (if customization is allowed)
-			if (tempChannel && config?.allowCustomization) {
-				const userPrefsService = new UserPreferencesService(container.prisma);
-				await userPrefsService.saveFromChannel(guildId, tempChannel.ownerId, {
-					customName: tempChannel.customName,
-					customUserLimit: tempChannel.customUserLimit,
-					customBitrate: tempChannel.customBitrate,
-					customRegion: tempChannel.customRegion,
-					isLocked: tempChannel.isLocked,
-					isHidden: tempChannel.isHidden,
-					allowedUserIds: (tempChannel.allowedUserIds as string[]) || [],
-					deniedUserIds: (tempChannel.deniedUserIds as string[]) || [],
-					trustedUserIds: (tempChannel.trustedUserIds as string[]) || [],
-				});
-				container.logger.info(
-					`[TempVoice Queue] Saved user preferences for ${tempChannel.ownerId} before deletion`
-				);
-			}
+      // Get channel data before deletion to save preferences
+      const permissionsService = new PermissionsService();
+      const channelService = new TempChannelService(container.prisma, permissionsService);
+      const tempChannel = await channelService.getByChannelId(channelId);
 
-			// Delete from Discord
-			const channel = await guild.channels.fetch(channelId).catch(() => null);
-			if (channel) {
-				await channel.delete(reason);
-			}
+      // Save user preferences before deleting (if customization is allowed)
+      if (tempChannel && config?.allowCustomization) {
+        const userPrefsService = new UserPreferencesService(container.prisma);
+        await userPrefsService.saveFromChannel(guildId, tempChannel.ownerId, {
+          customName: tempChannel.customName,
+          customUserLimit: tempChannel.customUserLimit,
+          customBitrate: tempChannel.customBitrate,
+          customRegion: tempChannel.customRegion,
+          isLocked: tempChannel.isLocked,
+          isHidden: tempChannel.isHidden,
+          allowedUserIds: (tempChannel.allowedUserIds as string[]) || [],
+          deniedUserIds: (tempChannel.deniedUserIds as string[]) || [],
+          trustedUserIds: (tempChannel.trustedUserIds as string[]) || [],
+        });
+        container.logger.info(
+          `[TempVoice Queue] Saved user preferences for ${tempChannel.ownerId} before deletion`
+        );
+      }
 
-			// Delete from database
-			await channelService.delete(channelId);
+      // Delete from Discord
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+      if (channel) {
+        await channel.delete(reason);
+      }
 
-			// Log deletion if enabled
-			if (config?.logWebhook) {
-				try {
-					const webhook = new WebhookClient({ url: config.logWebhook });
-					const embed = new EmbedBuilder()
-						.setTitle('🎙️ Temporary Voice Channel Deleted')
-						.setDescription(`Temporary voice channel was deleted`)
-						.addFields(
-							{ name: 'Channel ID', value: channelId, inline: true },
-							{ name: 'Reason', value: reason, inline: true },
-						)
-						.setColor(Colors.Red)
-						.setTimestamp();
-					
-					await webhook.send({ embeds: [embed] });
-					webhook.destroy();
-				} catch (error) {
-					container.logger.error('[TempVoice Queue] Failed to send deletion log:', error);
-				}
-			}
+      // Delete from database
+      await channelService.delete(channelId);
 
-			container.logger.info(`[TempVoice Queue] Deleted temp channel ${channelId} - ${reason}`);
-		} catch (error) {
-			container.logger.error(`[TempVoice Queue] Error deleting channel ${channelId}:`, error);
-			// Don't re-throw - channel might already be deleted
-		}
-	}
+      // Log deletion if enabled
+      if (config?.logWebhook) {
+        try {
+          const webhook = new WebhookClient({ url: config.logWebhook });
+          const embed = new EmbedBuilder()
+            .setTitle('🎙️ Temporary Voice Channel Deleted')
+            .setDescription(`Temporary voice channel was deleted`)
+            .addFields(
+              { name: 'Channel ID', value: channelId, inline: true },
+              { name: 'Reason', value: reason, inline: true }
+            )
+            .setColor(Colors.Red)
+            .setTimestamp();
 
-	/**
-	 * Queue a channel creation job
-	 */
-	async queueCreate(guildId: string, userId: string, sourceChannelId: string): Promise<void> {
-		await this.queue.add(
-			'create-channel',
-			{
-				type: 'create',
-				guildId,
-				userId,
-				sourceChannelId,
-				timestamp: Date.now(),
-			},
-			{
-				jobId: `create-${guildId}-${userId}-${Date.now()}`, // Unique job ID
-				priority: 1, // High priority for creates
-			}
-		);
+          await webhook.send({ embeds: [embed] });
+          webhook.destroy();
+        } catch (error) {
+          container.logger.error('[TempVoice Queue] Failed to send deletion log:', error);
+        }
+      }
 
-		container.logger.debug(`[TempVoice Queue] Queued create for user ${userId} in guild ${guildId}`);
-	}
+      container.logger.info(`[TempVoice Queue] Deleted temp channel ${channelId} - ${reason}`);
+    } catch (error) {
+      container.logger.error(`[TempVoice Queue] Error deleting channel ${channelId}:`, error);
+      // Don't re-throw - channel might already be deleted
+    }
+  }
 
-	/**
-	 * Queue a channel deletion job
-	 */
-	async queueDelete(guildId: string, channelId: string, reason: string, delayMs: number = 0): Promise<void> {
-		const jobId = `delete-${guildId}-${channelId}`;
-		
-		await this.queue.add(
-			'delete-channel',
-			{
-				type: 'delete',
-				guildId,
-				channelId,
-				reason,
-				timestamp: Date.now(),
-			},
-			{
-				jobId, // Unique job ID (will replace existing delete for same channel)
-				priority: 2, // Lower priority than creates
-				delay: delayMs, // Optional delay before deletion
-			}
-		);
+  /**
+   * Queue a channel creation job
+   */
+  async queueCreate(guildId: string, userId: string, sourceChannelId: string): Promise<void> {
+    await this.queue.add(
+      'create-channel',
+      {
+        type: 'create',
+        guildId,
+        userId,
+        sourceChannelId,
+        timestamp: Date.now(),
+      },
+      {
+        jobId: `create-${guildId}-${userId}-${Date.now()}`, // Unique job ID
+        priority: 1, // High priority for creates
+      }
+    );
 
-		container.logger.info(
-			`[TempVoice Queue] Queued delete for channel ${channelId} in guild ${guildId} (delay: ${delayMs}ms, jobId: ${jobId}, will execute at: ${new Date(Date.now() + delayMs).toISOString()})`
-		);
-	}
+    container.logger.debug(
+      `[TempVoice Queue] Queued create for user ${userId} in guild ${guildId}`
+    );
+  }
 
-	/**
-	 * Cancel a pending deletion job
-	 */
-	async cancelDelete(guildId: string, channelId: string): Promise<void> {
-		const jobId = `delete-${guildId}-${channelId}`;
-		const job = await this.queue.getJob(jobId);
-		
-		if (job) {
-			await job.remove();
-			container.logger.debug(`[TempVoice Queue] Cancelled delete for channel ${channelId}`);
-		}
-	}
+  /**
+   * Queue a channel deletion job
+   */
+  async queueDelete(
+    guildId: string,
+    channelId: string,
+    reason: string,
+    delayMs: number = 0
+  ): Promise<void> {
+    const jobId = `delete-${guildId}-${channelId}`;
 
-	/**
-	 * Clean up resources
-	 */
-	async shutdown(): Promise<void> {
-		await this.worker.close();
-		await this.queue.close();
-		container.logger.info('[TempVoice Queue] Service shut down');
-	}
+    await this.queue.add(
+      'delete-channel',
+      {
+        type: 'delete',
+        guildId,
+        channelId,
+        reason,
+        timestamp: Date.now(),
+      },
+      {
+        jobId, // Unique job ID (will replace existing delete for same channel)
+        priority: 2, // Lower priority than creates
+        delay: delayMs, // Optional delay before deletion
+      }
+    );
+
+    container.logger.info(
+      `[TempVoice Queue] Queued delete for channel ${channelId} in guild ${guildId} (delay: ${delayMs}ms, jobId: ${jobId}, will execute at: ${new Date(Date.now() + delayMs).toISOString()})`
+    );
+  }
+
+  /**
+   * Cancel a pending deletion job
+   */
+  async cancelDelete(guildId: string, channelId: string): Promise<void> {
+    const jobId = `delete-${guildId}-${channelId}`;
+    const job = await this.queue.getJob(jobId);
+
+    if (job) {
+      await job.remove();
+      container.logger.debug(`[TempVoice Queue] Cancelled delete for channel ${channelId}`);
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  async shutdown(): Promise<void> {
+    await this.worker.close();
+    await this.queue.close();
+    container.logger.info('[TempVoice Queue] Service shut down');
+  }
 }
 
 // Export singleton instance
