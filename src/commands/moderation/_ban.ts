@@ -120,7 +120,8 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
         ensureNonNull(result.caseNumber, 'buildModActionSuccess(117): result.caseNumber'),
         options.reason ?? 'No reason provided',
         undefined,
-        { dmSent: targetMember ? notified : true }
+        // Only report DM sent if we actually attempted it (target in guild) and it succeeded
+        { dmSent: Boolean(targetMember && notified) }
       )
     );
   } catch (error) {
