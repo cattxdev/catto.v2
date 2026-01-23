@@ -221,29 +221,27 @@ export async function pingRedis(): Promise<string> {
  * Distributed lock class for preventing race conditions
  */
 export class RedisLock {
-	constructor(
-		private key: string
-	) {}
+  constructor(private key: string) {}
 
-	/**
-	 * Release the lock
-	 */
-	async release(): Promise<boolean> {
-		const result = await container.redis.del(this.key);
-		return result > 0;
-	}
+  /**
+   * Release the lock
+   */
+  async release(): Promise<boolean> {
+    const result = await container.redis.del(this.key);
+    return result > 0;
+  }
 
-	/**
-	 * Extend the lock TTL
-	 */
-	async extend(additionalMs: number): Promise<boolean> {
-		const ttl = await container.redis.pttl(this.key);
-		if (ttl <= 0) return false;
+  /**
+   * Extend the lock TTL
+   */
+  async extend(additionalMs: number): Promise<boolean> {
+    const ttl = await container.redis.pttl(this.key);
+    if (ttl <= 0) return false;
 
-		const newTtl = Math.ceil((ttl + additionalMs) / 1000);
-		const result = await container.redis.expire(this.key, newTtl);
-		return result === 1;
-	}
+    const newTtl = Math.ceil((ttl + additionalMs) / 1000);
+    const result = await container.redis.expire(this.key, newTtl);
+    return result === 1;
+  }
 }
 
 /**
@@ -255,35 +253,29 @@ export class RedisLock {
  * @returns RedisLock instance if acquired, null if failed
  */
 export async function acquireLock(
-	key: string,
-	ttlMs: number,
-	retries = 0,
-	retryDelayMs = 100
+  key: string,
+  ttlMs: number,
+  retries = 0,
+  retryDelayMs = 100
 ): Promise<RedisLock | null> {
-	const lockValue = Date.now().toString();
-	const ttlSeconds = Math.ceil(ttlMs / 1000);
+  const lockValue = Date.now().toString();
+  const ttlSeconds = Math.ceil(ttlMs / 1000);
 
-	for (let attempt = 0; attempt <= retries; attempt++) {
-		// Try to set the key with NX (only if not exists) and EX (expiration)
-		const result = await container.redis.set(
-			key,
-			lockValue,
-			'EX',
-			ttlSeconds,
-			'NX'
-		);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    // Try to set the key with NX (only if not exists) and EX (expiration)
+    const result = await container.redis.set(key, lockValue, 'EX', ttlSeconds, 'NX');
 
-		if (result === 'OK') {
-			return new RedisLock(key);
-		}
+    if (result === 'OK') {
+      return new RedisLock(key);
+    }
 
-		// If not the last attempt, wait before retrying
-		if (attempt < retries) {
-			await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-		}
-	}
+    // If not the last attempt, wait before retrying
+    if (attempt < retries) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+  }
 
-	return null;
+  return null;
 }
 
 /**
@@ -294,19 +286,19 @@ export async function acquireLock(
  * @returns Result of the function or null if lock couldn't be acquired
  */
 export async function withLock<T>(
-	key: string,
-	ttlMs: number,
-	fn: () => Promise<T>
+  key: string,
+  ttlMs: number,
+  fn: () => Promise<T>
 ): Promise<T | null> {
-	const lock = await acquireLock(key, ttlMs);
+  const lock = await acquireLock(key, ttlMs);
 
-	if (!lock) {
-		return null;
-	}
+  if (!lock) {
+    return null;
+  }
 
-	try {
-		return await fn();
-	} finally {
-		await lock.release();
-	}
+  try {
+    return await fn();
+  } finally {
+    await lock.release();
+  }
 }
