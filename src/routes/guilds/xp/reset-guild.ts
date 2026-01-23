@@ -1,11 +1,5 @@
-/**
- * XP Reset Guild Route
- * POST /api/guilds/:guildId/xp/reset/guild
- * Body: { reason?: string }
- */
-
+import { resetGuildXP } from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
-import { resetGuildXP } from '../../../modules/xp-text/repositories/xp-text.repository';
 
 export class XPResetGuildRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

@@ -1,10 +1,5 @@
-/**
- * XP User Stats Route
- * GET /api/guilds/:guildId/xp/users/:userId
- */
-
+import { leaderboardService } from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
-import { leaderboardService } from '../../../modules/xp-text/services';
 
 export class XPUserStatsRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

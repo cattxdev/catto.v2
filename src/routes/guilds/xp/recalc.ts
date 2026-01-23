@@ -1,12 +1,10 @@
-/**
- * XP Recalculation Route
- * POST /api/guilds/:guildId/xp/recalc
- * Recalculates all user levels based on current curve configuration
- */
-
+import {
+	configService,
+	getAllGuildUsers,
+	levelService,
+	updateUserLevel
+} from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
-import { configService, levelService } from '../../../modules/xp-text/services';
-import { getAllGuildUsers, updateUserLevel } from '../../../modules/xp-text/repositories/xp-text.repository';
 
 export class XPRecalculateRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -48,7 +46,7 @@ export class XPRecalculateRoute extends Route {
 
 			while (true) {
 				const users = await getAllGuildUsers(guildId, batchSize, offset);
-				
+
 				if (users.length === 0) {
 					break;
 				}

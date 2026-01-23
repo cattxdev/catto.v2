@@ -837,3 +837,113 @@ model ReputationVouch {
   @@map("reputation_vouches")
 }
 
+// ============================================
+// XP Rewards System
+// ============================================
+
+// Configurable rewards per guild per level
+model LevelReward {
+  id                    String   @id @default(cuid())
+  guildId               String
+  level                 Int                          // Level requirement
+  xpType                String                       // "TEXT" | "VOICE" | "BOTH"
+  rewardType            String                       // See reward types below
+  
+  // Reward-specific data stored as JSON
+  // Examples:
+  // ROLE: { "roleId": "123456789", "action": "ADD" | "REMOVE" | "STACK" }
+  // CURRENCY: { "amount": 1000, "currencyType": "coins" }
+  // CHANNEL_ACCESS: { "channelIds": ["123", "456"], "action": "ADD" }
+  // PERMISSION: { "permissions": ["EMBED_LINKS", "USE_EXTERNAL_EMOJIS"] }
+  // MULTIPLIER: { "multiplier": 1.5, "durationMinutes": 1440 }
+  // CUSTOM: { "customData": {...} }
+  rewardData            Json
+  
+  // Display settings
+  name                  String                       // e.g., "Gold Role", "VIP Access"
+  description           String?                      // User-friendly description
+  icon                  String?                      // Emoji or icon identifier
+  
+  // Behavior settings
+  oneTime               Boolean  @default(true)      // Award once or repeatable
+  stackable             Boolean  @default(false)     // Can accumulate (for roles/perms)
+  requiresPrevious      Boolean  @default(false)     // Must claim previous level rewards
+  
+  // Priority and ordering
+  priority              Int      @default(0)         // Higher = applied first
+  enabled               Boolean  @default(true)
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdBy             String?                      // Admin who created this reward
+  
+  // Relations
+  claimedRewards        UserRewardClaim[]
+  
+  @@unique([guildId, level, xpType, rewardType, name])
+  @@index([guildId])
+  @@index([guildId, level, xpType])
+  @@index([enabled])
+  @@map("level_rewards")
+}
+
+// Track which rewards users have claimed
+model UserRewardClaim {
+  id                    String   @id @default(cuid())
+  guildId               String
+  userId                String
+  rewardId              String
+  
+  // Claim details
+  levelAtClaim          Int                          // Level when reward was claimed
+  xpAtClaim             Int                          // XP total when claimed
+  claimedAt             DateTime @default(now())
+  
+  // Status tracking
+  status                String   @default("ACTIVE")  // ACTIVE | REVOKED | EXPIRED
+  expiresAt             DateTime?                    // For temporary rewards
+  revokedAt             DateTime?
+  revokedBy             String?
+  revokeReason          String?
+  
+  // Metadata
+  metadata              Json     @default("{}")      // Store additional context
+  
+  // Relations
+  reward                LevelReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  
+  @@unique([guildId, userId, rewardId])
+  @@index([guildId, userId])
+  @@index([rewardId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("user_reward_claims")
+}
+
+// Reward presets/templates for easy setup
+model RewardTemplate {
+  id                    String   @id @default(cuid())
+  name                  String                       // e.g., "Standard Role Progression"
+  description           String?
+  category              String                       // "ROLES", "ECONOMY", "ACCESS", "MIXED"
+  
+  // Template data - array of reward configurations
+  template              Json                         // Full reward structure array
+  
+  // Visibility
+  isPublic              Boolean  @default(true)      // Available to all guilds
+  isOfficial            Boolean  @default(false)     // Created by bot developer
+  
+  // Stats
+  timesUsed             Int      @default(0)
+  rating                Float?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isPublic])
+  @@map("reward_templates")
+}
+

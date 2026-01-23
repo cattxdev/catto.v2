@@ -15,8 +15,10 @@ export class EmojiUpdateListener extends Listener<typeof Events.GuildEmojiUpdate
 
 		if (oldEmoji.name !== newEmoji.name) {
 			changes.push({
-			name: 'Name',
-			value: `**Before:** ${oldEmoji.name}\n**After:** ${newEmoji.name}`
+				name: 'Name',
+				value: `**Before:** ${oldEmoji.name}\n**After:** ${newEmoji.name}`
+			});
+		}
 
 		// Only log if there are actual changes
 		if (changes.length === 0) return;
@@ -24,9 +26,9 @@ export class EmojiUpdateListener extends Listener<typeof Events.GuildEmojiUpdate
 		await logAction({
 			guildId: newEmoji.guild.id,
 			type: LogType.Emojis,
-		title: 'Emoji Updated',
-		description: `Emoji ${newEmoji} was updated`,
-		fields: [
+			title: 'Emoji Updated',
+			description: `Emoji ${newEmoji} was updated`,
+			fields: [
 			{ name: 'Emoji', value: `${newEmoji} (${newEmoji.id})`, inline: true },
 			{ name: 'Animated', value: newEmoji.animated ? 'Yes' : 'No', inline: true },
 				...changes

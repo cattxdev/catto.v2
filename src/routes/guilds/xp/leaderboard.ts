@@ -1,10 +1,5 @@
-/**
- * XP Leaderboard Route
- * GET /api/guilds/:guildId/xp/leaderboard?limit=10&offset=0
- */
-
+import { leaderboardService } from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
-import { leaderboardService } from '../../../modules/xp-text/services';
 
 export class XPLeaderboardRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {

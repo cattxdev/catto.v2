@@ -8,6 +8,8 @@ import { Message, EmbedBuilder, TextChannel, NewsChannel } from 'discord.js';
 import { awardService, configService } from '../../modules/xp-text/services';
 import { parseTemplate } from '../../modules/xp-text/utils/templates';
 import type { ValidationContext } from '../../modules/xp-text/types/xp-text.types';
+import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration';
+import type { RewardClaimResult } from '../../lib/types/rewards.types';
 
 export class MessageCreateXPListener extends Listener {
 	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -30,6 +32,20 @@ export class MessageCreateXPListener extends Listener {
 			// Check if XP system is enabled (uses cache)
 			const enabled = await configService.isEnabled(guildId);
 			if (!enabled) return;
+
+			// Get guild configuration to check ignored channels
+			const config = await configService.getConfig(guildId);
+			
+			// Check if current channel is in ignored channels list
+			if (config.ignoredChannels?.includes(message.channel.id)) {
+				return;
+			}
+
+			// Check if user has any ignored roles
+			const userRoleIds = message.member.roles.cache.map(role => role.id);
+			if (config.ignoredRoles?.some(roleId => userRoleIds.includes(roleId))) {
+				return;
+			}
 
 			// Build validation context
 			const context: ValidationContext = {
@@ -79,6 +95,19 @@ export class MessageCreateXPListener extends Listener {
 		totalXp: number
 	): Promise<void> {
 		try {
+			// Check and apply rewards for the new level
+			let rewardResults: RewardClaimResult[] = [];
+			if (message.guild && message.member) {
+				rewardResults = await RewardIntegration.onTextLevelUp(
+					guildId,
+					userId,
+					newLevel,
+					totalXp,
+					message.guild,
+					message.member
+				);
+			}
+
 			// Get guild configuration
 			const config = await configService.getConfig(guildId);
 
@@ -113,7 +142,13 @@ export class MessageCreateXPListener extends Listener {
 
 			// Use custom template or fallback
 			const template = config.messageTemplate || '🎉 {user} reached level {level}!';
-			const messageText = parseTemplate(template, variables);
+			let messageText = parseTemplate(template, variables);
+
+			// Add rewards summary if any rewards were earned
+			const rewardsSummary = RewardIntegration.formatRewardsSummary(rewardResults);
+			if (rewardsSummary) {
+				messageText += rewardsSummary;
+			}
 
 			// Send announcement
 			if (config.embedEnabled) {

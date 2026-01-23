@@ -1,11 +1,9 @@
-/**
- * Voice XP Configuration Route
- * GET/PUT /api/guilds/:guildId/voice-xp/config
- */
-
+import {
+	getVoiceXPConfig,
+	validateUpdateVoiceXPConfig,
+	updateVoiceXPConfig
+} from '#root/modules/xp-voice';
 import { Route } from '@sapphire/plugin-api';
-import { validateUpdateVoiceXPConfig } from '../../../modules/xp-voice/dtos';
-import { getVoiceXPConfig, updateVoiceXPConfig } from '../../../modules/xp-voice/services';
 
 export class VoiceXPConfigRoute extends Route {
 	public constructor(context: Route.LoaderContext, options: Route.Options) {
