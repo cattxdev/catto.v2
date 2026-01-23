@@ -3,311 +3,328 @@
  */
 
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import {
-	EmbedBuilder,
-	Colors,
-} from 'discord.js';
+import { EmbedBuilder, Colors } from 'discord.js';
 import { EMOJIS, REPUTATION_EMOJIS, XP_EMOJIS } from '#lib/emojis';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { REPUTATION_TIERS, ReputationTier } from '#modules/reputation/models/reputation.model';
-import { CONFIG } from '#config';
 import type { UserReputation } from '@prisma/client';
 
 export class ReputationCommand extends Subcommand {
-	private reputationService!: ReputationService;
+  private reputationService!: ReputationService;
 
-	public constructor(context: Subcommand.LoaderContext, options: Subcommand.Options) {
-		super(context, {
-			...options,
-			name: 'reputation',
-			description: 'View reputation information',
-			subcommands: [
-				{
-					name: 'view',
-					chatInputRun: 'chatInputView',
-				},
-				{
-					name: 'history',
-					chatInputRun: 'chatInputHistory',
-				},
-				{
-					name: 'leaderboard',
-					chatInputRun: 'chatInputLeaderboard',
-				},
-				{
-					name: 'tiers',
-					chatInputRun: 'chatInputTiers',
-				},
-			],
-		});
-	}
+  public constructor(context: Subcommand.LoaderContext, options: Subcommand.Options) {
+    super(context, {
+      ...options,
+      name: 'reputation',
+      description: 'View reputation information',
+      subcommands: [
+        {
+          name: 'view',
+          chatInputRun: 'chatInputView',
+        },
+        {
+          name: 'history',
+          chatInputRun: 'chatInputHistory',
+        },
+        {
+          name: 'leaderboard',
+          chatInputRun: 'chatInputLeaderboard',
+        },
+        {
+          name: 'tiers',
+          chatInputRun: 'chatInputTiers',
+        },
+      ],
+    });
+  }
 
-	public override registerApplicationCommands(registry: Subcommand.Registry) {
-		registry.registerChatInputCommand((builder) =>
-			builder
-				.setName(this.name)
-				.setDescription(this.description)
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName('view')
-						.setDescription('View your or someone else\'s reputation')
-						.addUserOption((option) =>
-							option
-								.setName('user')
-								.setDescription('The user to view (leave empty for yourself)')
-								.setRequired(false)
-						)
-				)
-				.addSubcommand((subcommand) =>
-					subcommand
-						.setName('history')
-						.setDescription('View vouch history')
-						.addUserOption((option) =>
-							option
-								.setName('user')
-								.setDescription('The user to view history for')
-								.setRequired(false)
-						)
-						.addStringOption((option) =>
-							option
-								.setName('type')
-								.setDescription('View received or given vouches')
-								.addChoices(
-									{ name: 'Received', value: 'received' },
-									{ name: 'Given', value: 'given' }
-								)
-								.setRequired(false)
-						)
-				)
-				.addSubcommand((subcommand) =>
-					subcommand.setName('leaderboard').setDescription('View the reputation leaderboard')
-				)
-				.addSubcommand((subcommand) =>
-					subcommand.setName('tiers').setDescription('View all reputation tiers and their perks')
-				),
-			{
-				guildIds: CONFIG.NODE_ENV === 'development' && CONFIG.DEV_GUILD_ID ? [CONFIG.DEV_GUILD_ID] : undefined,
-			}
-		);
-	}
+  public override registerApplicationCommands(registry: Subcommand.Registry) {
+    registry.registerChatInputCommand((builder) =>
+      builder
+        .setName(this.name)
+        .setDescription(this.description)
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('view')
+            .setDescription("View your or someone else's reputation")
+            .addUserOption((option) =>
+              option
+                .setName('user')
+                .setDescription('The user to view (leave empty for yourself)')
+                .setRequired(false)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('history')
+            .setDescription('View vouch history')
+            .addUserOption((option) =>
+              option
+                .setName('user')
+                .setDescription('The user to view history for')
+                .setRequired(false)
+            )
+            .addStringOption((option) =>
+              option
+                .setName('type')
+                .setDescription('View received or given vouches')
+                .addChoices(
+                  { name: 'Received', value: 'received' },
+                  { name: 'Given', value: 'given' }
+                )
+                .setRequired(false)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand.setName('leaderboard').setDescription('View the reputation leaderboard')
+        )
+        .addSubcommand((subcommand) =>
+          subcommand.setName('tiers').setDescription('View all reputation tiers and their perks')
+        )
+    );
+  }
 
-	public async chatInputView(interaction: Subcommand.ChatInputCommandInteraction) {
-		// Initialize service
-		if (!this.reputationService) {
-			this.reputationService = new ReputationService(this.container.prisma);
-		}
+  public async chatInputView(interaction: Subcommand.ChatInputCommandInteraction) {
+    // Initialize service
+    if (!this.reputationService) {
+      this.reputationService = new ReputationService(this.container.prisma);
+    }
 
-		await interaction.deferReply();
+    await interaction.deferReply();
 
-		const targetUser = interaction.options.getUser('user') || interaction.user;
-		const isOwn = targetUser.id === interaction.user.id;
+    if (!interaction.guildId) {
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+      });
+    }
 
-		try {
-			const stats = await this.reputationService.getReputationStats(
-				interaction.guildId!,
-				targetUser.id
-			);
+    const guildId = interaction.guildId;
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const isOwn = targetUser.id === interaction.user.id;
 
-			const tierInfo = REPUTATION_TIERS[stats.currentTier];
+    try {
+      const stats = await this.reputationService.getReputationStats(guildId, targetUser.id);
 
-			const embed = new EmbedBuilder()
-				.setColor(tierInfo.color)
-				.setAuthor({
-					name: `${targetUser.username}'s Reputation`,
-					iconURL: targetUser.displayAvatarURL(),
-				})
-				.setDescription(
-					`${tierInfo.emoji} **${stats.currentTier} Tier**\n${REPUTATION_EMOJIS.SKILLED} ${stats.reputationScore} reputation points`
-				)
-				.addFields(
-					{
-						name: 'Vouches',
-						value: `${EMOJIS.INBOX} Received: ${stats.vouchesReceived}\n${EMOJIS.OUTBOX} Given: ${stats.vouchesGiven}`,
-						inline: true,
-					},
-					{
-						name: 'Breakdown',
-						value: `${REPUTATION_EMOJIS.HELPFUL} Helpful: ${stats.breakdown.helpful}\n${REPUTATION_EMOJIS.FRIENDLY} Friendly: ${stats.breakdown.friendly}\n${REPUTATION_EMOJIS.SKILLED} Skilled: ${stats.breakdown.skilled}\n${REPUTATION_EMOJIS.RELIABLE} Reliable: ${stats.breakdown.reliable}`,
-						inline: true,
-					}
-				)
-				.setFooter({ text: `Use /rep to give reputation to ${isOwn ? 'others' : 'this user'}` })
-				.setTimestamp();
+      const tierInfo = REPUTATION_TIERS[stats.currentTier];
 
-			// Add next tier info
-			if (stats.nextTier) {
-				const nextTierInfo = REPUTATION_TIERS[stats.nextTier];
-				const pointsNeeded = nextTierInfo.minScore - stats.reputationScore;
-				embed.addFields({
-					name: `Next Tier: ${nextTierInfo.emoji} ${stats.nextTier}`,
-					value: `Progress: ${stats.progressToNextTier}%\n${this.createProgressBar(stats.progressToNextTier)}\n${pointsNeeded} points needed`,
-					inline: false,
-				});
-			} else {
-				embed.addFields({
-					name: `${EMOJIS.CROWN} Maximum Tier Reached!`,
-					value: 'You\'ve achieved the highest reputation tier!',
-					inline: false,
-				});
-			}
+      const embed = new EmbedBuilder()
+        .setColor(tierInfo.color)
+        .setAuthor({
+          name: `${targetUser.username}'s Reputation`,
+          iconURL: targetUser.displayAvatarURL(),
+        })
+        .setDescription(
+          `${tierInfo.emoji} **${stats.currentTier} Tier**\n${REPUTATION_EMOJIS.SKILLED} ${stats.reputationScore} reputation points`
+        )
+        .addFields(
+          {
+            name: 'Vouches',
+            value: `${EMOJIS.INBOX} Received: ${stats.vouchesReceived}\n${EMOJIS.OUTBOX} Given: ${stats.vouchesGiven}`,
+            inline: true,
+          },
+          {
+            name: 'Breakdown',
+            value: `${REPUTATION_EMOJIS.HELPFUL} Helpful: ${stats.breakdown.helpful}\n${REPUTATION_EMOJIS.FRIENDLY} Friendly: ${stats.breakdown.friendly}\n${REPUTATION_EMOJIS.SKILLED} Skilled: ${stats.breakdown.skilled}\n${REPUTATION_EMOJIS.RELIABLE} Reliable: ${stats.breakdown.reliable}`,
+            inline: true,
+          }
+        )
+        .setFooter({ text: `Use /rep to give reputation to ${isOwn ? 'others' : 'this user'}` })
+        .setTimestamp();
 
-			// Add current perks
-			embed.addFields({
-				name: 'Current Perks',
-				value: tierInfo.perks.map((perk) => `• ${perk}`).join('\n'),
-				inline: false,
-			});
+      // Add next tier info
+      if (stats.nextTier) {
+        const nextTierInfo = REPUTATION_TIERS[stats.nextTier];
+        const pointsNeeded = nextTierInfo.minScore - stats.reputationScore;
+        embed.addFields({
+          name: `Next Tier: ${nextTierInfo.emoji} ${stats.nextTier}`,
+          value: `Progress: ${stats.progressToNextTier}%\n${this.createProgressBar(stats.progressToNextTier)}\n${pointsNeeded} points needed`,
+          inline: false,
+        });
+      } else {
+        embed.addFields({
+          name: `${EMOJIS.CROWN} Maximum Tier Reached!`,
+          value: "You've achieved the highest reputation tier!",
+          inline: false,
+        });
+      }
 
-			return interaction.editReply({ embeds: [embed] });
-		} catch (error) {
-			this.container.logger.error('Failed to get reputation stats:', error);
-			return interaction.editReply({
-				content: `${EMOJIS.ERROR} Failed to retrieve reputation information.`,
-			});
-		}
-	}
+      // Add current perks
+      embed.addFields({
+        name: 'Current Perks',
+        value: tierInfo.perks.map((perk) => `• ${perk}`).join('\n'),
+        inline: false,
+      });
 
-	public async chatInputHistory(interaction: Subcommand.ChatInputCommandInteraction) {
-		// Initialize service
-		if (!this.reputationService) {
-			this.reputationService = new ReputationService(this.container.prisma);
-		}
+      return interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+      this.container.logger.error('Failed to get reputation stats:', error);
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} Failed to retrieve reputation information.`,
+      });
+    }
+  }
 
-		await interaction.deferReply();
+  public async chatInputHistory(interaction: Subcommand.ChatInputCommandInteraction) {
+    // Initialize service
+    if (!this.reputationService) {
+      this.reputationService = new ReputationService(this.container.prisma);
+    }
 
-		const targetUser = interaction.options.getUser('user') || interaction.user;
-		const historyType = (interaction.options.getString('type') as 'received' | 'given') || 'received';
+    await interaction.deferReply();
 
-		try {
-			const history = await this.reputationService.getVouchHistory(
-				interaction.guildId!,
-				targetUser.id,
-				historyType
-			);
+    if (!interaction.guildId) {
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+      });
+    }
 
-			if (history.length === 0) {
-				return interaction.editReply({
-					content: `${targetUser.username} has no ${historyType} vouches yet.`,
-				});
-			}
+    const guildId = interaction.guildId;
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const historyType =
+      (interaction.options.getString('type') as 'received' | 'given') || 'received';
 
-			const embed = new EmbedBuilder()
-				.setColor(Colors.Blue)
-				.setTitle(`${targetUser.username}'s ${historyType === 'received' ? 'Received' : 'Given'} Vouches`)
-				.setDescription(`Showing the last ${history.length} vouches`)
-				.setTimestamp();
+    try {
+      const history = await this.reputationService.getVouchHistory(
+        guildId,
+        targetUser.id,
+        historyType
+      );
 
-			for (const vouch of history.slice(0, 10)) {
-				const otherUserId = historyType === 'received' ? vouch.giverUserId : vouch.receiverUserId;
-				const emoji = this.getVouchEmoji(vouch.vouchType);
-				const timestamp = `<t:${Math.floor(vouch.createdAt.getTime() / 1000)}:R>`;
-				
-				embed.addFields({
-					name: `${emoji} ${vouch.vouchType} • ${timestamp}`,
-					value: `${historyType === 'received' ? 'From' : 'To'}: <@${otherUserId}>\n${
-						vouch.reason ? `*"${vouch.reason}"*` : '*No reason provided*'
-					}`,
-					inline: false,
-				});
-			}
+      if (history.length === 0) {
+        return interaction.editReply({
+          content: `${targetUser.username} has no ${historyType} vouches yet.`,
+        });
+      }
 
-			return interaction.editReply({ embeds: [embed] });
-		} catch (error) {
-			this.container.logger.error('Failed to get vouch history:', error);
-			return interaction.editReply({
-				content: `${EMOJIS.ERROR} Failed to retrieve vouch history.`,
-			});
-		}
-	}
+      const embed = new EmbedBuilder()
+        .setColor(Colors.Blue)
+        .setTitle(
+          `${targetUser.username}'s ${historyType === 'received' ? 'Received' : 'Given'} Vouches`
+        )
+        .setDescription(`Showing the last ${history.length} vouches`)
+        .setTimestamp();
 
-	public async chatInputLeaderboard(interaction: Subcommand.ChatInputCommandInteraction) {
-		// Initialize service
-		if (!this.reputationService) {
-			this.reputationService = new ReputationService(this.container.prisma);
-		}
+      for (const vouch of history.slice(0, 10)) {
+        const otherUserId = historyType === 'received' ? vouch.giverUserId : vouch.receiverUserId;
+        const emoji = this.getVouchEmoji(vouch.vouchType);
+        const timestamp = `<t:${Math.floor(vouch.createdAt.getTime() / 1000)}:R>`;
 
-		await interaction.deferReply();
+        embed.addFields({
+          name: `${emoji} ${vouch.vouchType} • ${timestamp}`,
+          value: `${historyType === 'received' ? 'From' : 'To'}: <@${otherUserId}>\n${
+            vouch.reason ? `*"${vouch.reason}"*` : '*No reason provided*'
+          }`,
+          inline: false,
+        });
+      }
 
-		try {
-			const leaderboard = await this.reputationService.getLeaderboard(interaction.guildId!, 10);
+      return interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+      this.container.logger.error('Failed to get vouch history:', error);
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} Failed to retrieve vouch history.`,
+      });
+    }
+  }
 
-			if (leaderboard.length === 0) {
-				return interaction.editReply({
-					content: `${EMOJIS.ERROR} No reputation data available yet.`,
-				});
-			}
+  public async chatInputLeaderboard(interaction: Subcommand.ChatInputCommandInteraction) {
+    // Initialize service
+    if (!this.reputationService) {
+      this.reputationService = new ReputationService(this.container.prisma);
+    }
 
-			const embed = new EmbedBuilder()
-				.setColor(Colors.Gold)
-				.setTitle(`${EMOJIS.TROPHY} Reputation Leaderboard`)
-				.setDescription('Top 10 most reputable members')
-				.setTimestamp();
+    await interaction.deferReply();
 
-			const medals = [EMOJIS.GOLD_MEDAL, EMOJIS.SILVER_MEDAL, EMOJIS.BRONZE_MEDAL];
-			const leaderboardText = leaderboard
-				.map((entry: UserReputation, index: number) => {
-					const medal = medals[index] || `**${index + 1}.**`;
-					const tierInfo = REPUTATION_TIERS[entry.reputationTier as ReputationTier];
-					return `${medal} <@${entry.userId}> - ${tierInfo.emoji} ${entry.reputationScore} pts (${entry.vouchesReceived} vouches)`;
-				})
-				.join('\n');
+    if (!interaction.guildId) {
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+      });
+    }
 
-			embed.addFields({
-				name: 'Rankings',
-				value: leaderboardText,
-				inline: false,
-			});
+    const guildId = interaction.guildId;
 
-			return interaction.editReply({ embeds: [embed] });
-		} catch (error) {
-			this.container.logger.error('Failed to get leaderboard:', error);
-			return interaction.editReply({
-				content: `${EMOJIS.ERROR} Failed to retrieve leaderboard.`,
-			});
-		}
-	}
+    try {
+      const leaderboard = await this.reputationService.getLeaderboard(guildId, 10);
 
-	public async chatInputTiers(interaction: Subcommand.ChatInputCommandInteraction) {
-		await interaction.deferReply();
+      if (leaderboard.length === 0) {
+        return interaction.editReply({
+          content: `${EMOJIS.ERROR} No reputation data available yet.`,
+        });
+      }
 
-		const embed = new EmbedBuilder()
-			.setColor(Colors.Purple)
-			.setTitle(`${XP_EMOJIS.XP_GAIN} Reputation Tiers`)
-			.setDescription('Build your reputation to unlock amazing perks!')
-			.setTimestamp();
+      const embed = new EmbedBuilder()
+        .setColor(Colors.Gold)
+        .setTitle(`${EMOJIS.TROPHY} Reputation Leaderboard`)
+        .setDescription('Top 10 most reputable members')
+        .setTimestamp();
 
-		// Add each tier
-		for (const [tierName, tierInfo] of Object.entries(REPUTATION_TIERS)) {
-			embed.addFields({
-				name: `${tierInfo.emoji} ${tierName}`,
-				value: `**${tierInfo.minScore}+ points**\n${tierInfo.perks.map((perk) => `• ${perk}`).join('\n')}`,
-				inline: false,
-			});
-		}
+      const medals = [EMOJIS.GOLD_MEDAL, EMOJIS.SILVER_MEDAL, EMOJIS.BRONZE_MEDAL];
+      const leaderboardText = leaderboard
+        .map((entry: UserReputation, index: number) => {
+          const medal = medals[index] || `**${index + 1}.**`;
+          const tierInfo = REPUTATION_TIERS[entry.reputationTier as ReputationTier];
+          return `${medal} <@${entry.userId}> - ${tierInfo.emoji} ${entry.reputationScore} pts (${entry.vouchesReceived} vouches)`;
+        })
+        .join('\n');
 
-		embed.setFooter({ text: 'Use /rep to help others gain reputation!' });
+      embed.addFields({
+        name: 'Rankings',
+        value: leaderboardText,
+        inline: false,
+      });
 
-		return interaction.editReply({ embeds: [embed] });
-	}
+      return interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+      this.container.logger.error('Failed to get leaderboard:', error);
+      return interaction.editReply({
+        content: `${EMOJIS.ERROR} Failed to retrieve leaderboard.`,
+      });
+    }
+  }
 
-	private getVouchEmoji(type: string): string {
-		switch (type) {
-			case 'helpful':
-				return REPUTATION_EMOJIS.HELPFUL;
-			case 'friendly':
-				return REPUTATION_EMOJIS.FRIENDLY;
-			case 'skilled':
-				return REPUTATION_EMOJIS.SKILLED;
-			case 'reliable':
-				return REPUTATION_EMOJIS.RELIABLE;
-			default:
-				return REPUTATION_EMOJIS.DEFAULT;
-		}
-	}
+  public async chatInputTiers(interaction: Subcommand.ChatInputCommandInteraction) {
+    await interaction.deferReply();
 
-	private createProgressBar(percentage: number, length: number = 10): string {
-		const filled = Math.round((percentage / 100) * length);
-		const empty = length - filled;
-		return XP_EMOJIS.PROGRESS_BAR_FILLED.repeat(filled) + XP_EMOJIS.PROGRESS_BAR_EMPTY.repeat(empty);
-	}
+    const embed = new EmbedBuilder()
+      .setColor(Colors.Purple)
+      .setTitle(`${XP_EMOJIS.XP_GAIN} Reputation Tiers`)
+      .setDescription('Build your reputation to unlock amazing perks!')
+      .setTimestamp();
+
+    // Add each tier
+    for (const [tierName, tierInfo] of Object.entries(REPUTATION_TIERS)) {
+      embed.addFields({
+        name: `${tierInfo.emoji} ${tierName}`,
+        value: `**${tierInfo.minScore}+ points**\n${tierInfo.perks.map((perk) => `• ${perk}`).join('\n')}`,
+        inline: false,
+      });
+    }
+
+    embed.setFooter({ text: 'Use /rep to help others gain reputation!' });
+
+    return interaction.editReply({ embeds: [embed] });
+  }
+
+  private getVouchEmoji(type: string): string {
+    switch (type) {
+      case 'helpful':
+        return REPUTATION_EMOJIS.HELPFUL;
+      case 'friendly':
+        return REPUTATION_EMOJIS.FRIENDLY;
+      case 'skilled':
+        return REPUTATION_EMOJIS.SKILLED;
+      case 'reliable':
+        return REPUTATION_EMOJIS.RELIABLE;
+      default:
+        return REPUTATION_EMOJIS.DEFAULT;
+    }
+  }
+
+  private createProgressBar(percentage: number, length: number = 10): string {
+    const filled = Math.round((percentage / 100) * length);
+    const empty = length - filled;
+    return (
+      XP_EMOJIS.PROGRESS_BAR_FILLED.repeat(filled) + XP_EMOJIS.PROGRESS_BAR_EMPTY.repeat(empty)
+    );
+  }
 }

@@ -62,20 +62,26 @@ export class ModerationConfigRoute extends Route {
     }
   }
 
-	private async handleUpdate(guildId: string, request: Route.Request, response: Route.Response) {
-		try {
-			const body = await this.parseBody(request);
+  private async handleUpdate(guildId: string, request: Route.Request, response: Route.Response) {
+    try {
+      const body = await this.parseBody(request);
 
-      if (!body) {
+      if (!body || typeof body !== 'object') {
         return response.status(400).json({
           error: 'Request body is required',
         });
       }
 
+      const config = body as {
+        modLogChannelId?: string | null;
+        muteRoleId?: string | null;
+        autoModEnabled?: boolean;
+      };
+
       // Validate channel exists if provided
-      if (body.modLogChannelId) {
+      if (config.modLogChannelId) {
         const guild = this.container.client.guilds.cache.get(guildId);
-        const channel = guild?.channels.cache.get(body.modLogChannelId);
+        const channel = guild?.channels.cache.get(config.modLogChannelId);
         if (!channel || !channel.isTextBased()) {
           return response.status(400).json({
             error: 'Invalid channel ID or channel is not text-based',
@@ -84,9 +90,9 @@ export class ModerationConfigRoute extends Route {
       }
 
       // Validate role exists if provided
-      if (body.muteRoleId) {
+      if (config.muteRoleId) {
         const guild = this.container.client.guilds.cache.get(guildId);
-        const role = guild?.roles.cache.get(body.muteRoleId);
+        const role = guild?.roles.cache.get(config.muteRoleId);
         if (!role) {
           return response.status(400).json({
             error: 'Invalid role ID',
@@ -95,45 +101,45 @@ export class ModerationConfigRoute extends Route {
       }
 
       // Upsert config
-      const config = await this.container.prisma.modConfig.upsert({
+      const updatedConfig = await this.container.prisma.modConfig.upsert({
         where: { guildId },
         update: {
-          ...(body.modLogChannelId !== undefined && { modLogChannelId: body.modLogChannelId }),
-          ...(body.muteRoleId !== undefined && { muteRoleId: body.muteRoleId }),
-          ...(body.autoModEnabled !== undefined && { autoModEnabled: body.autoModEnabled }),
+          ...(config.modLogChannelId !== undefined && { modLogChannelId: config.modLogChannelId }),
+          ...(config.muteRoleId !== undefined && { muteRoleId: config.muteRoleId }),
+          ...(config.autoModEnabled !== undefined && { autoModEnabled: config.autoModEnabled }),
           updatedAt: new Date(),
         },
         create: {
           guildId,
-          modLogChannelId: body.modLogChannelId ?? null,
-          muteRoleId: body.muteRoleId ?? null,
-          autoModEnabled: body.autoModEnabled ?? false,
+          modLogChannelId: config.modLogChannelId ?? null,
+          muteRoleId: config.muteRoleId ?? null,
+          autoModEnabled: config.autoModEnabled ?? false,
         },
       });
 
-			return response.json(config);
-		} catch (error) {
-			this.container.logger.error('Error updating moderation config:', error);
-			return response.status(500).json({
-				error: 'Internal server error'
-			});
-		}
-	}
+      return response.json(updatedConfig);
+    } catch (error) {
+      this.container.logger.error('Error updating moderation config:', error);
+      return response.status(500).json({
+        error: 'Internal server error',
+      });
+    }
+  }
 
-	private async parseBody(request: Route.Request): Promise<any> {
-		return new Promise((resolve, reject) => {
-			let body = '';
-			request.on('data', (chunk: Buffer) => {
-				body += chunk.toString();
-			});
-			request.on('end', () => {
-				try {
-					resolve(body ? JSON.parse(body) : undefined);
-				} catch (error) {
-					resolve(undefined);
-				}
-			});
-			request.on('error', reject);
-		});
-	}
+  private async parseBody(request: Route.Request): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      request.on('data', (chunk: unknown) => {
+        body += String(chunk);
+      });
+      request.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : undefined);
+        } catch {
+          resolve(undefined);
+        }
+      });
+      request.on('error', reject);
+    });
+  }
 }

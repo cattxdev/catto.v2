@@ -1,116 +1,115 @@
 import { configService, validateUpdateXPConfig } from '#root/modules/xp-text';
 import { Route } from '@sapphire/plugin-api';
+import { Buffer } from 'node:buffer';
 
 export class XPConfigRoute extends Route {
-	public constructor(context: Route.LoaderContext, options: Route.Options) {
-		super(context, {
-			...options,
-			route: 'guilds/[guildId]/xp/config',
-			methods: ['GET', 'PUT']
-		});
-	}
+  public constructor(context: Route.LoaderContext, options: Route.Options) {
+    super(context, {
+      ...options,
+      route: 'guilds/[guildId]/xp/config',
+      methods: ['GET', 'PUT'],
+    });
+  }
 
-	public async run(request: Route.Request, response: Route.Response) {
-		const { guildId } = request.params;
+  public async run(request: Route.Request, response: Route.Response) {
+    const { guildId } = request.params;
 
-		if (!guildId) {
-			return response.status(400).json({
-				error: 'Guild ID is required'
-			});
-		}
+    if (!guildId) {
+      return response.status(400).json({
+        error: 'Guild ID is required',
+      });
+    }
 
-		// Verify guild exists
-		const guild = this.container.client.guilds.cache.get(guildId);
-		if (!guild) {
-			return response.status(404).json({
-				error: 'Guild not found or bot is not in the guild'
-			});
-		}
+    // Verify guild exists
+    const guild = this.container.client.guilds.cache.get(guildId);
+    if (!guild) {
+      return response.status(404).json({
+        error: 'Guild not found or bot is not in the guild',
+      });
+    }
 
-		if (request.method === 'GET') {
-			return this.handleGet(guildId, response);
-		} else if (request.method === 'PUT') {
-			// Parse body for PUT requests
-			const body = await this.parseBody(request);
-			return this.handlePut(guildId, body, response);
-		}
+    if (request.method === 'GET') {
+      return this.handleGet(guildId, response);
+    } else if (request.method === 'PUT') {
+      // Parse body for PUT requests
+      const body = await this.parseBody(request);
+      return this.handlePut(guildId, body, response);
+    }
 
-		return response.status(405).json({ error: 'Method not allowed' });
-	}
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
 
-	private async parseBody(request: Route.Request): Promise<unknown> {
-		return new Promise((resolve, reject) => {
-			let body = '';
-			request.on('data', (chunk: Buffer) => {
-				body += chunk.toString();
-			});
-			request.on('end', () => {
-				try {
-					resolve(body ? JSON.parse(body) : undefined);
-				} catch (error) {
-					resolve(undefined);
-				}
-			});
-			request.on('error', reject);
-		});
-	}
+  private async parseBody(request: Route.Request): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      request.on('data', (chunk: Buffer) => {
+        body += chunk.toString();
+      });
+      request.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : undefined);
+        } catch {
+          resolve(undefined);
+        }
+      });
+      request.on('error', reject);
+    });
+  }
 
-	/**
-	 * GET - Retrieve XP configuration
-	 */
-	private async handleGet(guildId: string, response: Route.Response) {
-		try {
-			const config = await configService.getConfig(guildId);
+  /**
+   * GET - Retrieve XP configuration
+   */
+  private async handleGet(guildId: string, response: Route.Response) {
+    try {
+      const config = await configService.getConfig(guildId);
 
-			return response.json({
-				success: true,
-				config
-			});
+      return response.json({
+        success: true,
+        config,
+      });
+    } catch (error) {
+      this.container.logger.error('Error fetching XP config:', error);
+      return response.status(500).json({
+        error: 'Internal server error',
+      });
+    }
+  }
 
-		} catch (error) {
-			this.container.logger.error('Error fetching XP config:', error);
-			return response.status(500).json({
-				error: 'Internal server error'
-			});
-		}
-	}
+  /**
+   * PUT - Update XP configuration
+   */
+  private async handlePut(guildId: string, updateData: unknown, response: Route.Response) {
+    try {
+      if (!updateData) {
+        return response.status(400).json({
+          error: 'Request body is required',
+        });
+      }
 
-	/**
-	 * PUT - Update XP configuration
-	 */
-	private async handlePut(guildId: string, updateData: unknown, response: Route.Response) {
-		try {
-			if (!updateData) {
-				return response.status(400).json({
-					error: 'Request body is required'
-				});
-			}
+      // Debug log
+      this.container.logger.debug('XP Config Update Request:', JSON.stringify(updateData, null, 2));
 
-			// Debug log
-			this.container.logger.debug('XP Config Update Request:', JSON.stringify(updateData, null, 2));
+      // Validate update data
+      const validation = validateUpdateXPConfig(updateData);
+      if (!validation.valid) {
+        return response.status(400).json({
+          error: 'Validation failed',
+          details: validation.errors,
+        });
+      }
 
-			// Validate update data
-			const validation = validateUpdateXPConfig(updateData);
-			if (!validation.valid) {
-				return response.status(400).json({
-					error: 'Validation failed',
-					details: validation.errors
-				});
-			}
+      // Update configuration
+      const config = await configService.updateConfig(guildId, updateData);
 
-			// Update configuration
-			const config = await configService.updateConfig(guildId, updateData);
-
-			return response.json({
-				success: true,
-				config
-			});
-
-		} catch (error) {
-			this.container.logger.error('Error updating XP config:', error);
-			return response.status(500).json({
-				error: 'Internal server error'
-			});
-		}
-	}
+      return response.json({
+        success: true,
+        config,
+      });
+    } catch (error) {
+      this.container.logger.error('Error updating XP config:', error);
+      return response.status(500).json({
+        error: 'Internal server error',
+      });
+    }
+  }
 }

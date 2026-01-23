@@ -124,7 +124,7 @@ class LoggingService {
 
     // Get webhook URL from database
     const config = await container.prisma.logConfig.findUnique({
-      where: { guildId }
+      where: { guildId },
     });
 
     if (!config || !config.enabled) {
@@ -148,7 +148,7 @@ class LoggingService {
       await webhook.send({
         embeds: [embedBuilder],
         username: container.client.user?.username,
-        avatarURL: container.client.user?.displayAvatarURL()
+        avatarURL: container.client.user?.displayAvatarURL(),
       });
     } finally {
       webhook.destroy();
@@ -158,16 +158,20 @@ class LoggingService {
   /**
    * Get webhook URL for a specific log type
    */
-  private getWebhookUrl(config: NonNullable<Awaited<ReturnType<typeof container.prisma.logConfig.findUnique>>>, type: LogType): string | null {
+  private getWebhookUrl(
+    config: NonNullable<Awaited<ReturnType<typeof container.prisma.logConfig.findUnique>>>,
+    type: LogType
+  ): string | null {
     const definition = LOG_CHANNEL_DEFINITIONS[type];
     if (!definition) return null;
 
     // Check if this log type is enabled
-    const isEnabled = (config as any)[definition.enabledField];
+    const configRecord = config as Record<string, unknown>;
+    const isEnabled = configRecord[definition.enabledField];
     if (!isEnabled) return null;
 
     // Return webhook URL
-    return (config as any)[definition.webhookField] || null;
+    return (configRecord[definition.webhookField] as string | null) || null;
   }
 
   /**
