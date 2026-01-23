@@ -21,6 +21,9 @@ export default [
         module: 'readonly',
         require: 'readonly',
         setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     plugins: {

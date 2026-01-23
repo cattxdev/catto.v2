@@ -8,16 +8,26 @@ import {
   type ButtonInteraction,
   PermissionFlagsBits,
 } from 'discord.js';
-import { getJson, CacheKey } from '#lib/cache/index.js';
+import { getJson, setJson, CacheKey } from '#lib/cache/index.js';
 import {
   VoiceWatchSessionSchema,
   VoiceTrackSessionSchema,
+  VoiceMuteAllStateSchema,
+  VOICE_CACHE_TTL,
+  MUTE_ALL_DURATION_MS,
+  type VoiceMuteAllState,
 } from '#root/modules/voice/domain/types.js';
 import {
   cleanupWatchSession,
   cleanupTrackSession,
 } from '#root/modules/voice/services/sessionManager.js';
 import { forceRefreshWatch, forceRefreshTrack } from '#root/modules/voice/services/voiceUpdate.js';
+import { logVoiceMuteAllAction } from '#root/modules/moderation/discord/embeds/presets.js';
+import {
+  voiceMuteAllScheduler,
+  disableMuteAllForChannel,
+} from '#root/modules/voice/services/VoiceMuteAllScheduler.js';
+import { ensureNonNull } from '#lib/utils';
 
 export class VoiceButtonInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -380,6 +390,11 @@ export class VoiceButtonInteractionListener extends Listener {
     const channelId = interaction.customId.split(':')[1];
     if (!channelId || !interaction.guild) return;
 
+    const guildId = ensureNonNull(
+      interaction.guildId,
+      'VoiceButtonInteractionListener.handleMuteAll: interaction.guildId'
+    );
+
     try {
       const member = interaction.guild.members.cache.get(interaction.user.id);
       if (!member?.permissions.has(PermissionFlagsBits.MuteMembers)) {
@@ -399,37 +414,179 @@ export class VoiceButtonInteractionListener extends Listener {
         return;
       }
 
-      const members = channel.members;
-      if (members.size === 0) {
-        await interaction.reply({
-          content: 'No members in the channel.',
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
-      }
-
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      let mutedCount = 0;
-      for (const [, target] of members) {
-        if (!target.voice.serverMute) {
-          await target.voice.setMute(true).catch(() => {});
-          mutedCount++;
-        }
-      }
+      // Check current mute-all state
+      const stateKey = CacheKey.voiceMuteAllState(guildId, channelId);
+      const currentState = await getJson(stateKey, VoiceMuteAllStateSchema);
 
-      await interaction.editReply({
-        content: `Muted **${mutedCount}** member(s) in **${channel.name}**.`,
-      });
+      if (currentState?.enabled) {
+        // Toggle OFF - unmute everyone except ignorelist/DB-muted users
+        await this.disableMuteAll(interaction, guildId, channelId, channel.name);
+      } else {
+        // Toggle ON - mute everyone except initiator
+        await this.enableMuteAll(interaction, guildId, channelId, channel.name);
+      }
     } catch (error) {
-      container.logger.error('[VoiceButtonInteraction] Error muting all:', error);
+      container.logger.error('[VoiceButtonInteraction] Error in mute all toggle:', error);
       await interaction
         .editReply({
-          content: 'An error occurred while muting members.',
+          content: 'An error occurred while toggling mute all.',
         })
         .catch((err) => {
           container.logger.error('[VoiceButtonInteraction] Error editing reply to mute all:', err);
         });
     }
+  }
+
+  /**
+   * Enable mute-all: snapshot already-muted users (ignorelist), mute everyone except initiator and voice mods
+   */
+  private async enableMuteAll(
+    interaction: ButtonInteraction,
+    guildId: string,
+    channelId: string,
+    channelName: string
+  ): Promise<void> {
+    const channel = ensureNonNull(
+      interaction.guild,
+      'VoiceButtonInteractionListener.enableMuteAll'
+    ).channels.cache.get(channelId);
+    if (!channel?.isVoiceBased()) return;
+
+    const members = channel.members;
+    const initiatorId = interaction.user.id;
+    const now = Date.now();
+    const expiresAt = now + MUTE_ALL_DURATION_MS;
+
+    // Keys for this channel's mute-all state
+    const stateKey = CacheKey.voiceMuteAllState(guildId, channelId);
+    const ignoreKey = CacheKey.voiceMuteAllIgnore(guildId, channelId);
+    const affectedKey = CacheKey.voiceMuteAllAffected(guildId, channelId);
+
+    // Clear any existing state first
+    await container.redis.del(ignoreKey);
+    await container.redis.del(affectedKey);
+
+    let mutedCount = 0;
+    let ignoredCount = 0;
+    let exemptCount = 0;
+
+    // Build the ignorelist and mute others
+    for (const [userId, target] of members) {
+      // Skip the initiator
+      if (userId === initiatorId) {
+        exemptCount++;
+        continue;
+      }
+
+      // Skip members with MuteMembers permission (they can mute back, so exempt them)
+      if (target.permissions.has(PermissionFlagsBits.MuteMembers)) {
+        exemptCount++;
+        continue;
+      }
+
+      if (target.voice.serverMute) {
+        // Already muted - add to ignorelist
+        await container.redis.sadd(ignoreKey, userId);
+        ignoredCount++;
+      } else {
+        // Not muted - mute them and add to affected
+        try {
+          await target.voice.setMute(true, 'Voice mute-all toggle');
+          await container.redis.sadd(affectedKey, userId);
+          mutedCount++;
+        } catch (err) {
+          container.logger.warn(`[VoiceButtonInteraction] Failed to mute ${userId}:`, err);
+        }
+      }
+    }
+
+    // Set TTL on the sets
+    if (ignoredCount > 0) {
+      await container.redis.expire(ignoreKey, VOICE_CACHE_TTL.muteAllState);
+    }
+    if (mutedCount > 0) {
+      await container.redis.expire(affectedKey, VOICE_CACHE_TTL.muteAllState);
+    }
+
+    // Save the state with expiresAt
+    const state: VoiceMuteAllState = {
+      enabled: true,
+      enabledAt: now,
+      expiresAt,
+      initiatorId,
+      channelId,
+    };
+    await setJson(stateKey, VoiceMuteAllStateSchema, state, VOICE_CACHE_TTL.muteAllState);
+
+    // Schedule expiry job
+    await voiceMuteAllScheduler.scheduleExpiry(guildId, channelId, MUTE_ALL_DURATION_MS);
+
+    // Log to modlog (no DB case)
+    await logVoiceMuteAllAction(
+      ensureNonNull(
+        interaction.guild,
+        'voiceButtonInteraction > enableMuteAll > logVoiceMuteAllAction: interaction.guild'
+      ),
+      {
+        enabled: true,
+        channelId,
+        channelName,
+        moderatorId: initiatorId,
+        moderatorTag: interaction.user.tag,
+        affectedCount: mutedCount,
+        ignoredCount,
+      }
+    );
+
+    const exemptText = exemptCount > 0 ? ` (${exemptCount} exempt)` : '';
+    await interaction.editReply({
+      content: `**Mute All Enabled** for **${channelName}**\nMuted **${mutedCount}** member(s), ignored **${ignoredCount}** already-muted${exemptText}.\n\nExpires <t:${Math.floor(expiresAt / 1000)}:R>. Click the button again to unmute.`,
+    });
+  }
+
+  /**
+   * Disable mute-all: unmute everyone except ignorelist/DB-muted users
+   */
+  private async disableMuteAll(
+    interaction: ButtonInteraction,
+    guildId: string,
+    channelId: string,
+    channelName: string
+  ): Promise<void> {
+    // Cancel the scheduled expiry job
+    await voiceMuteAllScheduler.cancelExpiry(guildId, channelId);
+
+    // Use the shared function to disable mute-all
+    const result = await disableMuteAllForChannel(
+      guildId,
+      channelId,
+      ensureNonNull(
+        interaction.guild,
+        'voiceButtonInteraction > disableMuteAll > disableMuteAllForChannel: interaction.guild'
+      )
+    );
+
+    // Log to modlog (no DB case)
+    await logVoiceMuteAllAction(
+      ensureNonNull(
+        interaction.guild,
+        'voiceButtonInteraction > disableMuteAll > logVoiceMuteAllAction: interaction.guild'
+      ),
+      {
+        enabled: false,
+        channelId,
+        channelName,
+        moderatorId: interaction.user.id,
+        moderatorTag: interaction.user.tag,
+        affectedCount: result.unmutedCount,
+        ignoredCount: result.ignoredCount,
+      }
+    );
+
+    await interaction.editReply({
+      content: `**Mute All Disabled** for **${channelName}**\nUnmuted **${result.unmutedCount}** member(s), ignored **${result.ignoredCount}** (already muted/DB muted).`,
+    });
   }
 }

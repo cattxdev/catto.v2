@@ -1,13 +1,16 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  createModEmbed,
-  notifyUser,
-  logToModChannel,
-} from '../../modules/moderation/discord/embeds.js';
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseBanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { User } from 'discord.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleBan(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -15,80 +18,116 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     options = parseBanOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction);
 
   try {
-    // Fetch target member
-    let targetMember;
-    try {
-      targetMember = await options.guild.members.fetch(options.target.id);
-    } catch {
-      await interaction.editReply({
-        content:
-          '❌ Target is not a member of this server. Use the user ID directly to ban someone who left.',
-      });
-      return;
-    }
-
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply({
-        content: '❌ I do not have permission to ban members.',
-      });
+      await editReply(
+        interaction,
+        errorMessage('Error', 'I do not have permission to ban members.')
+      );
       return;
     }
 
-    // Check if moderator can moderate target
-    const canModerateResult = moderationService.canModerate(options.moderatorMember, targetMember);
-    if (!canModerateResult.canModerate) {
-      await interaction.editReply({ content: `❌ ${canModerateResult.reason}` });
-      return;
+    // Try to fetch the target user if we don't have it
+    let targetUser: User | undefined = options.target;
+    if (!targetUser) {
+      try {
+        targetUser = await interaction.client.users.fetch(options.targetId);
+      } catch {
+        // User doesn't exist or is not fetchable - we can still ban by ID
+      }
     }
 
-    // Notify user before ban
-    const notified = await notifyUser(options.target, ModAction.BAN, options.guild, options.reason);
+    // Try to fetch target member (if they're in the server)
+    let targetMember;
+    let notified = false;
+    try {
+      targetMember = await options.guild.members.fetch(options.targetId);
+
+      // Check if moderator can moderate target (only if target is a member)
+      const canModerateResult = moderationService.canModerate(
+        options.moderatorMember,
+        targetMember
+      );
+      if (!canModerateResult.canModerate) {
+        await editReply(
+          interaction,
+          errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
+        );
+        return;
+      }
+
+      // Notify user before ban (only if target is a member and we have the user object)
+      if (targetUser) {
+        notified = await notifyUser(targetUser, ModAction.BAN, options.guild, options.reason);
+      }
+    } catch {
+      // User is not in the server - that's fine, we can still ban them by ID
+      // No hierarchy check needed, no DM can be sent
+    }
 
     // Execute ban via service
-    const result = await moderationService.ban(
+    // The service should accept either a User object or just the ID
+    const result = await moderationService.banById(
       options.guild,
-      options.target,
+      options.targetId,
+      targetUser?.tag ?? `Unknown (${options.targetId})`,
       options.moderator,
       options.reason,
       options.deleteMessages
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: `❌ ${result.error ?? 'Failed to ban the user. Please check my permissions and role hierarchy.'}`,
-      });
+      await editReply(
+        interaction,
+        buildModActionError(
+          result.error ?? 'Failed to ban the user.',
+          'Check bot permissions and role hierarchy.'
+        )
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModAction(
+      options.guild,
       ModAction.BAN,
-      options.target,
+      targetUser ?? { id: options.targetId, tag: `Unknown User (${options.targetId})` },
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      ensureNonNull(result.caseNumber, 'logModAction(102): result.caseNumber')
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `✅ **${options.target.tag}** has been banned. (Case #${result.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
-    });
+    // Build success response
+    const successTarget = targetUser ?? {
+      id: options.targetId,
+      tag: `Unknown User (${options.targetId})`,
+    };
+
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Ban',
+        successTarget as User,
+        ensureNonNull(result.caseNumber, 'buildModActionSuccess(117): result.caseNumber'),
+        options.reason ?? 'No reason provided',
+        undefined,
+        { dmSent: targetMember ? notified : true }
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in ban command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the ban.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the ban.')
+    ).catch(() => {});
   }
 }

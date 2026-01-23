@@ -1,13 +1,15 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  createModEmbed,
-  notifyUser,
-  logToModChannel,
-} from '../../modules/moderation/discord/embeds.js';
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -15,32 +17,32 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     options = parseWarnOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     interaction.client.logger.error('Unexpected error while parsing warn options:', error);
     throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction);
 
   try {
     // Verify target is in guild
     try {
       await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({ content: '❌ Target is not a member of this server.' });
+      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
       return;
     }
 
     // Basic validation
     if (options.target.id === options.moderator.id) {
-      await interaction.editReply({ content: '❌ You cannot warn yourself.' });
+      await editReply(interaction, errorMessage('Error', 'You cannot warn yourself.'));
       return;
     }
 
     if (options.target.bot) {
-      await interaction.editReply({ content: '❌ You cannot warn bots.' });
+      await editReply(interaction, errorMessage('Error', 'You cannot warn bots.'));
       return;
     }
 
@@ -61,31 +63,44 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: `❌ ${result.error ?? 'An unexpected error occurred while processing the warning.'}`,
-      });
+      await editReply(
+        interaction,
+        buildModActionError(
+          result.error ?? 'An unexpected error occurred while processing the warning.'
+        )
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModAction(
+      options.guild,
       ModAction.WARN,
       options.target,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      ensureNonNull(result.caseNumber, '_warn > handleWarn > logModAction(82): result.caseNumber')
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `✅ **${options.target.tag}** has been warned. (Case #${result.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
-    });
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Warning',
+        options.target,
+        ensureNonNull(
+          result.caseNumber,
+          '_warn > handleWarn > buildModActionSuccess(90): result.caseNumber'
+        ),
+        options.reason ?? 'No reason provided',
+        undefined,
+        { dmSent: notified }
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in warn command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the warning.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the warning.')
+    ).catch(() => {});
   }
 }

@@ -1,9 +1,15 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
-import { createModEmbed, logToModChannel } from '../../modules/moderation/discord/embeds.js';
+import { logModAction } from '../../modules/moderation/discord/embeds/presets.js';
+import {
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
 import { parseUnbanOptions } from '#lib/interaction/typedOptions.js';
 import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleUnban(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -11,26 +17,22 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     options = parseUnbanOptions(interaction);
   } catch (error) {
     if (error instanceof ValidationError) {
-      await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true });
+      await interaction.reply(ephemeralError(error.message));
       return;
     }
     interaction.client.logger.error('Unexpected error while parsing unban options:', error);
     throw error;
   }
 
-  if (!options) {
-    await interaction.reply({ content: '❌ Invalid user ID format.', ephemeral: true });
-    return;
-  }
-
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction);
 
   try {
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply({
-        content: '❌ I do not have permission to unban members.',
-      });
+      await editReply(
+        interaction,
+        errorMessage('Error', 'I do not have permission to unban members.')
+      );
       return;
     }
 
@@ -39,7 +41,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     try {
       ban = await options.guild.bans.fetch(options.userId);
     } catch {
-      await interaction.editReply({ content: '❌ This user is not banned.' });
+      await editReply(interaction, errorMessage('Error', 'This user is not banned.'));
       return;
     }
 
@@ -53,31 +55,40 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     );
 
     if (!result.success) {
-      await interaction.editReply({
-        content: `❌ ${result.error ?? 'Failed to unban the user. Please check my permissions.'}`,
-      });
+      await editReply(
+        interaction,
+        buildModActionError(result.error ?? 'Failed to unban the user.', 'Check bot permissions.')
+      );
       return;
     }
 
-    // Create and log embed
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModAction(
+      options.guild,
       ModAction.UNBAN,
       ban.user,
       options.moderator,
-      options.reason,
-      result.caseNumber
+      options.reason ?? 'No reason provided',
+      ensureNonNull(result.caseNumber, '_unban > handleUnban > logModAction(74): result.caseNumber')
     );
-    await logToModChannel(options.guild, embed);
 
-    await interaction.editReply({
-      content: `✅ **${ban.user.tag}** has been unbanned. (Case #${result.caseNumber})`,
-    });
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Unban',
+        ban.user,
+        ensureNonNull(
+          result.caseNumber,
+          '_unban > handleUnban > buildModActionSuccess(82): result.caseNumber'
+        ),
+        options.reason ?? 'No reason provided'
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in unban command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the unban.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the unban.')
+    ).catch(() => {});
   }
 }

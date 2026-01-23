@@ -1,26 +1,21 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { container } from '@sapphire/framework';
-import {
-  MessageFlags,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
-} from 'discord.js';
-import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
+import { container as sapphireContainer } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
-import { VOICE_EMOJI } from '#root/modules/voice/domain/types.js';
+import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { EMOJI, ephemeralError, editError, container, editReply } from '#lib/discord/index.js';
 import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
 export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseVoiceSnapshotOptions(interaction);
-
-  if (!options) {
-    await interaction.reply({
-      content: 'Please select a valid voice channel.',
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
+  let options;
+  try {
+    options = parseVoiceSnapshotOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
   await interaction.deferReply();
@@ -30,57 +25,40 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     const members = voiceChannel.members;
     const memberCount = members.size;
 
-    const lines: string[] = [
-      `## ${VOICE_EMOJI.channelVoice} ${voiceChannel.name}`,
-      `**Members:** ${memberCount}`,
-      `**Taken:** <t:${Math.floor(Date.now() / 1000)}:F>`,
-    ];
-
-    const containerComp = new ContainerBuilder().addTextDisplayComponents(
-      ...lines.map((line) => new TextDisplayBuilder().setContent(line))
-    );
+    const c = container()
+      .h2(`${EMOJI.VOICE} ${voiceChannel.name}`)
+      .kv({
+        Members: memberCount.toString(),
+        Taken: `<t:${Math.floor(Date.now() / 1000)}:F>`,
+      });
 
     if (memberCount === 0) {
-      containerComp.addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('_No members in this channel_')
-      );
+      c.text('_No members in this channel_');
     } else {
-      containerComp.addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small)
-      );
+      c.separator();
 
       const memberLines = Array.from(members.values())
         .slice(0, 25)
         .map((member: GuildMember) => formatMemberLine(member));
 
       const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
-      containerComp.addTextDisplayComponents(new TextDisplayBuilder().setContent(memberList));
+      c.text(memberList);
 
       if (memberCount > 25) {
-        containerComp.addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`_... and ${memberCount - 25} more members_`)
-        );
+        c.text(`_... and ${memberCount - 25} more members_`);
       }
     }
 
-    containerComp
-      .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `**Channel Info:** User Limit: ${voiceChannel.userLimit || 'None'} | Bitrate: ${Math.floor(voiceChannel.bitrate / 1000)}kbps`
-        )
-      );
+    c.separator().text(
+      `**Channel Info:** User Limit: ${voiceChannel.userLimit || 'None'} | Bitrate: ${Math.floor(voiceChannel.bitrate / 1000)}kbps`
+    );
 
-    await interaction.editReply({
-      components: [containerComp],
-      flags: MessageFlags.IsComponentsV2,
-      allowedMentions: { parse: [] },
-    });
+    await editReply(interaction, c);
   } catch (error) {
-    container.logger.error('Error in voice snapshot command:', error);
-    await interaction.editReply({
-      content: 'An error occurred while taking the snapshot.',
-    });
+    sapphireContainer.logger.error('Error in voice snapshot command:', error);
+    await interaction
+      .editReply(editError('An error occurred while taking the snapshot.'))
+      .catch(() => {});
   }
 }
 

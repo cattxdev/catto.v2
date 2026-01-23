@@ -97,7 +97,7 @@ export interface VoiceWatchConfig {
 
 export const VOICE_WATCH_CONFIG: VoiceWatchConfig = {
   minIntervalMs: 2000, // Minimum 2s between message edits
-  maxUpdates: 60, // Max 60 updates per session
+  maxUpdates: 50, // Max 60 updates per session
   maxDurationSeconds: 15 * 60, // 15 minutes max
   minDurationSeconds: 60, // 1 minute min
 };
@@ -106,41 +106,23 @@ export const VOICE_CACHE_TTL = {
   memberPresence: 300, // 5 minutes for voice presence
   watchSession: 16 * 60, // 16 minutes (slightly longer than max watch)
   trackSession: 16 * 60,
+  muteAllState: 60 * 60, // 60 minutes for mute-all state
 } as const;
 
 /**
- * Custom Discord emojis for voice state indicators
+ * Mute-all duration constant (60 minutes)
  */
-export const VOICE_EMOJI = {
-  // User/Member indicators
-  activities: '<:activities:1462784554795270298>',
-  member: '<:member:1462785171416813731>',
-  modShield: '<:mod_shield:1462816389260775547>',
+export const MUTE_ALL_DURATION_MS = 2 * 60 * 1000;
 
-  // Voice state emojis
-  serverScreenshare: '<:server_screenshare:1462784522671095894>',
-  video: '<:channel_voice_video:1462784548021600360>',
+/**
+ * Voice mute-all toggle state stored in Redis
+ */
+export const VoiceMuteAllStateSchema = z.object({
+  enabled: z.boolean(),
+  enabledAt: z.number(),
+  expiresAt: z.number(),
+  initiatorId: z.string(),
+  channelId: z.string(),
+});
 
-  // Channel types
-  channelVoice: '<:channel_voice:1462784525766627338>',
-  channelVoiceNsfw: '<:channel_voice_nsfw:1462784524675977269>',
-  channelStage: '<:channel_stage:1462784552379617351>',
-
-  // Mute/Deafen states
-  serverMuted: '<:server_muted:1462784529713594596>',
-  serverDeafened: '<:server_defean:1462784531038863523>',
-  muted: '<:muted:1462784532481577042>',
-  deafened: '<:defean:1462784534419603590>',
-  unMuted: '<:un_muted:1462784536076353683>',
-  unDeafened: '<:un_defean:1462784538072584327>',
-
-  // Action buttons
-  replay: '<:replay:1462789298293313679>',
-  soundPause: '<:sound_pause_white:1462796413376139429>', // white because it's usually used in destructive actions
-  copyId: '<:copy_id:1462785169881825353>',
-  connectToUser: '<:connect_to_user:1462785395233390707>',
-  disconnectUser: '<:disconnect_user:1462785393895280660>',
-  voiceToggle: '<:voice_toggle:1462785392452305100>',
-  timeDay: '<:time_day:1462786086358093834>',
-  timeDayExpired: '<:time_day_expired:1462784541088415867>',
-} as const;
+export type VoiceMuteAllState = z.infer<typeof VoiceMuteAllStateSchema>;

@@ -1,37 +1,14 @@
-import { EmbedBuilder, type ColorResolvable } from 'discord.js';
-
 /**
- * Creates a success embed
+ * Utility functions
+ *
+ * Re-exports embed builders from the shared Discord library and provides
+ * additional utility functions.
  */
-export function createSuccessEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#00FF00' as ColorResolvable)
-    .setTitle(title ?? '✅ Success')
-    .setDescription(description)
-    .setTimestamp();
-}
 
-/**
- * Creates an error embed
- */
-export function createErrorEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#FF0000' as ColorResolvable)
-    .setTitle(title ?? '❌ Error')
-    .setDescription(description)
-    .setTimestamp();
-}
+import { ValidationError } from './validation/zod';
 
-/**
- * Creates an info embed
- */
-export function createInfoEmbed(description: string, title?: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setColor('#0099FF' as ColorResolvable)
-    .setTitle(title ?? 'ℹ️ Information')
-    .setDescription(description)
-    .setTimestamp();
-}
+// Re-export embed builders from shared Discord library
+export { buildSuccessEmbed, buildErrorEmbed, buildInfoEmbed } from '#lib/discord/index.js';
 
 /**
  * Formats uptime into a readable string
@@ -49,4 +26,26 @@ export function formatUptime(ms: number): string {
   if (seconds % 60 > 0) parts.push(`${seconds % 60}s`);
 
   return parts.join(' ') || '0s';
+}
+
+/**
+ * Ensures a value is not null or undefined
+ *
+ * @param value - The value to check
+ * @param context - Optional context for the error message (e.g., variable name or description)
+ * @throws {ValidationError} if the value is null or undefined
+ * @example
+ * ```ts
+ * const value = ensureNonNull(null); // throws ValidationError: "Value is null or undefined"
+ * const value = ensureNonNull(undefined, 'userId'); // throws ValidationError: "userId is null or undefined"
+ * const value = ensureNonNull('hello'); // returns 'hello'
+ * ```
+ */
+export function ensureNonNull<T>(value: T | null | undefined, context?: string): T {
+  if (value === null || value === undefined) {
+    throw new ValidationError(
+      context ? `${context} is null or undefined` : 'Value is null or undefined'
+    );
+  }
+  return value;
 }

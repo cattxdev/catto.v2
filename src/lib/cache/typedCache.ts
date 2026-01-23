@@ -152,4 +152,11 @@ export const CacheKey = {
     `voiceWatch:target:${guildId}:${targetId}`,
   voiceTrackByChannel: (guildId: string, channelId: string) =>
     `voiceTrack:channel:${guildId}:${channelId}`,
+  // Voice mute-all toggle keys
+  voiceMuteAllState: (guildId: string, channelId: string) =>
+    `voiceMuteAll:state:${guildId}:${channelId}`,
+  voiceMuteAllIgnore: (guildId: string, channelId: string) =>
+    `voiceMuteAll:ignore:${guildId}:${channelId}`,
+  voiceMuteAllAffected: (guildId: string, channelId: string) =>
+    `voiceMuteAll:affected:${guildId}:${channelId}`,
 } as const;

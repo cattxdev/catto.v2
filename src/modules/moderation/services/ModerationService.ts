@@ -124,8 +124,22 @@ export class ModerationService {
     reason: string,
     deleteMessages: boolean
   ): Promise<ModActionResult> {
+    return this.banById(guild, target.id as UserId, target.tag, moderator, reason, deleteMessages);
+  }
+
+  /**
+   * Execute a ban action by user ID (for banning users not in the server)
+   */
+  async banById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    deleteMessages: boolean
+  ): Promise<ModActionResult> {
     try {
-      await guild.members.ban(target.id, {
+      await guild.members.ban(targetId, {
         reason: `${reason} | Moderator: ${moderator.tag}`,
         deleteMessageSeconds: deleteMessages ? 7 * 24 * 60 * 60 : 0,
       });
@@ -133,8 +147,8 @@ export class ModerationService {
       const { caseNumber } = await this.createCase({
         guildId: guild.id as GuildId,
         action: ModAction.BAN,
-        targetId: target.id as UserId,
-        targetTag: target.tag,
+        targetId: targetId,
+        targetTag: targetTag,
         moderatorId: moderator.id as UserId,
         moderatorTag: moderator.tag,
         reason,
@@ -268,6 +282,140 @@ export class ModerationService {
   }
 
   /**
+   * Execute a softban action (ban then immediate unban to delete messages)
+   */
+  async softban(
+    guild: Guild,
+    target: User,
+    moderator: User,
+    reason: string,
+    deleteMessagesDays: number = 7
+  ): Promise<ModActionResult> {
+    return this.softbanById(
+      guild,
+      target.id as UserId,
+      target.tag,
+      moderator,
+      reason,
+      deleteMessagesDays
+    );
+  }
+
+  /**
+   * Execute a softban action by user ID (for softbanning users not in the server)
+   */
+  async softbanById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    deleteMessagesDays: number = 7
+  ): Promise<ModActionResult> {
+    try {
+      // Ban with message deletion
+      await guild.members.ban(targetId, {
+        reason: `[SOFTBAN] ${reason} | Moderator: ${moderator.tag}`,
+        deleteMessageSeconds: deleteMessagesDays * 24 * 60 * 60,
+      });
+
+      // Immediately unban
+      await guild.members.unban(
+        targetId,
+        `[SOFTBAN] Automatic unban | Moderator: ${moderator.tag}`
+      );
+
+      const { caseNumber } = await this.createCase({
+        guildId: guild.id as GuildId,
+        action: ModAction.SOFTBAN,
+        targetId: targetId,
+        targetTag: targetTag,
+        moderatorId: moderator.id as UserId,
+        moderatorTag: moderator.tag,
+        reason,
+      });
+
+      return { success: true, caseNumber, userNotified: false };
+    } catch (error) {
+      container.logger.error('Failed to softban user:', error);
+      return { success: false, error: 'Failed to softban the user', userNotified: false };
+    }
+  }
+
+  /**
+   * Execute a tempban action (ban with scheduled unban)
+   */
+  async tempban(
+    guild: Guild,
+    target: User,
+    moderator: User,
+    reason: string,
+    durationSeconds: DurationSeconds,
+    deleteMessages: boolean = false
+  ): Promise<ModActionResult> {
+    return this.tempbanById(
+      guild,
+      target.id as UserId,
+      target.tag,
+      moderator,
+      reason,
+      durationSeconds,
+      deleteMessages
+    );
+  }
+
+  /**
+   * Execute a tempban action by user ID (for tempbanning users not in the server)
+   */
+  async tempbanById(
+    guild: Guild,
+    targetId: UserId,
+    targetTag: string,
+    moderator: User,
+    reason: string,
+    durationSeconds: DurationSeconds,
+    deleteMessages: boolean = false
+  ): Promise<ModActionResult> {
+    try {
+      // Import tempban scheduler dynamically to avoid circular dependencies
+      const { tempbanScheduler } = await import('./TempbanScheduler.js');
+
+      // Ban the user
+      await guild.members.ban(targetId, {
+        reason: `[TEMPBAN] ${reason} | Moderator: ${moderator.tag}`,
+        deleteMessageSeconds: deleteMessages ? 7 * 24 * 60 * 60 : 0,
+      });
+
+      const expiresAt = new Date(Date.now() + durationSeconds * 1000);
+      const { caseNumber } = await this.createCase({
+        guildId: guild.id as GuildId,
+        action: ModAction.TEMPBAN,
+        targetId: targetId,
+        targetTag: targetTag,
+        moderatorId: moderator.id as UserId,
+        moderatorTag: moderator.tag,
+        reason,
+        duration: durationSeconds,
+        expiresAt,
+      });
+
+      // Schedule the unban
+      await tempbanScheduler.scheduleUnban(
+        guild.id as GuildId,
+        targetId,
+        caseNumber,
+        reason,
+        durationSeconds * 1000
+      );
+
+      return { success: true, caseNumber, userNotified: false };
+    } catch (error) {
+      container.logger.error('Failed to tempban user:', error);
+      return { success: false, error: 'Failed to tempban the user', userNotified: false };
+    }
+  }
+
+  /**
    * Get moderation statistics for a guild
    */
   async getStats(guildId: GuildId): Promise<ModStats> {
@@ -275,12 +423,19 @@ export class ModerationService {
       where: { guildId },
     });
 
+    const muteActions = new Set<ModAction>([
+      ModAction.MUTE_TEXT,
+      ModAction.MUTE_VOICE,
+      ModAction.MUTE_BOTH,
+    ]);
+
     return {
       total: cases.length,
       bans: cases.filter((c) => c.action === ModAction.BAN).length,
       kicks: cases.filter((c) => c.action === ModAction.KICK).length,
       timeouts: cases.filter((c) => c.action === ModAction.TIMEOUT).length,
       warns: cases.filter((c) => c.action === ModAction.WARN).length,
+      mutes: cases.filter((c) => muteActions.has(c.action)).length,
     };
   }
 
