@@ -30,14 +30,14 @@ export class HelpCommand extends Command {
     const embed = new EmbedBuilder()
       .setColor(COLORS.DEFAULT)
       .setTitle('📚 Command List')
-      .setDescription(`Use \`${this.container.client.options.defaultPrefix}help <command>\` for more info`)
+      .setDescription(
+        `Use \`${this.container.client.options.defaultPrefix}help <command>\` for more info`
+      )
       .setThumbnail(client.user?.displayAvatarURL() ?? null);
 
     for (const [category, cmds] of categories) {
-      const commandList = cmds
-        .map((cmd) => `\`${cmd.name}\` - ${cmd.description}`)
-        .join('\n');
-      
+      const commandList = cmds.map((cmd) => `\`${cmd.name}\` - ${cmd.description}`).join('\n');
+
       embed.addFields({
         name: `${category}`,
         value: commandList || 'No commands',

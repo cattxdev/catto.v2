@@ -1,4 +1,9 @@
 node_modules
+dist
 distw
 build
 *.log
+.temp
+pnpm-lock.yaml
+CONTRIBUTING.md
+README.md

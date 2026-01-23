@@ -34,7 +34,7 @@ export class BotClient extends SapphireClient {
       loadDefaultErrorListeners: true,
       loadMessageCommandListeners: true,
       logger: {
-        level: (CONFIG.NODE_ENV === 'development' ? LogLevel.Debug : LogLevel.Info),
+        level: CONFIG.NODE_ENV === 'development' ? LogLevel.Debug : LogLevel.Info,
       },
       defaultPrefix: CONFIG.DEFAULT_PREFIX,
       defaultCooldown: {
@@ -78,8 +78,8 @@ export class BotClient extends SapphireClient {
           fallbackLng: 'en-US',
           defaultNS: 'common',
           interpolation: {
-            escapeValue: false
-          }
+            escapeValue: false,
+          },
         }),
         fetchLanguage: async (context: InternationalizationContext) => {
           // Get language from database for guilds
@@ -87,8 +87,8 @@ export class BotClient extends SapphireClient {
             return await getGuildLanguage(context.guild.id);
           }
           return 'en-US';
-        }
-      }
+        },
+      },
     } as ClientOptions);
 
     // Initialize Prisma Client with pg adapter
@@ -97,9 +97,7 @@ export class BotClient extends SapphireClient {
     });
     container.prisma = new PrismaClient({
       adapter,
-      log: process.env.NODE_ENV === 'development' 
-        ? ['query', 'error', 'warn'] 
-        : ['error'],
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
       errorFormat: 'pretty',
     });
 
