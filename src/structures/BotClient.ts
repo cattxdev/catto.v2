@@ -10,6 +10,7 @@ import { getGuildLanguage } from '#lib/i18n.js';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import Redis from 'ioredis';
+import { getRootData } from '@sapphire/pieces';
 
 // Augment container with Prisma, Redis, and API Server
 declare module '@sapphire/framework' {
@@ -21,13 +22,14 @@ declare module '@sapphire/framework' {
 }
 
 export class BotClient extends SapphireClient {
+  private rootData = getRootData();
   public constructor() {
     super({
-      baseUserDirectory: join(dirname(fileURLToPath(import.meta.url)), '..'),
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildVoiceStates,
         // GUILD_EMBEDDED_ACTIVITIES (1 << 17) - for Discord Activities in voice channels
@@ -66,6 +68,7 @@ export class BotClient extends SapphireClient {
         listenOptions: {
           port: CONFIG.API_PORT,
         },
+        automaticallyConnect: true,
       },
       i18n: {
         defaultLanguageDirectory: join(dirname(fileURLToPath(import.meta.url)), '..', 'languages'),
@@ -135,6 +138,7 @@ export class BotClient extends SapphireClient {
     container.redis.on('reconnecting', () => {
       console.log('Reconnecting to Redis...');
     });
+    this.stores.get('interaction-handlers').registerPath(join(this.rootData.root, 'interactions'));
   }
 
   public override async login(token?: string): Promise<string> {

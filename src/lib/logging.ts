@@ -2,6 +2,7 @@ import { EmbedBuilder, WebhookClient, Colors } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { CONFIG } from '#config';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
 
 export enum LogType {
   Messages = 'messages',
@@ -22,24 +23,6 @@ export enum LogType {
   Leaves = 'leaves',
   Server = 'server',
 }
-type WebhookField =
-  | 'messagesWebhook'
-  | 'voiceWebhook'
-  | 'voiceStateWebhook'
-  | 'ticketsWebhook'
-  | 'transcriptsWebhook'
-  | 'rolesWebhook'
-  | 'channelsWebhook'
-  | 'membersWebhook'
-  | 'stageWebhook'
-  | 'eventsWebhook'
-  | 'pollsWebhook'
-  | 'emojisWebhook'
-  | 'stickersWebhook'
-  | 'webhooksWebhook'
-  | 'joinsWebhook'
-  | 'leavesWebhook'
-  | 'serverWebhook';
 
 interface LogJobData {
   guildId: string;
@@ -145,12 +128,14 @@ class LoggingService {
     });
 
     if (!config || !config.enabled) {
-      throw new Error(`Logging disabled for guild ${guildId}`);
+      // Silently skip if logging is disabled - this is expected behavior
+      return;
     }
 
     const webhookUrl = this.getWebhookUrl(config, type);
     if (!webhookUrl) {
-      throw new Error(`No webhook configured for ${guildId}:${type}`);
+      // Silently skip if no webhook configured - this is expected behavior
+      return;
     }
 
     // Reconstruct embed from JSON
@@ -162,7 +147,7 @@ class LoggingService {
     try {
       await webhook.send({
         embeds: [embedBuilder],
-        username: 'Catto Logs',
+        username: container.client.user?.username,
         avatarURL: container.client.user?.displayAvatarURL(),
       });
     } finally {
@@ -177,28 +162,16 @@ class LoggingService {
     config: NonNullable<Awaited<ReturnType<typeof container.prisma.logConfig.findUnique>>>,
     type: LogType
   ): string | null {
-    const fieldMap: Record<LogType, WebhookField> = {
-      [LogType.Messages]: 'messagesWebhook',
-      [LogType.Voice]: 'voiceWebhook',
-      [LogType.VoiceState]: 'voiceStateWebhook',
-      [LogType.Tickets]: 'ticketsWebhook',
-      [LogType.Transcripts]: 'transcriptsWebhook',
-      [LogType.Roles]: 'rolesWebhook',
-      [LogType.Channels]: 'channelsWebhook',
-      [LogType.Members]: 'membersWebhook',
-      [LogType.Stage]: 'stageWebhook',
-      [LogType.Events]: 'eventsWebhook',
-      [LogType.Polls]: 'pollsWebhook',
-      [LogType.Emojis]: 'emojisWebhook',
-      [LogType.Stickers]: 'stickersWebhook',
-      [LogType.Webhooks]: 'webhooksWebhook',
-      [LogType.Joins]: 'joinsWebhook',
-      [LogType.Leaves]: 'leavesWebhook',
-      [LogType.Server]: 'serverWebhook',
-    };
+    const definition = LOG_CHANNEL_DEFINITIONS[type];
+    if (!definition) return null;
 
-    const field = fieldMap[type];
-    return config[field] || null;
+    // Check if this log type is enabled
+    const configRecord = config as Record<string, unknown>;
+    const isEnabled = configRecord[definition.enabledField];
+    if (!isEnabled) return null;
+
+    // Return webhook URL
+    return (configRecord[definition.webhookField] as string | null) || null;
   }
 
   /**

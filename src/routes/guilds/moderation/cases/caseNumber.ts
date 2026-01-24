@@ -75,17 +75,15 @@ export class ModerationCaseRoute extends Route {
     response: Route.Response
   ) {
     try {
-      const body = (request as Route.Request & { body?: unknown }).body as
-        | {
-            reason?: string;
-          }
-        | undefined;
+      const body = await this.parseBody(request);
 
-      if (!body || !body.reason) {
+      if (!body || typeof body !== 'object' || !('reason' in body)) {
         return response.status(400).json({
           error: 'Reason is required',
         });
       }
+
+      const { reason } = body as { reason: string };
 
       // Find the case
       const modCase = await this.container.prisma.modCase.findFirst({
@@ -105,7 +103,7 @@ export class ModerationCaseRoute extends Route {
       const updatedCase = await this.container.prisma.modCase.update({
         where: { id: modCase.id },
         data: {
-          reason: body.reason,
+          reason: reason,
         },
       });
 
@@ -146,5 +144,22 @@ export class ModerationCaseRoute extends Route {
         error: 'Internal server error',
       });
     }
+  }
+
+  private async parseBody(request: Route.Request): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      request.on('data', (chunk: unknown) => {
+        body += String(chunk);
+      });
+      request.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : undefined);
+        } catch {
+          resolve(undefined);
+        }
+      });
+      request.on('error', reject);
+    });
   }
 }
