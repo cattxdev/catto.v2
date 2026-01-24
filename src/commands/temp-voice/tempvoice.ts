@@ -488,17 +488,21 @@ export class TempVoiceCommand extends Command {
       const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
       if (!deniedUsers.includes(user.id)) {
         deniedUsers.push(user.id);
-        await this.channelService.update(tempChannel.channelId, { deniedUserIds: deniedUsers });
       }
 
       // Remove from allowed users if present
       const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
       const filteredAllowed = allowedUsers.filter((id: string) => id !== user.id);
-      if (filteredAllowed.length !== allowedUsers.length) {
-        await this.channelService.update(tempChannel.channelId, {
-          allowedUserIds: filteredAllowed,
-        });
-      }
+
+      // Remove from trusted users if present
+      const trustedUsers = (tempChannel.trustedUserIds as string[]) || [];
+      const filteredTrusted = trustedUsers.filter((id: string) => id !== user.id);
+
+      await this.channelService.update(tempChannel.channelId, {
+        deniedUserIds: deniedUsers,
+        allowedUserIds: filteredAllowed,
+        trustedUserIds: filteredTrusted,
+      });
 
       return interaction.reply({
         content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** has been denied access to your channel.`,
@@ -599,21 +603,29 @@ export class TempVoiceCommand extends Command {
         });
       }
 
-      // Remove trusted permissions but keep them as allowed users
-      await voiceChannel.permissionOverwrites.edit(user.id, {
-        Connect: true,
-        ViewChannel: true,
-        Speak: null,
-        Stream: null,
-        UseVAD: null,
-      });
-
-      // Update trusted users list
+      // Remove trusted users list entry
       const newTrusted = currentTrusted.filter((id: string) => id !== user.id);
 
       await this.channelService.update(tempChannel.channelId, {
         trustedUserIds: newTrusted,
       });
+
+      // Remove permission overrides to respect channel state
+      // If user is in allowed list, they'll keep access via those permissions
+      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
+      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
+
+      if (!allowedUsers.includes(user.id) && !deniedUsers.includes(user.id)) {
+        // No explicit allow/deny, so remove the override entirely
+        await voiceChannel.permissionOverwrites.delete(user.id);
+      } else if (allowedUsers.includes(user.id)) {
+        // Keep as allowed user with basic permissions
+        await voiceChannel.permissionOverwrites.edit(user.id, {
+          Connect: true,
+          ViewChannel: true,
+        });
+      }
+      // If in denied list, permissions are already set correctly
 
       return interaction.reply({
         content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** is no longer trusted but can still access the channel.`,
