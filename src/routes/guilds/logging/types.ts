@@ -48,6 +48,7 @@ export class LoggingTypesRoute extends Route {
       currentlyEnabled: logTypes.filter((t) => t.enabled).map((t) => t.key),
       isConfigured: !!config,
       categoryId: config?.categoryId || null,
+      ignoredChannels: config?.ignoredChannels || [],
     });
   }
 }
