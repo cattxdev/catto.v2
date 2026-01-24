@@ -1,6 +1,6 @@
 import { Listener, Events, type MessageCommandErrorPayload } from '@sapphire/framework';
 import type { Logger } from '@sapphire/plugin-logger';
-import { createErrorEmbed } from '#lib/utils.js';
+import { buildErrorEmbed } from '#lib/utils.js';
 
 export class MessageCommandErrorListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -19,9 +19,9 @@ export class MessageCommandErrorListener extends Listener {
     );
     logger.error(error);
 
-    const embed = createErrorEmbed(
+    const embed = buildErrorEmbed(
       'An error occurred while executing this command. Please try again later.',
-      'Command Error'
+      { title: 'Command Error' }
     );
 
     if (!message.channel.isSendable()) {

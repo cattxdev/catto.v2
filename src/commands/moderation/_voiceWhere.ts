@@ -1,0 +1,103 @@
+import { Subcommand } from '@sapphire/plugin-subcommands';
+import { container as sapphireContainer } from '@sapphire/framework';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, channelMention } from 'discord.js';
+import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
+import { getJson, CacheKey } from '#lib/cache/index.js';
+import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
+import { EMOJI, defer, editReply, editError, container } from '#lib/discord/index.js';
+import {
+  getVoiceIndicators,
+  formatMemberName,
+} from '#root/modules/voice/services/messageBuilders.js';
+
+export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
+  const options = parseVoiceWhereOptions(interaction);
+
+  await defer(interaction);
+
+  try {
+    const cached = await getJson(
+      CacheKey.voiceMemberPresence(options.guildId, options.targetId),
+      VoiceMemberPresenceSchema
+    );
+
+    let member;
+    try {
+      member = await options.guild.members.fetch(options.targetId);
+    } catch {
+      await editReply(
+        interaction,
+        container().text(`User **${options.target.tag}** is not a member of this server.`)
+      );
+      return;
+    }
+
+    const voiceState = member.voice;
+    const inVoice = voiceState.channelId !== null;
+
+    const c = container().h2(`${EMOJI.MEMBER} ${formatMemberName(member)}`);
+
+    if (inVoice && voiceState.channel && voiceState.channelId) {
+      const indicators = getVoiceIndicators(
+        { ...voiceState, channelId: voiceState.channelId },
+        member.id
+      );
+      c.kv({
+        Channel: channelMention(voiceState.channelId),
+        State: indicators,
+      });
+
+      if (voiceState.streaming) {
+        c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+      }
+
+      if (cached) {
+        const joinedAgo = Math.floor((Date.now() - cached.timestamp) / 1000);
+        c.text(`_Tracked for ${formatSeconds(joinedAgo)}_`);
+      }
+    } else {
+      c.text('_Not in a voice channel_');
+
+      if (cached) {
+        c.text(`_Last seen <t:${Math.floor(cached.timestamp / 1000)}:R>_`);
+      }
+    }
+
+    if (inVoice && voiceState.channelId) {
+      c.separator();
+
+      // All buttons in one row
+      const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`voice_join:${voiceState.channelId}`)
+          .setEmoji(EMOJI.CONNECT_TO_USER)
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`voice_mute:${options.targetId}`)
+          .setEmoji(EMOJI.VOICE_TOGGLE)
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`voice_disconnect:${options.targetId}`)
+          .setEmoji(EMOJI.DISCONNECT_USER)
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      c.actions(actionRow);
+    }
+
+    await editReply(interaction, c);
+  } catch (error) {
+    sapphireContainer.logger.error('Error in voice where command:', error);
+    await interaction
+      .editReply(editError('An error occurred while checking voice location.'))
+      .catch(() => {});
+  }
+}
+
+function formatSeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
