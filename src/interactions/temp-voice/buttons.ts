@@ -39,7 +39,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
   public async run(interaction: ButtonInteraction) {
     if (!interaction.guild || !interaction.guildId) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -64,7 +64,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     const channelId = parts[2];
     if (!channelId) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Invalid button interaction.`,
+        content: `${EMOJIS.STATUS.ERROR} Invalid button interaction.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -73,7 +73,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     const tempChannel = await this.channelService.getByChannelId(channelId);
     if (!tempChannel) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} This temporary voice channel no longer exists.`,
+        content: `${EMOJIS.STATUS.ERROR} This temporary voice channel no longer exists.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -91,7 +91,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     );
     if (!canManage) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} You do not have permission to manage this channel.`,
+        content: `${EMOJIS.STATUS.ERROR} You do not have permission to manage this channel.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -99,7 +99,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     // Check if customization is allowed (except for refresh and transfer which are always allowed)
     if (!config.allowCustomization && !['refresh', 'transfer'].includes(action)) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Channel customization is disabled in this server.`,
+        content: `${EMOJIS.STATUS.ERROR} Channel customization is disabled in this server.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -134,7 +134,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
         return this.handleTransferModal(interaction, channelId);
       default:
         return interaction.reply({
-          content: `${EMOJIS.ERROR} Unknown action.`,
+          content: `${EMOJIS.STATUS.ERROR} Unknown action.`,
           flags: MessageFlags.Ephemeral,
         });
     }
@@ -154,7 +154,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       const voiceChannel = await guild.channels.fetch(channelId);
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -178,14 +178,14 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
       return interaction.reply({
         content: newLockState
-          ? `${EMOJIS.LOCKED} Channel locked.`
-          : `${EMOJIS.UNLOCKED} Channel unlocked.`,
+          ? `${EMOJIS.VOICE.LOCKED} Channel locked.`
+          : `${EMOJIS.VOICE.UNLOCKED} Channel unlocked.`,
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       this.container.logger.error('Failed to toggle lock:', error);
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Failed to toggle lock.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to toggle lock.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -205,7 +205,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       const voiceChannel = await guild.channels.fetch(channelId);
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -229,14 +229,14 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
       return interaction.reply({
         content: newHiddenState
-          ? `${EMOJIS.HIDDEN} Channel hidden.`
-          : `${EMOJIS.VISIBLE} Channel visible.`,
+          ? `${EMOJIS.VOICE.HIDDEN} Channel hidden.`
+          : `${EMOJIS.VOICE.VISIBLE} Channel visible.`,
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       this.container.logger.error('Failed to toggle visibility:', error);
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Failed to toggle visibility.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to toggle visibility.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -293,7 +293,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
     return interaction.reply({
-      content: `${EMOJIS.PERMIT} Select the user(s) you want to permit access to this channel:`,
+      content: `${EMOJIS.ACTIONS.PERMIT} Select the user(s) you want to permit access to this channel:`,
       components: [row],
       flags: MessageFlags.Ephemeral,
     });
@@ -311,7 +311,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
     return interaction.reply({
-      content: `${EMOJIS.DENY} Select the user(s) you want to deny access to this channel:`,
+      content: `${EMOJIS.ACTIONS.DENY} Select the user(s) you want to deny access to this channel:`,
       components: [row],
       flags: MessageFlags.Ephemeral,
     });
@@ -335,7 +335,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
-    let content = `${EMOJIS.TRUST} **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).`;
+    let content = `${EMOJIS.ACTIONS.TRUST} **Trust/Untrust Users**\nSelect users to toggle their trust status. Trusted users can manage the channel (except transfer ownership).`;
 
     if (trustedUsers.length > 0) {
       const mentions = trustedUsers.map((id) => `<@${id}>`).join(', ');
@@ -362,7 +362,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       const voiceChannel = await guild.channels.fetch(channelId);
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -372,7 +372,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       // Check if claimer is in the channel
       if (member.voice.channelId !== channelId) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} You must be in the channel to claim it.`,
+          content: `${EMOJIS.STATUS.ERROR} You must be in the channel to claim it.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -381,7 +381,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       const owner = voiceChannel.members.get(tempChannel.ownerId);
       if (owner) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} The channel owner is still present. You cannot claim this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} The channel owner is still present. You cannot claim this channel.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -407,13 +407,13 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       await this.controlPanelService.refresh(channelId);
 
       return interaction.reply({
-        content: `${EMOJIS.SUCCESS} You are now the owner of this channel.`,
+        content: `${EMOJIS.STATUS.SUCCESS} You are now the owner of this channel.`,
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       this.container.logger.error('Failed to claim channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Failed to claim channel. Please try again.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to claim channel. Please try again.`,
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -463,7 +463,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
     return interaction.reply({
-      content: `${EMOJIS.TRANSFER} Select the user you want to transfer ownership to:`,
+      content: `${EMOJIS.ACTIONS.TRANSFER} Select the user you want to transfer ownership to:`,
       components: [row],
       flags: MessageFlags.Ephemeral,
     });
@@ -485,7 +485,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -524,13 +524,13 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       await this.controlPanelService.refresh(channelId);
 
       return interaction.reply({
-        content: `${EMOJIS.SUCCESS} Channel reset to default settings.`,
+        content: `${EMOJIS.STATUS.SUCCESS} Channel reset to default settings.`,
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       this.container.logger.error('Failed to reset channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Failed to reset channel.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to reset channel.`,
         flags: MessageFlags.Ephemeral,
       });
     }

@@ -71,7 +71,7 @@ export class RewardsCommand extends Command {
 
       if (filteredRewards.length === 0) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} No rewards are configured in this server yet.`,
+          content: `${EMOJIS.STATUS.ERROR} No rewards are configured in this server yet.`,
         });
       }
 
@@ -92,7 +92,7 @@ export class RewardsCommand extends Command {
 
       // Create embed
       const embed = new EmbedBuilder()
-        .setTitle(`${EMOJIS.GIFT} Server Rewards`)
+        .setTitle(`${EMOJIS.REWARDS.GIFT} Server Rewards`)
         .setColor(0x5865f2)
         .setDescription(
           `${targetUser.username}'s Current Level: **${userLevel}**\n\n` +
@@ -111,10 +111,10 @@ export class RewardsCommand extends Command {
         if (!levelRewards) continue;
         const statusIcon =
           level <= userLevel
-            ? EMOJIS.SUCCESS
+            ? EMOJIS.STATUS.SUCCESS
             : level === userLevel + 1
-              ? EMOJIS.ARROW_UP
-              : EMOJIS.LOCKED;
+              ? EMOJIS.PROGRESS.ARROW_UP
+              : EMOJIS.VOICE.LOCKED;
 
         const rewardList = levelRewards.map((r) => `${r.icon || '•'} **${r.name}**`).join('\n');
 
@@ -127,14 +127,14 @@ export class RewardsCommand extends Command {
       }
 
       embed.setFooter({
-        text: `${EMOJIS.SUCCESS} = Unlocked | ${EMOJIS.ARROW_UP} = Next Level | ${EMOJIS.LOCKED} = Locked`,
+        text: `${EMOJIS.STATUS.SUCCESS} = Unlocked | ${EMOJIS.PROGRESS.ARROW_UP} = Next Level | ${EMOJIS.VOICE.LOCKED} = Locked`,
       });
 
       return interaction.editReply({ embeds: [embed] });
     } catch (error) {
       this.container.logger.error('Failed to fetch rewards:', error);
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to fetch rewards. Please try again.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to fetch rewards. Please try again.`,
       });
     }
   }

@@ -34,7 +34,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
   public async run(interaction: UserSelectMenuInteraction) {
     if (!interaction.guild || !interaction.guildId) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
         flags: 64, // Ephemeral
       });
     }
@@ -56,7 +56,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
     const channelId = parts[3];
     if (!channelId) {
       return interaction.reply({
-        content: `${EMOJIS.ERROR} Invalid user select interaction.`,
+        content: `${EMOJIS.STATUS.ERROR} Invalid user select interaction.`,
         flags: 64, // Ephemeral
       });
     }
@@ -66,12 +66,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
     if (!tempChannel) {
       try {
         return await interaction.update({
-          content: `${EMOJIS.ERROR} This temporary voice channel no longer exists.`,
+          content: `${EMOJIS.STATUS.ERROR} This temporary voice channel no longer exists.`,
           components: [],
         });
       } catch {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} This temporary voice channel no longer exists.`,
+          content: `${EMOJIS.STATUS.ERROR} This temporary voice channel no longer exists.`,
           flags: 64, // Ephemeral
         });
       }
@@ -94,12 +94,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
     if (!canManage) {
       try {
         return await interaction.update({
-          content: `${EMOJIS.ERROR} You do not have permission to manage this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} You do not have permission to manage this channel.`,
           components: [],
         });
       } catch {
         return interaction.reply({
-          content: `${EMOJIS.ERROR} You do not have permission to manage this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} You do not have permission to manage this channel.`,
           flags: 64, // Ephemeral
         });
       }
@@ -129,12 +129,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       default:
         try {
           return await interaction.update({
-            content: `${EMOJIS.ERROR} Unknown action.`,
+            content: `${EMOJIS.STATUS.ERROR} Unknown action.`,
             components: [],
           });
         } catch {
           return interaction.reply({
-            content: `${EMOJIS.ERROR} Unknown action.`,
+            content: `${EMOJIS.STATUS.ERROR} Unknown action.`,
             flags: 64, // Ephemeral
           });
         }
@@ -156,7 +156,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           components: [],
         });
       }
@@ -204,19 +204,19 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       await controlPanelService.refresh(channelId);
 
       return interaction.editReply({
-        content: `${EMOJIS.SUCCESS} Permitted ${userMentions} to access this channel.`,
+        content: `${EMOJIS.STATUS.SUCCESS} Permitted ${userMentions} to access this channel.`,
         components: [],
       });
     } catch (error) {
       this.container.logger.error('Failed to permit users:', error);
       if (!interaction.deferred) {
         return interaction.update({
-          content: `${EMOJIS.ERROR} Failed to permit users. Make sure the bot has permission to manage this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} Failed to permit users. Make sure the bot has permission to manage this channel.`,
           components: [],
         });
       }
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to permit users. Make sure the bot has permission to manage this channel.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to permit users. Make sure the bot has permission to manage this channel.`,
         components: [],
       });
     }
@@ -237,7 +237,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           components: [],
         });
       }
@@ -306,20 +306,20 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
       return interaction.editReply({
         content: userMentions
-          ? `${EMOJIS.SUCCESS} Denied ${userMentions} access to this channel.`
-          : `${EMOJIS.WARNING} Cannot deny the channel owner.`,
+          ? `${EMOJIS.STATUS.SUCCESS} Denied ${userMentions} access to this channel.`
+          : `${EMOJIS.STATUS.WARNING} Cannot deny the channel owner.`,
         components: [],
       });
     } catch (error) {
       this.container.logger.error('Failed to deny users:', error);
       if (!interaction.deferred) {
         return interaction.update({
-          content: `${EMOJIS.ERROR} Failed to deny users. Make sure the bot has permission to manage this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} Failed to deny users. Make sure the bot has permission to manage this channel.`,
           components: [],
         });
       }
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to deny users. Make sure the bot has permission to manage this channel.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to deny users. Make sure the bot has permission to manage this channel.`,
         components: [],
       });
     }
@@ -340,7 +340,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           components: [],
         });
       }
@@ -420,14 +420,14 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
       let message = '';
       if (addedMentions) {
-        message += `${EMOJIS.SUCCESS} Trusted ${addedMentions}. They can now manage this channel (except transfer ownership).`;
+        message += `${EMOJIS.STATUS.SUCCESS} Trusted ${addedMentions}. They can now manage this channel (except transfer ownership).`;
       }
       if (removedMentions) {
         if (message) message += '\n';
         message += `➖ Removed trust from ${removedMentions}.`;
       }
       if (!message) {
-        message = `${EMOJIS.WARNING} The channel owner is already trusted.`;
+        message = `${EMOJIS.STATUS.WARNING} The channel owner is already trusted.`;
       }
 
       // Refresh control panel
@@ -444,12 +444,12 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       this.container.logger.error('Failed to manage trusted users:', error);
       if (!interaction.deferred) {
         return interaction.update({
-          content: `${EMOJIS.ERROR} Failed to manage trusted users. Make sure the bot has permission to manage this channel.`,
+          content: `${EMOJIS.STATUS.ERROR} Failed to manage trusted users. Make sure the bot has permission to manage this channel.`,
           components: [],
         });
       }
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to manage trusted users. Make sure the bot has permission to manage this channel.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to manage trusted users. Make sure the bot has permission to manage this channel.`,
         components: [],
       });
     }
@@ -469,7 +469,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       // Only allow one user to be selected
       if (userIds.length !== 1) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} You can only transfer ownership to one user.`,
+          content: `${EMOJIS.STATUS.ERROR} You can only transfer ownership to one user.`,
           components: [],
         });
       }
@@ -477,7 +477,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const newOwnerId = userIds[0];
       if (!newOwnerId) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Invalid user selection.`,
+          content: `${EMOJIS.STATUS.ERROR} Invalid user selection.`,
           components: [],
         });
       }
@@ -485,7 +485,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       // Check if trying to transfer to current owner
       if (newOwnerId === tempChannel.ownerId) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} This user is already the owner.`,
+          content: `${EMOJIS.STATUS.ERROR} This user is already the owner.`,
           components: [],
         });
       }
@@ -494,7 +494,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const member = interaction.member as GuildMember;
       if (member.user.id !== tempChannel.ownerId) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Only the channel owner can transfer ownership.`,
+          content: `${EMOJIS.STATUS.ERROR} Only the channel owner can transfer ownership.`,
           components: [],
         });
       }
@@ -502,7 +502,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
       if (!voiceChannel || !voiceChannel.isVoiceBased()) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} Voice channel not found.`,
+          content: `${EMOJIS.STATUS.ERROR} Voice channel not found.`,
           components: [],
         });
       }
@@ -511,7 +511,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       const newOwnerMember = await guild.members.fetch(newOwnerId).catch(() => null);
       if (!newOwnerMember || newOwnerMember.voice.channelId !== channelId) {
         return interaction.editReply({
-          content: `${EMOJIS.ERROR} The new owner must be in your channel.`,
+          content: `${EMOJIS.STATUS.ERROR} The new owner must be in your channel.`,
           components: [],
         });
       }
@@ -538,19 +538,19 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       await controlPanelService.refresh(channelId);
 
       return interaction.editReply({
-        content: `${EMOJIS.SUCCESS} Channel ownership transferred to <@${newOwnerId}>.`,
+        content: `${EMOJIS.STATUS.SUCCESS} Channel ownership transferred to <@${newOwnerId}>.`,
         components: [],
       });
     } catch (error) {
       this.container.logger.error('Failed to transfer ownership:', error);
       if (!interaction.deferred) {
         return interaction.update({
-          content: `${EMOJIS.ERROR} Failed to transfer ownership. Please try again.`,
+          content: `${EMOJIS.STATUS.ERROR} Failed to transfer ownership. Please try again.`,
           components: [],
         });
       }
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to transfer ownership. Please try again.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to transfer ownership. Please try again.`,
         components: [],
       });
     }

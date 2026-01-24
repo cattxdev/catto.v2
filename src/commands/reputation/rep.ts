@@ -4,7 +4,7 @@
 
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, Colors } from 'discord.js';
-import { EMOJIS, REPUTATION_EMOJIS, XP_EMOJIS } from '#lib/emojis';
+import { EMOJIS } from '#lib/emojis';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { VouchType, REPUTATION_TIERS } from '#modules/reputation/models/reputation.model';
 
@@ -37,19 +37,19 @@ export class VouchCommand extends Command {
             .setRequired(true)
             .addChoices(
               {
-                name: `${REPUTATION_EMOJIS.HELPFUL} Helpful - They helped you or others`,
+                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL} Helpful - They helped you or others`,
                 value: VouchType.HELPFUL,
               },
               {
-                name: `${REPUTATION_EMOJIS.FRIENDLY} Friendly - They're welcoming and positive`,
+                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY} Friendly - They're welcoming and positive`,
                 value: VouchType.FRIENDLY,
               },
               {
-                name: `${REPUTATION_EMOJIS.SKILLED} Skilled - They're knowledgeable/talented`,
+                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} Skilled - They're knowledgeable/talented`,
                 value: VouchType.SKILLED,
               },
               {
-                name: `${REPUTATION_EMOJIS.RELIABLE} Reliable - They're dependable and trustworthy`,
+                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE} Reliable - They're dependable and trustworthy`,
                 value: VouchType.RELIABLE,
               }
             )
@@ -75,7 +75,7 @@ export class VouchCommand extends Command {
     // Ensure command is run in a guild
     if (!interaction.guild || !interaction.guildId) {
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
       });
     }
 
@@ -123,7 +123,7 @@ export class VouchCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setColor(Colors.Green)
-        .setTitle(`${EMOJIS.SUCCESS} Reputation Given!`)
+        .setTitle(`${EMOJIS.STATUS.SUCCESS} Reputation Given!`)
         .setDescription(
           `${vouchEmoji} You gave reputation to ${targetUser} as **${vouchType}**!${
             reason ? `\n\n*"${reason}"*` : ''
@@ -132,7 +132,7 @@ export class VouchCommand extends Command {
         .addFields(
           {
             name: 'Their Reputation',
-            value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n${REPUTATION_EMOJIS.SKILLED} ${stats.reputationScore} points`,
+            value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} ${stats.reputationScore} points`,
             inline: true,
           },
           {
@@ -158,7 +158,7 @@ export class VouchCommand extends Command {
     } catch (error) {
       this.container.logger.error('Failed to submit vouch:', error);
       return interaction.editReply({
-        content: `${EMOJIS.ERROR} Failed to submit vouch. Please try again later.`,
+        content: `${EMOJIS.STATUS.ERROR} Failed to submit vouch. Please try again later.`,
       });
     }
   }
@@ -166,15 +166,15 @@ export class VouchCommand extends Command {
   private getVouchEmoji(type: VouchType): string {
     switch (type) {
       case VouchType.HELPFUL:
-        return REPUTATION_EMOJIS.HELPFUL;
+        return EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL;
       case VouchType.FRIENDLY:
-        return REPUTATION_EMOJIS.FRIENDLY;
+        return EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY;
       case VouchType.SKILLED:
-        return REPUTATION_EMOJIS.SKILLED;
+        return EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED;
       case VouchType.RELIABLE:
-        return REPUTATION_EMOJIS.RELIABLE;
+        return EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE;
       default:
-        return REPUTATION_EMOJIS.DEFAULT;
+        return EMOJIS.REPUTATION.VOUCH_TYPES.DEFAULT;
     }
   }
 
@@ -182,7 +182,7 @@ export class VouchCommand extends Command {
     const filled = Math.round((percentage / 100) * length);
     const empty = length - filled;
     return (
-      XP_EMOJIS.PROGRESS_BAR_FILLED.repeat(filled) + XP_EMOJIS.PROGRESS_BAR_EMPTY.repeat(empty)
+      EMOJIS.XP.PROGRESS_BAR_FILLED.repeat(filled) + EMOJIS.XP.PROGRESS_BAR_EMPTY.repeat(empty)
     );
   }
 }
