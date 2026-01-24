@@ -57,7 +57,7 @@ export class PermissionGatePrecondition extends AllFlowsPrecondition {
       return this.error({
         identifier: 'PermissionDenied',
         message: result.message,
-        context: { commandKey, code: result.code },
+        context: { commandKey, code: result.code, response: result.response },
       });
     }
 
@@ -81,7 +81,7 @@ export class PermissionGatePrecondition extends AllFlowsPrecondition {
       return this.error({
         identifier: 'PermissionDenied',
         message: result.message,
-        context: { commandKey, code: result.code },
+        context: { commandKey, code: result.code, response: result.response },
       });
     }
 

@@ -5,8 +5,10 @@ import {
   type UserError,
 } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
-import { MessageFlags } from 'discord.js';
 import type { Prisma } from '@prisma/client';
+import type { FluentContainer } from '#lib/discord/containers/index.js';
+import { errorMessage } from '#lib/discord/containers/index.js';
+import { reply, editReply } from '#lib/discord/core/reply.js';
 
 /**
  * Handles denied chat input commands.
@@ -50,14 +52,15 @@ export class ChatInputCommandDeniedListener extends Listener<typeof Events.ChatI
     // Don't respond if silent
     if (isSilent) return;
 
-    // Send error response
-    const content = `❌ ${error.message}`;
+    // Use DCB container from Gate if available, otherwise create a fallback
+    const response: FluentContainer =
+      Reflect.get(Object(error.context), 'response') ?? errorMessage('Error', error.message);
 
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content });
+        await editReply(interaction, response);
       } else {
-        await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+        await reply(interaction, response);
       }
     } catch {
       // Interaction may have expired

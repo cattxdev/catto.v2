@@ -82,7 +82,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     // Check hierarchy using Gate
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
+      await editReply(interaction, hierarchyResult.response);
       return;
     }
 

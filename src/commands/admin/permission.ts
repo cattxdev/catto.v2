@@ -334,7 +334,7 @@ export class PermissionCommand extends Subcommand {
       for (const category of allCategories()) {
         if (category.key.includes(query) || category.displayName.toLowerCase().includes(query)) {
           results.push({
-            name: `📁 ${category.displayName} (category)`,
+            name: `${category.displayName} (category)`,
             value: category.key,
           });
         }
@@ -344,7 +344,7 @@ export class PermissionCommand extends Subcommand {
         const cmd = getCommand(cmdKey);
         if (cmd && (cmdKey.includes(query) || cmd.displayName.toLowerCase().includes(query))) {
           results.push({
-            name: `📝 ${cmd.displayName} (${cmdKey})`,
+            name: `${cmd.displayName} (${cmdKey})`,
             value: cmdKey,
           });
         }

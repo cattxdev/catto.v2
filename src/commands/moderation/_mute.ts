@@ -69,7 +69,7 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
     // Check hierarchy using Gate
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
+      await editReply(interaction, hierarchyResult.response);
       return;
     }
 
@@ -188,7 +188,7 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
     // Check hierarchy using Gate
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
+      await editReply(interaction, hierarchyResult.response);
       return;
     }
 
@@ -307,7 +307,7 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
     // Check hierarchy using Gate
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
+      await editReply(interaction, hierarchyResult.response);
       return;
     }
 

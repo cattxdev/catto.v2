@@ -18,6 +18,7 @@ import {
   MessageFlags,
   ContainerBuilder,
   type ChatInputCommandInteraction,
+  type ContextMenuCommandInteraction,
   type MessageComponentInteraction,
   type ModalSubmitInteraction,
   type InteractionEditReplyOptions,
@@ -28,6 +29,7 @@ import type { FluentContainer } from '../containers/container.js';
 
 export type RepliableInteraction =
   | ChatInputCommandInteraction
+  | ContextMenuCommandInteraction
   | MessageComponentInteraction
   | ModalSubmitInteraction;
 

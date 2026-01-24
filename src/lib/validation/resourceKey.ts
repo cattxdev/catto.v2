@@ -27,9 +27,7 @@ import type {
 import type { GateableInteraction } from './Gate.js';
 import { buildCommandKey } from './Gate.js';
 
-// =============================================================================
 // Types
-// =============================================================================
 
 export interface ResourceKeyResolution {
   /** The resolved resource key (e.g., 'mod.warn', 'mod.kick') */
@@ -45,29 +43,28 @@ export interface CustomIdParser {
   matches(customId: string): boolean;
   /** Parse the custom ID and return the resource key */
   parse(customId: string): string | null;
+  /** Priority (higher = checked first). Built-ins use 0, externals should use negative. */
+  priority?: number;
 }
 
-// =============================================================================
 // Custom ID Parsers Registry
-// =============================================================================
 
 /**
  * Registry of custom ID parsers for component interactions.
- * Parsers are checked in order; first match wins.
+ * Parsers are checked in priority order (highest first); first match wins.
  */
 const customIdParsers: CustomIdParser[] = [];
 
 /**
  * Register a custom ID parser.
- * Call this during module initialization to register module-specific parsers.
+ * Parsers are sorted by priority (higher = checked first). Built-ins use 0.
  */
 export function registerCustomIdParser(parser: CustomIdParser): void {
   customIdParsers.push(parser);
+  customIdParsers.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 }
 
-// =============================================================================
 // Built-in Mod Panel/Modal Parsers
-// =============================================================================
 
 /**
  * Mod panel action to command key mapping.
@@ -149,9 +146,7 @@ registerCustomIdParser({
   parse: () => 'mod.history',
 });
 
-// =============================================================================
 // Core Resolution Functions
-// =============================================================================
 
 /**
  * Resolve the resource key from a chat input command interaction.
@@ -205,9 +200,7 @@ export function resolveSelectMenuKey(interaction: StringSelectMenuInteraction): 
   return resolveCustomIdKey(interaction.customId);
 }
 
-// =============================================================================
 // Unified Resolution
-// =============================================================================
 
 /**
  * Resolve the resource key from any gateable interaction.
@@ -276,9 +269,7 @@ export function resolveResourceKeyOrThrow(interaction: GateableInteraction): str
   return result.key;
 }
 
-// =============================================================================
 // Utility Functions
-// =============================================================================
 
 /**
  * Check if a custom ID is known/registered.

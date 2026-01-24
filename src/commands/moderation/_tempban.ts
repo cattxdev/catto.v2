@@ -74,7 +74,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     if (targetMember) {
       const hierarchyResult = gate.checkHierarchy(targetMember);
       if (isFail(hierarchyResult)) {
-        await editReply(interaction, errorMessage('Error', hierarchyResult.message));
+        await editReply(interaction, hierarchyResult.response);
         return;
       }
 

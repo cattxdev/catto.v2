@@ -11,9 +11,7 @@
 import type { GuildMember, PermissionResolvable } from 'discord.js';
 import { PermissionFlagsBits } from 'discord.js';
 
-// =============================================================================
 // Basic Permission Checks
-// =============================================================================
 
 /**
  * Check if a member has a specific Discord permission.
@@ -32,9 +30,7 @@ export function isAdmin(member: GuildMember | null | undefined): boolean {
   return hasPermission(member, PermissionFlagsBits.Administrator);
 }
 
-// =============================================================================
 // Voice Moderation Permissions
-// =============================================================================
 
 /**
  * Voice-specific moderation permissions.
