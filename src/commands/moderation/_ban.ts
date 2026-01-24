@@ -11,6 +11,8 @@ import { ValidationError } from '#lib/validation/zod.js';
 import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
 import type { User } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 export async function handleBan(interaction: Subcommand.ChatInputCommandInteraction) {
   let options;
@@ -25,6 +27,16 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
   }
 
   await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
+    return;
+  }
 
   try {
     // Check bot permissions
@@ -52,16 +64,10 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     try {
       targetMember = await options.guild.members.fetch(options.targetId);
 
-      // Check if moderator can moderate target (only if target is a member)
-      const canModerateResult = moderationService.canModerate(
-        options.moderatorMember,
-        targetMember
-      );
-      if (!canModerateResult.canModerate) {
-        await editReply(
-          interaction,
-          errorMessage('Error', canModerateResult.reason ?? 'You cannot moderate this user.')
-        );
+      // Check hierarchy using Gate (only if target is a member)
+      const hierarchyResult = gate.checkHierarchy(targetMember);
+      if (isFail(hierarchyResult)) {
+        await editReply(interaction, errorMessage('Error', hierarchyResult.message));
         return;
       }
 

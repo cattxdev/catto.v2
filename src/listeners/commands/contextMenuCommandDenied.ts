@@ -1,7 +1,7 @@
 import {
   Listener,
   Events,
-  type ChatInputCommandDeniedPayload,
+  type ContextMenuCommandDeniedPayload,
   type UserError,
 } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
@@ -9,24 +9,23 @@ import { MessageFlags } from 'discord.js';
 import type { Prisma } from '@prisma/client';
 
 /**
- * Handles denied chat input commands.
+ * Handles denied context menu commands.
  *
- * When a precondition (like PermissionGatePrecondition using Gate) denies a command:
+ * When a precondition (like PermissionGatePrecondition using Gate) denies a context menu command:
  * 1. Logs the denial to the database
  * 2. Sends an ephemeral error response to the user
- *
- * This prevents the "Application did not respond" error that occurs
- * when an interaction is never replied to.
  */
 @ApplyOptions<Listener.Options>({
-  event: Events.ChatInputCommandDenied,
+  event: Events.ContextMenuCommandDenied,
 })
-export class ChatInputCommandDeniedListener extends Listener<typeof Events.ChatInputCommandDenied> {
+export class ContextMenuCommandDeniedListener extends Listener<
+  typeof Events.ContextMenuCommandDenied
+> {
   public override async run(
     error: UserError,
-    { interaction, command }: ChatInputCommandDeniedPayload
+    { interaction, command }: ContextMenuCommandDeniedPayload
   ) {
-    // Check if this denial should be silent (some preconditions may handle responses themselves)
+    // Check if this denial should be silent
     const isSilent = Reflect.get(Object(error.context), 'silent') === true;
 
     // Log the denial (non-blocking)
@@ -34,7 +33,7 @@ export class ChatInputCommandDeniedListener extends Listener<typeof Events.ChatI
       .create({
         data: {
           level: 'warn',
-          message: `Command denied: ${command.name}`,
+          message: `Context menu denied: ${command.name}`,
           metadata: {
             userId: interaction.user.id,
             username: interaction.user.username,
@@ -45,7 +44,7 @@ export class ChatInputCommandDeniedListener extends Listener<typeof Events.ChatI
           } satisfies Prisma.InputJsonObject,
         },
       })
-      .catch((err) => this.container.logger.error('Failed to log command denial:', err));
+      .catch((err) => this.container.logger.error('Failed to log context menu denial:', err));
 
     // Don't respond if silent
     if (isSilent) return;
