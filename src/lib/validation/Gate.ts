@@ -41,9 +41,7 @@ import { getCommand, fallbackDiscordPermissionForCommand } from './permissionReg
 import { errorMessage, type FluentContainer } from '../discord/containers/index.js';
 import { reply, editReply } from '../discord/core/reply.js';
 
-// =============================================================================
 // Types
-// =============================================================================
 
 /** Interactions that can be gated */
 export type GateableInteraction =
@@ -113,9 +111,7 @@ function fail(code: GateErrorCode, title: string, message: string): GateFail {
   };
 }
 
-// =============================================================================
 // Gate Class
-// =============================================================================
 
 /**
  * Centralized validation gate for commands and interactions.
@@ -434,9 +430,7 @@ export class Gate {
   }
 }
 
-// =============================================================================
 // Helpers
-// =============================================================================
 
 /**
  * Build a command key from interaction data.

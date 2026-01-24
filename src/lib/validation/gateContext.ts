@@ -27,9 +27,7 @@
 import type { Interaction } from 'discord.js';
 import { Gate, type GateableInteraction } from './Gate.js';
 
-// =============================================================================
 // WeakMap Context Store
-// =============================================================================
 
 /**
  * WeakMap storing Gate instances per interaction.
@@ -91,9 +89,7 @@ export function initializeGateForInteraction(interaction: Interaction): void {
   }
 }
 
-// =============================================================================
 // Type Guards
-// =============================================================================
 
 /**
  * Check if an interaction is a type that can be gated.
@@ -121,9 +117,7 @@ export function asGateableInteraction(interaction: Interaction): GateableInterac
   return interaction as unknown as GateableInteraction;
 }
 
-// =============================================================================
 // TypeScript Augmentation for interaction.gate
-// =============================================================================
 
 /**
  * Symbol used to store the Gate getter on interaction objects.
@@ -159,9 +153,7 @@ export function installGateGetter(interaction: Interaction): void {
   });
 }
 
-// =============================================================================
 // Helper Functions for Common Patterns
-// =============================================================================
 
 /**
  * Require a Gate for the interaction, sending an error if not in guild.
@@ -210,9 +202,7 @@ export async function requirePunitive(
   return gate.requirePunitive(resourceKey, targetId, options);
 }
 
-// =============================================================================
 // TypeScript Module Augmentation
-// =============================================================================
 
 declare module 'discord.js' {
   interface ChatInputCommandInteraction {

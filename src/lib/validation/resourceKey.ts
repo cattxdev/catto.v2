@@ -27,9 +27,7 @@ import type {
 import type { GateableInteraction } from './Gate.js';
 import { buildCommandKey } from './Gate.js';
 
-// =============================================================================
 // Types
-// =============================================================================
 
 export interface ResourceKeyResolution {
   /** The resolved resource key (e.g., 'mod.warn', 'mod.kick') */
@@ -49,9 +47,7 @@ export interface CustomIdParser {
   priority?: number;
 }
 
-// =============================================================================
 // Custom ID Parsers Registry
-// =============================================================================
 
 /**
  * Registry of custom ID parsers for component interactions.
@@ -68,9 +64,7 @@ export function registerCustomIdParser(parser: CustomIdParser): void {
   customIdParsers.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 }
 
-// =============================================================================
 // Built-in Mod Panel/Modal Parsers
-// =============================================================================
 
 /**
  * Mod panel action to command key mapping.
@@ -152,9 +146,7 @@ registerCustomIdParser({
   parse: () => 'mod.history',
 });
 
-// =============================================================================
 // Core Resolution Functions
-// =============================================================================
 
 /**
  * Resolve the resource key from a chat input command interaction.
@@ -208,9 +200,7 @@ export function resolveSelectMenuKey(interaction: StringSelectMenuInteraction): 
   return resolveCustomIdKey(interaction.customId);
 }
 
-// =============================================================================
 // Unified Resolution
-// =============================================================================
 
 /**
  * Resolve the resource key from any gateable interaction.
@@ -279,9 +269,7 @@ export function resolveResourceKeyOrThrow(interaction: GateableInteraction): str
   return result.key;
 }
 
-// =============================================================================
 // Utility Functions
-// =============================================================================
 
 /**
  * Check if a custom ID is known/registered.
