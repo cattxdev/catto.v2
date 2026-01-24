@@ -1,81 +1,110 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { ModAction } from '@prisma/client';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
-  createModCase,
-  createModEmbed,
-  notifyUser,
-  logToModChannel,
-  ModAction,
-} from '../../lib/moderation.js';
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
+import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
 export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild || !interaction.member) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
+  // Create gate for validation
+  const gate = Gate.from(interaction);
+  if (!gate) {
+    await interaction.reply(ephemeralError('This command can only be used in a server.'));
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  // Parse options
+  let options;
+  try {
+    options = parseWarnOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    interaction.client.logger.error('Unexpected error while parsing warn options:', error);
+    throw error;
+  }
+
+  // Resolve target and check hierarchy (authorization already checked by precondition)
+  const targetMember = await gate.resolveMember(options.target.id);
+  if (!targetMember) {
+    await interaction.reply(ephemeralError('Target is not a member of this server.'));
+    return;
+  }
+
+  // Check hierarchy
+  const hierarchyResult = gate.checkHierarchy(targetMember);
+  if (isFail(hierarchyResult)) {
+    await gate.deny(hierarchyResult);
+    return;
+  }
+
+  await defer(interaction);
 
   try {
-    const target = interaction.options.getUser('target', true);
-    const reason = interaction.options.getString('reason', true);
-
-    try {
-      await interaction.guild.members.fetch(target.id);
-    } catch {
-      await interaction.editReply({
-        content: '❌ Target is not a member of this server.',
-      });
-      return;
-    }
-
-    if (target.id === interaction.user.id) {
-      await interaction.editReply({
-        content: '❌ You cannot warn yourself.',
-      });
-      return;
-    }
-
-    if (target.bot) {
-      await interaction.editReply({
-        content: '❌ You cannot warn bots.',
-      });
-      return;
-    }
-
-    const notified = await notifyUser(target, ModAction.WARN, interaction.guild, reason);
-
-    const modCase = await createModCase({
-      guildId: interaction.guild.id,
-      action: ModAction.WARN,
-      targetId: target.id,
-      targetTag: target.tag,
-      moderatorId: interaction.user.id,
-      moderatorTag: interaction.user.tag,
-      reason,
-    });
-
-    const embed = createModEmbed(
+    // Notify user before warn
+    const notified = await notifyUser(
+      options.target,
       ModAction.WARN,
-      target,
-      interaction.user,
-      reason,
-      modCase.caseNumber
+      options.guild,
+      options.reason
     );
 
-    await logToModChannel(interaction.guild, embed);
+    // Execute warn via service
+    const result = await moderationService.warn(
+      options.guild,
+      options.target,
+      options.moderator,
+      options.reason
+    );
 
-    await interaction.editReply({
-      content: `✅ **${target.tag}** has been warned. (Case #${modCase.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
-    });
+    if (!result.success) {
+      await editReply(
+        interaction,
+        buildModActionError(
+          result.error ?? 'An unexpected error occurred while processing the warning.'
+        )
+      );
+      return;
+    }
+
+    // Log to mod channel
+    await logModAction(
+      options.guild,
+      ModAction.WARN,
+      options.target,
+      options.moderator,
+      options.reason ?? 'No reason provided',
+      ensureNonNull(result.caseNumber, '_warn > handleWarn > logModAction(82): result.caseNumber')
+    );
+
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Warning',
+        options.target,
+        ensureNonNull(
+          result.caseNumber,
+          '_warn > handleWarn > buildModActionSuccess(90): result.caseNumber'
+        ),
+        options.reason ?? 'No reason provided',
+        undefined,
+        { dmSent: notified }
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in warn command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the warning.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the warning.')
+    ).catch(() => {});
   }
 }

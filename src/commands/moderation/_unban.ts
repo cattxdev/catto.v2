@@ -1,87 +1,94 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { createModCase, createModEmbed, logToModChannel, ModAction } from '../../lib/moderation.js';
+import { ModAction } from '@prisma/client';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { logModAction } from '../../modules/moderation/discord/embeds/presets.js';
+import {
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
+import { parseUnbanOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
 
 export async function handleUnban(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
-    return;
+  let options;
+  try {
+    options = parseUnbanOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    interaction.client.logger.error('Unexpected error while parsing unban options:', error);
+    throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction);
 
   try {
-    const userId = interaction.options.getString('user_id', true);
-    const reason = interaction.options.getString('reason') ?? 'No reason provided';
-
-    if (!/^\d{17,19}$/.test(userId)) {
-      await interaction.editReply({
-        content: '❌ Invalid user ID format.',
-      });
+    // Check bot permissions
+    if (!options.guild.members.me?.permissions.has('BanMembers')) {
+      await editReply(
+        interaction,
+        errorMessage('Error', 'I do not have permission to unban members.')
+      );
       return;
     }
 
-    if (!interaction.guild.members.me?.permissions.has('BanMembers')) {
-      await interaction.editReply({
-        content: '❌ I do not have permission to unban members.',
-      });
-      return;
-    }
-
+    // Check if user is banned
     let ban;
     try {
-      ban = await interaction.guild.bans.fetch(userId);
+      ban = await options.guild.bans.fetch(options.userId);
     } catch {
-      await interaction.editReply({
-        content: '❌ This user is not banned.',
-      });
+      await editReply(interaction, errorMessage('Error', 'This user is not banned.'));
       return;
     }
 
-    try {
-      await interaction.guild.members.unban(
-        userId,
-        `${reason} | Moderator: ${interaction.user.tag}`
-      );
-    } catch (error) {
-      interaction.client.logger.error('Failed to unban user:', error);
-      await interaction.editReply({
-        content: '❌ Failed to unban the user. Please check my permissions.',
-      });
-      return;
-    }
-
-    const modCase = await createModCase({
-      guildId: interaction.guild.id,
-      action: ModAction.UNBAN,
-      targetId: userId,
-      targetTag: ban.user.tag,
-      moderatorId: interaction.user.id,
-      moderatorTag: interaction.user.tag,
-      reason,
-    });
-
-    const embed = createModEmbed(
-      ModAction.UNBAN,
-      ban.user,
-      interaction.user,
-      reason,
-      modCase.caseNumber
+    // Execute unban via service
+    const result = await moderationService.unban(
+      options.guild,
+      options.userId,
+      ban.user.tag,
+      options.moderator,
+      options.reason
     );
 
-    await logToModChannel(interaction.guild, embed);
+    if (!result.success) {
+      await editReply(
+        interaction,
+        buildModActionError(result.error ?? 'Failed to unban the user.', 'Check bot permissions.')
+      );
+      return;
+    }
 
-    await interaction.editReply({
-      content: `✅ **${ban.user.tag}** has been unbanned. (Case #${modCase.caseNumber})`,
-    });
+    // Log to mod channel
+    await logModAction(
+      options.guild,
+      ModAction.UNBAN,
+      ban.user,
+      options.moderator,
+      options.reason ?? 'No reason provided',
+      ensureNonNull(result.caseNumber, '_unban > handleUnban > logModAction(74): result.caseNumber')
+    );
+
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Unban',
+        ban.user,
+        ensureNonNull(
+          result.caseNumber,
+          '_unban > handleUnban > buildModActionSuccess(82): result.caseNumber'
+        ),
+        options.reason ?? 'No reason provided'
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in unban command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the unban.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the unban.')
+    ).catch(() => {});
   }
 }

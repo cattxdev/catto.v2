@@ -1,90 +1,38 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { EmbedBuilder, Colors } from 'discord.js';
-import { getCase, formatDuration } from '../../lib/moderation.js';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { createCaseEmbed } from '../../modules/moderation/discord/embeds/presets.js';
+import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, editError, defer, editReply, infoMessage } from '#lib/discord/index.js';
 
 export async function handleCase(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
-    return;
+  let options;
+  try {
+    options = parseCaseOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction);
 
   try {
-    const caseNumber = interaction.options.getInteger('number', true);
-
-    const modCase = await getCase(interaction.guild.id, caseNumber);
+    const modCase = await moderationService.getCase(options.guildId, options.caseNumber);
 
     if (!modCase) {
-      await interaction.editReply({
-        content: `❌ Case #${caseNumber} not found.`,
-      });
+      await editReply(interaction, infoMessage(`Case #${options.caseNumber} not found.`));
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Blue)
-      .setTitle(`📋 Case #${modCase.caseNumber}`)
-      .addFields(
-        {
-          name: '🔨 Action',
-          value: modCase.action,
-          inline: true,
-        },
-        {
-          name: '👤 Target',
-          value: `${modCase.targetTag}\n(\`${modCase.targetId}\`)`,
-          inline: true,
-        },
-        {
-          name: '👮 Moderator',
-          value: `${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`,
-          inline: true,
-        },
-        {
-          name: '📝 Reason',
-          value: modCase.reason || 'No reason provided',
-          inline: false,
-        },
-        {
-          name: '📅 Date',
-          value: `<t:${Math.floor(modCase.createdAt.getTime() / 1000)}:F>`,
-          inline: true,
-        }
-      );
-
-    if (modCase.duration) {
-      embed.addFields({
-        name: '⏱️ Duration',
-        value: formatDuration(modCase.duration),
-        inline: true,
-      });
-    }
-
-    if (modCase.expiresAt) {
-      embed.addFields({
-        name: '⏰ Expires',
-        value: `<t:${Math.floor(modCase.expiresAt.getTime() / 1000)}:R>`,
-        inline: true,
-      });
-    }
-
-    embed.setFooter({
-      text: `Guild ID: ${modCase.guildId}`,
-    });
-
-    await interaction.editReply({
-      embeds: [embed],
-    });
+    const message = createCaseEmbed(modCase);
+    await editReply(interaction, message);
   } catch (error) {
     interaction.client.logger.error('Error in case command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while fetching the case.',
-      })
+      .editReply(editError('An unexpected error occurred while fetching the case.'))
       .catch(() => {});
   }
 }

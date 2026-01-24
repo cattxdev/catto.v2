@@ -1,133 +1,155 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { GuildMember } from 'discord.js';
+import { ModAction } from '@prisma/client';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
-  createModCase,
-  createModEmbed,
+  logModAction,
   notifyUser,
-  logToModChannel,
-  canModerate,
-  parseDuration,
   formatDuration,
-  ModAction,
-} from '../../lib/moderation.js';
+} from '../../modules/moderation/discord/embeds/presets.js';
+import {
+  buildModActionSuccess,
+  buildModActionError,
+} from '../../modules/moderation/discord/panelBuilder.js';
+import { parseTimeoutOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import { ensureNonNull } from '#root/lib/utils.js';
+import { getGate } from '#lib/validation/gateContext.js';
+import { isFail } from '#lib/validation/Gate.js';
 
 export async function handleTimeout(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild || !interaction.member) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
+  let options;
+  try {
+    options = parseTimeoutOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
+  }
+
+  await defer(interaction);
+
+  // Get Gate for hierarchy validation
+  const gate = getGate(interaction);
+  if (!gate) {
+    await editReply(
+      interaction,
+      errorMessage('Error', 'This command can only be used in a server.')
+    );
     return;
   }
 
-  await interaction.deferReply({ ephemeral: true });
-
   try {
-    const target = interaction.options.getUser('target', true);
-    const durationStr = interaction.options.getString('duration', true);
-    const reason = interaction.options.getString('reason') ?? 'No reason provided';
-
-    const durationSeconds = parseDuration(durationStr);
-    if (!durationSeconds) {
-      await interaction.editReply({
-        content: '❌ Invalid duration format. Use formats like: 10m, 1h, 2d, 1w',
-      });
-      return;
-    }
-
-    const durationMs = durationSeconds * 1000;
+    const durationMs = options.durationSeconds * 1000;
     const maxDuration = 28 * 24 * 60 * 60 * 1000;
+
     if (durationMs > maxDuration) {
-      await interaction.editReply({
-        content: '❌ Timeout duration cannot exceed 28 days.',
-      });
+      await editReply(
+        interaction,
+        errorMessage('Error', 'Timeout duration cannot exceed 28 days.')
+      );
       return;
     }
 
     if (durationMs < 60 * 1000) {
-      await interaction.editReply({
-        content: '❌ Timeout duration must be at least 1 minute.',
-      });
+      await editReply(
+        interaction,
+        errorMessage('Error', 'Timeout duration must be at least 1 minute.')
+      );
       return;
     }
 
+    // Fetch target member
     let targetMember;
     try {
-      targetMember = await interaction.guild.members.fetch(target.id);
+      targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await interaction.editReply({
-        content: '❌ Target is not a member of this server.',
-      });
+      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
       return;
     }
 
-    if (!interaction.guild.members.me?.permissions.has('ModerateMembers')) {
-      await interaction.editReply({
-        content: '❌ I do not have permission to timeout members.',
-      });
+    // Check bot permissions
+    if (!options.guild.members.me?.permissions.has('ModerateMembers')) {
+      await editReply(
+        interaction,
+        errorMessage('Error', 'I do not have permission to timeout members.')
+      );
       return;
     }
 
-    const canModerateResult = canModerate(interaction.member as GuildMember, targetMember);
-
-    if (!canModerateResult.canModerate) {
-      await interaction.editReply({
-        content: `❌ ${canModerateResult.reason}`,
-      });
+    // Check hierarchy using Gate
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await editReply(interaction, errorMessage('Error', hierarchyResult.message));
       return;
     }
 
+    // Notify user before timeout
     const notified = await notifyUser(
-      target,
+      options.target,
       ModAction.TIMEOUT,
-      interaction.guild,
-      reason,
-      durationSeconds
+      options.guild,
+      options.reason,
+      options.durationSeconds
     );
 
-    try {
-      await targetMember.timeout(durationMs, `${reason} | Moderator: ${interaction.user.tag}`);
-    } catch (error) {
-      interaction.client.logger.error('Failed to timeout user:', error);
-      await interaction.editReply({
-        content: '❌ Failed to timeout the user. Please check my permissions and role hierarchy.',
-      });
+    // Execute timeout via service
+    const result = await moderationService.timeout(
+      options.guild,
+      targetMember,
+      options.moderator,
+      options.reason,
+      options.durationSeconds
+    );
+
+    if (!result.success) {
+      await editReply(
+        interaction,
+        buildModActionError(
+          result.error ?? 'Failed to timeout the user.',
+          'Check bot permissions and role hierarchy.'
+        )
+      );
       return;
     }
 
-    const expiresAt = new Date(Date.now() + durationMs);
-    const modCase = await createModCase({
-      guildId: interaction.guild.id,
-      action: ModAction.TIMEOUT,
-      targetId: target.id,
-      targetTag: target.tag,
-      moderatorId: interaction.user.id,
-      moderatorTag: interaction.user.tag,
-      reason,
-      duration: durationSeconds,
-      expiresAt,
-    });
-
-    const embed = createModEmbed(
+    // Log to mod channel
+    await logModAction(
+      options.guild,
       ModAction.TIMEOUT,
-      target,
-      interaction.user,
-      reason,
-      modCase.caseNumber,
-      durationSeconds
+      options.target,
+      options.moderator,
+      options.reason ?? 'No reason provided',
+      ensureNonNull(
+        result.caseNumber,
+        '_timeout > handleTimeout > logModAction(114): result.caseNumber'
+      ),
+      options.durationSeconds
     );
 
-    await logToModChannel(interaction.guild, embed);
+    const durationText = formatDuration(options.durationSeconds);
 
-    await interaction.editReply({
-      content: `✅ **${target.tag}** has been timed out for ${formatDuration(durationSeconds)}. (Case #${modCase.caseNumber})${!notified ? '\n⚠️ Could not send DM notification to user.' : ''}`,
-    });
+    await editReply(
+      interaction,
+      buildModActionSuccess(
+        'Timeout',
+        options.target,
+        ensureNonNull(
+          result.caseNumber,
+          '_timeout > handleTimeout > buildModActionSuccess(125): result.caseNumber'
+        ),
+        options.reason ?? 'No reason provided',
+        durationText,
+        { dmSent: notified }
+      )
+    );
   } catch (error) {
     interaction.client.logger.error('Error in timeout command:', error);
-    await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while processing the timeout.',
-      })
-      .catch(() => {});
+    await editReply(
+      interaction,
+      errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
+    ).catch(() => {});
   }
 }

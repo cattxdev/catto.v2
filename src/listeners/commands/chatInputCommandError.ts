@@ -1,5 +1,6 @@
 import { Listener, Events, type ChatInputCommandErrorPayload } from '@sapphire/framework';
 import type { Logger } from '@sapphire/plugin-logger';
+import { MessageFlags } from 'discord.js';
 
 export class ChatInputCommandErrorListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -20,7 +21,7 @@ export class ChatInputCommandErrorListener extends Listener {
 
     return interaction.reply({
       content: '❌ An error occurred while executing this command.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }

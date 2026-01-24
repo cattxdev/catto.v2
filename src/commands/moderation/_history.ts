@@ -1,78 +1,42 @@
 import { Subcommand } from '@sapphire/plugin-subcommands';
-import { EmbedBuilder, Colors } from 'discord.js';
-import { getUserCases, ModAction } from '../../lib/moderation.js';
+import { moderationService } from '../../modules/moderation/services/ModerationService.js';
+import { createHistoryEmbed } from '../../modules/moderation/discord/embeds/presets.js';
+import { getHistoryPaginationBase } from '../../modules/moderation/discord/customId.js';
+import { parseHistoryOptions } from '#lib/interaction/typedOptions.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, editError, defer, editReply, infoMessage } from '#lib/discord/index.js';
 
 export async function handleHistory(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply({
-      content: '❌ This command can only be used in a server.',
-      ephemeral: true,
-    });
-    return;
+  let options;
+  try {
+    options = parseHistoryOptions(interaction);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      await interaction.reply(ephemeralError(error.message));
+      return;
+    }
+    throw error;
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await defer(interaction).public();
 
   try {
-    const target = interaction.options.getUser('target', true);
-
-    const cases = await getUserCases(interaction.guild.id, target.id);
+    const cases = await moderationService.getUserCases(options.guildId, options.targetId);
 
     if (cases.length === 0) {
-      await interaction.editReply({
-        content: `📋 **${target.tag}** has no moderation history.`,
-      });
+      await editReply(interaction, infoMessage(`${options.target.tag} has no moderation history.`));
       return;
     }
 
-    const stats = {
-      bans: cases.filter((c) => c.action === ModAction.BAN).length,
-      kicks: cases.filter((c) => c.action === ModAction.KICK).length,
-      timeouts: cases.filter((c) => c.action === ModAction.TIMEOUT).length,
-      warns: cases.filter((c) => c.action === ModAction.WARN).length,
-    };
-
-    const embed = new EmbedBuilder()
-      .setColor(Colors.Orange)
-      .setTitle(`📋 Moderation History for ${target.tag}`)
-      .setThumbnail(target.displayAvatarURL())
-      .setDescription(
-        `**Total Cases:** ${cases.length}\n` +
-          `**Bans:** ${stats.bans}\n` +
-          `**Kicks:** ${stats.kicks}\n` +
-          `**Timeouts:** ${stats.timeouts}\n` +
-          `**Warns:** ${stats.warns}`
-      );
-
-    const recentCases = cases.slice(0, 10);
-    const caseList = recentCases
-      .map((c) => {
-        const timestamp = `<t:${Math.floor(c.createdAt.getTime() / 1000)}:d>`;
-        return `**Case #${c.caseNumber}** - ${c.action}\n${timestamp} • ${c.reason || 'No reason'}`;
-      })
-      .join('\n\n');
-
-    embed.addFields({
-      name: `Recent Cases (Showing ${recentCases.length} of ${cases.length})`,
-      value: caseList || 'No cases',
-      inline: false,
+    const message = createHistoryEmbed(options.target, cases, {
+      page: 1,
+      paginationCustomIdBase: getHistoryPaginationBase(options.targetId, 1),
     });
-
-    if (cases.length > 10) {
-      embed.setFooter({
-        text: `Showing 10 of ${cases.length} total cases. Use /mod case <number> to view specific cases.`,
-      });
-    }
-
-    await interaction.editReply({
-      embeds: [embed],
-    });
+    await editReply(interaction, message);
   } catch (error) {
     interaction.client.logger.error('Error in history command:', error);
     await interaction
-      .editReply({
-        content: '❌ An unexpected error occurred while fetching the history.',
-      })
+      .editReply(editError('An unexpected error occurred while fetching the history.'))
       .catch(() => {});
   }
 }
