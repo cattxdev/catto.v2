@@ -3,14 +3,7 @@ import { getUserSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { UserDropdown } from "@/components/user-dropdown"
 import Link from "next/link"
-
-interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-  owner: boolean;
-  permissions: string;
-}
+import type { Guild } from "@/lib/types"
 
 export default async function GuildPage({
   params,
