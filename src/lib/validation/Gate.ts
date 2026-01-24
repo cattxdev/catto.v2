@@ -35,10 +35,11 @@ import {
   type GuildMember,
   type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
-  MessageFlags,
 } from 'discord.js';
 import { checkCommandAccess } from './permissionResolver.js';
 import { getCommand, fallbackDiscordPermissionForCommand } from './permissionRegistry.js';
+import { errorMessage, type FluentContainer } from '../discord/containers/index.js';
+import { reply, editReply } from '../discord/core/reply.js';
 
 // =============================================================================
 // Types
@@ -83,7 +84,10 @@ interface GatePass {
 interface GateFail {
   readonly ok: false;
   readonly code: GateErrorCode;
+  /** Plain text message for logging/internal use */
   readonly message: string;
+  /** DCB container for user-facing responses */
+  readonly response: FluentContainer;
 }
 
 /** Result of a gate check */
@@ -99,9 +103,14 @@ function pass(): GatePass {
   return { ok: true };
 }
 
-/** Create a fail result */
-function fail(code: GateErrorCode, message: string): GateFail {
-  return { ok: false, code, message };
+/** Create a fail result with DCB container */
+function fail(code: GateErrorCode, title: string, message: string): GateFail {
+  return {
+    ok: false,
+    code,
+    message,
+    response: errorMessage(title, message),
+  };
 }
 
 // =============================================================================
@@ -155,10 +164,10 @@ export class Gate {
 
     if (!gate) {
       try {
-        await interaction.reply({
-          content: '❌ This command can only be used in a server.',
-          flags: MessageFlags.Ephemeral,
-        });
+        await reply(
+          interaction,
+          errorMessage('Server Only', 'This command can only be used in a server.')
+        );
       } catch {
         // Interaction may have expired
       }
@@ -187,6 +196,7 @@ export class Gate {
     if (accessResult.reason === 'explicit_deny' || accessResult.reason === 'category_deny') {
       return fail(
         GateErrorCode.EXPLICIT_DENY,
+        'Access Denied',
         'You have been explicitly denied access to this command.'
       );
     }
@@ -200,7 +210,7 @@ export class Gate {
       ? `You need the required Discord permission or a custom grant for \`${displayName}\`.`
       : `You don't have permission to use \`${displayName}\`.`;
 
-    return fail(GateErrorCode.NO_PERMISSION, message);
+    return fail(GateErrorCode.NO_PERMISSION, 'Permission Denied', message);
   }
 
   /**
@@ -235,25 +245,38 @@ export class Gate {
   checkHierarchy(target: GuildMember): GateResult {
     // Self
     if (this.member.id === target.id) {
-      return fail(GateErrorCode.SELF_TARGET, 'You cannot perform this action on yourself.');
+      return fail(
+        GateErrorCode.SELF_TARGET,
+        'Invalid Target',
+        'You cannot perform this action on yourself.'
+      );
     }
 
     // Server owner
     if (target.id === this.guild.ownerId) {
       return fail(
         GateErrorCode.OWNER_TARGET,
+        'Cannot Moderate',
         'You cannot perform this action on the server owner.'
       );
     }
 
     // Bots require Administrator
     if (target.user.bot && !this.member.permissions.has('Administrator')) {
-      return fail(GateErrorCode.BOT_TARGET, 'You cannot perform this action on bots.');
+      return fail(
+        GateErrorCode.BOT_TARGET,
+        'Cannot Moderate',
+        'You cannot perform this action on bots.'
+      );
     }
 
     // Role hierarchy
     if (target.roles.highest.position >= this.member.roles.highest.position) {
-      return fail(GateErrorCode.HIGHER_ROLE, 'Target has equal or higher role than you.');
+      return fail(
+        GateErrorCode.HIGHER_ROLE,
+        'Cannot Moderate',
+        'Target has equal or higher role than you.'
+      );
     }
 
     // Bot capability (can't bypass - Discord enforces)
@@ -261,6 +284,7 @@ export class Gate {
     if (botMember && target.roles.highest.position >= botMember.roles.highest.position) {
       return fail(
         GateErrorCode.BOT_CANNOT_ACT,
+        'Cannot Moderate',
         'I cannot perform this action on users with equal or higher role than me.'
       );
     }
@@ -312,7 +336,9 @@ export class Gate {
 
     // 3. Member required check
     if (requiresMember && !targetMember) {
-      await this.deny(fail(GateErrorCode.TARGET_NOT_MEMBER, 'User is not in this server.'));
+      await this.deny(
+        fail(GateErrorCode.TARGET_NOT_MEMBER, 'User Not Found', 'User is not in this server.')
+      );
       return null;
     }
 
@@ -363,16 +389,11 @@ export class Gate {
    * @returns Always returns true (for early-return pattern)
    */
   async deny(result: GateFail): Promise<true> {
-    const content = `❌ ${result.message}`;
-
     try {
       if (this.interaction.deferred || this.interaction.replied) {
-        await this.interaction.editReply({ content });
+        await editReply(this.interaction, result.response);
       } else {
-        await this.interaction.reply({
-          content,
-          flags: MessageFlags.Ephemeral,
-        });
+        await reply(this.interaction, result.response);
       }
     } catch {
       // Interaction may have expired or failed
@@ -429,11 +450,4 @@ export function buildCommandKey(
   if (subcommandGroup) parts.push(subcommandGroup);
   if (subcommand) parts.push(subcommand);
   return parts.join('.');
-}
-
-/**
- * Get a user-friendly error message from a gate result.
- */
-export function getGateErrorMessage(result: GateFail): string {
-  return result.message;
 }

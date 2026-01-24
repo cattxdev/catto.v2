@@ -10,7 +10,7 @@ import {
   infoContainer,
   type FluentContainer,
 } from './container.js';
-
+import { EMOJI } from '../design.js';
 /**
  * Simple message with multiple text lines
  */
@@ -24,7 +24,7 @@ export function simpleMessage(...lines: string[]): FluentContainer {
  * Success message with title and optional description
  */
 export function successMessage(title: string, description?: string): FluentContainer {
-  const c = successContainer().h2(title);
+  const c = successContainer().h2(`${EMOJI.SUCCESS} ${title}`);
   if (description) c.text(description);
   return c;
 }
@@ -33,7 +33,7 @@ export function successMessage(title: string, description?: string): FluentConta
  * Error message with title and optional description
  */
 export function errorMessage(title: string, description?: string): FluentContainer {
-  const c = errorContainer().h2(title);
+  const c = errorContainer().h2(`${EMOJI.ERROR} ${title}`);
   if (description) c.text(description);
   return c;
 }
@@ -42,7 +42,7 @@ export function errorMessage(title: string, description?: string): FluentContain
  * Warning message with title and optional description
  */
 export function warningMessage(title: string, description?: string): FluentContainer {
-  const c = warningContainer().h2(title);
+  const c = warningContainer().h2(`${EMOJI.WARNING} ${title}`);
   if (description) c.text(description);
   return c;
 }
@@ -51,7 +51,7 @@ export function warningMessage(title: string, description?: string): FluentConta
  * Info message with title and optional description
  */
 export function infoMessage(title: string, description?: string): FluentContainer {
-  const c = infoContainer().h2(title);
+  const c = infoContainer().h2(`${EMOJI.INFO} ${title}`);
   if (description) c.text(description);
   return c;
 }
