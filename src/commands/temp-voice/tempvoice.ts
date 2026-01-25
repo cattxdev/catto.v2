@@ -526,7 +526,7 @@ export class TempVoiceCommand extends Command {
 
     if (user.id === tempChannel.ownerId) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} The channel owner is already trusted.`,
+        content: `${EMOJI.STATUS.ERROR} The channel owner is already trusted.`,
         ephemeral: true,
       });
     }
@@ -536,7 +536,7 @@ export class TempVoiceCommand extends Command {
 
       if (currentTrusted.includes(user.id)) {
         return interaction.reply({
-          content: `${EMOJIS.STATUS.ERROR} **${user.tag}** is already trusted.`,
+          content: `${EMOJI.STATUS.ERROR} **${user.tag}** is already trusted.`,
           ephemeral: true,
         });
       }
@@ -567,13 +567,13 @@ export class TempVoiceCommand extends Command {
       });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** is now trusted and can help manage this channel (except transfer ownership).`,
+        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** is now trusted and can help manage this channel (except transfer ownership).`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to trust user:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to trust user. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to trust user. Please try again.`,
         ephemeral: true,
       });
     }
@@ -588,7 +588,7 @@ export class TempVoiceCommand extends Command {
 
     if (user.id === tempChannel.ownerId) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} The channel owner cannot be untrusted.`,
+        content: `${EMOJI.STATUS.ERROR} The channel owner cannot be untrusted.`,
         ephemeral: true,
       });
     }
@@ -598,7 +598,7 @@ export class TempVoiceCommand extends Command {
 
       if (!currentTrusted.includes(user.id)) {
         return interaction.reply({
-          content: `${EMOJIS.STATUS.ERROR} **${user.tag}** is not trusted.`,
+          content: `${EMOJI.STATUS.ERROR} **${user.tag}** is not trusted.`,
           ephemeral: true,
         });
       }
@@ -628,13 +628,13 @@ export class TempVoiceCommand extends Command {
       // If in denied list, permissions are already set correctly
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** is no longer trusted but can still access the channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** is no longer trusted but can still access the channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to untrust user:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to untrust user. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to untrust user. Please try again.`,
         ephemeral: true,
       });
     }
