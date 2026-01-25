@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import './setup.js';
 import { BotClient } from '#structures/BotClient';
 import { CONFIG } from '#config';

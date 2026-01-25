@@ -2,8 +2,9 @@ import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildMember, PartialGuildMember } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
 import { time, TimestampStyles } from '@discordjs/builders';
+import { LogListener } from './LogListener';
 
-export class GuildMemberRemoveListener extends Listener<typeof Events.GuildMemberRemove> {
+export class GuildMemberRemoveListener extends LogListener<typeof Events.GuildMemberRemove> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
