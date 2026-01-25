@@ -90,8 +90,24 @@ class VoiceXPQueueService {
         );
       }
     } catch (error) {
+      // If bot is not in the guild, remove the repeating job
+      if (error instanceof Error && error.message.includes('Bot is not in guild')) {
+        container.logger.warn(
+          `[Voice XP Queue] Bot is no longer in guild ${guildId}, removing scheduled jobs`
+        );
+        // Remove all repeating jobs for this guild
+        const repeatableJobs = await this.queue.getRepeatableJobs();
+        for (const repeatJob of repeatableJobs) {
+          if (repeatJob.key.includes(guildId)) {
+            await this.queue.removeRepeatableByKey(repeatJob.key);
+            container.logger.info(`[Voice XP Queue] Removed repeating job for guild ${guildId}`);
+          }
+        }
+        return; // Don't re-throw, job is handled
+      }
+
       container.logger.error(`[Voice XP Queue] Error awarding XP for guild ${guildId}:`, error);
-      throw error; // Re-throw to trigger retry
+      throw error; // Re-throw to trigger retry for other errors
     }
   }
 
