@@ -2,8 +2,9 @@ import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildScheduledEvent } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
 import { time, TimestampStyles } from '@discordjs/builders';
+import { LogListener } from './LogListener';
 
-export class GuildScheduledEventUpdateListener extends Listener<
+export class GuildScheduledEventUpdateListener extends LogListener<
   typeof Events.GuildScheduledEventUpdate
 > {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
@@ -15,6 +16,13 @@ export class GuildScheduledEventUpdateListener extends Listener<
 
   public async run(oldEvent: GuildScheduledEvent | null, newEvent: GuildScheduledEvent) {
     if (!oldEvent) return;
+
+    // Check if channel should be ignored (for channel-based events)
+    if (
+      newEvent.channelId &&
+      (await this.shouldIgnoreChannel(newEvent.guildId, newEvent.channelId))
+    )
+      return;
 
     const changes: Array<{ name: string; value: string }> = [];
 

@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { Role } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
+import { LogListener } from './LogListener';
 
-export class RoleUpdateListener extends Listener<typeof Events.GuildRoleUpdate> {
+export class RoleUpdateListener extends LogListener<typeof Events.GuildRoleUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,

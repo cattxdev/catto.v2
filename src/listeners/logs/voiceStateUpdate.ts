@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { VoiceState } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
+import { LogListener } from './LogListener';
 
-export class LogVoiceStateUpdateListener extends Listener<typeof Events.VoiceStateUpdate> {
+export class LogVoiceStateUpdateListener extends LogListener<typeof Events.VoiceStateUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
@@ -19,6 +20,9 @@ export class LogVoiceStateUpdateListener extends Listener<typeof Events.VoiceSta
 
     // User joined a voice channel
     if (!oldState.channel && newState.channel) {
+      // Check if channel should be ignored
+      if (await this.shouldIgnoreChannel(newState.guild.id, newState.channel.id)) return;
+
       await logAction({
         guildId: newState.guild.id,
         type: LogType.Voice,
@@ -37,6 +41,9 @@ export class LogVoiceStateUpdateListener extends Listener<typeof Events.VoiceSta
     }
     // User left a voice channel
     else if (oldState.channel && !newState.channel) {
+      // Check if channel should be ignored
+      if (await this.shouldIgnoreChannel(newState.guild.id, oldState.channel.id)) return;
+
       await logAction({
         guildId: newState.guild.id,
         type: LogType.Voice,
@@ -55,6 +62,11 @@ export class LogVoiceStateUpdateListener extends Listener<typeof Events.VoiceSta
     }
     // User moved to a different voice channel
     else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+      // Check if either channel should be ignored (log if neither is ignored)
+      const ignoreOld = await this.shouldIgnoreChannel(newState.guild.id, oldState.channel.id);
+      const ignoreNew = await this.shouldIgnoreChannel(newState.guild.id, newState.channel.id);
+      if (ignoreOld && ignoreNew) return; // Skip if both are ignored
+
       await logAction({
         guildId: newState.guild.id,
         type: LogType.Voice,
@@ -92,6 +104,9 @@ export class LogVoiceStateUpdateListener extends Listener<typeof Events.VoiceSta
       }
 
       if (changes.length > 0) {
+        // Check if channel should be ignored
+        if (await this.shouldIgnoreChannel(newState.guild.id, newState.channel.id)) return;
+
         await logAction({
           guildId: newState.guild.id,
           type: LogType.VoiceState,

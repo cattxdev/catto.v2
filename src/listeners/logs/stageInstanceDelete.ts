@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { StageInstance } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
+import { LogListener } from './LogListener';
 
-export class StageInstanceDeleteListener extends Listener<typeof Events.StageInstanceDelete> {
+export class StageInstanceDeleteListener extends LogListener<typeof Events.StageInstanceDelete> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
@@ -11,6 +12,15 @@ export class StageInstanceDeleteListener extends Listener<typeof Events.StageIns
   }
 
   public async run(stageInstance: StageInstance) {
+    // Check if channel should be ignored
+    if (
+      await this.shouldIgnoreChannel(
+        stageInstance.guild?.id || stageInstance.guildId,
+        stageInstance.channelId
+      )
+    )
+      return;
+
     await logAction({
       guildId: stageInstance.guild?.id || stageInstance.guildId,
       type: LogType.Stage,

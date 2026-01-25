@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
+import { LogListener } from './LogListener';
 
-export class WebhookUpdateListener extends Listener<typeof Events.WebhooksUpdate> {
+export class WebhookUpdateListener extends LogListener<typeof Events.WebhooksUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
@@ -11,6 +12,9 @@ export class WebhookUpdateListener extends Listener<typeof Events.WebhooksUpdate
   }
 
   public async run(channel: GuildChannel) {
+    // Check if channel should be ignored
+    if (await this.shouldIgnoreChannel(channel.guild.id, channel.id)) return;
+
     // This event doesn't provide detailed webhook information,
     // so we just log that webhooks were updated
     await logAction({
