@@ -24,6 +24,25 @@ export interface XPConfig {
   tableThresholds: number[];
 }
 
+export interface UserXPStats {
+  userId: string;
+  username?: string;
+  xp: number;
+  level: number;
+  rank: number;
+  totalMessages?: number;
+  xpToNextLevel?: number;
+  progressPercent?: number;
+}
+
+export interface RecalcResponse {
+  success: boolean;
+  message: string;
+  guildId: string;
+  processedUsers: number;
+  updatedLevels: number;
+}
+
 export const textXPService = {
   /**
    * Get text XP configuration for a guild
@@ -48,6 +67,25 @@ export const textXPService = {
     const response = await botApi.get(`/api/guilds/${guildId}/xp/leaderboard`, {
       params: { limit },
     });
+    return response.data;
+  },
+
+  /**
+   * Get XP stats for a specific user
+   */
+  async getUserStats(
+    guildId: string,
+    userId: string
+  ): Promise<{ success: boolean; stats: UserXPStats }> {
+    const response = await botApi.get(`/api/guilds/${guildId}/xp/users/${userId}`);
+    return response.data;
+  },
+
+  /**
+   * Recalculate levels for all users based on current XP curve
+   */
+  async recalculateLevels(guildId: string): Promise<RecalcResponse> {
+    const response = await botApi.post(`/api/guilds/${guildId}/xp/recalc`);
     return response.data;
   },
 
