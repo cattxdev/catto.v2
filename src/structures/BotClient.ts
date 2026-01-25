@@ -2,8 +2,7 @@ import { SapphireClient, LogLevel, container, RegisterBehavior } from '@sapphire
 import { GatewayIntentBits, Partials, type ClientOptions } from 'discord.js';
 import { OAuth2Scopes } from 'discord-api-types/v10';
 import { CONFIG } from '#config';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import type { InternationalizationContext } from '@sapphire/plugin-i18next';
 import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
@@ -11,15 +10,6 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import Redis from 'ioredis';
 import { getRootData } from '@sapphire/pieces';
-
-// Augment container with Prisma, Redis, and API Server
-declare module '@sapphire/framework' {
-  interface Container {
-    prisma: PrismaClient;
-    redis: Redis;
-    server: Server;
-  }
-}
 
 export class BotClient extends SapphireClient {
   private rootData = getRootData();
@@ -71,7 +61,7 @@ export class BotClient extends SapphireClient {
         automaticallyConnect: true,
       },
       i18n: {
-        defaultLanguageDirectory: join(dirname(fileURLToPath(import.meta.url)), '..', 'languages'),
+        defaultLanguageDirectory: join(__dirname, '..', 'languages'),
         defaultMissingKey: 'Missing translation: {{key}}',
         defaultNS: 'common',
         i18next: (_: string[], languages: string[]) => ({
@@ -149,5 +139,14 @@ export class BotClient extends SapphireClient {
     await container.prisma.$disconnect();
     await container.redis.quit();
     return super.destroy();
+  }
+}
+
+// Augment container with Prisma, Redis, and API Server
+declare module '@sapphire/framework' {
+  interface Container {
+    prisma: PrismaClient;
+    redis: Redis;
+    server: Server;
   }
 }
