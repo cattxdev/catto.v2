@@ -1,5 +1,5 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/join-channels
+ * POST /api/guilds/[guildId]/temp-voice/join-channels
  * Add a join-to-create channel to the configuration
  */
 
@@ -16,7 +16,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/join-channels',
+      route: 'guilds/[guildId]/temp-voice/join-channels',
       methods: ['POST'],
     });
   }
@@ -69,7 +69,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
           },
           data: {
             suggestion:
-              'Create a configuration first using POST /api/guilds/:guildId/temp-voice/config',
+              'Create a configuration first using POST /api/guilds/[guildId]/temp-voice/config',
           },
         });
       }

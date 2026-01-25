@@ -1,5 +1,5 @@
 /**
- * DELETE /api/guilds/:guildId/temp-voice/config
+ * DELETE /api/guilds/[guildId]/temp-voice/config
  * Delete Temp Voice configuration for a guild
  */
 
@@ -10,7 +10,7 @@ export class TempVoiceConfigDeleteRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
       methods: ['DELETE'],
     });
   }
