@@ -4,7 +4,7 @@
 
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, Colors } from 'discord.js';
-import { EMOJIS } from '#lib/emojis';
+import { EMOJI } from '#lib/discord/design';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { VouchType, REPUTATION_TIERS } from '#modules/reputation/models/reputation.model';
 
@@ -37,19 +37,19 @@ export class VouchCommand extends Command {
             .setRequired(true)
             .addChoices(
               {
-                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL} Helpful - They helped you or others`,
+                name: `${EMOJI.XP.REPUTATION.VOUCH_TYPES.HELPFUL} Helpful - They helped you or others`,
                 value: VouchType.HELPFUL,
               },
               {
-                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY} Friendly - They're welcoming and positive`,
+                name: `${EMOJI.XP.REPUTATION.VOUCH_TYPES.FRIENDLY} Friendly - They're welcoming and positive`,
                 value: VouchType.FRIENDLY,
               },
               {
-                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} Skilled - They're knowledgeable/talented`,
+                name: `${EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED} Skilled - They're knowledgeable/talented`,
                 value: VouchType.SKILLED,
               },
               {
-                name: `${EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE} Reliable - They're dependable and trustworthy`,
+                name: `${EMOJI.XP.REPUTATION.VOUCH_TYPES.RELIABLE} Reliable - They're dependable and trustworthy`,
                 value: VouchType.RELIABLE,
               }
             )
@@ -75,7 +75,7 @@ export class VouchCommand extends Command {
     // Ensure command is run in a guild
     if (!interaction.guild || !interaction.guildId) {
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
       });
     }
 
@@ -123,7 +123,7 @@ export class VouchCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setColor(Colors.Green)
-        .setTitle(`${EMOJIS.STATUS.SUCCESS} Reputation Given!`)
+        .setTitle(`${EMOJI.STATUS.SUCCESS} Reputation Given!`)
         .setDescription(
           `${vouchEmoji} You gave reputation to ${targetUser} as **${vouchType}**!${
             reason ? `\n\n*"${reason}"*` : ''
@@ -132,7 +132,7 @@ export class VouchCommand extends Command {
         .addFields(
           {
             name: 'Their Reputation',
-            value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} ${stats.reputationScore} points`,
+            value: `${tierInfo.emoji} **${stats.currentTier}** Tier\n${EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED} ${stats.reputationScore} points`,
             inline: true,
           },
           {
@@ -158,7 +158,7 @@ export class VouchCommand extends Command {
     } catch (error) {
       this.container.logger.error('Failed to submit vouch:', error);
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to submit vouch. Please try again later.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to submit vouch. Please try again later.`,
       });
     }
   }
@@ -166,23 +166,21 @@ export class VouchCommand extends Command {
   private getVouchEmoji(type: VouchType): string {
     switch (type) {
       case VouchType.HELPFUL:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.HELPFUL;
       case VouchType.FRIENDLY:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.FRIENDLY;
       case VouchType.SKILLED:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED;
       case VouchType.RELIABLE:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.RELIABLE;
       default:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.DEFAULT;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.DEFAULT;
     }
   }
 
   private createProgressBar(percentage: number, length: number = 10): string {
     const filled = Math.round((percentage / 100) * length);
     const empty = length - filled;
-    return (
-      EMOJIS.XP.PROGRESS_BAR_FILLED.repeat(filled) + EMOJIS.XP.PROGRESS_BAR_EMPTY.repeat(empty)
-    );
+    return EMOJI.XP.BAR.FILLED.repeat(filled) + EMOJI.XP.BAR.EMPTY.repeat(empty);
   }
 }

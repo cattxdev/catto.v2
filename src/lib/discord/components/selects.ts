@@ -14,7 +14,7 @@ import {
   ActionRowBuilder,
   ChannelType,
 } from 'discord.js';
-import { EMOJI } from '../design';
+import { EMOJI } from '#lib/discord/design';
 
 // Types
 
@@ -142,14 +142,14 @@ export function yesNoSelect(
         label: options?.yesLabel ?? 'Yes',
         value: 'yes',
         description: options?.yesDescription,
-        emoji: EMOJI.GREEN_CHECK,
+        emoji: EMOJI.STATUS.SUCCESS,
         default: options?.defaultValue === 'yes',
       },
       {
         label: options?.noLabel ?? 'No',
         value: 'no',
         description: options?.noDescription,
-        emoji: EMOJI.ERROR,
+        emoji: EMOJI.STATUS.ERROR,
         default: options?.defaultValue === 'no',
       },
     ],

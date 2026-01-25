@@ -26,7 +26,7 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
     const memberCount = members.size;
 
     const c = container()
-      .h2(`${EMOJI.VOICE} ${voiceChannel.name}`)
+      .h2(`${EMOJI.VOICE.ICONS.GENERIC} ${voiceChannel.name}`)
       .kv({
         Members: memberCount.toString(),
         Taken: `<t:${Math.floor(Date.now() / 1000)}:F>`,

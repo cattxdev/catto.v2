@@ -1,7 +1,7 @@
 import { Command } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import { ChannelType, VoiceChannel, type GuildMember } from 'discord.js';
-import { EMOJIS } from '#lib/emojis';
+import { EMOJI } from '#lib/discord/design';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
@@ -155,7 +155,7 @@ export class TempVoiceCommand extends Command {
   public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
     if (!interaction.guild || !interaction.member) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
         ephemeral: true,
       });
     }
@@ -180,7 +180,7 @@ export class TempVoiceCommand extends Command {
     const voiceChannel = member.voice.channel;
     if (!voiceChannel || voiceChannel.type !== ChannelType.GuildVoice) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} You must be in a voice channel to use this command.`,
+        content: `${EMOJI.STATUS.ERROR} You must be in a voice channel to use this command.`,
         ephemeral: true,
       });
     }
@@ -189,7 +189,7 @@ export class TempVoiceCommand extends Command {
     const tempChannel = await this.channelService.getByChannelId(voiceChannel.id);
     if (!tempChannel) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} This is not a temporary voice channel.`,
+        content: `${EMOJI.STATUS.ERROR} This is not a temporary voice channel.`,
         ephemeral: true,
       });
     }
@@ -207,7 +207,7 @@ export class TempVoiceCommand extends Command {
       );
       if (!canManage) {
         return interaction.reply({
-          content: `${EMOJIS.STATUS.ERROR} You do not have permission to manage this channel.`,
+          content: `${EMOJI.STATUS.ERROR} You do not have permission to manage this channel.`,
           ephemeral: true,
         });
       }
@@ -215,7 +215,7 @@ export class TempVoiceCommand extends Command {
       // Check if customization is allowed (except for panel/claim/transfer which are always allowed)
       if (!config.allowCustomization && !['panel', 'claim', 'transfer'].includes(subcommand)) {
         return interaction.reply({
-          content: `${EMOJIS.STATUS.ERROR} Channel customization is disabled in this server.`,
+          content: `${EMOJI.STATUS.ERROR} Channel customization is disabled in this server.`,
           ephemeral: true,
         });
       }
@@ -255,7 +255,7 @@ export class TempVoiceCommand extends Command {
         return this.handlePanel(interaction, tempChannel, voiceChannel as VoiceChannel);
       default:
         return interaction.reply({
-          content: `${EMOJIS.STATUS.ERROR} Unknown subcommand.`,
+          content: `${EMOJI.STATUS.ERROR} Unknown subcommand.`,
           ephemeral: true,
         });
     }
@@ -273,13 +273,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { customName: newName });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Channel renamed to **${newName}**`,
+        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${newName}**`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to rename temp voice channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to rename channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to rename channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -297,13 +297,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { customUserLimit: limit });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
+        content: `${EMOJI.STATUS.SUCCESS} User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to set user limit:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to set user limit. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to set user limit. Please try again.`,
         ephemeral: true,
       });
     }
@@ -321,13 +321,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { isLocked: true });
 
       return interaction.reply({
-        content: `${EMOJIS.VOICE.LOCKED} Channel locked. Only permitted users can join.`,
+        content: `${EMOJI.CHANNELS.STATE.LOCKED} Channel locked. Only permitted users can join.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to lock channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to lock channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to lock channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -345,13 +345,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { isLocked: false });
 
       return interaction.reply({
-        content: `${EMOJIS.VOICE.UNLOCKED} Channel unlocked.`,
+        content: `${EMOJI.CHANNELS.STATE.UNLOCKED} Channel unlocked.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to unlock channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to unlock channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to unlock channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -369,13 +369,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { isHidden: true });
 
       return interaction.reply({
-        content: `${EMOJIS.VOICE.HIDDEN} Channel hidden from @everyone.`,
+        content: `${EMOJI.UI.INDICATORS.HIDDEN} Channel hidden from @everyone.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to hide channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to hide channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to hide channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -393,13 +393,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { isHidden: false });
 
       return interaction.reply({
-        content: `${EMOJIS.VOICE.VISIBLE} Channel is now visible to @everyone.`,
+        content: `${EMOJI.UI.INDICATORS.VISIBILITY} Channel is now visible to @everyone.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to show channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to show channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to show channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -426,13 +426,13 @@ export class TempVoiceCommand extends Command {
       }
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** can now join your channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** can now join your channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to permit user:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to permit user. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to permit user. Please try again.`,
         ephemeral: true,
       });
     }
@@ -447,7 +447,7 @@ export class TempVoiceCommand extends Command {
 
     if (user.id === tempChannel.ownerId) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} You cannot deny the channel owner.`,
+        content: `${EMOJI.STATUS.ERROR} You cannot deny the channel owner.`,
         ephemeral: true,
       });
     }
@@ -474,13 +474,13 @@ export class TempVoiceCommand extends Command {
       }
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** has been denied access to your channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** has been denied access to your channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to deny user:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to deny user. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to deny user. Please try again.`,
         ephemeral: true,
       });
     }
@@ -496,21 +496,21 @@ export class TempVoiceCommand extends Command {
 
     if (!member) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} User not found in the server.`,
+        content: `${EMOJI.STATUS.ERROR} User not found in the server.`,
         ephemeral: true,
       });
     }
 
     if (user.id === tempChannel.ownerId) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} You cannot kick the channel owner.`,
+        content: `${EMOJI.STATUS.ERROR} You cannot kick the channel owner.`,
         ephemeral: true,
       });
     }
 
     if (member.voice.channelId !== voiceChannel.id) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} User is not in your channel.`,
+        content: `${EMOJI.STATUS.ERROR} User is not in your channel.`,
         ephemeral: true,
       });
     }
@@ -519,13 +519,13 @@ export class TempVoiceCommand extends Command {
       await member.voice.disconnect('Kicked from temporary voice channel');
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** has been kicked from your channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** has been kicked from your channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to kick user:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to kick user. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to kick user. Please try again.`,
         ephemeral: true,
       });
     }
@@ -541,21 +541,21 @@ export class TempVoiceCommand extends Command {
 
     if (!member) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} User not found in the server.`,
+        content: `${EMOJI.STATUS.ERROR} User not found in the server.`,
         ephemeral: true,
       });
     }
 
     if (user.id === tempChannel.ownerId) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} This user is already the owner.`,
+        content: `${EMOJI.STATUS.ERROR} This user is already the owner.`,
         ephemeral: true,
       });
     }
 
     if (member.voice.channelId !== voiceChannel.id) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} The new owner must be in your channel.`,
+        content: `${EMOJI.STATUS.ERROR} The new owner must be in your channel.`,
         ephemeral: true,
       });
     }
@@ -577,13 +577,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { ownerId: user.id });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Channel ownership transferred to **${user.tag}**.`,
+        content: `${EMOJI.STATUS.SUCCESS} Channel ownership transferred to **${user.tag}**.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to transfer ownership:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to transfer ownership. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to transfer ownership. Please try again.`,
         ephemeral: true,
       });
     }
@@ -603,7 +603,7 @@ export class TempVoiceCommand extends Command {
     );
     if (!bitrateValidation.valid) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
+        content: `${EMOJI.STATUS.ERROR} Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
         ephemeral: true,
       });
     }
@@ -613,13 +613,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { customBitrate: bitrate });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Bitrate set to **${bitrate / 1000}kbps**`,
+        content: `${EMOJI.STATUS.SUCCESS} Bitrate set to **${bitrate / 1000}kbps**`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to set bitrate:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to set bitrate. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to set bitrate. Please try again.`,
         ephemeral: true,
       });
     }
@@ -640,13 +640,13 @@ export class TempVoiceCommand extends Command {
       });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Region set to **${region}**`,
+        content: `${EMOJI.STATUS.SUCCESS} Region set to **${region}**`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to set region:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to set region. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to set region. Please try again.`,
         ephemeral: true,
       });
     }
@@ -693,13 +693,13 @@ export class TempVoiceCommand extends Command {
       });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Channel reset to default settings.`,
+        content: `${EMOJI.STATUS.SUCCESS} Channel reset to default settings.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to reset channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to reset channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to reset channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -716,7 +716,7 @@ export class TempVoiceCommand extends Command {
     const owner = voiceChannel.members.get(tempChannel.ownerId);
     if (owner) {
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} The channel owner is still present. You cannot claim this channel.`,
+        content: `${EMOJI.STATUS.ERROR} The channel owner is still present. You cannot claim this channel.`,
         ephemeral: true,
       });
     }
@@ -741,13 +741,13 @@ export class TempVoiceCommand extends Command {
       await this.channelService.update(tempChannel.channelId, { ownerId: member.id });
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} You are now the owner of this channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} You are now the owner of this channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to claim channel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to claim channel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to claim channel. Please try again.`,
         ephemeral: true,
       });
     }
@@ -763,13 +763,13 @@ export class TempVoiceCommand extends Command {
       await this.controlPanelService.send(voiceChannel.id, member);
 
       return interaction.reply({
-        content: `${EMOJIS.STATUS.SUCCESS} Control panel sent to your channel.`,
+        content: `${EMOJI.STATUS.SUCCESS} Control panel sent to your channel.`,
         ephemeral: true,
       });
     } catch (error) {
       this.container.logger.error('Failed to send control panel:', error);
       return interaction.reply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to send control panel. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to send control panel. Please try again.`,
         ephemeral: true,
       });
     }

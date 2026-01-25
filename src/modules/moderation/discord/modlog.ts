@@ -13,11 +13,11 @@ import { MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import {
   COLORS,
-  getEmoji,
   formatDuration,
   container,
   type FluentContainer,
   formatUserMention,
+  EMOJI,
 } from '#lib/discord/index.js';
 
 // Types
@@ -46,65 +46,75 @@ const ACTION_DISPLAY: Record<
   string,
   { emoji: string; label: string; color: number; pastTense: string }
 > = {
-  BAN: { emoji: getEmoji('SERVER_LEAVE'), label: 'Ban', color: COLORS.BAN, pastTense: 'banned' },
+  BAN: {
+    emoji: EMOJI.MODERATION.ICONS.SHIELD_RED,
+    label: 'Ban',
+    color: COLORS.BAN,
+    pastTense: 'banned',
+  },
   UNBAN: {
-    emoji: getEmoji('SUCCESS'),
+    emoji: EMOJI.STATUS.SUCCESS,
     label: 'Unban',
     color: COLORS.SUCCESS,
     pastTense: 'unbanned',
   },
-  KICK: { emoji: getEmoji('SERVER_LEAVE'), label: 'Kick', color: COLORS.KICK, pastTense: 'kicked' },
+  KICK: {
+    emoji: EMOJI.MODERATION.ACTIONS.KICK,
+    label: 'Kick',
+    color: COLORS.KICK,
+    pastTense: 'kicked',
+  },
   TIMEOUT: {
-    emoji: getEmoji('TIME_OUT'),
+    emoji: EMOJI.TIME.TIMEOUT,
     label: 'Timeout',
     color: COLORS.TIMEOUT,
     pastTense: 'timed out',
   },
-  WARN: { emoji: getEmoji('WARNING'), label: 'Warning', color: COLORS.WARN, pastTense: 'warned' },
+  WARN: { emoji: EMOJI.STATUS.WARNING, label: 'Warning', color: COLORS.WARN, pastTense: 'warned' },
   SOFTBAN: {
-    emoji: getEmoji('SERVER_LEAVE'),
+    emoji: EMOJI.UI.NAV.LEAVE_SERVER,
     label: 'Softban',
     color: 0xf57c00,
     pastTense: 'softbanned',
   },
   TEMPBAN: {
-    emoji: getEmoji('SERVER_LEAVE'),
+    emoji: EMOJI.UI.NAV.LEAVE_SERVER,
     label: 'Tempban',
     color: 0xb71c1c,
     pastTense: 'tempbanned',
   },
   MUTE_TEXT: {
-    emoji: getEmoji('TEXT_LIMITER'),
+    emoji: EMOJI.CHANNELS.STATE.TEXT_LIMITED_WHITE,
     label: 'Text mute',
     color: COLORS.MUTE,
     pastTense: 'text muted',
   },
   MUTE_VOICE: {
-    emoji: getEmoji('VOICE_LIMITER'),
+    emoji: EMOJI.CHANNELS.STATE.VOICE_LIMITED_WHITE,
     label: 'Voice mute',
     color: COLORS.MUTE,
     pastTense: 'voice muted',
   },
   MUTE_BOTH: {
-    emoji: getEmoji('MODERATION'),
+    emoji: EMOJI.MODERATION.ICONS.CENSOR_ASTERISK,
     label: 'Full mute',
     color: COLORS.MUTE,
     pastTense: 'fully muted',
   },
   UNMUTE_TEXT: {
-    emoji: getEmoji('TEXT_CHANNEL_WITH_CHECK'),
+    emoji: EMOJI.CHANNELS.STATE.TEXT_CHECKED_WHITE,
     label: 'Text unmute',
     color: COLORS.UNMUTE,
     pastTense: 'text unmuted',
   },
   UNMUTE_VOICE: {
-    emoji: getEmoji('MIC_WITH_CHECK'),
+    emoji: EMOJI.CHANNELS.STATE.VOICE_CHECKED_WHITE,
     label: 'Voice unmute',
     color: COLORS.UNMUTE,
     pastTense: 'voice unmuted',
   },
   UNMUTE_BOTH: {
-    emoji: getEmoji('MODERATION'),
+    emoji: EMOJI.MODERATION.ICONS.CENSOR_ASTERISK,
     label: 'Full unmute',
     color: COLORS.UNMUTE,
     pastTense: 'fully unmuted',
@@ -112,7 +122,7 @@ const ACTION_DISPLAY: Record<
 };
 
 const DEFAULT_DISPLAY = {
-  emoji: getEmoji('INFO'),
+  emoji: EMOJI.STATUS.INFO,
   label: 'Action',
   color: COLORS.INFO,
   pastTense: 'actioned',
@@ -177,7 +187,7 @@ export function buildModLogEntry(entry: ModLogEntry): FluentContainer {
       [
         `**Reason**: ${entry.reason || 'No reason provided'}`,
         `**Duration**: ${entry.duration ? formatDuration(entry.duration) : 'N/A'}`,
-        //  ...(entry.duration ? [`${EMOJI.SLOWMODE} ${formatDuration(entry.duration)}`] : []),
+        //  ...(entry.duration ? [`${EMOJI.MODERATION.ACTIONS.SLOWMODE} ${formatDuration(entry.duration)}`] : []),
       ].join('\n')
     )
     .text(offenseSummary ? `\n> ${offenseSummary}` : '> No offense summary available')

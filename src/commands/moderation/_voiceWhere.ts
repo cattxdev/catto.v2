@@ -35,7 +35,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     const voiceState = member.voice;
     const inVoice = voiceState.channelId !== null;
 
-    const c = container().h2(`${EMOJI.MEMBER} ${formatMemberName(member)}`);
+    const c = container().h2(`${EMOJI.USER.ICONS.MEMBER} ${formatMemberName(member)}`);
 
     if (inVoice && voiceState.channel && voiceState.channelId) {
       const indicators = getVoiceIndicators(
@@ -48,7 +48,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       });
 
       if (voiceState.streaming) {
-        c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+        c.text(`${EMOJI.VOICE.STATE.SCREENSHARE} **Streaming**`);
       }
 
       if (cached) {
@@ -70,15 +70,15 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId(`voice_join:${voiceState.channelId}`)
-          .setEmoji(EMOJI.CONNECT_TO_USER)
+          .setEmoji(EMOJI.USER.ACTIONS.CONNECT)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_mute:${options.targetId}`)
-          .setEmoji(EMOJI.VOICE_TOGGLE)
+          .setEmoji(EMOJI.VOICE.CONTROLS.TOGGLE_MIC)
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId(`voice_disconnect:${options.targetId}`)
-          .setEmoji(EMOJI.DISCONNECT_USER)
+          .setEmoji(EMOJI.USER.ACTIONS.DISCONNECT)
           .setStyle(ButtonStyle.Secondary)
       );
 

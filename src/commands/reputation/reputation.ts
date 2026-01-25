@@ -4,7 +4,7 @@
 
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { EmbedBuilder, Colors } from 'discord.js';
-import { EMOJIS } from '#lib/emojis';
+import { EMOJI } from '#lib/discord/design';
 import { ReputationService } from '#modules/reputation/services/reputation.service';
 import { REPUTATION_TIERS, ReputationTier } from '#modules/reputation/models/reputation.model';
 import type { UserReputation } from '@prisma/client';
@@ -94,7 +94,7 @@ export class ReputationCommand extends Subcommand {
 
     if (!interaction.guildId) {
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
       });
     }
 
@@ -114,17 +114,17 @@ export class ReputationCommand extends Subcommand {
           iconURL: targetUser.displayAvatarURL(),
         })
         .setDescription(
-          `${tierInfo.emoji} **${stats.currentTier} Tier**\n${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} ${stats.reputationScore} reputation points`
+          `${tierInfo.emoji} **${stats.currentTier} Tier**\n${EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED} ${stats.reputationScore} reputation points`
         )
         .addFields(
           {
             name: 'Vouches',
-            value: `${EMOJIS.MISC.INBOX} Received: ${stats.vouchesReceived}\n${EMOJIS.MISC.OUTBOX} Given: ${stats.vouchesGiven}`,
+            value: `${EMOJI.MISC.INBOX} Received: ${stats.vouchesReceived}\n${EMOJI.MISC.OUTBOX} Given: ${stats.vouchesGiven}`,
             inline: true,
           },
           {
             name: 'Breakdown',
-            value: `${EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL} Helpful: ${stats.breakdown.helpful}\n${EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY} Friendly: ${stats.breakdown.friendly}\n${EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED} Skilled: ${stats.breakdown.skilled}\n${EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE} Reliable: ${stats.breakdown.reliable}`,
+            value: `${EMOJI.XP.REPUTATION.VOUCH_TYPES.HELPFUL} Helpful: ${stats.breakdown.helpful}\n${EMOJI.XP.REPUTATION.VOUCH_TYPES.FRIENDLY} Friendly: ${stats.breakdown.friendly}\n${EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED} Skilled: ${stats.breakdown.skilled}\n${EMOJI.XP.REPUTATION.VOUCH_TYPES.RELIABLE} Reliable: ${stats.breakdown.reliable}`,
             inline: true,
           }
         )
@@ -142,7 +142,7 @@ export class ReputationCommand extends Subcommand {
         });
       } else {
         embed.addFields({
-          name: `${EMOJIS.REWARDS.CROWN} Maximum Tier Reached!`,
+          name: `${EMOJI.REWARDS.CROWN} Maximum Tier Reached!`,
           value: "You've achieved the highest reputation tier!",
           inline: false,
         });
@@ -159,7 +159,7 @@ export class ReputationCommand extends Subcommand {
     } catch (error) {
       this.container.logger.error('Failed to get reputation stats:', error);
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to retrieve reputation information.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to retrieve reputation information.`,
       });
     }
   }
@@ -174,7 +174,7 @@ export class ReputationCommand extends Subcommand {
 
     if (!interaction.guildId) {
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
       });
     }
 
@@ -222,7 +222,7 @@ export class ReputationCommand extends Subcommand {
     } catch (error) {
       this.container.logger.error('Failed to get vouch history:', error);
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to retrieve vouch history.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to retrieve vouch history.`,
       });
     }
   }
@@ -237,7 +237,7 @@ export class ReputationCommand extends Subcommand {
 
     if (!interaction.guildId) {
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} This command can only be used in a server.`,
+        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
       });
     }
 
@@ -248,17 +248,21 @@ export class ReputationCommand extends Subcommand {
 
       if (leaderboard.length === 0) {
         return interaction.editReply({
-          content: `${EMOJIS.STATUS.ERROR} No reputation data available yet.`,
+          content: `${EMOJI.STATUS.ERROR} No reputation data available yet.`,
         });
       }
 
       const embed = new EmbedBuilder()
         .setColor(Colors.Gold)
-        .setTitle(`${EMOJIS.REWARDS.TROPHY} Reputation Leaderboard`)
+        .setTitle(`${EMOJI.REWARDS.TROPHY} Reputation Leaderboard`)
         .setDescription('Top 10 most reputable members')
         .setTimestamp();
 
-      const medals = [EMOJIS.MEDALS.GOLD, EMOJIS.MEDALS.SILVER, EMOJIS.MEDALS.BRONZE];
+      const medals = [
+        EMOJI.REWARDS.MEDALS.GOLD,
+        EMOJI.REWARDS.MEDALS.SILVER,
+        EMOJI.REWARDS.MEDALS.BRONZE,
+      ];
       const leaderboardText = leaderboard
         .map((entry: UserReputation, index: number) => {
           const medal = medals[index] || `**${index + 1}.**`;
@@ -277,7 +281,7 @@ export class ReputationCommand extends Subcommand {
     } catch (error) {
       this.container.logger.error('Failed to get leaderboard:', error);
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to retrieve leaderboard.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to retrieve leaderboard.`,
       });
     }
   }
@@ -287,7 +291,7 @@ export class ReputationCommand extends Subcommand {
 
     const embed = new EmbedBuilder()
       .setColor(Colors.Purple)
-      .setTitle(`${EMOJIS.XP.XP_GAIN} Reputation Tiers`)
+      .setTitle(`${EMOJI.XP.GAIN} Reputation Tiers`)
       .setDescription('Build your reputation to unlock amazing perks!')
       .setTimestamp();
 
@@ -308,23 +312,21 @@ export class ReputationCommand extends Subcommand {
   private getVouchEmoji(type: string): string {
     switch (type) {
       case 'helpful':
-        return EMOJIS.REPUTATION.VOUCH_TYPES.HELPFUL;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.HELPFUL;
       case 'friendly':
-        return EMOJIS.REPUTATION.VOUCH_TYPES.FRIENDLY;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.FRIENDLY;
       case 'skilled':
-        return EMOJIS.REPUTATION.VOUCH_TYPES.SKILLED;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.SKILLED;
       case 'reliable':
-        return EMOJIS.REPUTATION.VOUCH_TYPES.RELIABLE;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.RELIABLE;
       default:
-        return EMOJIS.REPUTATION.VOUCH_TYPES.DEFAULT;
+        return EMOJI.XP.REPUTATION.VOUCH_TYPES.DEFAULT;
     }
   }
 
   private createProgressBar(percentage: number, length: number = 10): string {
     const filled = Math.round((percentage / 100) * length);
     const empty = length - filled;
-    return (
-      EMOJIS.XP.PROGRESS_BAR_FILLED.repeat(filled) + EMOJIS.XP.PROGRESS_BAR_EMPTY.repeat(empty)
-    );
+    return EMOJI.XP.BAR.FILLED.repeat(filled) + EMOJI.XP.BAR.EMPTY.repeat(empty);
   }
 }

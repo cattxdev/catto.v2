@@ -17,7 +17,7 @@ import {
   type MessageActionRowComponentBuilder,
   type RGBTuple,
 } from 'discord.js';
-import { COLORS, SPACING } from '../design.js';
+import { COLORS, SPACING } from '../design/index.js';
 
 export type AccentColor = number | RGBTuple;
 

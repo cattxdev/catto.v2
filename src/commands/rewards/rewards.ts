@@ -1,4 +1,4 @@
-import { EMOJIS } from '#root/lib/emojis';
+import { EMOJI } from '#lib/discord/design';
 import { RewardService, XPType, LevelRewardConfig } from '#root/modules/rewards';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
@@ -71,7 +71,7 @@ export class RewardsCommand extends Command {
 
       if (filteredRewards.length === 0) {
         return interaction.editReply({
-          content: `${EMOJIS.STATUS.ERROR} No rewards are configured in this server yet.`,
+          content: `${EMOJI.STATUS.ERROR} No rewards are configured in this server yet.`,
         });
       }
 
@@ -92,7 +92,7 @@ export class RewardsCommand extends Command {
 
       // Create embed
       const embed = new EmbedBuilder()
-        .setTitle(`${EMOJIS.REWARDS.GIFT} Server Rewards`)
+        .setTitle(`${EMOJI.REWARDS.GIFT} Server Rewards`)
         .setColor(0x5865f2)
         .setDescription(
           `${targetUser.username}'s Current Level: **${userLevel}**\n\n` +
@@ -111,10 +111,10 @@ export class RewardsCommand extends Command {
         if (!levelRewards) continue;
         const statusIcon =
           level <= userLevel
-            ? EMOJIS.STATUS.SUCCESS
+            ? EMOJI.STATUS.SUCCESS
             : level === userLevel + 1
-              ? EMOJIS.PROGRESS.ARROW_UP
-              : EMOJIS.VOICE.LOCKED;
+              ? EMOJI.PROGRESS.ARROW_UP
+              : EMOJI.CHANNELS.STATE.LOCKED;
 
         const rewardList = levelRewards.map((r) => `${r.icon || '•'} **${r.name}**`).join('\n');
 
@@ -127,14 +127,14 @@ export class RewardsCommand extends Command {
       }
 
       embed.setFooter({
-        text: `${EMOJIS.STATUS.SUCCESS} = Unlocked | ${EMOJIS.PROGRESS.ARROW_UP} = Next Level | ${EMOJIS.VOICE.LOCKED} = Locked`,
+        text: `${EMOJI.STATUS.SUCCESS} = Unlocked | ${EMOJI.PROGRESS.ARROW_UP} = Next Level | ${EMOJI.CHANNELS.STATE.LOCKED} = Locked`,
       });
 
       return interaction.editReply({ embeds: [embed] });
     } catch (error) {
       this.container.logger.error('Failed to fetch rewards:', error);
       return interaction.editReply({
-        content: `${EMOJIS.STATUS.ERROR} Failed to fetch rewards. Please try again.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to fetch rewards. Please try again.`,
       });
     }
   }

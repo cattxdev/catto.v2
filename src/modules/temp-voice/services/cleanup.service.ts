@@ -69,7 +69,6 @@ export class CleanupService {
   private cancelDeleteTimer(channelId: string): void {
     const timer = this.deletionTimers.get(channelId);
     if (timer) {
-      // eslint-disable-next-line no-undef
       clearTimeout(timer);
       this.deletionTimers.delete(channelId);
     }
@@ -160,7 +159,6 @@ export class CleanupService {
   async shutdown(): Promise<void> {
     // Clear all timers
     for (const timer of this.deletionTimers.values()) {
-      // eslint-disable-next-line no-undef
       clearTimeout(timer);
     }
     this.deletionTimers.clear();
