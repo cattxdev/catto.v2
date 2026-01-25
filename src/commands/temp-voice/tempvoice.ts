@@ -84,6 +84,22 @@ export class TempVoiceCommand extends Command {
         )
         .addSubcommand((subcommand) =>
           subcommand
+            .setName('trust')
+            .setDescription('Trust a user to help manage your channel')
+            .addUserOption((option) =>
+              option.setName('user').setDescription('User to trust').setRequired(true)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('untrust')
+            .setDescription('Remove trust from a user')
+            .addUserOption((option) =>
+              option.setName('user').setDescription('User to untrust').setRequired(true)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
             .setName('kick')
             .setDescription('Kick a user from your channel')
             .addUserOption((option) =>
@@ -239,6 +255,10 @@ export class TempVoiceCommand extends Command {
         return this.handlePermit(interaction, tempChannel, voiceChannel as VoiceChannel);
       case 'deny':
         return this.handleDeny(interaction, tempChannel, voiceChannel as VoiceChannel);
+      case 'trust':
+        return this.handleTrust(interaction, tempChannel, voiceChannel as VoiceChannel);
+      case 'untrust':
+        return this.handleUntrust(interaction, tempChannel, voiceChannel as VoiceChannel);
       case 'kick':
         return this.handleKick(interaction, tempChannel, voiceChannel as VoiceChannel);
       case 'transfer':
@@ -455,23 +475,34 @@ export class TempVoiceCommand extends Command {
     try {
       await voiceChannel.permissionOverwrites.edit(user.id, {
         Connect: false,
+        ViewChannel: false,
       });
+
+      // Kick user if they're currently in the channel
+      const member = voiceChannel.guild.members.cache.get(user.id);
+      if (member && member.voice.channelId === voiceChannel.id) {
+        await member.voice.disconnect('Denied access to temporary voice channel');
+      }
 
       // Update denied users list
       const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
       if (!deniedUsers.includes(user.id)) {
         deniedUsers.push(user.id);
-        await this.channelService.update(tempChannel.channelId, { deniedUserIds: deniedUsers });
       }
 
       // Remove from allowed users if present
       const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
       const filteredAllowed = allowedUsers.filter((id: string) => id !== user.id);
-      if (filteredAllowed.length !== allowedUsers.length) {
-        await this.channelService.update(tempChannel.channelId, {
-          allowedUserIds: filteredAllowed,
-        });
-      }
+
+      // Remove from trusted users if present
+      const trustedUsers = (tempChannel.trustedUserIds as string[]) || [];
+      const filteredTrusted = trustedUsers.filter((id: string) => id !== user.id);
+
+      await this.channelService.update(tempChannel.channelId, {
+        deniedUserIds: deniedUsers,
+        allowedUserIds: filteredAllowed,
+        trustedUserIds: filteredTrusted,
+      });
 
       return interaction.reply({
         content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** has been denied access to your channel.`,
@@ -481,6 +512,129 @@ export class TempVoiceCommand extends Command {
       this.container.logger.error('Failed to deny user:', error);
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} Failed to deny user. Please try again.`,
+        ephemeral: true,
+      });
+    }
+  }
+
+  private async handleTrust(
+    interaction: Command.ChatInputCommandInteraction,
+    tempChannel: TempVoiceChannel,
+    voiceChannel: VoiceChannel
+  ) {
+    const user = interaction.options.getUser('user', true);
+
+    if (user.id === tempChannel.ownerId) {
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.ERROR} The channel owner is already trusted.`,
+        ephemeral: true,
+      });
+    }
+
+    try {
+      const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
+
+      if (currentTrusted.includes(user.id)) {
+        return interaction.reply({
+          content: `${EMOJIS.STATUS.ERROR} **${user.tag}** is already trusted.`,
+          ephemeral: true,
+        });
+      }
+
+      // Give trusted user permissions
+      await voiceChannel.permissionOverwrites.edit(user.id, {
+        Connect: true,
+        ViewChannel: true,
+        Speak: true,
+        Stream: true,
+        UseVAD: true,
+      });
+
+      // Update trusted users list
+      const newTrusted = [...currentTrusted, user.id];
+
+      // Also add to allowed users and remove from denied
+      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
+      const newAllowed = [...new Set([...allowedUsers, user.id])];
+
+      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
+      const newDenied = deniedUsers.filter((id: string) => id !== user.id);
+
+      await this.channelService.update(tempChannel.channelId, {
+        trustedUserIds: newTrusted,
+        allowedUserIds: newAllowed,
+        deniedUserIds: newDenied,
+      });
+
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** is now trusted and can help manage this channel (except transfer ownership).`,
+        ephemeral: true,
+      });
+    } catch (error) {
+      this.container.logger.error('Failed to trust user:', error);
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.ERROR} Failed to trust user. Please try again.`,
+        ephemeral: true,
+      });
+    }
+  }
+
+  private async handleUntrust(
+    interaction: Command.ChatInputCommandInteraction,
+    tempChannel: TempVoiceChannel,
+    voiceChannel: VoiceChannel
+  ) {
+    const user = interaction.options.getUser('user', true);
+
+    if (user.id === tempChannel.ownerId) {
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.ERROR} The channel owner cannot be untrusted.`,
+        ephemeral: true,
+      });
+    }
+
+    try {
+      const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
+
+      if (!currentTrusted.includes(user.id)) {
+        return interaction.reply({
+          content: `${EMOJIS.STATUS.ERROR} **${user.tag}** is not trusted.`,
+          ephemeral: true,
+        });
+      }
+
+      // Remove trusted users list entry
+      const newTrusted = currentTrusted.filter((id: string) => id !== user.id);
+
+      await this.channelService.update(tempChannel.channelId, {
+        trustedUserIds: newTrusted,
+      });
+
+      // Remove permission overrides to respect channel state
+      // If user is in allowed list, they'll keep access via those permissions
+      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
+      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
+
+      if (!allowedUsers.includes(user.id) && !deniedUsers.includes(user.id)) {
+        // No explicit allow/deny, so remove the override entirely
+        await voiceChannel.permissionOverwrites.delete(user.id);
+      } else if (allowedUsers.includes(user.id)) {
+        // Keep as allowed user with basic permissions
+        await voiceChannel.permissionOverwrites.edit(user.id, {
+          Connect: true,
+          ViewChannel: true,
+        });
+      }
+      // If in denied list, permissions are already set correctly
+
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.SUCCESS} **${user.tag}** is no longer trusted but can still access the channel.`,
+        ephemeral: true,
+      });
+    } catch (error) {
+      this.container.logger.error('Failed to untrust user:', error);
+      return interaction.reply({
+        content: `${EMOJIS.STATUS.ERROR} Failed to untrust user. Please try again.`,
         ephemeral: true,
       });
     }
