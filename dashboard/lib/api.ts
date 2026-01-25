@@ -27,9 +27,12 @@ export const api = {
         redirect: redirectPath,
       },
     });
-    
+
     // Sapphire's OAuth will redirect, so we return the URL
-    return response.request.responseURL || `${BOT_API_URL}/oauth/login?redirect=${encodeURIComponent(redirectPath)}`;
+    return (
+      response.request.responseURL ||
+      `${BOT_API_URL}/oauth/login?redirect=${encodeURIComponent(redirectPath)}`
+    );
   },
 
   /**

@@ -1,10 +1,14 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useGuildData } from "@/hooks/use-guild-data"
-import type { VoiceXPConfig } from "@/lib/services/voice-xp.service"
-import { voiceXPService } from "@/lib/services/voice-xp.service"
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useGuildData } from '@/hooks/use-guild-data';
+import type { VoiceXPConfig } from '@/lib/services/voice-xp.service';
+import { voiceXPService } from '@/lib/services/voice-xp.service';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 
 interface VoiceXPConfigFormProps {
   guildId: string;
@@ -17,7 +21,7 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  
+
   const { voiceChannels, textChannels, roles, loading: isLoadingData } = useGuildData(guildId);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,388 +44,376 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground">Voice XP Configuration</h2>
+        <p className="text-muted-foreground mt-1">
+          Configure how users earn XP from voice channels
+        </p>
+      </div>
+
       {/* Status Messages */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
-          <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <div className="glass border-destructive/50 rounded-lg p-4 flex items-start gap-3">
+          <svg
+            className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <div>
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <h3 className="text-sm font-medium text-destructive">Error</h3>
+            <p className="text-sm text-destructive/80 mt-1">{error}</p>
           </div>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start space-x-3">
-          <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="glass border-success/50 rounded-lg p-4 flex items-start gap-3">
+          <svg
+            className="w-5 h-5 text-success flex-shrink-0 mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <div>
-            <h3 className="text-sm font-medium text-green-800">Success</h3>
-            <p className="text-sm text-green-700 mt-1">Configuration saved successfully!</p>
+            <h3 className="text-sm font-medium text-success">Success</h3>
+            <p className="text-sm text-success/80 mt-1">Configuration saved successfully!</p>
           </div>
         </div>
       )}
 
       {/* General Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">General Settings</h2>
-        
-        <div className="space-y-4">
-          {/* Enabled Toggle */}
-          <div className="flex items-center justify-between">
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>General Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
             <div>
-              <label className="text-sm font-medium text-gray-700">Enable Voice XP System</label>
-              <p className="text-sm text-gray-500">Allow users to gain XP from voice channels</p>
+              <label className="text-sm font-medium text-foreground">Enable Voice XP System</label>
+              <p className="text-sm text-muted-foreground">
+                Allow users to gain XP from voice channels
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, enabled: !prev.enabled }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.enabled ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.enabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.enabled}
+              onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enabled: checked }))}
+            />
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* XP Award Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">XP Award Settings</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* XP Per Minute */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              XP Per Minute
-            </label>
-            <input
-              type="number"
-              value={config.xpPerMinute}
-              onChange={(e) => setConfig(prev => ({ ...prev, xpPerMinute: parseInt(e.target.value) || 0 }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
-              min="0"
-              max="1000"
-            />
-            <p className="text-xs text-gray-500 mt-1">XP awarded per minute in voice</p>
-          </div>
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>XP Award Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* XP Per Minute */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                XP Per Minute
+              </label>
+              <Input
+                type="number"
+                value={config.xpPerMinute}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, xpPerMinute: parseInt(e.target.value) || 0 }))
+                }
+                min="0"
+                max="1000"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">XP awarded per minute in voice</p>
+            </div>
 
-          {/* Min Session Minutes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Minimum Session Duration (minutes)
-            </label>
-            <input
-              type="number"
-              value={config.minSessionMinutes}
-              onChange={(e) => setConfig(prev => ({ ...prev, minSessionMinutes: parseInt(e.target.value) || 0 }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
-              min="0"
-              max="60"
-            />
-            <p className="text-xs text-gray-500 mt-1">Minimum time before XP is awarded</p>
-          </div>
+            {/* Min Session Minutes */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Minimum Session Duration (minutes)
+              </label>
+              <Input
+                type="number"
+                value={config.minSessionMinutes}
+                onChange={(e) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    minSessionMinutes: parseInt(e.target.value) || 0,
+                  }))
+                }
+                min="0"
+                max="60"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Minimum time before XP is awarded
+              </p>
+            </div>
 
-          {/* XP Mode */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              XP Award Mode
-            </label>
-            <div className="flex space-x-4">
-              <button
-                type="button"
-                onClick={() => setConfig(prev => ({ ...prev, xpMode: 'PER_MINUTE' }))}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                  config.xpMode === 'PER_MINUTE'
-                    ? 'border-[#5865F2] bg-[#5865F2]/10 text-[#5865F2]'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium">Per Minute</div>
-                <div className="text-xs opacity-75">Award XP every minute</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfig(prev => ({ ...prev, xpMode: 'PER_SESSION' }))}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                  config.xpMode === 'PER_SESSION'
-                    ? 'border-[#5865F2] bg-[#5865F2]/10 text-[#5865F2]'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium">Per Session</div>
-                <div className="text-xs opacity-75">Award XP when session ends</div>
-              </button>
+            {/* XP Mode */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                XP Award Mode
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfig((prev) => ({ ...prev, xpMode: 'PER_MINUTE' }))}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                    config.xpMode === 'PER_MINUTE'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
+                  }`}
+                >
+                  <div className="font-medium">Per Minute</div>
+                  <div className="text-xs opacity-75">Award XP every minute</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig((prev) => ({ ...prev, xpMode: 'PER_SESSION' }))}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                    config.xpMode === 'PER_SESSION'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
+                  }`}
+                >
+                  <div className="font-medium">Per Session</div>
+                  <div className="text-xs opacity-75">Award XP when session ends</div>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* User State Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">User State Filters</h2>
-        <p className="text-sm text-gray-500 mb-4">Configure which user states should earn XP</p>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>User State Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground mb-4">
+            Configure which user states should earn XP
+          </p>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
-              <label className="text-sm font-medium text-gray-700">Award XP While Muted</label>
-              <p className="text-xs text-gray-500">Allow XP gain when user is muted</p>
+              <label className="text-sm font-medium text-foreground">Award XP While Muted</label>
+              <p className="text-xs text-muted-foreground">Allow XP gain when user is muted</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, awardMuted: !prev.awardMuted }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.awardMuted ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.awardMuted ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.awardMuted}
+              onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, awardMuted: checked }))}
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
-              <label className="text-sm font-medium text-gray-700">Award XP While Deafened</label>
-              <p className="text-xs text-gray-500">Allow XP gain when user is deafened</p>
+              <label className="text-sm font-medium text-foreground">Award XP While Deafened</label>
+              <p className="text-xs text-muted-foreground">Allow XP gain when user is deafened</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, awardDeafened: !prev.awardDeafened }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.awardDeafened ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.awardDeafened ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.awardDeafened}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({ ...prev, awardDeafened: checked }))
+              }
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
-              <label className="text-sm font-medium text-gray-700">Award XP While Streaming</label>
-              <p className="text-xs text-gray-500">Give XP when user is screen sharing</p>
+              <label className="text-sm font-medium text-foreground">
+                Award XP While Streaming
+              </label>
+              <p className="text-xs text-muted-foreground">Give XP when user is screen sharing</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, awardStreaming: !prev.awardStreaming }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.awardStreaming ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.awardStreaming ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.awardStreaming}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({ ...prev, awardStreaming: checked }))
+              }
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
-              <label className="text-sm font-medium text-gray-700">Award XP With Video On</label>
-              <p className="text-xs text-gray-500">Give XP when user has video enabled</p>
+              <label className="text-sm font-medium text-foreground">Award XP With Video On</label>
+              <p className="text-xs text-muted-foreground">Give XP when user has video enabled</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, awardVideo: !prev.awardVideo }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.awardVideo ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.awardVideo ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.awardVideo}
+              onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, awardVideo: checked }))}
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
             <div>
-              <label className="text-sm font-medium text-gray-700">Ignore AFK Channel</label>
-              <p className="text-xs text-gray-500">Don't award XP in the AFK channel</p>
+              <label className="text-sm font-medium text-foreground">Ignore AFK Channel</label>
+              <p className="text-xs text-muted-foreground">Don't award XP in the AFK channel</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, ignoreAfkChannel: !prev.ignoreAfkChannel }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.ignoreAfkChannel ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.ignoreAfkChannel ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.ignoreAfkChannel}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({ ...prev, ignoreAfkChannel: checked }))
+              }
+            />
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Channel Filters */}
       {!isLoadingData && voiceChannels.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Channel Filters</h2>
-          
-          <div className="space-y-4">
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle>Channel Filters</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             {/* Allowed Channels */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Allowed Channels (Optional)
               </label>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-muted-foreground mb-2">
                 If set, only these channels will award XP
               </p>
               <select
                 multiple
                 value={config.allowedChannels}
                 onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, option => option.value);
-                  setConfig(prev => ({ ...prev, allowedChannels: selected }));
+                  const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                  setConfig((prev) => ({ ...prev, allowedChannels: selected }));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent h-32"
+                className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors h-32"
               >
-                {voiceChannels.map(channel => (
-                  <option key={channel.id} value={channel.id}>
+                {voiceChannels.map((channel) => (
+                  <option key={channel.id} value={channel.id} className="py-1">
                     # {channel.name}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 Hold Ctrl/Cmd to select multiple. Selected: {config.allowedChannels.length}
               </p>
             </div>
 
             {/* Ignored Channels */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Ignored Channels
               </label>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-muted-foreground mb-2">
                 These channels will never award XP
               </p>
               <select
                 multiple
                 value={config.ignoredChannels}
                 onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions, option => option.value);
-                  setConfig(prev => ({ ...prev, ignoredChannels: selected }));
+                  const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                  setConfig((prev) => ({ ...prev, ignoredChannels: selected }));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent h-32"
+                className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors h-32"
               >
-                {voiceChannels.map(channel => (
-                  <option key={channel.id} value={channel.id}>
+                {voiceChannels.map((channel) => (
+                  <option key={channel.id} value={channel.id} className="py-1">
                     # {channel.name}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 Hold Ctrl/Cmd to select multiple. Selected: {config.ignoredChannels.length}
               </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Role Filters */}
       {!isLoadingData && roles.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Role Filters</h2>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ignored Roles
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
+        <Card variant="glass">
+          <CardHeader>
+            <CardTitle>Role Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <label className="block text-sm font-medium text-foreground mb-2">Ignored Roles</label>
+            <p className="text-xs text-muted-foreground mb-2">
               Users with these roles won't gain XP
             </p>
             <select
               multiple
               value={config.ignoredRoles}
               onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                setConfig(prev => ({ ...prev, ignoredRoles: selected }));
+                const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                setConfig((prev) => ({ ...prev, ignoredRoles: selected }));
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent h-32"
+              className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors h-32"
             >
-              {roles.map(role => (
-                <option key={role.id} value={role.id}>
+              {roles.map((role) => (
+                <option key={role.id} value={role.id} className="py-1">
                   @ {role.name}
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Hold Ctrl/Cmd to select multiple. Selected: {config.ignoredRoles.length}
             </p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Level-Up Announcements */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Level-Up Announcements</h2>
-        
-        <div className="space-y-4">
-          {/* Announce Toggle */}
-          <div className="flex items-center justify-between">
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>Level-Up Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
             <div>
-              <label className="text-sm font-medium text-gray-700">Announce Level-Ups</label>
-              <p className="text-sm text-gray-500">Send a message when users level up</p>
+              <label className="text-sm font-medium text-foreground">Announce Level-Ups</label>
+              <p className="text-sm text-muted-foreground">Send a message when users level up</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setConfig(prev => ({ ...prev, announceLevelUp: !prev.announceLevelUp }))}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                config.announceLevelUp ? 'bg-[#5865F2]' : 'bg-gray-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.announceLevelUp ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+            <Switch
+              checked={config.announceLevelUp}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({ ...prev, announceLevelUp: checked }))
+              }
+            />
           </div>
 
           {config.announceLevelUp && (
-            <>
+            <div className="space-y-4 pt-2">
               {/* Announce Channel */}
               {!isLoadingData && textChannels.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Announcement Channel (Optional)
                   </label>
                   <select
                     value={config.announceChannelId || ''}
-                    onChange={(e) => setConfig(prev => ({ 
-                      ...prev, 
-                      announceChannelId: e.target.value || null 
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        announceChannelId: e.target.value || null,
+                      }))
+                    }
+                    className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                   >
                     <option value="">Current Channel</option>
-                    {textChannels.map(channel => (
+                    {textChannels.map((channel) => (
                       <option key={channel.id} value={channel.id}>
                         # {channel.name}
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Leave as "Current Channel" to send in the same channel as the user
                   </p>
                 </div>
@@ -429,97 +421,92 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
 
               {/* Message Template */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Message Template
                 </label>
                 <textarea
                   value={config.messageTemplate}
-                  onChange={(e) => setConfig(prev => ({ ...prev, messageTemplate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
+                  onChange={(e) =>
+                    setConfig((prev) => ({ ...prev, messageTemplate: e.target.value }))
+                  }
+                  className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors resize-none"
                   rows={3}
                   placeholder="GG {user}, you just advanced to level {level}!"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1.5">
                   Available variables: {'{user}'}, {'{level}'}, {'{xp}'}, {'{nextLevelXp}'}
                 </p>
               </div>
 
               {/* Embed Settings */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Use Embed</label>
-                  <p className="text-sm text-gray-500">Send as an embedded message</p>
+                  <label className="text-sm font-medium text-foreground">Use Embed</label>
+                  <p className="text-sm text-muted-foreground">Send as an embedded message</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setConfig(prev => ({ ...prev, embedEnabled: !prev.embedEnabled }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    config.embedEnabled ? 'bg-[#5865F2]' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      config.embedEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch
+                  checked={config.embedEnabled}
+                  onCheckedChange={(checked) =>
+                    setConfig((prev) => ({ ...prev, embedEnabled: checked }))
+                  }
+                />
               </div>
 
               {config.embedEnabled && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-foreground mb-2">
                     Embed Color
                   </label>
-                  <div className="flex space-x-2">
+                  <div className="flex items-center gap-3">
                     <input
                       type="color"
                       value={`#${config.embedColor.toString(16).padStart(6, '0')}`}
                       onChange={(e) => {
                         const hex = e.target.value.replace('#', '');
                         const decimal = parseInt(hex, 16);
-                        setConfig(prev => ({ ...prev, embedColor: decimal }));
+                        setConfig((prev) => ({ ...prev, embedColor: decimal }));
                       }}
-                      className="w-16 h-10 border border-gray-300 rounded-md cursor-pointer"
+                      className="h-10 w-16 rounded-lg border border-border bg-muted cursor-pointer"
                     />
-                    <input
+                    <Input
                       type="text"
                       value={`#${config.embedColor.toString(16).padStart(6, '0')}`}
                       onChange={(e) => {
                         const hex = e.target.value.replace('#', '');
                         if (/^[0-9A-Fa-f]{0,6}$/.test(hex)) {
                           const decimal = parseInt(hex || '0', 16);
-                          setConfig(prev => ({ ...prev, embedColor: decimal }));
+                          setConfig((prev) => ({ ...prev, embedColor: decimal }));
                         }
                       }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent font-mono"
-                      placeholder="#5865F2"
+                      className="flex-1 font-mono"
+                      placeholder="#1A8CFF"
                     />
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Level Curve Configuration */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Level Curve Configuration</h2>
-        
-        <div className="space-y-4">
-          {/* Curve Type */}
+      <Card variant="glass">
+        <CardHeader>
+          <CardTitle>Level Curve Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Level Curve Type
             </label>
-            <div className="flex space-x-4">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setConfig(prev => ({ ...prev, levelCurveType: 'FORMULA' }))}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                onClick={() => setConfig((prev) => ({ ...prev, levelCurveType: 'FORMULA' }))}
+                className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
                   config.levelCurveType === 'FORMULA'
-                    ? 'border-[#5865F2] bg-[#5865F2]/10 text-[#5865F2]'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
                 }`}
               >
                 <div className="font-medium">Formula</div>
@@ -527,11 +514,11 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
               </button>
               <button
                 type="button"
-                onClick={() => setConfig(prev => ({ ...prev, levelCurveType: 'TABLE' }))}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                onClick={() => setConfig((prev) => ({ ...prev, levelCurveType: 'TABLE' }))}
+                className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
                   config.levelCurveType === 'TABLE'
-                    ? 'border-[#5865F2] bg-[#5865F2]/10 text-[#5865F2]'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
                 }`}
               >
                 <div className="font-medium">Table</div>
@@ -544,48 +531,51 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
           {config.levelCurveType === 'FORMULA' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Base
-                </label>
-                <input
+                <label className="block text-sm font-medium text-foreground mb-2">Base</label>
+                <Input
                   type="number"
                   value={config.formulaBase}
-                  onChange={(e) => setConfig(prev => ({ ...prev, formulaBase: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
+                  onChange={(e) =>
+                    setConfig((prev) => ({ ...prev, formulaBase: parseFloat(e.target.value) || 0 }))
+                  }
                   min="0"
                   step="0.1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Exponent
-                </label>
-                <input
+                <label className="block text-sm font-medium text-foreground mb-2">Exponent</label>
+                <Input
                   type="number"
                   value={config.formulaExponent}
-                  onChange={(e) => setConfig(prev => ({ ...prev, formulaExponent: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      formulaExponent: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                   min="0"
                   step="0.1"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Offset
-                </label>
-                <input
+                <label className="block text-sm font-medium text-foreground mb-2">Offset</label>
+                <Input
                   type="number"
                   value={config.formulaOffset}
-                  onChange={(e) => setConfig(prev => ({ ...prev, formulaOffset: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      formulaOffset: parseFloat(e.target.value) || 0,
+                    }))
+                  }
                   min="0"
                   step="1"
                 />
               </div>
               <div className="md:col-span-3">
-                <p className="text-xs text-gray-500">
-                  Formula: XP = base * (level ^ exponent) + offset
-                </p>
+                <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50 font-mono">
+                  Formula: XP = base x (level ^ exponent) + offset
+                </div>
               </div>
             </div>
           )}
@@ -593,7 +583,7 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
           {/* Table Settings */}
           {config.levelCurveType === 'TABLE' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 XP Thresholds (comma-separated)
               </label>
               <textarea
@@ -601,32 +591,36 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
                 onChange={(e) => {
                   const values = e.target.value
                     .split(',')
-                    .map(v => parseInt(v.trim()))
-                    .filter(v => !isNaN(v) && v >= 0);
-                  setConfig(prev => ({ ...prev, tableThresholds: values }));
+                    .map((v) => parseInt(v.trim()))
+                    .filter((v) => !isNaN(v) && v >= 0);
+                  setConfig((prev) => ({ ...prev, tableThresholds: values }));
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#5865F2] focus:border-transparent font-mono"
+                className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors font-mono text-sm resize-none"
                 rows={3}
                 placeholder="100, 255, 475, 770, 1150, 1625, ..."
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Define XP required for each level. Values must be ascending. Current levels: {config.tableThresholds.length}
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Define XP required for each level. Values must be ascending. Current levels:{' '}
+                {config.tableThresholds.length}
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="px-6 py-2 bg-[#5865F2] text-white rounded-md hover:bg-[#4752C4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-        >
-          {isSaving ? 'Saving...' : 'Save Configuration'}
-        </button>
-      </div>
+      <Card variant="glass">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Make sure to save your changes before leaving this page.
+            </p>
+            <Button type="submit" variant="neon" disabled={isSaving} className="min-w-32">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </form>
   );
 }

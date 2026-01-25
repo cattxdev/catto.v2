@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
-import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import type { DiscordUser } from "@/lib/types"
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import type { DiscordUser } from '@/lib/types';
 
 interface UserDropdownProps {
   user: DiscordUser;
@@ -17,9 +17,8 @@ export function UserDropdown({ user }: UserDropdownProps) {
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
     : null;
 
-  const userTag = user.discriminator !== '0' 
-    ? `${user.username}#${user.discriminator}`
-    : user.username;
+  const userTag =
+    user.discriminator !== '0' ? `${user.username}#${user.discriminator}` : user.username;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -29,11 +28,11 @@ export function UserDropdown({ user }: UserDropdownProps) {
     }
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
 
@@ -54,23 +53,23 @@ export function UserDropdown({ user }: UserDropdownProps) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="flex items-center gap-3 px-3 py-2 rounded-xl border border-transparent hover:border-border/50 hover:bg-muted/30 transition-all duration-200"
       >
         {avatarUrl ? (
           <img
             src={avatarUrl}
             alt={user.username}
-            className="w-10 h-10 rounded-full"
+            className="w-9 h-9 rounded-full ring-2 ring-border/50"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center text-white text-lg font-semibold">
+          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-semibold ring-2 ring-border/50">
             {user.username[0].toUpperCase()}
           </div>
         )}
-        <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-700">{user.username}</span>
+        <div className="hidden sm:flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{user.username}</span>
           <svg
-            className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -81,24 +80,24 @@ export function UserDropdown({ user }: UserDropdownProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+        <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-glass py-2 z-50 animate-scale-in">
           {/* User Info Section */}
-          <div className="px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
+          <div className="px-4 py-3 border-b border-border/50">
+            <div className="flex items-center gap-3">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt={user.username}
-                  className="w-12 h-12 rounded-full"
+                  className="w-10 h-10 rounded-full ring-2 ring-border/50"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-[#5865F2] flex items-center justify-center text-white text-xl font-semibold">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-lg font-semibold ring-2 ring-border/50">
                   {user.username[0].toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{user.username}</p>
-                <p className="text-xs text-gray-500 truncate">{userTag}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user.username}</p>
+                <p className="text-xs text-muted-foreground truncate">{userTag}</p>
               </div>
             </div>
           </div>
@@ -107,12 +106,17 @@ export function UserDropdown({ user }: UserDropdownProps) {
           <div className="py-1">
             <button
               onClick={handleLogout}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
+              className="w-full px-4 py-2.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-3"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
               </svg>
-              <span>Logout</span>
+              <span>Sign out</span>
             </button>
           </div>
         </div>
