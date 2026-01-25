@@ -1,5 +1,5 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/config
+ * POST /api/guilds/[guildId]/temp-voice/config
  * Create new Temp Voice configuration for a guild
  */
 
@@ -12,7 +12,7 @@ export class TempVoiceConfigPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
       methods: ['POST'],
     });
   }
@@ -47,7 +47,7 @@ export class TempVoiceConfigPostRoute extends Route {
           data: {
             guildId,
             suggestion:
-              'Use PATCH /api/guilds/:guildId/temp-voice/config to update existing configuration',
+              'Use PATCH /api/guilds/[guildId]/temp-voice/config to update existing configuration',
           },
         });
       }
