@@ -1,7 +1,8 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import type { Guild } from "@/lib/types"
+import Link from 'next/link';
+import type { Guild } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 export function GuildCard({ guild }: { guild: Guild }) {
   const guildIconUrl = guild.icon
@@ -16,11 +17,12 @@ export function GuildCard({ guild }: { guild: Guild }) {
     <Link
       href={canManage ? `/guilds/${guild.id}` : '#'}
       className={`
-        block bg-white rounded-lg border border-gray-200 p-6
+        group block rounded-xl border bg-card/50 backdrop-blur-sm p-6
         transition-all duration-200
-        ${canManage 
-          ? 'hover:shadow-lg hover:border-[#5865F2] cursor-pointer' 
-          : 'opacity-50 cursor-not-allowed'
+        ${
+          canManage
+            ? 'border-border/30 hover:border-primary/40 hover:bg-card/70 hover:shadow-neon-blue-sm cursor-pointer hover:scale-[1.02]'
+            : 'border-border/20 opacity-50 cursor-not-allowed'
         }
       `}
       onClick={(e) => {
@@ -29,35 +31,48 @@ export function GuildCard({ guild }: { guild: Guild }) {
         }
       }}
     >
-      <div className="flex flex-col items-center space-y-4">
+      <div className="flex flex-col items-center gap-4">
         {/* Guild Icon */}
-        {guildIconUrl ? (
-          <img
-            src={guildIconUrl}
-            alt={guild.name}
-            className="w-20 h-20 rounded-full"
-          />
-        ) : (
-          <div className="w-20 h-20 rounded-full bg-[#5865F2] flex items-center justify-center text-white text-2xl font-bold">
-            {guild.name.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <div className="relative">
+          {guildIconUrl ? (
+            <img
+              src={guildIconUrl}
+              alt={guild.name}
+              className={`
+                w-16 h-16 rounded-full ring-2 ring-border/50
+                transition-all duration-200
+                ${canManage ? 'group-hover:ring-primary/50 group-hover:shadow-[0_0_20px_hsl(210_100%_55%/0.2)]' : ''}
+              `}
+            />
+          ) : (
+            <div
+              className={`
+                w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center
+                text-primary text-xl font-bold ring-2 ring-border/50
+                transition-all duration-200
+                ${canManage ? 'group-hover:ring-primary/50 group-hover:bg-primary/30' : ''}
+              `}
+            >
+              {guild.name.charAt(0).toUpperCase()}
+            </div>
+          )}
 
-        {/* Guild Name */}
-        <div className="text-center">
-          <h3 className="font-semibold text-gray-900 line-clamp-2">{guild.name}</h3>
-          {guild.owner && (
-            <span className="inline-block mt-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-              Owner
-            </span>
+          {/* Status indicator */}
+          {canManage && (
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-success ring-2 ring-card shadow-[0_0_8px_hsl(145_70%_42%/0.5)]" />
           )}
-          {!canManage && (
-            <span className="inline-block mt-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-              No Permission
-            </span>
-          )}
+        </div>
+
+        {/* Guild Info */}
+        <div className="text-center w-full">
+          <h3 className="font-semibold text-foreground line-clamp-1 mb-2">{guild.name}</h3>
+
+          <div className="flex justify-center gap-2">
+            {guild.owner && <Badge variant="neon">Owner</Badge>}
+            {!canManage && <Badge variant="muted">No Permission</Badge>}
+          </div>
         </div>
       </div>
     </Link>
-  )
+  );
 }

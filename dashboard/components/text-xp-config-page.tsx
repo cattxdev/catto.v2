@@ -1,7 +1,8 @@
-"use client"
+'use client';
 
-import XPConfigForm from "@/components/xp-config-form"
-import { useTextXPConfig } from "@/hooks/use-text-xp-config"
+import XPConfigForm from '@/components/xp-config-form';
+import { useTextXPConfig } from '@/hooks/use-text-xp-config';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface TextXPConfigPageProps {
   guildId: string;
@@ -12,24 +13,42 @@ export default function TextXPConfigPage({ guildId }: TextXPConfigPageProps) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#5865F2] mx-auto"></div>
-        <p className="text-gray-600 mt-4">Loading configuration...</p>
-      </div>
+      <Card variant="glass" className="p-8">
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <div className="neon-spinner mb-4" />
+          <p className="text-muted-foreground">Loading configuration...</p>
+        </CardContent>
+      </Card>
     );
   }
 
   if (error || !config) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-        <div className="text-red-500 mb-4">
-          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Configuration</h2>
-        <p className="text-gray-600">{error || 'Unable to fetch the XP configuration. Please try again later.'}</p>
-      </div>
+      <Card variant="glass" className="p-8">
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <div className="text-destructive mb-4">
+            <svg
+              className="w-16 h-16 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">
+            Failed to Load Configuration
+          </h2>
+          <p className="text-muted-foreground text-center">
+            {error || 'Unable to fetch the XP configuration. Please try again later.'}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
