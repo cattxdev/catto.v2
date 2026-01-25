@@ -7,6 +7,41 @@ import type { GuildVoiceXPConfig } from '@prisma/client';
 import type { UpdateVoiceXPConfigDTO } from '../dtos';
 
 export async function getVoiceXPConfig(guildId: string): Promise<GuildVoiceXPConfig> {
+  // First, ensure the guild exists in the database
+  const guild = await container.client.guilds.fetch(guildId).catch(() => null);
+
+  // If we can't fetch the guild, the bot is not in it - check if it exists in DB
+  if (!guild) {
+    // Try to get existing config without creating one
+    const existingConfig = await container.prisma.guildVoiceXPConfig.findUnique({
+      where: { guildId },
+    });
+
+    if (existingConfig) {
+      return existingConfig;
+    }
+
+    // Bot is not in the guild and no config exists - throw error
+    throw new Error(`Bot is not in guild ${guildId}`);
+  }
+
+  // Guild exists, ensure it's in the database
+  await container.prisma.guild.upsert({
+    where: { guildId },
+    update: {
+      name: guild.name,
+      updatedAt: new Date(),
+    },
+    create: {
+      guildId: guild.id,
+      name: guild.name,
+      language: 'en-US',
+      settings: {
+        prefix: '!',
+      },
+    },
+  });
+
   return await container.prisma.guildVoiceXPConfig.upsert({
     where: { guildId },
     update: {},
