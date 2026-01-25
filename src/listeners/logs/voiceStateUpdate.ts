@@ -62,10 +62,10 @@ export class LogVoiceStateUpdateListener extends LogListener<typeof Events.Voice
     }
     // User moved to a different voice channel
     else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
-      // Check if either channel should be ignored (log if neither is ignored)
+      // Check if either channel should be ignored - skip if either is ignored
       const ignoreOld = await this.shouldIgnoreChannel(newState.guild.id, oldState.channel.id);
       const ignoreNew = await this.shouldIgnoreChannel(newState.guild.id, newState.channel.id);
-      if (ignoreOld && ignoreNew) return; // Skip if both are ignored
+      if (ignoreOld || ignoreNew) return; // Skip if either channel is ignored
 
       await logAction({
         guildId: newState.guild.id,
