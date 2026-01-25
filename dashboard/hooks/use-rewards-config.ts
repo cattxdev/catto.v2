@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   rewardsService,
   type Reward,
@@ -18,11 +18,14 @@ export function useRewardsConfig(guildId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const mountedRef = useRef(true);
 
   const fetchRewards = useCallback(async () => {
     try {
       const data = await rewardsService.getRewards(guildId);
-      setRewards(data.rewards);
+      if (mountedRef.current) {
+        setRewards(data.rewards);
+      }
     } catch (err) {
       console.error('Failed to fetch rewards:', err);
     }
@@ -31,7 +34,9 @@ export function useRewardsConfig(guildId: string) {
   const fetchStats = useCallback(async () => {
     try {
       const data = await rewardsService.getStats(guildId);
-      setStats(data.stats);
+      if (mountedRef.current) {
+        setStats(data.stats);
+      }
     } catch (err) {
       console.error('Failed to fetch reward stats:', err);
     }
@@ -40,14 +45,16 @@ export function useRewardsConfig(guildId: string) {
   const fetchTemplates = useCallback(async () => {
     try {
       const data = await rewardsService.getTemplates(guildId);
-      setTemplates(data.templates);
+      if (mountedRef.current) {
+        setTemplates(data.templates);
+      }
     } catch (err) {
       console.error('Failed to fetch templates:', err);
     }
   }, [guildId]);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
     const load = async () => {
       try {
@@ -59,7 +66,7 @@ export function useRewardsConfig(guildId: string) {
           rewardsService.getTemplates(guildId),
         ]);
 
-        if (mounted) {
+        if (mountedRef.current) {
           if (rewardsData.status === 'fulfilled') {
             setRewards(rewardsData.value.rewards);
           }
@@ -71,11 +78,11 @@ export function useRewardsConfig(guildId: string) {
           }
         }
       } catch (err) {
-        if (mounted) {
+        if (mountedRef.current) {
           setError(err instanceof Error ? err.message : 'Failed to fetch rewards data');
         }
       } finally {
-        if (mounted) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
@@ -84,7 +91,7 @@ export function useRewardsConfig(guildId: string) {
     load();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
   }, [guildId]);
 

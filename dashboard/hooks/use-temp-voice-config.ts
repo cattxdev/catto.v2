@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   tempVoiceService,
   type TempVoiceConfig,
@@ -17,6 +17,7 @@ export function useTempVoiceConfig(guildId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const mountedRef = useRef(true);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -25,6 +26,7 @@ export function useTempVoiceConfig(guildId: string) {
 
       // Fetch config first, then channels and stats only if config exists
       const configData = await tempVoiceService.getConfig(guildId);
+      if (!mountedRef.current) return;
       setConfig(configData);
 
       if (configData) {
@@ -35,14 +37,19 @@ export function useTempVoiceConfig(guildId: string) {
             .catch(() => ({ guildId, totalChannels: 0, channels: [] })),
           tempVoiceService.getStats(guildId).catch(() => null),
         ]);
-        setChannels(channelsData.channels);
-        setStats(statsData);
+        if (mountedRef.current) {
+          setChannels(channelsData.channels);
+          setStats(statsData);
+        }
       } else {
         // No config, reset channels and stats
-        setChannels([]);
-        setStats(null);
+        if (mountedRef.current) {
+          setChannels([]);
+          setStats(null);
+        }
       }
     } catch (err) {
+      if (!mountedRef.current) return;
       const message = getErrorMessage(err);
       // Don't show error if config just doesn't exist
       if (!message.includes('404') && !message.includes('not found')) {
@@ -50,12 +57,19 @@ export function useTempVoiceConfig(guildId: string) {
       }
       // Keep config as null so setup wizard shows
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [guildId]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchAll();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchAll]);
 
   const updateConfig = async (updates: TempVoiceConfigUpdate) => {

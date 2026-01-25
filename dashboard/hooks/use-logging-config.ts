@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { loggingService, type LogConfig } from '@/lib/services/logging.service';
 
 export function useLoggingConfig(guildId: string) {
@@ -8,48 +8,35 @@ export function useLoggingConfig(guildId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const mountedRef = useRef(true);
 
   const fetchConfig = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await loggingService.getConfig(guildId);
-      setConfig(data);
+      if (mountedRef.current) {
+        setConfig(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch logging config');
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch logging config');
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [guildId]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await loggingService.getConfig(guildId);
-        if (mounted) {
-          setConfig(data);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to fetch logging config');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
+    mountedRef.current = true;
+    fetchConfig();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, [guildId]);
+  }, [fetchConfig]);
 
   const updateConfig = async (updates: { enabled?: boolean; ignoredChannels?: string[] }) => {
     try {
