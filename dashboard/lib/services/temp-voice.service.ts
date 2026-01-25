@@ -41,148 +41,217 @@ export interface TempVoiceConfigCreate {
 
 export interface TempVoiceConfigUpdate extends Partial<TempVoiceConfigCreate> {}
 
-export interface TempVoiceChannel {
-  channelId: string;
-  name: string;
-  ownerId: string;
-  ownerName: string;
-  userCount: number;
-  userLimit: number | null;
-  createdAt: string;
-  categoryId: string | null;
+export interface TempVoiceChannelMember {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatar?: string;
 }
 
-export interface TempVoiceChannelsResponse {
+export interface TempVoiceChannelPermissions {
+  isLocked: boolean;
+  isHidden: boolean;
+  allowedUserIds: string[];
+  deniedUserIds: string[];
+}
+
+export interface TempVoiceChannel {
+  channelId: string;
+  channelName?: string;
+  ownerId: string;
+  ownerUsername?: string;
+  categoryId?: string | null;
+  categoryName?: string;
+  userLimit?: number;
+  bitrate?: number;
+  memberCount?: number;
+  members?: TempVoiceChannelMember[];
+  permissions?: TempVoiceChannelPermissions;
+  createdAt: string;
+  status: 'active' | 'deleted';
+}
+
+export interface TempVoiceChannelsData {
+  guildId: string;
+  totalChannels: number;
   channels: TempVoiceChannel[];
-  count: number;
 }
 
 export interface TempVoiceStats {
-  totalChannelsCreated: number;
-  currentActiveChannels: number;
-  totalUsersServed: number;
-  averageSessionDuration: number;
-  peakConcurrentChannels: number;
-  lastActivityAt: string | null;
+  guildId: string;
+  config: {
+    enabled: boolean;
+    joinChannelCount: number;
+    joinChannels: { id: string; name: string; exists: boolean }[];
+    maxChannelsPerUser: number;
+  };
+  stats: {
+    totalChannelsCreated: number;
+    activeChannels: number;
+    emptyChannels: number;
+    totalMembers: number;
+    averageMembersPerChannel: number;
+    uniqueOwners: number;
+    mostActiveOwner: {
+      userId: string;
+      username?: string;
+      channelCount: number;
+    } | null;
+  };
+  timestamp: string;
 }
 
 export interface TempVoiceSetupRequest {
   categoryName?: string;
   joinChannelName?: string;
-  logChannelName?: string;
-  createLogChannel?: boolean;
+  logsChannelName?: string;
 }
 
-export interface TempVoiceSetupResponse {
+// Backend wraps responses in { success, data } or { success, error }
+interface ApiResponse<T> {
   success: boolean;
-  message: string;
-  categoryId: string;
-  joinChannelId: string;
-  logChannelId: string | null;
+  message?: string;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+export interface TempVoiceSetupData {
+  category: { id: string; name: string };
+  joinChannel: { id: string; name: string };
+  logsChannel: { id: string; name: string };
   config: TempVoiceConfig;
-}
-
-export interface TempVoiceValidateRequest extends TempVoiceConfigCreate {}
-
-export interface TempVoiceValidateResponse {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-export interface JoinChannelResponse {
-  success: boolean;
-  message: string;
-  joinChannelIds: string[];
-  count: number;
+  instructions: string;
 }
 
 export const tempVoiceService = {
   /**
    * Get temp voice configuration for a guild
+   * Backend returns: { success, data: TempVoiceConfig } or 404 if not found
    */
-  async getConfig(guildId: string): Promise<TempVoiceConfig> {
-    const response = await botApi.get(`/api/guilds/${guildId}/temp-voice/config`);
-    return response.data;
+  async getConfig(guildId: string): Promise<TempVoiceConfig | null> {
+    try {
+      const response = await botApi.get<ApiResponse<TempVoiceConfig>>(
+        `/api/guilds/${guildId}/temp-voice/config`
+      );
+      return response.data.data || null;
+    } catch (error) {
+      // 404 means config doesn't exist yet
+      if ((error as { response?: { status?: number } })?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   /**
    * Create temp voice configuration for a guild
    */
   async createConfig(guildId: string, config: TempVoiceConfigCreate): Promise<TempVoiceConfig> {
-    const response = await botApi.post(`/api/guilds/${guildId}/temp-voice/config`, config);
-    return response.data;
+    const response = await botApi.post<ApiResponse<TempVoiceConfig>>(
+      `/api/guilds/${guildId}/temp-voice/config`,
+      config
+    );
+    if (!response.data.data) {
+      throw new Error(response.data.error?.message || 'Failed to create config');
+    }
+    return response.data.data;
   },
 
   /**
    * Update temp voice configuration for a guild
    */
   async updateConfig(guildId: string, config: TempVoiceConfigUpdate): Promise<TempVoiceConfig> {
-    const response = await botApi.patch(`/api/guilds/${guildId}/temp-voice/config`, config);
-    return response.data;
+    const response = await botApi.patch<ApiResponse<TempVoiceConfig>>(
+      `/api/guilds/${guildId}/temp-voice/config`,
+      config
+    );
+    if (!response.data.data) {
+      throw new Error(response.data.error?.message || 'Failed to update config');
+    }
+    return response.data.data;
   },
 
   /**
    * Delete temp voice configuration for a guild
    */
-  async deleteConfig(guildId: string): Promise<{ success: boolean; message: string }> {
-    const response = await botApi.delete(`/api/guilds/${guildId}/temp-voice/config`);
-    return response.data;
+  async deleteConfig(guildId: string): Promise<void> {
+    await botApi.delete(`/api/guilds/${guildId}/temp-voice/config`);
   },
 
   /**
    * Get all active temporary voice channels
    */
-  async getChannels(guildId: string): Promise<TempVoiceChannelsResponse> {
-    const response = await botApi.get(`/api/guilds/${guildId}/temp-voice/channels`);
-    return response.data;
+  async getChannels(guildId: string): Promise<TempVoiceChannelsData> {
+    const response = await botApi.get<ApiResponse<TempVoiceChannelsData>>(
+      `/api/guilds/${guildId}/temp-voice/channels`
+    );
+    return response.data.data || { guildId, totalChannels: 0, channels: [] };
   },
 
   /**
    * Get temp voice statistics for a guild
    */
-  async getStats(guildId: string): Promise<TempVoiceStats> {
-    const response = await botApi.get(`/api/guilds/${guildId}/temp-voice/stats`);
-    return response.data;
+  async getStats(guildId: string): Promise<TempVoiceStats | null> {
+    try {
+      const response = await botApi.get<ApiResponse<TempVoiceStats>>(
+        `/api/guilds/${guildId}/temp-voice/stats`
+      );
+      return response.data.data || null;
+    } catch {
+      return null;
+    }
   },
 
   /**
    * Auto-setup temp voice system
-   * Creates category, join channel, and optionally log channel
+   * Creates category, join channel, log channel with webhook, and config
    */
-  async setup(guildId: string, request: TempVoiceSetupRequest): Promise<TempVoiceSetupResponse> {
-    const response = await botApi.post(`/api/guilds/${guildId}/temp-voice/setup`, request);
-    return response.data;
-  },
-
-  /**
-   * Validate temp voice configuration without saving
-   */
-  async validate(
-    guildId: string,
-    config: TempVoiceValidateRequest
-  ): Promise<TempVoiceValidateResponse> {
-    const response = await botApi.post(`/api/guilds/${guildId}/temp-voice/validate`, config);
-    return response.data;
+  async setup(guildId: string, request: TempVoiceSetupRequest): Promise<TempVoiceSetupData> {
+    const response = await botApi.post<ApiResponse<TempVoiceSetupData>>(
+      `/api/guilds/${guildId}/temp-voice/setup`,
+      request
+    );
+    if (!response.data.data) {
+      throw new Error(response.data.error?.message || 'Setup failed');
+    }
+    return response.data.data;
   },
 
   /**
    * Add a join channel to the temp voice system
    */
-  async addJoinChannel(guildId: string, channelId: string): Promise<JoinChannelResponse> {
-    const response = await botApi.post(`/api/guilds/${guildId}/temp-voice/join-channels`, {
-      channelId,
-    });
-    return response.data;
+  async addJoinChannel(guildId: string, channelId: string): Promise<{ joinChannelIds: string[] }> {
+    const response = await botApi.post<
+      ApiResponse<{
+        guildId: string;
+        channelId: string;
+        channelName: string;
+        joinChannelIds: string[];
+      }>
+    >(`/api/guilds/${guildId}/temp-voice/join-channels`, { channelId });
+    if (!response.data.data) {
+      throw new Error(response.data.error?.message || 'Failed to add join channel');
+    }
+    return { joinChannelIds: response.data.data.joinChannelIds };
   },
 
   /**
    * Remove a join channel from the temp voice system
    */
-  async removeJoinChannel(guildId: string, channelId: string): Promise<JoinChannelResponse> {
-    const response = await botApi.delete(
-      `/api/guilds/${guildId}/temp-voice/join-channels/${channelId}`
-    );
-    return response.data;
+  async removeJoinChannel(
+    guildId: string,
+    channelId: string
+  ): Promise<{ joinChannelIds: string[] }> {
+    const response = await botApi.delete<
+      ApiResponse<{ guildId: string; channelId: string; joinChannelIds: string[] }>
+    >(`/api/guilds/${guildId}/temp-voice/join-channels/${channelId}`);
+    if (!response.data.data) {
+      throw new Error(response.data.error?.message || 'Failed to remove join channel');
+    }
+    return { joinChannelIds: response.data.data.joinChannelIds };
   },
 };

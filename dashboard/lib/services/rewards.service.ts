@@ -2,10 +2,44 @@ import { botApi } from '@/lib/api';
 
 // Types
 export type XpType = 'TEXT' | 'VOICE' | 'BOTH';
-export type RewardType = 'ROLE' | 'MESSAGE' | 'CUSTOM';
+
+// Must match backend RewardType enum from src/lib/types/rewards.types.ts
+export type RewardType =
+  | 'ROLE_ADD'
+  | 'ROLE_REMOVE'
+  | 'ROLE_STACK'
+  | 'ROLE_REPLACE'
+  | 'PERMISSION_GRANT'
+  | 'PERMISSION_REVOKE'
+  | 'CHANNEL_ACCESS'
+  | 'CHANNEL_REVOKE'
+  | 'CATEGORY_ACCESS'
+  | 'CURRENCY_GRANT'
+  | 'CURRENCY_MULTIPLIER'
+  | 'XP_MULTIPLIER'
+  | 'XP_BONUS'
+  | 'DOUBLE_XP_TOKEN'
+  | 'NICKNAME_UNLOCK'
+  | 'COLOR_UNLOCK'
+  | 'CUSTOM_STATUS'
+  | 'PROFILE_BADGE'
+  | 'COMMAND_UNLOCK'
+  | 'FEATURE_UNLOCK'
+  | 'EMBED_UNLOCK'
+  | 'VOICE_PRIORITY'
+  | 'VOICE_SOUNDBOARD'
+  | 'VOICE_ACTIVITY'
+  | 'CUSTOM_REWARD'
+  | 'WEBHOOK_TRIGGER'
+  | 'ANNOUNCEMENT';
 
 export interface RewardData {
   roleId?: string;
+  action?: 'ADD' | 'REMOVE' | 'STACK' | 'REPLACE';
+  amount?: number;
+  multiplier?: number;
+  channelIds?: string[];
+  permissions?: string[];
   message?: string;
   [key: string]: unknown;
 }
