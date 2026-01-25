@@ -307,6 +307,9 @@ model LogConfig {
   leavesEnabled         Boolean  @default(false)
   serverEnabled         Boolean  @default(false)
   
+  // Ignored channels - logs from these channels won't be recorded
+  ignoredChannels       String[] @default([])
+  
   // Webhook URLs for each log type
   messagesWebhook       String?
   voiceWebhook          String?

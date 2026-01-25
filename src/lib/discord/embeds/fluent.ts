@@ -4,7 +4,7 @@
 
 import { EmbedBuilder, type User, type APIEmbedField, type ColorResolvable } from 'discord.js';
 import { container } from '@sapphire/framework';
-import { COLORS } from '../design.js';
+import { COLORS } from '../design/index.js';
 
 export type EmbedTransform = (e: FluentEmbed) => FluentEmbed;
 

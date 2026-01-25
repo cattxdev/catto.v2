@@ -1,6 +1,8 @@
 import { RewardService } from '#root/modules/rewards';
-import { XPType, RewardType, type RewardData } from '#lib/types/rewards.types';
+import { type RewardData } from '#lib/types/rewards.types';
 import { Route } from '@sapphire/plugin-api';
+import { validateDto } from '#lib/validation/validate-dto';
+import { CreateRewardDto } from '#root/dtos/rewards/create-reward.dto';
 
 export class RewardsRoute extends Route {
   private rewardService: RewardService;
@@ -98,65 +100,40 @@ export class RewardsRoute extends Route {
    */
   private async handlePost(guildId: string, body: unknown, response: Route.Response) {
     try {
-      // Validate required fields
-      if (!body || typeof body !== 'object') {
+      // Validate with DTO
+      const validation = await validateDto(CreateRewardDto, body);
+
+      if (!validation.success) {
         return response.status(400).json({
-          error: 'Invalid request body',
+          error: 'Validation failed',
+          details: validation.errors,
         });
       }
 
-      const bodyData = body as {
-        level?: number;
-        xpType?: string;
-        rewardType?: string;
-        rewardData?: unknown;
-        name?: string;
-        description?: string;
-        icon?: string;
-        oneTime?: boolean;
-        stackable?: boolean;
-        requiresPrevious?: boolean;
-        priority?: number;
-        enabled?: boolean;
-      };
-
-      const { level, xpType, rewardType, rewardData, name } = bodyData;
-
-      if (!level || !xpType || !rewardType || !rewardData || !name) {
-        return response.status(400).json({
-          error: 'Missing required fields: level, xpType, rewardType, rewardData, name',
+      if (!validation.data) {
+        return response.status(500).json({
+          error: 'Validation succeeded but no data returned',
         });
       }
 
-      // Validate level
-      if (typeof level !== 'number' || level < 1 || level > 1000) {
-        return response.status(400).json({
-          error: 'Level must be a number between 1 and 1000',
-        });
-      }
-
-      // Validate xpType
-      if (!['TEXT', 'VOICE', 'BOTH'].includes(xpType)) {
-        return response.status(400).json({
-          error: 'xpType must be TEXT, VOICE, or BOTH',
-        });
-      }
+      // Now validation.data is fully typed and validated
+      const dto = validation.data;
 
       // Create reward config
       const config = {
         guildId,
-        level,
-        xpType: xpType as XPType,
-        rewardType: rewardType as RewardType,
-        rewardData: rewardData as RewardData,
-        name,
-        description: bodyData.description,
-        icon: bodyData.icon,
-        oneTime: bodyData.oneTime ?? true,
-        stackable: bodyData.stackable ?? false,
-        requiresPrevious: bodyData.requiresPrevious ?? false,
-        priority: bodyData.priority ?? 0,
-        enabled: bodyData.enabled ?? true,
+        level: dto.level,
+        xpType: dto.xpType,
+        rewardType: dto.rewardType,
+        rewardData: dto.rewardData as unknown as RewardData,
+        name: dto.name,
+        description: dto.description,
+        icon: dto.icon,
+        oneTime: dto.oneTime ?? true,
+        stackable: dto.stackable ?? false,
+        requiresPrevious: dto.requiresPrevious ?? false,
+        priority: dto.priority ?? 0,
+        enabled: dto.enabled ?? true,
       };
 
       const reward = await this.rewardService.createReward(config);

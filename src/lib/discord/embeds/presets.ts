@@ -3,7 +3,7 @@
  */
 
 import { EmbedBuilder, type User, type ColorResolvable, type APIEmbedField } from 'discord.js';
-import { COLORS, EMOJI } from '../design.js';
+import { COLORS, EMOJI } from '../design/index.js';
 import { formatRelativeTimestamp } from '../core/format.js';
 
 /**
@@ -41,7 +41,7 @@ export function buildSuccessEmbed(
   options?: { title?: string; footer?: string }
 ): EmbedBuilder {
   const e = successEmbed()
-    .setTitle(`${EMOJI.SUCCESS} ${options?.title ?? 'Success'}`)
+    .setTitle(`${EMOJI.STATUS.SUCCESS} ${options?.title ?? 'Success'}`)
     .setDescription(description)
     .setTimestamp();
   if (options?.footer) e.setFooter({ text: options.footer });
@@ -53,7 +53,7 @@ export function buildErrorEmbed(
   options?: { title?: string; suggestion?: string; footer?: string }
 ): EmbedBuilder {
   const e = errorEmbed()
-    .setTitle(`${EMOJI.ERROR} ${options?.title ?? 'Error'}`)
+    .setTitle(`${EMOJI.STATUS.ERROR} ${options?.title ?? 'Error'}`)
     .setDescription(description)
     .setTimestamp();
   if (options?.suggestion) e.addFields({ name: 'Suggestion', value: options.suggestion });
@@ -66,7 +66,7 @@ export function buildWarningEmbed(
   options?: { title?: string; footer?: string }
 ): EmbedBuilder {
   const e = warningEmbed()
-    .setTitle(`${EMOJI.WARNING} ${options?.title ?? 'Warning'}`)
+    .setTitle(`${EMOJI.STATUS.WARNING} ${options?.title ?? 'Warning'}`)
     .setDescription(description)
     .setTimestamp();
   if (options?.footer) e.setFooter({ text: options.footer });
@@ -78,7 +78,7 @@ export function buildInfoEmbed(
   options?: { title?: string; footer?: string }
 ): EmbedBuilder {
   const e = infoEmbed()
-    .setTitle(`${EMOJI.INFO} ${options?.title ?? 'Information'}`)
+    .setTitle(`${EMOJI.STATUS.INFO} ${options?.title ?? 'Information'}`)
     .setDescription(description)
     .setTimestamp();
   if (options?.footer) e.setFooter({ text: options.footer });

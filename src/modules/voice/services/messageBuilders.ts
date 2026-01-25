@@ -24,7 +24,7 @@ export { hasVoiceModPermissions };
  * Get the mod shield indicator if a member has voice moderation permissions
  */
 export function getModShieldIndicator(member: GuildMember): string {
-  return hasVoiceModPermissions(member) ? EMOJI.MOD_SHIELD : '';
+  return hasVoiceModPermissions(member) ? EMOJI.MODERATION.ICONS.SHIELD_BLUE : '';
 }
 
 /**
@@ -76,39 +76,39 @@ export function getVoiceIndicators(voice: VoiceIndicatorOptions, userId?: string
   const indicators: string[] = [];
 
   if (voice.serverMute) {
-    indicators.push(EMOJI.VOICE_SERVER_MUTED);
+    indicators.push(EMOJI.VOICE.STATE.SERVER_MUTED);
   } else if (voice.selfMute) {
-    indicators.push(EMOJI.VOICE_MUTED);
+    indicators.push(EMOJI.VOICE.STATE.MUTED);
   } else {
-    indicators.push(EMOJI.VOICE_UNMUTED);
+    indicators.push(EMOJI.VOICE.STATE.UNMUTED);
   }
 
   if (voice.serverDeaf) {
-    indicators.push(EMOJI.VOICE_SERVER_DEAFENED);
+    indicators.push(EMOJI.VOICE.STATE.SERVER_DEAFENED);
   } else if (voice.selfDeaf) {
-    indicators.push(EMOJI.VOICE_DEAFENED);
+    indicators.push(EMOJI.VOICE.STATE.DEAFENED);
   } else {
-    indicators.push(EMOJI.VOICE_UNDEAFENED);
+    indicators.push(EMOJI.VOICE.STATE.UNDEAFENED);
   }
 
   if (voice.streaming) {
-    indicators.push(EMOJI.VOICE_SERVER_SCREENSHARE);
+    indicators.push(EMOJI.VOICE.STATE.SCREENSHARE);
   }
 
   if (voice.selfVideo) {
-    indicators.push(EMOJI.VOICE_VIDEO);
+    indicators.push(EMOJI.VOICE.STATE.VIDEO);
   }
 
   // Check for Discord embedded activity (Watch Together, Poker Night, etc.)
   // This is tracked via raw gateway events
   if (userId && voice.channelId) {
     if (embeddedActivityTracker.isUserInActivityInChannel(userId, voice.channelId)) {
-      indicators.push(EMOJI.VOICE_ACTIVITIES);
+      indicators.push(EMOJI.VOICE.ICONS.ACTIVITIES);
     }
   } else if (userId) {
     // Fallback: check if user is in any activity
     if (embeddedActivityTracker.isUserInActivity(userId)) {
-      indicators.push(EMOJI.VOICE_ACTIVITIES);
+      indicators.push(EMOJI.VOICE.ICONS.ACTIVITIES);
     }
   }
 
@@ -127,7 +127,7 @@ export function buildWatchMessage(
   const displayName = targetMember ? formatMemberName(targetMember) : session.targetId;
   const channel = state.channelId ? guild.channels.cache.get(state.channelId) : null;
 
-  const c = container().h2(`${EMOJI.MEMBER} ${displayName}`);
+  const c = container().h2(`${EMOJI.USER.ICONS.MEMBER} ${displayName}`);
 
   if (state.channelId && channel) {
     const indicators = getVoiceIndicators(
@@ -140,27 +140,27 @@ export function buildWatchMessage(
     });
 
     if (state.streaming) {
-      c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+      c.text(`${EMOJI.VOICE.STATE.SCREENSHARE} **Streaming**`);
     }
     if (state.selfVideo) {
-      c.text(`${EMOJI.VOICE_VIDEO} **Video**`);
+      c.text(`${EMOJI.VOICE.STATE.VIDEO} **Video**`);
     }
   } else {
     c.text('_Not in a voice channel_');
   }
 
   c.separator().text(
-    `${EMOJI.TIME_DAY} <t:${Math.floor(session.endsAt / 1000)}:R> • Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+    `${EMOJI.TIME.CLOCK} <t:${Math.floor(session.endsAt / 1000)}:R> • Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
   );
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_watch_stop:${session.targetId}`)
-      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.PAUSE)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(`voice_refresh_watch:${session.targetId}`)
-      .setEmoji(EMOJI.REPLAY)
+      .setEmoji(EMOJI.UI.NAV.REPLAY)
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -168,15 +168,15 @@ export function buildWatchMessage(
     actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`voice_join:${state.channelId}`)
-        .setEmoji(EMOJI.CONNECT_TO_USER)
+        .setEmoji(EMOJI.USER.ACTIONS.CONNECT)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_mute:${session.targetId}`)
-        .setEmoji(EMOJI.VOICE_TOGGLE)
+        .setEmoji(EMOJI.VOICE.CONTROLS.TOGGLE_MIC)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_disconnect:${session.targetId}`)
-        .setEmoji(EMOJI.DISCONNECT_USER)
+        .setEmoji(EMOJI.USER.ACTIONS.DISCONNECT)
         .setStyle(ButtonStyle.Secondary)
     );
   }
@@ -208,7 +208,7 @@ export function buildTrackMessage(
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
   const c = container()
-    .h2(`${EMOJI.VOICE} ${voiceChannel.name}`)
+    .h2(`${EMOJI.VOICE.ICONS.GENERIC} ${voiceChannel.name}`)
     .kv({
       Channel: channelMention(session.channelId),
       Members: memberCount.toString(),
@@ -220,26 +220,26 @@ export function buildTrackMessage(
   }
 
   c.separator().text(
-    `${EMOJI.TIME_DAY} <t:${Math.floor(session.endsAt / 1000)}:R> • Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+    `${EMOJI.TIME.CLOCK} <t:${Math.floor(session.endsAt / 1000)}:R> • Updates: ${session.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
   );
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_track_stop:${session.channelId}`)
-      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.PAUSE)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(`voice_refresh_track:${session.channelId}`)
-      .setEmoji(EMOJI.REPLAY)
+      .setEmoji(EMOJI.UI.NAV.REPLAY)
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`voice_join:${session.channelId}`)
-      .setEmoji(EMOJI.CONNECT_TO_USER)
+      .setEmoji(EMOJI.USER.ACTIONS.CONNECT)
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`voice_mute_all:${session.channelId}`)
       .setLabel('All')
-      .setEmoji(EMOJI.VOICE_TOGGLE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.TOGGLE_MIC)
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -329,7 +329,7 @@ export interface TrackMessageParams {
  * Uses same layout as buildWatchMessage but accepts raw params instead of session
  */
 export function buildWatchMessageFromParams(params: WatchMessageParams): FluentContainer {
-  const c = container().h2(`${EMOJI.MEMBER} ${params.displayName}`);
+  const c = container().h2(`${EMOJI.USER.ICONS.MEMBER} ${params.displayName}`);
 
   if (params.voiceState.channelId && params.voiceState.channel) {
     const indicators = getVoiceIndicators(params.voiceState, params.targetId);
@@ -339,27 +339,27 @@ export function buildWatchMessageFromParams(params: WatchMessageParams): FluentC
     });
 
     if (params.voiceState.streaming) {
-      c.text(`${EMOJI.VOICE_SERVER_SCREENSHARE} **Streaming**`);
+      c.text(`${EMOJI.VOICE.STATE.SCREENSHARE} **Streaming**`);
     }
     if (params.voiceState.selfVideo) {
-      c.text(`${EMOJI.VOICE_VIDEO} **Video**`);
+      c.text(`${EMOJI.VOICE.STATE.VIDEO} **Video**`);
     }
   } else {
     c.text('_Not in a voice channel_');
   }
 
   c.separator().text(
-    `${EMOJI.TIME_DAY} <t:${Math.floor(params.endsAt / 1000)}:R> • Updates: ${params.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+    `${EMOJI.TIME.CLOCK} <t:${Math.floor(params.endsAt / 1000)}:R> • Updates: ${params.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
   );
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_watch_stop:${params.targetId}`)
-      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.PAUSE)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(`voice_refresh_watch:${params.targetId}`)
-      .setEmoji(EMOJI.REPLAY)
+      .setEmoji(EMOJI.UI.NAV.REPLAY)
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -367,15 +367,15 @@ export function buildWatchMessageFromParams(params: WatchMessageParams): FluentC
     actionRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`voice_join:${params.voiceState.channelId}`)
-        .setEmoji(EMOJI.CONNECT_TO_USER)
+        .setEmoji(EMOJI.USER.ACTIONS.CONNECT)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_mute:${params.targetId}`)
-        .setEmoji(EMOJI.VOICE_TOGGLE)
+        .setEmoji(EMOJI.VOICE.CONTROLS.TOGGLE_MIC)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`voice_disconnect:${params.targetId}`)
-        .setEmoji(EMOJI.DISCONNECT_USER)
+        .setEmoji(EMOJI.USER.ACTIONS.DISCONNECT)
         .setStyle(ButtonStyle.Secondary)
     );
   }
@@ -401,7 +401,7 @@ export function buildTrackMessageFromParams(params: TrackMessageParams): FluentC
   const memberList = memberLines.length > 0 ? memberLines.join('\n') : '_No members_';
 
   const c = container()
-    .h2(`${EMOJI.VOICE} ${params.channelName}`)
+    .h2(`${EMOJI.VOICE.ICONS.GENERIC} ${params.channelName}`)
     .kv({
       Channel: channelMention(params.channelId),
       Members: memberCount.toString(),
@@ -413,26 +413,26 @@ export function buildTrackMessageFromParams(params: TrackMessageParams): FluentC
   }
 
   c.separator().text(
-    `${EMOJI.TIME_DAY} <t:${Math.floor(params.endsAt / 1000)}:R> • Updates: ${params.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
+    `${EMOJI.TIME.CLOCK} <t:${Math.floor(params.endsAt / 1000)}:R> • Updates: ${params.updateCount}/${VOICE_WATCH_CONFIG.maxUpdates}`
   );
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`voice_track_stop:${params.channelId}`)
-      .setEmoji(EMOJI.VOICE_SOUND_PAUSE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.PAUSE)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(`voice_refresh_track:${params.channelId}`)
-      .setEmoji(EMOJI.REPLAY)
+      .setEmoji(EMOJI.UI.NAV.REPLAY)
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`voice_join:${params.channelId}`)
-      .setEmoji(EMOJI.CONNECT_TO_USER)
+      .setEmoji(EMOJI.USER.ACTIONS.CONNECT)
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`voice_mute_all:${params.channelId}`)
       .setLabel('All')
-      .setEmoji(EMOJI.VOICE_TOGGLE)
+      .setEmoji(EMOJI.VOICE.CONTROLS.TOGGLE_MIC)
       .setStyle(ButtonStyle.Secondary)
   );
 

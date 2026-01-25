@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { Sticker } from 'discord.js';
 import { LogType, logAction } from '../../lib/logging';
+import { LogListener } from './LogListener';
 
-export class StickerDeleteListener extends Listener<typeof Events.GuildStickerDelete> {
+export class StickerDeleteListener extends LogListener<typeof Events.GuildStickerDelete> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,

@@ -14,7 +14,7 @@ import {
   type ReputationStats,
   type VouchValidation,
 } from '../models/reputation.model';
-import { EMOJIS } from '#root/lib/emojis';
+import { EMOJI } from '#lib/discord/design';
 
 export class ReputationService {
   constructor(private prisma: PrismaClient) {}
@@ -54,7 +54,7 @@ export class ReputationService {
     if (giver.id === receiver.id) {
       return {
         isValid: false,
-        reason: `${EMOJIS.ERROR} You cannot vouch for yourself.`,
+        reason: `${EMOJI.STATUS.ERROR} You cannot vouch for yourself.`,
       };
     }
 
@@ -62,7 +62,7 @@ export class ReputationService {
     if (receiver.user.bot) {
       return {
         isValid: false,
-        reason: `${EMOJIS.ERROR} You cannot vouch for bots.`,
+        reason: `${EMOJI.STATUS.ERROR} You cannot vouch for bots.`,
       };
     }
 
@@ -72,7 +72,7 @@ export class ReputationService {
     if (giverAccountAge < minAccountAge) {
       return {
         isValid: false,
-        reason: `${EMOJIS.ERROR} Your account must be at least ${VOUCH_CONFIG.MIN_ACCOUNT_AGE_DAYS} days old to vouch for others.`,
+        reason: `${EMOJI.STATUS.ERROR} Your account must be at least ${VOUCH_CONFIG.MIN_ACCOUNT_AGE_DAYS} days old to vouch for others.`,
       };
     }
 
@@ -83,7 +83,7 @@ export class ReputationService {
       if (serverAge < minServerAge) {
         return {
           isValid: false,
-          reason: `${EMOJIS.ERROR} You must be in this server for at least ${VOUCH_CONFIG.MIN_SERVER_AGE_DAYS} days to vouch for others.`,
+          reason: `${EMOJI.STATUS.ERROR} You must be in this server for at least ${VOUCH_CONFIG.MIN_SERVER_AGE_DAYS} days to vouch for others.`,
         };
       }
     }
@@ -100,7 +100,7 @@ export class ReputationService {
         const hours = Math.ceil(remainingTime / (60 * 60 * 1000));
         return {
           isValid: false,
-          reason: `${EMOJIS.LOADING} You can vouch again in ${hours} hour(s).`,
+          reason: `${EMOJI.STATUS.LOADING} You can vouch again in ${hours} hour(s).`,
           canVouchAgainAt: new Date(giverRep.lastVouchGiven.getTime() + cooldown),
         };
       }
@@ -126,7 +126,7 @@ export class ReputationService {
       const daysRemaining = 7 - daysSince;
       return {
         isValid: false,
-        reason: `${EMOJIS.LOADING} You already vouched ${receiver.user.username} as ${vouchType}. You can vouch them again in ${daysRemaining} day(s).`,
+        reason: `${EMOJI.STATUS.LOADING} You already vouched ${receiver.user.username} as ${vouchType}. You can vouch them again in ${daysRemaining} day(s).`,
       };
     }
 

@@ -247,7 +247,7 @@ export function buildCompletionEmbed(
   }
 ): EmbedBuilder {
   return embed(options?.color ?? COLORS.SUCCESS)
-    .setTitle(`${EMOJI.SUCCESS} ${title}`)
+    .setTitle(`${EMOJI.STATUS.SUCCESS} ${title}`)
     .setDescription(description ?? 'Configuration complete.')
     .setTimestamp();
 }
