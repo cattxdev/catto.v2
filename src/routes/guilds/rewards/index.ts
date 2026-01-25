@@ -110,8 +110,14 @@ export class RewardsRoute extends Route {
         });
       }
 
-      // Now validation.data is fully typed and validated!
-      const dto = validation.data!;
+      if (!validation.data) {
+        return response.status(500).json({
+          error: 'Validation succeeded but no data returned',
+        });
+      }
+
+      // Now validation.data is fully typed and validated
+      const dto = validation.data;
 
       // Create reward config
       const config = {
