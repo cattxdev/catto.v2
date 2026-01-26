@@ -55,7 +55,12 @@ export class TempChannelService {
     // Generate channel name (use saved preference or default)
     const channelName =
       userPrefs?.customName ||
-      generateChannelName(config.defaultNameTemplate, owner, existingCount + 1);
+      generateChannelName(
+        config.defaultNameTemplate,
+        owner,
+        existingCount + 1,
+        config.namingScheme
+      );
 
     // Determine settings (use preferences if customization allowed, otherwise use defaults)
     const isLocked = userPrefs?.preferLocked ?? config.defaultLocked;

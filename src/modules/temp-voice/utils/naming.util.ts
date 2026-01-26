@@ -3,6 +3,7 @@
  */
 
 import type { GuildMember } from 'discord.js';
+import { TempVoiceNamingScheme } from '@prisma/client';
 import { TEMPLATE_VARIABLES } from '../constants.js';
 
 /**
@@ -56,10 +57,15 @@ export function replaceTemplateVariables(template: string, context: TemplateCont
 export function generateChannelName(
   template: string,
   member: GuildMember,
-  sequenceNumber: number
+  sequenceNumber: number,
+  namingScheme: TempVoiceNamingScheme
 ): string {
+  // Determine which name to use based on naming scheme
+  const username =
+    namingScheme === TempVoiceNamingScheme.USERNAME ? member.user.username : member.displayName;
+
   const context: TemplateContext = {
-    username: member.displayName || member.user.username,
+    username,
     discriminator: member.user.discriminator !== '0' ? member.user.discriminator : undefined,
     tag: member.user.tag,
     n: sequenceNumber,
