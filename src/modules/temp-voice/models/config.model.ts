@@ -2,7 +2,7 @@
  * TypeScript interfaces for Temp Voice configuration
  */
 
-import type { OwnerLeaveStrategy } from '../constants';
+import type { OwnerLeaveStrategy } from '../constants.js';
 
 /**
  * Guild-level configuration for temp voice module

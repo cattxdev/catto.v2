@@ -2,7 +2,7 @@
  * TypeScript interfaces for API responses
  */
 
-import type { TempVoiceApiError } from '../constants';
+import type { TempVoiceApiError } from '../constants.js';
 
 /**
  * Standardized success response

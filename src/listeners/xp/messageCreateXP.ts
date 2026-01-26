@@ -5,11 +5,11 @@
 
 import { Listener, Events } from '@sapphire/framework';
 import { Message, EmbedBuilder, TextChannel, NewsChannel } from 'discord.js';
-import { awardService, configService } from '../../modules/xp-text/services';
-import { parseTemplate } from '../../modules/xp-text/utils/templates';
-import type { ValidationContext } from '../../modules/xp-text/types/xp-text.types';
-import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration';
-import type { RewardClaimResult } from '../../lib/types/rewards.types';
+import { awardService, configService } from '../../modules/xp-text/services/index.js';
+import { parseTemplate } from '../../modules/xp-text/utils/templates.js';
+import type { ValidationContext } from '../../modules/xp-text/types/xp-text.types.js';
+import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration.js';
+import type { RewardClaimResult } from '../../lib/types/rewards.types.js';
 
 export class MessageCreateXPListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

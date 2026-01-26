@@ -4,7 +4,7 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 
 export class TempVoiceConfigGetRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

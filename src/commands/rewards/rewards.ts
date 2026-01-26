@@ -1,5 +1,5 @@
-import { EMOJI } from '#lib/discord/design';
-import { RewardService, XPType, LevelRewardConfig } from '#root/modules/rewards';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { RewardService, XPType, LevelRewardConfig } from '#root/modules/rewards/index.js';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder } from 'discord.js';
 

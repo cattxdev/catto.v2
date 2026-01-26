@@ -94,11 +94,14 @@ importers:
         specifier: ^8.22.1
         version: 8.53.0(@typescript-eslint/parser@8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       '@typescript-eslint/parser':
-        specifier: ^8.22.1
+        specifier: ^8.53.0
         version: 8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       eslint:
         specifier: ^9.19.0
         version: 9.39.2(jiti@2.6.1)
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
       husky:
         specifier: ^9.1.7
         version: 9.1.7

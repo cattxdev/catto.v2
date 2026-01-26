@@ -4,12 +4,12 @@ import { MuteType, ModAction } from '@prisma/client';
 import type { GuildMember } from 'discord.js';
 import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
 import { asGuildId } from '../domain/types.js';
-import { CONFIG } from '#config';
+import { CONFIG } from '#config.js';
 import { getSafeUserTag } from '#lib/discord/index.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMuteAllStateSchema, VOICE_CACHE_TTL } from '#root/modules/voice/domain/types.js';
 import { logModAction } from '../discord/embeds/presets.js';
-import { ensureNonNull } from '#lib/utils';
+import { ensureNonNull } from '#lib/utils.js';
 
 /**
  * Job data for mute unmute task

@@ -1,7 +1,7 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { StageInstance } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
-import { LogListener } from './LogListener';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
 export class StageInstanceUpdateListener extends LogListener<typeof Events.StageInstanceUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {

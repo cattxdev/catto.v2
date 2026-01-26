@@ -5,9 +5,9 @@
 import { Listener } from '@sapphire/framework';
 import { Events } from 'discord.js';
 import { container } from '@sapphire/framework';
-import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service';
-import { CleanupService } from '../../modules/temp-voice/services/cleanup.service';
-import { RecoveryService } from '../../modules/temp-voice/services/recovery.service';
+import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
+import { CleanupService } from '../../modules/temp-voice/services/cleanup.service.js';
+import { RecoveryService } from '../../modules/temp-voice/services/recovery.service.js';
 
 export class TempVoiceReadyListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

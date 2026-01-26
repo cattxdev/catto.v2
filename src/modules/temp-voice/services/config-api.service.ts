@@ -4,9 +4,9 @@
  */
 
 import { container } from '@sapphire/framework';
-import type { TempVoiceConfigInput, TempVoiceConfigUpdate } from '../models/config.model';
-import { TempVoiceConfigService } from './config.service';
-import { OwnerLeaveStrategy } from '../constants';
+import type { TempVoiceConfigInput, TempVoiceConfigUpdate } from '../models/config.model.js';
+import { TempVoiceConfigService } from './config.service.js';
+import { OwnerLeaveStrategy } from '../constants.js';
 
 const configService = new TempVoiceConfigService(container.prisma);
 

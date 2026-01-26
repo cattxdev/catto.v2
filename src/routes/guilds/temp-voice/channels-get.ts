@@ -4,8 +4,8 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
 import { ChannelType } from 'discord.js';
 
 interface TempChannelInfo {

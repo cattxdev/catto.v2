@@ -9,7 +9,7 @@ import type {
   TempVoiceConfigInput,
   TempVoiceConfigUpdate,
 } from '../models/config.model';
-import { DEFAULT_TEMP_VOICE_CONFIG, type OwnerLeaveStrategy } from '../constants';
+import { DEFAULT_TEMP_VOICE_CONFIG, type OwnerLeaveStrategy } from '../constants.js';
 
 export class TempVoiceConfigService {
   constructor(private prisma: PrismaClient) {}

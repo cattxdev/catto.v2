@@ -1,7 +1,7 @@
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { MuteType } from '@prisma/client';
-import { CONFIG } from '#config';
+import { CONFIG } from '#config.js';
 import { getJson, deleteJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMuteAllStateSchema } from '../domain/types.js';
 import { logVoiceMuteAllAction } from '#root/modules/moderation/discord/embeds/presets.js';

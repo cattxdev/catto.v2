@@ -3,7 +3,7 @@
  */
 
 import type { GuildMember } from 'discord.js';
-import { TEMPLATE_VARIABLES } from '../constants';
+import { TEMPLATE_VARIABLES } from '../constants.js';
 
 /**
  * Template replacement context

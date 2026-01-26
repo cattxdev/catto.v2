@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { TEMP_VOICE_LIMITS, OwnerLeaveStrategy, VOICE_REGIONS } from '../constants';
+import { TEMP_VOICE_LIMITS, OwnerLeaveStrategy, VOICE_REGIONS } from '../constants.js';
 
 /**
  * Zod schema for validating temp voice configuration

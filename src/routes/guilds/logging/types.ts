@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
 
 export class LoggingTypesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

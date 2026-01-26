@@ -4,9 +4,9 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { z } from 'zod';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 const addJoinChannelSchema = z.object({
   channelId: z.string().regex(/^\d{17,19}$/, 'Invalid channel ID format'),

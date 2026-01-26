@@ -4,7 +4,7 @@
 
 import type { Guild, CategoryChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
-import { TEMP_VOICE_LIMITS } from '../constants';
+import { TEMP_VOICE_LIMITS } from '../constants.js';
 
 /**
  * Result of finding a suitable category

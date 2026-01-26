@@ -4,8 +4,8 @@
  */
 
 import type { GuildXPConfig } from '@prisma/client';
-import type { UpdateXPConfigDTO } from '../dtos';
-import * as configRepo from '../repositories/xp-text-config.repository';
+import type { UpdateXPConfigDTO } from '../dtos/index.js';
+import * as configRepo from '../repositories/xp-text-config.repository.js';
 
 /**
  * Cache entry type

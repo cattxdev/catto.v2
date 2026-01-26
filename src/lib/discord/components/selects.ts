@@ -14,7 +14,7 @@ import {
   ActionRowBuilder,
   ChannelType,
 } from 'discord.js';
-import { EMOJI } from '#lib/discord/design';
+import { EMOJI } from '#lib/discord/design/index.js';
 
 // Types
 

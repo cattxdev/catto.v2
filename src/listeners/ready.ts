@@ -2,9 +2,9 @@ import { Listener } from '@sapphire/framework';
 import { Events } from '@sapphire/framework';
 import { type Client } from 'discord.js';
 import type { Server } from '@sapphire/plugin-api';
-import { CONFIG } from '#config';
+import { CONFIG } from '#config.js';
 import { Prisma } from '@prisma/client';
-import { loggingService } from '../lib/logging';
+import { loggingService } from '../lib/logging.js';
 
 export class ReadyListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

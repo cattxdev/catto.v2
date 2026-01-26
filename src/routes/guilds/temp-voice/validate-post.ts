@@ -4,8 +4,8 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceValidateRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

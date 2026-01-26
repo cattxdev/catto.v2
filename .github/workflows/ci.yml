@@ -33,6 +33,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm prisma:generate
 
+      - name: Check ESM import extensions
+        run: pnpm lint:imports
+
       - name: Run ESLint
         run: pnpm lint
 

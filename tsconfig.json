@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "lib": ["ES2022"],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "rootDir": "./src",
     "outDir": "./dist",
     "declaration": true,
@@ -39,7 +39,8 @@
       "#preconditions/*": ["./src/preconditions/*"],
       "#lib/*": ["./src/lib/*"],
       "#modules/*": ["./src/modules/*"],
-      "#config": ["./src/config.ts"]
+      "#config": ["./src/config.ts"],
+      "#config.js": ["./src/config.ts"]
     }
   },
   "include": ["src/**/*"],

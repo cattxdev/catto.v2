@@ -4,8 +4,8 @@
  */
 
 import type { GuildVoiceXPConfig } from '@prisma/client';
-import type { VoiceLevelCalculation } from '../types/voice-xp.types';
-import { VoiceLevelCurveType } from '../types/voice-xp.types';
+import type { VoiceLevelCalculation } from '../types/voice-xp.types.js';
+import { VoiceLevelCurveType } from '../types/voice-xp.types.js';
 
 export function calculateVoiceLevel(
   config: GuildVoiceXPConfig,

@@ -4,10 +4,10 @@
  */
 
 import type { GuildVoiceXPConfig } from '@prisma/client';
-import type { UpdateVoiceXPConfigDTO } from '../dtos';
-import type { VoiceConfigCacheEntry } from '../types/voice-xp.types';
-import * as voiceXPConfigRepository from '../repositories/voice-xp-config.repository';
-import { voiceXPQueue } from './voice-xp-queue.service';
+import type { UpdateVoiceXPConfigDTO } from '../dtos/index.js';
+import type { VoiceConfigCacheEntry } from '../types/voice-xp.types.js';
+import * as voiceXPConfigRepository from '../repositories/voice-xp-config.repository.js';
+import { voiceXPQueue } from './voice-xp-queue.service.js';
 
 const configCache = new Map<string, VoiceConfigCacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes

@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { container, successMessage, defer, reply, editReply, COLORS } from '#lib/discord';
+ * import { container, successMessage, defer, reply, editReply, COLORS } from '#lib/discord/index.js';
  *
  * // Build a container message
  * const msg = successMessage('Done!', 'Operation completed.');

@@ -1,8 +1,8 @@
 import { EmbedBuilder, WebhookClient, Colors } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
-import { CONFIG } from '#config';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
+import { CONFIG } from '#config.js';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
 
 export enum LogType {
   Messages = 'messages',

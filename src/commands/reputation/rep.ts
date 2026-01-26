@@ -4,9 +4,9 @@
 
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, Colors } from 'discord.js';
-import { EMOJI } from '#lib/discord/design';
-import { ReputationService } from '#modules/reputation/services/reputation.service';
-import { VouchType, REPUTATION_TIERS } from '#modules/reputation/models/reputation.model';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { ReputationService } from '#modules/reputation/services/reputation.service.js';
+import { VouchType, REPUTATION_TIERS } from '#modules/reputation/models/reputation.model.js';
 
 export class VouchCommand extends Command {
   private reputationService!: ReputationService;

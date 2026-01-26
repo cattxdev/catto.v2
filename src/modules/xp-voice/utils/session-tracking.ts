@@ -4,7 +4,7 @@
  */
 
 import { container } from '@sapphire/framework';
-import type { ActiveSession } from '../types/voice-xp.types';
+import type { ActiveSession } from '../types/voice-xp.types.js';
 
 const SESSION_PREFIX = 'voice-session:';
 const GUILD_SESSIONS_PREFIX = 'voice-guild-sessions:';

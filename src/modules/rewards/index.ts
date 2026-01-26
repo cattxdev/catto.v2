@@ -4,10 +4,10 @@
  */
 
 // Services
-export { RewardService } from './services/RewardService';
+export { RewardService } from './services/RewardService.js';
 
 // Integrations
-export { RewardIntegration } from './integrations/RewardIntegration';
+export { RewardIntegration } from './integrations/RewardIntegration.js';
 
 // Re-export types
-export * from '../../lib/types/rewards.types';
+export * from '../../lib/types/rewards.types.js';

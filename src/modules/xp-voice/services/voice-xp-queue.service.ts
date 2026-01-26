@@ -5,9 +5,9 @@
 
 import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
-import { CONFIG } from '../../../config';
-import { awardPerMinuteXP } from './voice-xp-session.service';
-import { getVoiceXPConfig } from './voice-xp-config.service';
+import { CONFIG } from '../../../config.js';
+import { awardPerMinuteXP } from './voice-xp-session.service.js';
+import { getVoiceXPConfig } from './voice-xp-config.service.js';
 
 interface VoiceXPJobData {
   guildId: string;

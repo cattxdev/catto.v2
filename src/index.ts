@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import './setup.js';
-import { BotClient } from '#structures/BotClient';
-import { CONFIG } from '#config';
+import { BotClient } from '#structures/BotClient.js';
+import { CONFIG } from '#config.js';
 
 const client = new BotClient();
 

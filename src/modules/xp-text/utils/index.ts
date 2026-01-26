@@ -2,6 +2,6 @@
  * XP System Utilities
  */
 
-export * from './level-curve';
-export * from './validation';
-export * from './templates';
+export * from './level-curve.js';
+export * from './validation.js';
+export * from './templates.js';

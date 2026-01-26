@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { resetUserXP } from '#root/modules/xp-text';
+import { resetUserXP } from '#root/modules/xp-text/index.js';
 import { Buffer } from 'node:buffer';
 
 export class XPResetUserRoute extends Route {

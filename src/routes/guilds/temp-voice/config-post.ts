@@ -4,9 +4,9 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
+import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceConfigPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

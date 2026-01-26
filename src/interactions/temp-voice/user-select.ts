@@ -1,11 +1,11 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { UserSelectMenuInteraction, GuildMember, VoiceChannel } from 'discord.js';
 import type { TempVoiceChannel } from '@prisma/client';
-import { EMOJI } from '#lib/discord/design';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
-import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
+import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
 
 export class TempVoiceUserSelectHandler extends InteractionHandler {
   private channelService!: TempChannelService;

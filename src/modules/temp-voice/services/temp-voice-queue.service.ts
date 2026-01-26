@@ -5,13 +5,13 @@
 
 import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
-import { CONFIG } from '../../../config';
+import { CONFIG } from '../../../config.js';
 import { Colors, WebhookClient, EmbedBuilder } from 'discord.js';
-import { TempVoiceConfigService } from './config.service';
-import { TempChannelService } from './temp-channel.service';
-import { ControlPanelService } from './control-panel.service';
-import { PermissionsService } from './permissions.service';
-import { UserPreferencesService } from './user-preferences.service';
+import { TempVoiceConfigService } from './config.service.js';
+import { TempChannelService } from './temp-channel.service.js';
+import { ControlPanelService } from './control-panel.service.js';
+import { PermissionsService } from './permissions.service.js';
+import { UserPreferencesService } from './user-preferences.service.js';
 
 interface CreateChannelJobData {
   type: 'create';

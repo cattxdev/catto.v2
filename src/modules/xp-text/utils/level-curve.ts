@@ -3,7 +3,7 @@
  * Handles formula-based and table-based XP curves
  */
 
-import { LevelCurveType, LevelCalculation } from '../types/xp-text.types';
+import { LevelCurveType, LevelCalculation } from '../types/xp-text.types.js';
 
 /**
  * Calculate XP required for a specific level using formula

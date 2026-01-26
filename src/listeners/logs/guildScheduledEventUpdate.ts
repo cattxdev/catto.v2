@@ -1,8 +1,8 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildScheduledEvent } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
 import { time, TimestampStyles } from '@discordjs/builders';
-import { LogListener } from './LogListener';
+import { LogListener } from './LogListener.js';
 
 export class GuildScheduledEventUpdateListener extends LogListener<
   typeof Events.GuildScheduledEventUpdate

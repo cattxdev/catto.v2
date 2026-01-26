@@ -4,7 +4,7 @@
 
 import { container } from '@sapphire/framework';
 import type { GuildVoiceXPConfig } from '@prisma/client';
-import type { UpdateVoiceXPConfigDTO } from '../dtos';
+import type { UpdateVoiceXPConfigDTO } from '../dtos/index.js';
 
 export async function getVoiceXPConfig(guildId: string): Promise<GuildVoiceXPConfig> {
   // First, ensure the guild exists in the database
