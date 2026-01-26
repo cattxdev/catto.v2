@@ -1,25 +1,23 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { resolve } from 'node:path';
 import fg from 'fast-glob';
+import { checkImportsInContent } from './lib/import-utils';
 
 /**
  * Checks that all local imports in TypeScript files have .js extensions for ESM compatibility.
- * Also validates that imports pointing to directories use /index.js.
  *
  * Usage:
  *   tsx scripts/check-imports.ts                    # Check all files in src/
  *   tsx scripts/check-imports.ts src/index.ts       # Check specific file(s)
- *   tsx scripts/check-imports.ts src/lib/*.ts       # Check files matching pattern
  *
  * Exit codes:
  *   0 - All imports are valid
- *   1 - Found invalid imports (missing .js extension or incorrect path)
+ *   1 - Found invalid imports
  */
 
 interface ImportError {
   file: string;
   line: number;
-  column: number;
   importPath: string;
   suggestion: string;
   reason: string;
@@ -30,7 +28,6 @@ async function getFilesToProcess(): Promise<string[]> {
 
   if (args.length > 0) {
     const files: string[] = [];
-
     for (const arg of args) {
       if (arg.includes('*')) {
         const matched = await fg(arg, { absolute: true, onlyFiles: true });
@@ -42,145 +39,23 @@ async function getFilesToProcess(): Promise<string[]> {
         }
       }
     }
-
     return files;
   }
 
   return fg('src/**/*.ts', { absolute: true, onlyFiles: true });
 }
 
-function resolveImportPath(
-  importPath: string,
-  currentFile: string,
-  projectRoot: string
-): string | null {
-  const pathWithoutExt = importPath.endsWith('.js') ? importPath.slice(0, -3) : importPath;
-
-  if (pathWithoutExt.startsWith('.')) {
-    return resolve(dirname(currentFile), pathWithoutExt);
-  }
-
-  if (pathWithoutExt.startsWith('#')) {
-    const aliasMap: Record<string, string> = {
-      '#lib/': 'src/lib/',
-      '#root/': 'src/',
-      '#structures/': 'src/structures/',
-      '#commands/': 'src/commands/',
-      '#listeners/': 'src/listeners/',
-      '#routes/': 'src/routes/',
-      '#preconditions/': 'src/preconditions/',
-      '#modules/': 'src/modules/',
-      '#config': 'src/config',
-    };
-
-    for (const [alias, replacement] of Object.entries(aliasMap)) {
-      if (pathWithoutExt.startsWith(alias) || pathWithoutExt === alias.slice(0, -1)) {
-        const aliasPath = pathWithoutExt.replace(alias, replacement);
-        return resolve(projectRoot, aliasPath);
-      }
-    }
-  }
-
-  return null;
-}
-
-function validateImport(
-  importPath: string,
-  resolvedPath: string | null,
-  file: string,
-  line: number,
-  column: number,
-  projectRoot: string
-): ImportError | null {
-  const relativeFile = file.replace(projectRoot, '').replace(/\\/g, '/').replace(/^\//, '');
-
-  // Must have .js extension
-  if (!importPath.endsWith('.js')) {
-    const pathWithoutExt = importPath;
-    let suggestion = `${pathWithoutExt}.js`;
-
-    // Check if it should be /index.js
-    if (resolvedPath) {
-      const dirWithIndex = join(resolvedPath, 'index.ts');
-      if (existsSync(dirWithIndex)) {
-        suggestion = `${pathWithoutExt}/index.js`;
-      }
-    }
-
-    return {
-      file: relativeFile,
-      line,
-      column,
-      importPath,
-      suggestion,
-      reason: 'Missing .js extension',
-    };
-  }
-
-  // Has .js extension - check if it should be /index.js
-  if (resolvedPath) {
-    const pathWithoutJs = importPath.slice(0, -3);
-    const dirWithIndex = join(resolvedPath, 'index.ts');
-    const directFile = `${resolvedPath}.ts`;
-
-    // If directory with index.ts exists but we're not importing /index.js
-    if (existsSync(dirWithIndex) && !importPath.endsWith('/index.js') && !existsSync(directFile)) {
-      return {
-        file: relativeFile,
-        line,
-        column,
-        importPath,
-        suggestion: `${pathWithoutJs}/index.js`,
-        reason: 'Should import /index.js for directory with index.ts',
-      };
-    }
-  }
-
-  return null;
-}
-
 function checkFile(file: string, projectRoot: string): ImportError[] {
   const content = readFileSync(file, 'utf-8');
-  const errors: ImportError[] = [];
+  const relativeFile = file.replace(projectRoot, '').replace(/\\/g, '/').replace(/^\//, '');
 
-  // Patterns to match (multiline support):
-  // 1. Static: import/export ... from 'path' (can span multiple lines)
-  // 2. Dynamic: import('path') or await import('path')
-  const patterns = [
-    /((?:import|export)\s+[\s\S]*?from\s*['"])([^'"]+)(['"])/g, // Static imports (multiline)
-    /((?:await\s+)?import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g, // Dynamic imports
-  ];
-
-  for (const pattern of patterns) {
-    pattern.lastIndex = 0;
-    let match;
-
-    while ((match = pattern.exec(content)) !== null) {
-      const importPath = match[2]!;
-      // Calculate line number from match position
-      const lineNumber = content.slice(0, match.index).split('\n').length;
-      const column = match.index + match[1]!.length + 1;
-
-      // Skip node_modules imports
-      if (!importPath.startsWith('.') && !importPath.startsWith('#')) {
-        continue;
-      }
-
-      // Skip directory imports ending with /
-      if (importPath.endsWith('/') || importPath.endsWith('\\')) {
-        continue;
-      }
-
-      const resolvedPath = resolveImportPath(importPath, file, projectRoot);
-      const error = validateImport(importPath, resolvedPath, file, lineNumber, column, projectRoot);
-
-      if (error) {
-        errors.push(error);
-      }
-    }
-  }
-
-  return errors;
+  return checkImportsInContent(content, file, projectRoot).map((err) => ({
+    file: relativeFile,
+    line: err.line,
+    importPath: err.importPath,
+    suggestion: err.suggestion,
+    reason: err.reason,
+  }));
 }
 
 async function main() {
@@ -193,16 +68,13 @@ async function main() {
   }
 
   const allErrors: ImportError[] = [];
-
   for (const file of files) {
-    const errors = checkFile(file, projectRoot);
-    allErrors.push(...errors);
+    allErrors.push(...checkFile(file, projectRoot));
   }
 
   if (allErrors.length > 0) {
     console.error(`\nFound ${allErrors.length} import issues:\n`);
 
-    // Group errors by file for cleaner output
     const errorsByFile = new Map<string, ImportError[]>();
     for (const error of allErrors) {
       const existing = errorsByFile.get(error.file) || [];
