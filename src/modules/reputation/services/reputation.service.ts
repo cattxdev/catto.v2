@@ -13,7 +13,7 @@ import {
   type VouchData,
   type ReputationStats,
   type VouchValidation,
-} from '../models/reputation.model';
+} from '../models/reputation.model.js';
 import { EMOJI } from '#lib/discord/design/index.js';
 
 export class ReputationService {

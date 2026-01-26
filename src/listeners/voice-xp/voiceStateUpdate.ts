@@ -11,7 +11,7 @@ import {
   handleVoiceLeave,
   handleVoiceMove,
   handleVoiceStateUpdate,
-} from '../../modules/xp-voice/services/voice-xp-session.service';
+} from '../../modules/xp-voice/services/voice-xp-session.service.js';
 import { getVoiceXPConfig } from '../../modules/xp-voice/services/voice-xp-config.service.js';
 
 export class VoiceXPStateUpdateListener extends Listener<typeof Events.VoiceStateUpdate> {

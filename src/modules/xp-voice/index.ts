@@ -14,7 +14,7 @@ export { getVoiceLeaderboard, getVoiceUserStats } from './services/voice-xp-lead
 export {
   calculateVoiceLevel,
   recalculateAllVoiceLevels,
-} from './services/voice-level-calculator.service';
+} from './services/voice-level-calculator.service.js';
 
 export {
   handleVoiceJoin,
@@ -22,7 +22,7 @@ export {
   handleVoiceMove,
   handleVoiceStateUpdate,
   awardPerMinuteXP,
-} from './services/voice-xp-session.service';
+} from './services/voice-xp-session.service.js';
 
 export {
   getVoiceXPConfig,
@@ -30,6 +30,6 @@ export {
   deleteVoiceXPConfig,
   isVoiceXPEnabled,
   clearVoiceConfigCache as clearVoiceXPConfigCache,
-} from './services/voice-xp-config.service';
+} from './services/voice-xp-config.service.js';
 
 export { voiceXPQueue } from './services/voice-xp-queue.service.js';

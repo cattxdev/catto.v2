@@ -113,8 +113,7 @@ function determineCorrectPath(originalPath: string, resolvedPath: string | null)
 }
 
 function processFile(file: string, projectRoot: string): FixResult {
-  const content = readFileSync(file, 'utf-8');
-  const lines = content.split('\n');
+  let content = readFileSync(file, 'utf-8');
   const result: FixResult = {
     file: file.replace(projectRoot, '').replace(/\\/g, '/').replace(/^\//, ''),
     fixed: 0,
@@ -123,39 +122,47 @@ function processFile(file: string, projectRoot: string): FixResult {
 
   let modified = false;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  // Patterns to match (with 's' flag for multiline):
+  // 1. Static: import/export ... from 'path' (can span multiple lines)
+  // 2. Dynamic: import('path') or await import('path')
+  const patterns = [
+    /((?:import|export)\s+[\s\S]*?from\s*['"])([^'"]+)(['"])/g, // Static imports (multiline)
+    /((?:await\s+)?import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g, // Dynamic imports
+  ];
 
-    // Match import/export with from clause
-    const match = line.match(/((?:import|export).*from\s+['"])([^'"]+)(['"])/);
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0;
+    let match;
 
-    if (!match) continue;
+    while ((match = pattern.exec(content)) !== null) {
+      const [fullMatch, before, originalPath, after] = match as [string, string, string, string];
 
-    const [fullMatch, before, originalPath, after] = match as [string, string, string, string];
+      // Skip node_modules imports
+      if (!originalPath.startsWith('.') && !originalPath.startsWith('#')) {
+        continue;
+      }
 
-    // Skip node_modules imports
-    if (!originalPath.startsWith('.') && !originalPath.startsWith('#')) {
-      continue;
-    }
+      // Skip directory imports ending with /
+      if (originalPath.endsWith('/') || originalPath.endsWith('\\')) {
+        continue;
+      }
 
-    // Skip directory imports ending with /
-    if (originalPath.endsWith('/') || originalPath.endsWith('\\')) {
-      continue;
-    }
+      const resolvedPath = resolveImportPath(originalPath, file, projectRoot);
+      const correctPath = determineCorrectPath(originalPath, resolvedPath);
 
-    const resolvedPath = resolveImportPath(originalPath, file, projectRoot);
-    const correctPath = determineCorrectPath(originalPath, resolvedPath);
-
-    if (correctPath !== originalPath) {
-      lines[i] = line.replace(fullMatch, `${before}${correctPath}${after}`);
-      result.fixed++;
-      result.imports.push(`${originalPath} → ${correctPath}`);
-      modified = true;
+      if (correctPath !== originalPath) {
+        content = content.replace(fullMatch, `${before}${correctPath}${after}`);
+        result.fixed++;
+        result.imports.push(`${originalPath} → ${correctPath}`);
+        modified = true;
+        // Reset pattern to re-scan from beginning after replacement
+        pattern.lastIndex = 0;
+      }
     }
   }
 
   if (modified) {
-    writeFileSync(file, lines.join('\n'), 'utf-8');
+    writeFileSync(file, content, 'utf-8');
   }
 
   return result;

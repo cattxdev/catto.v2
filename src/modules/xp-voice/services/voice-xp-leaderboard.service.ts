@@ -6,7 +6,7 @@ import type {
   VoiceLeaderboardEntry,
   VoiceLeaderboardResponse,
   VoiceUserStatsResponse,
-} from '../types/voice-xp.types';
+} from '../types/voice-xp.types.js';
 import * as voiceXPRepository from '../repositories/voice-xp.repository.js';
 import { getVoiceXPConfig } from './voice-xp-config.service.js';
 import { calculateVoiceLevel } from './voice-level-calculator.service.js';

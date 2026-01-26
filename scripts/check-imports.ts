@@ -141,18 +141,24 @@ function validateImport(
 
 function checkFile(file: string, projectRoot: string): ImportError[] {
   const content = readFileSync(file, 'utf-8');
-  const lines = content.split('\n');
   const errors: ImportError[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  // Patterns to match (multiline support):
+  // 1. Static: import/export ... from 'path' (can span multiple lines)
+  // 2. Dynamic: import('path') or await import('path')
+  const patterns = [
+    /((?:import|export)\s+[\s\S]*?from\s*['"])([^'"]+)(['"])/g, // Static imports (multiline)
+    /((?:await\s+)?import\s*\(\s*['"])([^'"]+)(['"]\s*\))/g, // Dynamic imports
+  ];
 
-    // Match import/export with from clause, capturing column position
-    const regex = /((?:import|export).*from\s+['"])([^'"]+)(['"])/g;
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0;
     let match;
 
-    while ((match = regex.exec(line)) !== null) {
+    while ((match = pattern.exec(content)) !== null) {
       const importPath = match[2]!;
+      // Calculate line number from match position
+      const lineNumber = content.slice(0, match.index).split('\n').length;
       const column = match.index + match[1]!.length + 1;
 
       // Skip node_modules imports
@@ -166,7 +172,7 @@ function checkFile(file: string, projectRoot: string): ImportError[] {
       }
 
       const resolvedPath = resolveImportPath(importPath, file, projectRoot);
-      const error = validateImport(importPath, resolvedPath, file, i + 1, column, projectRoot);
+      const error = validateImport(importPath, resolvedPath, file, lineNumber, column, projectRoot);
 
       if (error) {
         errors.push(error);
