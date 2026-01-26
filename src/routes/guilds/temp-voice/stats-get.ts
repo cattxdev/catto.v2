@@ -13,6 +13,7 @@ export class TempVoiceStatsRoute extends Route {
     super(context, {
       ...options,
       route: 'guilds/[guildId]/temp-voice/stats',
+      methods: ['GET'],
     });
   }
 

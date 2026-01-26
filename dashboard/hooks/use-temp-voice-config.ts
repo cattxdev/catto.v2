@@ -26,6 +26,7 @@ export function useTempVoiceConfig(guildId: string) {
 
       // Fetch config first, then channels and stats only if config exists
       const configData = await tempVoiceService.getConfig(guildId);
+
       if (!mountedRef.current) return;
       setConfig(configData);
 
@@ -51,6 +52,21 @@ export function useTempVoiceConfig(guildId: string) {
     } catch (err) {
       if (!mountedRef.current) return;
       const message = getErrorMessage(err);
+
+      // If error says config already exists, try to fetch it directly
+      if (message.toLowerCase().includes('already exists')) {
+        try {
+          const existingConfig = await tempVoiceService.getConfig(guildId);
+          if (mountedRef.current && existingConfig) {
+            setConfig(existingConfig);
+            setError(null);
+            return;
+          }
+        } catch {
+          // Fall through to normal error handling
+        }
+      }
+
       // Don't show error if config just doesn't exist
       if (!message.includes('404') && !message.includes('not found')) {
         setError(message);
@@ -131,19 +147,35 @@ export function useTempVoiceConfig(guildId: string) {
     } catch (err) {
       // Check if this is a 409 Conflict (config already exists)
       const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409) {
+      const errorMessage = getErrorMessage(err);
+      const isAlreadyExists =
+        status === 409 || errorMessage.toLowerCase().includes('already exists');
+
+      if (isAlreadyExists) {
         // Config already exists - refetch it instead of showing error
         try {
           const existingConfig = await tempVoiceService.getConfig(guildId);
           if (existingConfig) {
             setConfig(existingConfig);
+            setError(null); // Clear any previous errors
+
+            // Also fetch channels and stats
+            const [channelsData, statsData] = await Promise.all([
+              tempVoiceService
+                .getChannels(guildId)
+                .catch(() => ({ guildId, totalChannels: 0, channels: [] })),
+              tempVoiceService.getStats(guildId).catch(() => null),
+            ]);
+            setChannels(channelsData.channels);
+            setStats(statsData);
+
             return { success: true, data: { config: existingConfig } };
           }
         } catch {
           // Fall through to error handling
         }
       }
-      const errorMessage = getErrorMessage(err);
+
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {

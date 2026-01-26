@@ -35,6 +35,21 @@ export class TempVoiceConfigPatchRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
+      // Default to empty object if body is undefined
+      if (!body) {
+        body = {};
+      }
+
       // Check if config exists
       const existingConfig = await TempVoiceConfigService.getConfig(guildId);
       if (!existingConfig) {
@@ -53,7 +68,7 @@ export class TempVoiceConfigPatchRoute extends Route {
       }
 
       // Validate request body (partial schema for PATCH)
-      const validationResult = tempVoiceConfigSchema.partial().safeParse(request.body);
+      const validationResult = tempVoiceConfigSchema.partial().safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({

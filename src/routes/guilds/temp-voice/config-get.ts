@@ -11,6 +11,7 @@ export class TempVoiceConfigGetRoute extends Route {
     super(context, {
       ...options,
       route: 'guilds/[guildId]/temp-voice/config',
+      methods: ['GET'],
     });
   }
 
