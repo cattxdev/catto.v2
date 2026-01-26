@@ -8,12 +8,12 @@ import {
   ActionRowBuilder,
   UserSelectMenuBuilder,
 } from 'discord.js';
-import { EMOJI } from '#lib/discord/design';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
-import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service';
-import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
+import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
+import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
 import { TempVoiceChannel } from '@prisma/client';
 
 export class TempVoiceButtonHandler extends InteractionHandler {

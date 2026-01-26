@@ -4,7 +4,7 @@
 
 import { PrismaClient, TempVoiceChannel as PrismaTempVoiceChannel } from '@prisma/client';
 import type { Client } from 'discord.js';
-import { TempVoiceConfigService } from './config.service';
+import { TempVoiceConfigService } from './config.service.js';
 
 export class CleanupService {
   private deletionTimers = new Map<string, ReturnType<typeof setTimeout>>();

@@ -1,7 +1,7 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
-import { LogListener } from './LogListener';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
 export class WebhookUpdateListener extends LogListener<typeof Events.WebhooksUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {

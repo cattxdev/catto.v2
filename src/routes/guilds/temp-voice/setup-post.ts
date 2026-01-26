@@ -5,9 +5,9 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { container } from '@sapphire/framework';
-import type { RouteRequestWithBody } from '#root/lib/route-types';
+import type { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceSetupPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

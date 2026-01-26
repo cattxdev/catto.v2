@@ -35,7 +35,7 @@ import { caseService } from '#root/modules/moderation/services/CaseService.js';
 import { muteService } from '#root/modules/moderation/services/MuteService.js';
 import { asGuildId, asUserId, CaseStatus } from '#root/modules/moderation/domain/types.js';
 import { memoryLimiter } from '#lib/rateLimit/index.js';
-import { ensureNonNull } from '#root/lib/utils';
+import { ensureNonNull } from '#root/lib/utils.js';
 import { getAllowedModPanelActions } from '#lib/validation/permissionResolver.js';
 import { isFail, type Gate } from '#lib/validation/Gate.js';
 import { getGate } from '#lib/validation/gateContext.js';

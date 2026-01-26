@@ -14,7 +14,7 @@ import {
   Length,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { XPType, RewardType } from '#lib/types/rewards.types';
+import { XPType, RewardType } from '#lib/types/rewards.types.js';
 
 export class CreateRewardDto {
   @IsNumber()

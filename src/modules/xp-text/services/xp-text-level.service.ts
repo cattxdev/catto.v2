@@ -4,10 +4,10 @@
  */
 
 import type { GuildXPConfig } from '@prisma/client';
-import type { LevelCalculation } from '../types/xp-text.types';
-import { LevelCurveType } from '../types/xp-text.types';
-import { calculateLevel, getLevelThresholds } from '../utils/level-curve';
-import * as configService from './xp-text-config.service';
+import type { LevelCalculation } from '../types/xp-text.types.js';
+import { LevelCurveType } from '../types/xp-text.types.js';
+import { calculateLevel, getLevelThresholds } from '../utils/level-curve.js';
+import * as configService from './xp-text-config.service.js';
 
 /**
  * Calculate level from total XP using guild's curve configuration

@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { getUserVoiceSessions } from '#root/modules/xp-voice';
+import { getUserVoiceSessions } from '#root/modules/xp-voice/index.js';
 
 export class VoiceXPSessionsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

@@ -4,9 +4,9 @@
 
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { EmbedBuilder, Colors } from 'discord.js';
-import { EMOJI } from '#lib/discord/design';
-import { ReputationService } from '#modules/reputation/services/reputation.service';
-import { REPUTATION_TIERS, ReputationTier } from '#modules/reputation/models/reputation.model';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { ReputationService } from '#modules/reputation/services/reputation.service.js';
+import { REPUTATION_TIERS, ReputationTier } from '#modules/reputation/models/reputation.model.js';
 import type { UserReputation } from '@prisma/client';
 
 export class ReputationCommand extends Subcommand {

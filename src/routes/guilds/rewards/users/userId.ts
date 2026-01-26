@@ -3,7 +3,7 @@
  * GET /api/guilds/:guildId/rewards/users/:userId
  */
 
-import { RewardService } from '#root/modules/rewards';
+import { RewardService } from '#root/modules/rewards/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class UserRewardsRoute extends Route {

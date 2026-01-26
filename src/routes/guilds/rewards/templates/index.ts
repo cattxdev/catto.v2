@@ -4,7 +4,7 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { PRESET_TEMPLATES } from '#root/lib/types/rewards.types';
+import { PRESET_TEMPLATES } from '#root/lib/types/rewards.types.js';
 
 export class TemplatesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

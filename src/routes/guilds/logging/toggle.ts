@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ChannelType, PermissionFlagsBits, type TextChannel } from 'discord.js';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
 
 interface ToggleRequest {
   logType: string;

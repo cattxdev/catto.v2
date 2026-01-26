@@ -1,7 +1,7 @@
 import { Route } from '@sapphire/plugin-api';
 import { ChannelType, PermissionFlagsBits, type TextChannel } from 'discord.js';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
-import type { LogSetupRequest, LogSetupResponse } from '#lib/types/logging.types';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
+import type { LogSetupRequest, LogSetupResponse } from '#lib/types/logging.types.js';
 
 export class LoggingSetupRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {

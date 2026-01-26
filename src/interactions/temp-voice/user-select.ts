@@ -1,11 +1,11 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { UserSelectMenuInteraction, GuildMember, VoiceChannel } from 'discord.js';
 import type { TempVoiceChannel } from '@prisma/client';
-import { EMOJI } from '#lib/discord/design';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
-import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
+import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
+import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
 
 export class TempVoiceUserSelectHandler extends InteractionHandler {
   private channelService!: TempChannelService;
@@ -199,7 +199,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
       // Refresh control panel
       await this.container.client.emit('tempVoiceRefresh', channelId);
       const controlPanelService = new (
-        await import('#modules/temp-voice/services/control-panel.service')
+        await import('#modules/temp-voice/services/control-panel.service.js')
       ).ControlPanelService(this.container.client, this.channelService);
       await controlPanelService.refresh(channelId);
 
@@ -300,7 +300,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
       // Refresh control panel
       const controlPanelService = new (
-        await import('#modules/temp-voice/services/control-panel.service')
+        await import('#modules/temp-voice/services/control-panel.service.js')
       ).ControlPanelService(this.container.client, this.channelService);
       await controlPanelService.refresh(channelId);
 
@@ -432,7 +432,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
       // Refresh control panel
       const controlPanelService = new (
-        await import('#modules/temp-voice/services/control-panel.service')
+        await import('#modules/temp-voice/services/control-panel.service.js')
       ).ControlPanelService(this.container.client, this.channelService);
       await controlPanelService.refresh(channelId);
 
@@ -533,7 +533,7 @@ export class TempVoiceUserSelectHandler extends InteractionHandler {
 
       // Refresh control panel
       const controlPanelService = new (
-        await import('#modules/temp-voice/services/control-panel.service')
+        await import('#modules/temp-voice/services/control-panel.service.js')
       ).ControlPanelService(this.container.client, this.channelService);
       await controlPanelService.refresh(channelId);
 

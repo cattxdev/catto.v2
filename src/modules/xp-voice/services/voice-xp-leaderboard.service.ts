@@ -6,10 +6,10 @@ import type {
   VoiceLeaderboardEntry,
   VoiceLeaderboardResponse,
   VoiceUserStatsResponse,
-} from '../types/voice-xp.types';
-import * as voiceXPRepository from '../repositories/voice-xp.repository';
-import { getVoiceXPConfig } from './voice-xp-config.service';
-import { calculateVoiceLevel } from './voice-level-calculator.service';
+} from '../types/voice-xp.types.js';
+import * as voiceXPRepository from '../repositories/voice-xp.repository.js';
+import { getVoiceXPConfig } from './voice-xp-config.service.js';
+import { calculateVoiceLevel } from './voice-level-calculator.service.js';
 import { container } from '@sapphire/framework';
 
 export async function getVoiceLeaderboard(

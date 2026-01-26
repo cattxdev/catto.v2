@@ -1,15 +1,14 @@
 import { SapphireClient, LogLevel, container, RegisterBehavior } from '@sapphire/framework';
 import { GatewayIntentBits, Partials, type ClientOptions } from 'discord.js';
 import { OAuth2Scopes } from 'discord-api-types/v10';
-import { CONFIG } from '#config';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { CONFIG } from '#config.js';
+import { join } from 'node:path';
 import type { InternationalizationContext } from '@sapphire/plugin-i18next';
 import type { Server } from '@sapphire/plugin-api';
 import { getGuildLanguage } from '#lib/i18n.js';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis'; // recommended by IORedis docs starting from v5 for module interop
 import { getRootData } from '@sapphire/pieces';
 
 // Augment container with Prisma, Redis, and API Server
@@ -71,7 +70,9 @@ export class BotClient extends SapphireClient {
         automaticallyConnect: true,
       },
       i18n: {
-        defaultLanguageDirectory: join(dirname(fileURLToPath(import.meta.url)), '..', 'languages'),
+        // Use getRootData().root for reliable path resolution regardless of cwd
+        // rootData.root points to dist/, so we go up one level to find languages/
+        defaultLanguageDirectory: join(getRootData().root, '..', 'languages'),
         defaultMissingKey: 'Missing translation: {{key}}',
         defaultNS: 'common',
         i18next: (_: string[], languages: string[]) => ({

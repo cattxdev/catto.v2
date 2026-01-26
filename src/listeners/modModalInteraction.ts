@@ -22,7 +22,7 @@ import {
 } from '#root/modules/moderation/discord/embeds/presets.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
-import { ensureNonNull } from '#root/lib/utils';
+import { ensureNonNull } from '#root/lib/utils.js';
 import { isFail, type Gate } from '#lib/validation/Gate.js';
 import { getGate } from '#lib/validation/gateContext.js';
 import { resolveModalKey } from '#lib/validation/resourceKey.js';

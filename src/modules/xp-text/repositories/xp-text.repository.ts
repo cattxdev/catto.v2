@@ -5,7 +5,7 @@
 
 import { container } from '@sapphire/framework';
 import type { UserXP, XPEventLog } from '@prisma/client';
-import type { XPEventType } from '../types/xp-text.types';
+import type { XPEventType } from '../types/xp-text.types.js';
 
 /**
  * Get user XP stats for a guild

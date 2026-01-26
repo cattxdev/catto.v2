@@ -3,7 +3,7 @@
  * Replaces placeholders with actual values
  */
 
-import { TemplateVariables } from '../types/xp-text.types';
+import { TemplateVariables } from '../types/xp-text.types.js';
 
 /**
  * Replace placeholders in a template string

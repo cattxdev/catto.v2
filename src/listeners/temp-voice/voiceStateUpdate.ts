@@ -6,10 +6,10 @@ import { Listener } from '@sapphire/framework';
 import type { VoiceState } from 'discord.js';
 import { Events, Colors, WebhookClient, EmbedBuilder } from 'discord.js';
 import { container } from '@sapphire/framework';
-import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service';
-import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service';
-import { PermissionsService } from '../../modules/temp-voice/services/permissions.service';
-import { tempVoiceQueue } from '../../modules/temp-voice/services/temp-voice-queue.service';
+import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
+import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service.js';
+import { PermissionsService } from '../../modules/temp-voice/services/permissions.service.js';
+import { tempVoiceQueue } from '../../modules/temp-voice/services/temp-voice-queue.service.js';
 
 export class TempVoiceStateUpdateListener extends Listener {
   private configService!: TempVoiceConfigService;

@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { RewardService } from '#root/modules/rewards';
+import { RewardService } from '#root/modules/rewards/index.js';
 import { Buffer } from 'node:buffer';
 
 export class RewardRoute extends Route {

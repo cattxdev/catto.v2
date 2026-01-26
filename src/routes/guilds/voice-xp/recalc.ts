@@ -3,7 +3,7 @@ import {
   getAllGuildVoiceUsers,
   recalculateAllVoiceLevels,
   updateUserVoiceLevel,
-} from '#root/modules/xp-voice';
+} from '#root/modules/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class VoiceXPRecalcRoute extends Route {

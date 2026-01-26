@@ -5,12 +5,12 @@
 import { PrismaClient, TempVoiceChannel } from '@prisma/client';
 import type { Guild, GuildMember, VoiceChannel, CategoryChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
-import type { UpdateTempChannelData } from '../models/temp-channel.model';
-import type { TempVoiceConfig } from '../models/config.model';
-import { PermissionsService } from './permissions.service';
-import { UserPreferencesService } from './user-preferences.service';
-import { generateChannelName } from '../utils/naming.util';
-import { findSuitableCategory } from '../utils/fallback.util';
+import type { UpdateTempChannelData } from '../models/temp-channel.model.js';
+import type { TempVoiceConfig } from '../models/config.model.js';
+import { PermissionsService } from './permissions.service.js';
+import { UserPreferencesService } from './user-preferences.service.js';
+import { generateChannelName } from '../utils/naming.util.js';
+import { findSuitableCategory } from '../utils/fallback.util.js';
 
 export class TempChannelService {
   private userPrefsService: UserPreferencesService;

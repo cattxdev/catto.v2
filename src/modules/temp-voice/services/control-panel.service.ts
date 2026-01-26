@@ -11,8 +11,8 @@ import {
   ButtonStyle,
   ChannelType,
 } from 'discord.js';
-import { EMOJI } from '#lib/discord/design';
-import { TempChannelService } from './temp-channel.service';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { TempChannelService } from './temp-channel.service.js';
 
 export class ControlPanelService {
   constructor(

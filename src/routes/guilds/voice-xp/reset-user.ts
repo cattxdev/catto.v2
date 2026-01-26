@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { resetUserVoiceXP } from '#root/modules/xp-voice';
+import { resetUserVoiceXP } from '#root/modules/xp-voice/index.js';
 import { Buffer } from 'node:buffer';
 
 export class VoiceXPResetUserRoute extends Route {
