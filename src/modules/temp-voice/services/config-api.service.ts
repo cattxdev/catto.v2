@@ -7,8 +7,39 @@ import { container } from '@sapphire/framework';
 import type { TempVoiceConfigInput, TempVoiceConfigUpdate } from '../models/config.model.js';
 import { TempVoiceConfigService } from './config.service.js';
 import { OwnerLeaveStrategy } from '../constants.js';
+import { TempVoiceNamingScheme } from '@prisma/client';
 
 const configService = new TempVoiceConfigService(container.prisma);
+
+/**
+ * Map API naming scheme strings to database enum
+ */
+function mapNamingSchemeToDb(
+  scheme: 'username' | 'displayname' | 'sequential' | 'custom'
+): TempVoiceNamingScheme {
+  const mapping = {
+    username: TempVoiceNamingScheme.USERNAME,
+    displayname: TempVoiceNamingScheme.DISPLAYNAME,
+    sequential: TempVoiceNamingScheme.SEQUENTIAL,
+    custom: TempVoiceNamingScheme.CUSTOM,
+  };
+  return mapping[scheme];
+}
+
+/**
+ * Map database enum to API naming scheme strings
+ */
+function mapNamingSchemeFromDb(
+  scheme: TempVoiceNamingScheme
+): 'username' | 'displayname' | 'sequential' | 'custom' {
+  const mapping = {
+    [TempVoiceNamingScheme.USERNAME]: 'username' as const,
+    [TempVoiceNamingScheme.DISPLAYNAME]: 'displayname' as const,
+    [TempVoiceNamingScheme.SEQUENTIAL]: 'sequential' as const,
+    [TempVoiceNamingScheme.CUSTOM]: 'custom' as const,
+  };
+  return mapping[scheme];
+}
 
 /**
  * API request payload for creating/updating temp voice config
@@ -51,7 +82,7 @@ export class TempVoiceConfigServiceStatic {
       guildId: config.guildId,
       enabled: config.enabled,
       joinChannelIds: config.joinToCreateChannels,
-      namingScheme: 'username' as const, // Default mapping
+      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
       customNamingPattern: config.defaultNameTemplate,
       userLimit: config.defaultUserLimit,
       bitrate: config.defaultBitrate ?? 64000,
@@ -77,6 +108,9 @@ export class TempVoiceConfigServiceStatic {
     const serviceData: Partial<TempVoiceConfigInput> = {
       enabled: data.enabled,
       joinToCreateChannels: data.joinChannelIds || [],
+      namingScheme: data.namingScheme
+        ? mapNamingSchemeToDb(data.namingScheme)
+        : TempVoiceNamingScheme.USERNAME,
       defaultNameTemplate: data.customNamingPattern || "{username}'s Channel",
       defaultUserLimit: data.userLimit ?? 0,
       defaultBitrate: data.bitrate ?? 64000,
@@ -98,7 +132,7 @@ export class TempVoiceConfigServiceStatic {
       guildId: config.guildId,
       enabled: config.enabled,
       joinChannelIds: config.joinToCreateChannels,
-      namingScheme: 'username' as const,
+      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
       customNamingPattern: config.defaultNameTemplate,
       userLimit: config.defaultUserLimit,
       bitrate: config.defaultBitrate ?? 64000,
@@ -124,6 +158,9 @@ export class TempVoiceConfigServiceStatic {
     const serviceData: TempVoiceConfigUpdate = {
       ...(data.enabled !== undefined && { enabled: data.enabled }),
       ...(data.joinChannelIds && { joinToCreateChannels: data.joinChannelIds }),
+      ...(data.namingScheme !== undefined && {
+        namingScheme: mapNamingSchemeToDb(data.namingScheme),
+      }),
       ...(data.customNamingPattern !== undefined && {
         defaultNameTemplate: data.customNamingPattern ?? undefined,
       }),
@@ -156,7 +193,7 @@ export class TempVoiceConfigServiceStatic {
       guildId: config.guildId,
       enabled: config.enabled,
       joinChannelIds: config.joinToCreateChannels,
-      namingScheme: 'username' as const,
+      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
       customNamingPattern: config.defaultNameTemplate,
       userLimit: config.defaultUserLimit,
       bitrate: config.defaultBitrate ?? 64000,
