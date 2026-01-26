@@ -16,6 +16,9 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepare": "husky",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -86,7 +89,8 @@
     "rimraf": "^6.0.1",
     "testcontainers": "^11.11.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
