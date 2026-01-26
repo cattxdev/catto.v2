@@ -1,5 +1,5 @@
 /**
- * DELETE /api/guilds/:guildId/temp-voice/join-channels/:channelId
+ * DELETE /api/guilds/[guildId]/temp-voice/join-channels/[channelId]
  * Remove a join-to-create channel from the configuration
  */
 
@@ -10,7 +10,7 @@ export class TempVoiceJoinChannelsDeleteRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/join-channels/:channelId',
+      route: 'guilds/[guildId]/temp-voice/join-channels/[channelId]',
       methods: ['DELETE'],
     });
   }

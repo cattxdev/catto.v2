@@ -1,5 +1,5 @@
 /**
- * GET /api/guilds/:guildId/temp-voice/config
+ * GET /api/guilds/[guildId]/temp-voice/config
  * Retrieve Temp Voice configuration for a guild
  */
 
@@ -10,7 +10,7 @@ export class TempVoiceConfigGetRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
     });
   }
 
@@ -44,7 +44,7 @@ export class TempVoiceConfigGetRoute extends Route {
           },
           data: {
             guildId,
-            suggestion: 'Create a configuration using POST /api/guilds/:guildId/temp-voice/config',
+            suggestion: 'Create a configuration using POST /api/guilds/[guildId]/temp-voice/config',
           },
         });
       }

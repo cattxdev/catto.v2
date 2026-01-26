@@ -1,5 +1,5 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/validate
+ * POST /api/guilds/[guildId]/temp-voice/validate
  * Validate Temp Voice configuration without saving
  */
 
@@ -11,7 +11,7 @@ export class TempVoiceValidateRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/validate',
+      route: 'guilds/[guildId]/temp-voice/validate',
       methods: ['POST'],
     });
   }

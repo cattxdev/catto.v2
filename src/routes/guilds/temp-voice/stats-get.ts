@@ -1,5 +1,5 @@
 /**
- * GET /api/guilds/:guildId/temp-voice/stats
+ * GET /api/guilds/[guildId]/temp-voice/stats
  * Get statistics about temporary voice channels in a guild
  */
 
@@ -12,7 +12,7 @@ export class TempVoiceStatsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/stats',
+      route: 'guilds/[guildId]/temp-voice/stats',
     });
   }
 
