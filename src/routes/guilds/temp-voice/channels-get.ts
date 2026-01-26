@@ -21,6 +21,7 @@ export class TempVoiceChannelsRoute extends Route {
     super(context, {
       ...options,
       route: 'guilds/[guildId]/temp-voice/channels',
+      methods: ['GET'],
     });
   }
 

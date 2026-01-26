@@ -111,8 +111,6 @@ export default function LoggingConfigForm({ guildId }: LoggingConfigFormProps) {
 
   const handleToggleEnabled = async (enabled: boolean) => {
     const result = await updateConfig({ enabled });
-  const handleToggleEnabled = async (enabled: boolean) => {
-    const result = await updateConfig({ enabled });
     if (result.success) {
       setSuccess(true);
       const timer = setTimeout(() => setSuccess(false), 3000);

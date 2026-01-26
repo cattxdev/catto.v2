@@ -4,7 +4,7 @@ export interface TempVoiceConfig {
   guildId: string;
   enabled: boolean;
   joinChannelIds: string[];
-  namingScheme: 'username' | 'custom';
+  namingScheme: 'username' | 'displayname' | 'sequential' | 'custom';
   customNamingPattern: string | null;
   userLimit: number | null;
   bitrate: number | null;
@@ -24,7 +24,7 @@ export interface TempVoiceConfig {
 export interface TempVoiceConfigCreate {
   enabled?: boolean;
   joinChannelIds?: string[];
-  namingScheme?: 'username' | 'custom';
+  namingScheme?: 'username' | 'displayname' | 'sequential' | 'custom';
   customNamingPattern?: string | null;
   userLimit?: number | null;
   bitrate?: number | null;
@@ -125,6 +125,35 @@ export interface TempVoiceSetupData {
   logsChannel: { id: string; name: string };
   config: TempVoiceConfig;
   instructions: string;
+}
+
+export interface TempVoiceChannelValidation {
+  channelId: string;
+  channelName?: string;
+  valid: boolean;
+  error?: string;
+}
+
+export interface TempVoiceCategoryValidation {
+  categoryId: string;
+  categoryName?: string;
+  valid: boolean;
+  error?: string;
+}
+
+export interface TempVoiceValidationResult {
+  valid: boolean;
+  schema: {
+    valid: boolean;
+    message: string;
+  };
+  joinChannels: {
+    count: number;
+    validations: TempVoiceChannelValidation[];
+    allValid: boolean;
+  };
+  defaultCategory?: TempVoiceCategoryValidation;
+  logChannel?: TempVoiceChannelValidation;
 }
 
 export const tempVoiceService = {
@@ -253,5 +282,31 @@ export const tempVoiceService = {
       throw new Error(response.data.error?.message || 'Failed to remove join channel');
     }
     return { joinChannelIds: response.data.data.joinChannelIds };
+  },
+
+  /**
+   * Validate temp voice configuration without saving
+   * Checks if channels exist and are the correct type
+   */
+  async validateConfig(
+    guildId: string,
+    config: TempVoiceConfigCreate
+  ): Promise<TempVoiceValidationResult> {
+    const response = await botApi.post<
+      ApiResponse<TempVoiceValidationResult> & { valid?: boolean }
+    >(`/api/guilds/${guildId}/temp-voice/validate`, config);
+
+    if (!response.data.data && !response.data.valid) {
+      throw new Error(response.data.error?.message || 'Validation failed');
+    }
+
+    // Handle both response formats (data wrapper or direct)
+    return (
+      response.data.data || {
+        valid: response.data.valid || false,
+        schema: { valid: true, message: 'Configuration schema is valid' },
+        joinChannels: { count: 0, validations: [], allValid: true },
+      }
+    );
   },
 };

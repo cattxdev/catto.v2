@@ -25,6 +25,7 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
     addJoinChannel,
     removeJoinChannel,
     deleteConfig,
+    refetch,
   } = useTempVoiceConfig(guildId);
 
   const { voiceChannels, loading: loadingChannels } = useGuildData(guildId);
@@ -99,12 +100,19 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
     if (result.success) {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+    } else {
+      // Show error to user - the error is already set in the hook
+      console.error('Failed to toggle enabled:', result.error);
     }
   };
 
   const handleSaveConfig = async () => {
     const result = await updateConfig({
-      namingScheme: localConfig.namingScheme as 'username' | 'custom',
+      namingScheme: localConfig.namingScheme as
+        | 'username'
+        | 'displayname'
+        | 'sequential'
+        | 'custom',
       customNamingPattern: localConfig.customNamingPattern,
       userLimit: localConfig.userLimit,
       bitrate: localConfig.bitrate,
@@ -193,10 +201,25 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <div>
+            <div className="flex-1">
               <h3 className="text-sm font-medium text-destructive">Error Loading Config</h3>
               <p className="text-sm text-destructive/80 mt-1">{error}</p>
+              {error.toLowerCase().includes('already exists') && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  A configuration exists in the database. Click retry to load it.
+                </p>
+              )}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSetupError(null);
+                refetch();
+              }}
+            >
+              Retry
+            </Button>
           </div>
         )}
 
@@ -215,10 +238,25 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <div>
+            <div className="flex-1">
               <h3 className="text-sm font-medium text-destructive">Setup Error</h3>
               <p className="text-sm text-destructive/80 mt-1">{setupError}</p>
+              {setupError.toLowerCase().includes('already exists') && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Configuration already exists. Click retry to load your existing settings.
+                </p>
+              )}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSetupError(null);
+                refetch();
+              }}
+            >
+              Retry
+            </Button>
           </div>
         )}
 
@@ -470,7 +508,31 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
                 }`}
               >
                 <div className="font-medium">Username</div>
-                <div className="text-xs opacity-75">Use the creator's username</div>
+                <div className="text-xs opacity-75">Use the creator&apos;s username</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocalConfig((prev) => ({ ...prev, namingScheme: 'displayname' }))}
+                className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                  localConfig.namingScheme === 'displayname'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
+                }`}
+              >
+                <div className="font-medium">Display Name</div>
+                <div className="text-xs opacity-75">Use the creator&apos;s display name</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocalConfig((prev) => ({ ...prev, namingScheme: 'sequential' }))}
+                className={`px-4 py-3 rounded-lg border-2 transition-all text-left ${
+                  localConfig.namingScheme === 'sequential'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30'
+                }`}
+              >
+                <div className="font-medium">Sequential</div>
+                <div className="text-xs opacity-75">Channel 1, Channel 2, etc.</div>
               </button>
               <button
                 type="button"
@@ -766,12 +828,12 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
           <CardTitle className="text-destructive">Danger Zone</CardTitle>
           <CardDescription>Irreversible actions</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20">
             <div>
-              <p className="text-sm font-medium text-foreground">Delete Temp Voice System</p>
+              <p className="text-sm font-medium text-foreground">Delete Temp Voice Configuration</p>
               <p className="text-sm text-muted-foreground">
-                Remove configuration and all active channels
+                Remove the bot&apos;s configuration for temp voice channels
               </p>
             </div>
             {confirmDelete ? (
@@ -794,6 +856,10 @@ export default function TempVoiceConfigForm({ guildId }: TempVoiceConfigFormProp
               </Button>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Note: This only removes the bot configuration. You&apos;ll need to manually delete any
+            categories and channels created by the bot from Discord Server Settings.
+          </p>
         </CardContent>
       </Card>
     </div>

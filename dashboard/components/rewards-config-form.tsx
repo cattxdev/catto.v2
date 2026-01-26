@@ -25,11 +25,67 @@ interface RewardFormState {
   xpType: XpType;
   rewardType: RewardType;
   roleId: string;
+  removeRoleIds: string[];
+  channelIds: string[];
+  permissions: string[];
+  message: string;
   name: string;
   description: string;
   stackable: boolean;
   oneTime: boolean;
 }
+
+// Reward types that are fully implemented in backend
+const SUPPORTED_REWARD_TYPES: { value: RewardType; label: string; description: string }[] = [
+  { value: 'ROLE_ADD', label: 'Add Role', description: 'Give a role when level is reached' },
+  {
+    value: 'ROLE_REMOVE',
+    label: 'Remove Role',
+    description: 'Remove a role when level is reached',
+  },
+  {
+    value: 'ROLE_STACK',
+    label: 'Stack Role',
+    description: 'Add role while keeping previous roles',
+  },
+  {
+    value: 'ROLE_REPLACE',
+    label: 'Replace Role',
+    description: 'Add new role and remove specified old roles',
+  },
+  {
+    value: 'PERMISSION_GRANT',
+    label: 'Grant Permissions',
+    description: 'Grant Discord permissions to the user',
+  },
+  {
+    value: 'CHANNEL_ACCESS',
+    label: 'Channel Access',
+    description: 'Grant access to specific channels',
+  },
+  {
+    value: 'ANNOUNCEMENT',
+    label: 'Announcement',
+    description: 'Send an announcement when reward is claimed',
+  },
+];
+
+// Discord permissions for PERMISSION_GRANT
+const DISCORD_PERMISSIONS = [
+  { value: 'VIEW_CHANNEL', label: 'View Channels' },
+  { value: 'SEND_MESSAGES', label: 'Send Messages' },
+  { value: 'EMBED_LINKS', label: 'Embed Links' },
+  { value: 'ATTACH_FILES', label: 'Attach Files' },
+  { value: 'ADD_REACTIONS', label: 'Add Reactions' },
+  { value: 'USE_EXTERNAL_EMOJIS', label: 'Use External Emojis' },
+  { value: 'READ_MESSAGE_HISTORY', label: 'Read Message History' },
+  { value: 'CONNECT', label: 'Connect to Voice' },
+  { value: 'SPEAK', label: 'Speak in Voice' },
+  { value: 'STREAM', label: 'Video/Stream' },
+  { value: 'PRIORITY_SPEAKER', label: 'Priority Speaker' },
+  { value: 'CREATE_INSTANT_INVITE', label: 'Create Invites' },
+  { value: 'CHANGE_NICKNAME', label: 'Change Nickname' },
+];
 
 export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
   const router = useRouter();
@@ -46,7 +102,7 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
     applyTemplate,
     getUserRewards,
   } = useRewardsConfig(guildId);
-  const { roles, loading: loadingRoles } = useGuildData(guildId);
+  const { roles, textChannels, loading: loadingRoles } = useGuildData(guildId);
 
   const [success, setSuccess] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -58,6 +114,10 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
     xpType: 'TEXT',
     rewardType: 'ROLE_ADD',
     roleId: '',
+    removeRoleIds: [],
+    channelIds: [],
+    permissions: [],
+    message: '',
     name: '',
     description: '',
     stackable: false,
@@ -94,14 +154,57 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
     setLoadingClaims(false);
   };
 
+  const buildRewardData = (
+    form: RewardFormState
+  ): import('@/lib/services/rewards.service').RewardData => {
+    switch (form.rewardType) {
+      case 'ROLE_ADD':
+        return { roleId: form.roleId, action: 'ADD' };
+      case 'ROLE_REMOVE':
+        return { roleId: form.roleId, action: 'REMOVE' };
+      case 'ROLE_STACK':
+        return { roleId: form.roleId, action: 'STACK' };
+      case 'ROLE_REPLACE':
+        return { roleId: form.roleId, action: 'REPLACE', removeRoles: form.removeRoleIds };
+      case 'PERMISSION_GRANT':
+        return { permissions: form.permissions };
+      case 'CHANNEL_ACCESS':
+        return { channelIds: form.channelIds, action: 'ADD' };
+      case 'ANNOUNCEMENT':
+        return { message: form.message, mentionUser: true };
+      default:
+        return { roleId: form.roleId, action: 'ADD' };
+    }
+  };
+
+  const isFormValid = (form: RewardFormState): boolean => {
+    if (!form.name) return false;
+    switch (form.rewardType) {
+      case 'ROLE_ADD':
+      case 'ROLE_REMOVE':
+      case 'ROLE_STACK':
+        return !!form.roleId;
+      case 'ROLE_REPLACE':
+        return !!form.roleId && form.removeRoleIds.length > 0;
+      case 'PERMISSION_GRANT':
+        return form.permissions.length > 0;
+      case 'CHANNEL_ACCESS':
+        return form.channelIds.length > 0;
+      case 'ANNOUNCEMENT':
+        return !!form.message;
+      default:
+        return true;
+    }
+  };
+
   const handleCreateReward = async () => {
-    if (!newReward.roleId || !newReward.name) return;
+    if (!isFormValid(newReward)) return;
 
     const reward: CreateReward = {
       level: newReward.level,
       xpType: newReward.xpType,
       rewardType: newReward.rewardType,
-      rewardData: { roleId: newReward.roleId, action: 'ADD' },
+      rewardData: buildRewardData(newReward),
       name: newReward.name,
       description: newReward.description || undefined,
       stackable: newReward.stackable,
@@ -125,6 +228,10 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
       xpType: reward.xpType,
       rewardType: reward.rewardType,
       roleId: reward.rewardData.roleId || '',
+      removeRoleIds: (reward.rewardData.removeRoles as string[]) || [],
+      channelIds: reward.rewardData.channelIds || [],
+      permissions: reward.rewardData.permissions || [],
+      message: (reward.rewardData.message as string) || '',
       name: reward.name,
       description: reward.description || '',
       stackable: reward.stackable,
@@ -138,13 +245,13 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingReward || !editForm.roleId || !editForm.name) return;
+    if (!editingReward || !isFormValid(editForm)) return;
 
     const result = await updateReward(editingReward.id, {
       level: editForm.level,
       xpType: editForm.xpType,
       rewardType: editForm.rewardType,
-      rewardData: { roleId: editForm.roleId, action: 'ADD' },
+      rewardData: buildRewardData(editForm),
       name: editForm.name,
       description: editForm.description || undefined,
       stackable: editForm.stackable,
@@ -492,22 +599,201 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Role to Award
+                  Reward Type
                 </label>
                 <select
-                  value={newReward.roleId}
-                  onChange={(e) => setNewReward((prev) => ({ ...prev, roleId: e.target.value }))}
+                  value={newReward.rewardType}
+                  onChange={(e) =>
+                    setNewReward((prev) => ({
+                      ...prev,
+                      rewardType: e.target.value as RewardType,
+                      // Reset type-specific fields when changing type
+                      roleId: '',
+                      removeRoleIds: [],
+                      channelIds: [],
+                      permissions: [],
+                      message: '',
+                    }))
+                  }
                   className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  disabled={loadingRoles}
                 >
-                  <option value="">Select a role...</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
+                  {SUPPORTED_REWARD_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {
+                    SUPPORTED_REWARD_TYPES.find((t) => t.value === newReward.rewardType)
+                      ?.description
+                  }
+                </p>
               </div>
+
+              {/* Role-based reward fields */}
+              {['ROLE_ADD', 'ROLE_REMOVE', 'ROLE_STACK', 'ROLE_REPLACE'].includes(
+                newReward.rewardType
+              ) && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    {newReward.rewardType === 'ROLE_REMOVE' ? 'Role to Remove' : 'Role to Award'}
+                  </label>
+                  <select
+                    value={newReward.roleId}
+                    onChange={(e) => setNewReward((prev) => ({ ...prev, roleId: e.target.value }))}
+                    className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={loadingRoles}
+                  >
+                    <option value="">Select a role...</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* ROLE_REPLACE: roles to remove */}
+              {newReward.rewardType === 'ROLE_REPLACE' && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Roles to Remove
+                  </label>
+                  <div className="border border-border/50 rounded-lg bg-muted/20 p-3 max-h-40 overflow-y-auto space-y-1">
+                    {roles.map((role) => (
+                      <label
+                        key={role.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newReward.removeRoleIds.includes(role.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                removeRoleIds: [...prev.removeRoleIds, role.id],
+                              }));
+                            } else {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                removeRoleIds: prev.removeRoleIds.filter((id) => id !== role.id),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-foreground">{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {newReward.removeRoleIds.length} role(s) selected to remove
+                  </p>
+                </div>
+              )}
+
+              {/* PERMISSION_GRANT fields */}
+              {newReward.rewardType === 'PERMISSION_GRANT' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Permissions to Grant
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border border-border/50 rounded-lg bg-muted/20 p-3">
+                    {DISCORD_PERMISSIONS.map((perm) => (
+                      <label
+                        key={perm.value}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newReward.permissions.includes(perm.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                permissions: [...prev.permissions, perm.value],
+                              }));
+                            } else {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                permissions: prev.permissions.filter((p) => p !== perm.value),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-foreground">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {newReward.permissions.length} permission(s) selected
+                  </p>
+                </div>
+              )}
+
+              {/* CHANNEL_ACCESS fields */}
+              {newReward.rewardType === 'CHANNEL_ACCESS' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Channels to Grant Access
+                  </label>
+                  <div className="border border-border/50 rounded-lg bg-muted/20 p-3 max-h-48 overflow-y-auto space-y-1">
+                    {textChannels.map((channel) => (
+                      <label
+                        key={channel.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={newReward.channelIds.includes(channel.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                channelIds: [...prev.channelIds, channel.id],
+                              }));
+                            } else {
+                              setNewReward((prev) => ({
+                                ...prev,
+                                channelIds: prev.channelIds.filter((id) => id !== channel.id),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-muted-foreground"># {channel.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {newReward.channelIds.length} channel(s) selected
+                  </p>
+                </div>
+              )}
+
+              {/* ANNOUNCEMENT fields */}
+              {newReward.rewardType === 'ANNOUNCEMENT' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Announcement Message
+                  </label>
+                  <textarea
+                    value={newReward.message}
+                    onChange={(e) => setNewReward((prev) => ({ ...prev, message: e.target.value }))}
+                    placeholder="Congratulations {user}! You've reached level {level}!"
+                    rows={3}
+                    className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Available variables: {'{user}'}, {'{level}'}, {'{reward}'}
+                  </p>
+                </div>
+              )}
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Description (Optional)
@@ -550,7 +836,7 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
               <Button
                 variant="neon"
                 onClick={handleCreateReward}
-                disabled={saving || !newReward.roleId || !newReward.name}
+                disabled={saving || !isFormValid(newReward)}
               >
                 {saving ? 'Creating...' : 'Create Reward'}
               </Button>
@@ -608,22 +894,197 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Role to Award
+                  Reward Type
                 </label>
                 <select
-                  value={editForm.roleId}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, roleId: e.target.value }))}
+                  value={editForm.rewardType}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      rewardType: e.target.value as RewardType,
+                      roleId: '',
+                      removeRoleIds: [],
+                      channelIds: [],
+                      permissions: [],
+                      message: '',
+                    }))
+                  }
                   className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  disabled={loadingRoles}
                 >
-                  <option value="">Select a role...</option>
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
+                  {SUPPORTED_REWARD_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {SUPPORTED_REWARD_TYPES.find((t) => t.value === editForm.rewardType)?.description}
+                </p>
               </div>
+
+              {/* Role-based reward fields */}
+              {['ROLE_ADD', 'ROLE_REMOVE', 'ROLE_STACK', 'ROLE_REPLACE'].includes(
+                editForm.rewardType
+              ) && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    {editForm.rewardType === 'ROLE_REMOVE' ? 'Role to Remove' : 'Role to Award'}
+                  </label>
+                  <select
+                    value={editForm.roleId}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, roleId: e.target.value }))}
+                    className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    disabled={loadingRoles}
+                  >
+                    <option value="">Select a role...</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* ROLE_REPLACE: roles to remove */}
+              {editForm.rewardType === 'ROLE_REPLACE' && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Roles to Remove
+                  </label>
+                  <div className="border border-border/50 rounded-lg bg-muted/20 p-3 max-h-40 overflow-y-auto space-y-1">
+                    {roles.map((role) => (
+                      <label
+                        key={role.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editForm.removeRoleIds.includes(role.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                removeRoleIds: [...prev.removeRoleIds, role.id],
+                              }));
+                            } else {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                removeRoleIds: prev.removeRoleIds.filter((id) => id !== role.id),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-foreground">{role.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {editForm.removeRoleIds.length} role(s) selected to remove
+                  </p>
+                </div>
+              )}
+
+              {/* PERMISSION_GRANT fields */}
+              {editForm.rewardType === 'PERMISSION_GRANT' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Permissions to Grant
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border border-border/50 rounded-lg bg-muted/20 p-3">
+                    {DISCORD_PERMISSIONS.map((perm) => (
+                      <label
+                        key={perm.value}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editForm.permissions.includes(perm.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                permissions: [...prev.permissions, perm.value],
+                              }));
+                            } else {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                permissions: prev.permissions.filter((p) => p !== perm.value),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-foreground">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {editForm.permissions.length} permission(s) selected
+                  </p>
+                </div>
+              )}
+
+              {/* CHANNEL_ACCESS fields */}
+              {editForm.rewardType === 'CHANNEL_ACCESS' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Channels to Grant Access
+                  </label>
+                  <div className="border border-border/50 rounded-lg bg-muted/20 p-3 max-h-48 overflow-y-auto space-y-1">
+                    {textChannels.map((channel) => (
+                      <label
+                        key={channel.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/30 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editForm.channelIds.includes(channel.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                channelIds: [...prev.channelIds, channel.id],
+                              }));
+                            } else {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                channelIds: prev.channelIds.filter((id) => id !== channel.id),
+                              }));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-muted-foreground"># {channel.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {editForm.channelIds.length} channel(s) selected
+                  </p>
+                </div>
+              )}
+
+              {/* ANNOUNCEMENT fields */}
+              {editForm.rewardType === 'ANNOUNCEMENT' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Announcement Message
+                  </label>
+                  <textarea
+                    value={editForm.message}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, message: e.target.value }))}
+                    placeholder="Congratulations {user}! You've reached level {level}!"
+                    rows={3}
+                    className="w-full px-4 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Available variables: {'{user}'}, {'{level}'}, {'{reward}'}
+                  </p>
+                </div>
+              )}
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Description (Optional)
@@ -666,7 +1127,7 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
               <Button
                 variant="neon"
                 onClick={handleSaveEdit}
-                disabled={saving || !editForm.roleId || !editForm.name}
+                disabled={saving || !isFormValid(editForm)}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -693,6 +1154,15 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
                 <div className="space-y-2">
                   {rewardsByLevel[level].map((reward) => {
                     const role = roles.find((r) => r.id === reward.rewardData.roleId);
+                    const rewardTypeInfo = SUPPORTED_REWARD_TYPES.find(
+                      (t) => t.value === reward.rewardType
+                    );
+                    const isRoleReward = [
+                      'ROLE_ADD',
+                      'ROLE_REMOVE',
+                      'ROLE_STACK',
+                      'ROLE_REPLACE',
+                    ].includes(reward.rewardType);
                     return (
                       <div
                         key={reward.id}
@@ -703,14 +1173,18 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{
-                              backgroundColor: role?.color
-                                ? `#${role.color.toString(16).padStart(6, '0')}`
-                                : '#888',
-                            }}
-                          />
+                          {isRoleReward ? (
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{
+                                backgroundColor: role?.color
+                                  ? `#${role.color.toString(16).padStart(6, '0')}`
+                                  : '#888',
+                              }}
+                            />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full bg-primary/50" />
+                          )}
                           <div>
                             <span className="text-sm font-medium text-foreground">
                               {reward.name}
@@ -718,9 +1192,12 @@ export default function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
                             {reward.description && (
                               <p className="text-xs text-muted-foreground">{reward.description}</p>
                             )}
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                                 {reward.xpType}
+                              </span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-secondary/50 text-secondary-foreground">
+                                {rewardTypeInfo?.label || reward.rewardType}
                               </span>
                               {reward.stackable && (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">

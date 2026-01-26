@@ -39,8 +39,18 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
       // Validate request body
-      const validationResult = addJoinChannelSchema.safeParse(request.body);
+      const validationResult = addJoinChannelSchema.safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({

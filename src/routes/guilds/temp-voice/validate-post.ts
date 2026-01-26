@@ -34,8 +34,18 @@ export class TempVoiceValidateRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
       // Validate against schema
-      const validationResult = tempVoiceConfigSchema.safeParse(request.body);
+      const validationResult = tempVoiceConfigSchema.safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -51,7 +61,7 @@ export class TempVoiceValidateRoute extends Route {
                 err.code === 'invalid_type'
                   ? undefined
                   : err.path[0] && typeof err.path[0] === 'string'
-                    ? (request.body as Record<string, unknown>)?.[err.path[0]]
+                    ? (body as Record<string, unknown>)?.[err.path[0]]
                     : undefined,
             })),
           },
