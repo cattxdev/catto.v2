@@ -69,15 +69,13 @@ export const RegisterSubcommandsHooks = {
                   };
                   return piece.container.client.emit(
                     SubcommandsAdvancedEvents.ChatInputSubcommandDenied,
-                    result
-                      .err()
-                      .unwrapOr(
-                        new UserError({
-                          context: c,
-                          identifier: SUBCOMMAND_DENIED_IDENTIFIER,
-                          message: 'Unknown error',
-                        })
-                      ),
+                    result.err().unwrapOr(
+                      new UserError({
+                        context: c,
+                        identifier: SUBCOMMAND_DENIED_IDENTIFIER,
+                        message: 'Unknown error',
+                      })
+                    ),
                     payload
                   );
                 }
@@ -122,15 +120,13 @@ export const RegisterSubcommandsHooks = {
                 };
                 return piece.container.client.emit(
                   SubcommandsAdvancedEvents.MessageSubcommandDenied,
-                  result
-                    .err()
-                    .unwrapOr(
-                      new UserError({
-                        context: c,
-                        identifier: SUBCOMMAND_DENIED_IDENTIFIER,
-                        message: 'Unknown error',
-                      })
-                    ),
+                  result.err().unwrapOr(
+                    new UserError({
+                      context: c,
+                      identifier: SUBCOMMAND_DENIED_IDENTIFIER,
+                      message: 'Unknown error',
+                    })
+                  ),
                   payload
                 );
               }
@@ -178,15 +174,13 @@ export const RegisterSubcommandsHooks = {
                   };
                   return piece.container.client.emit(
                     SubcommandsAdvancedEvents.ChatInputSubcommandDenied,
-                    result
-                      .err()
-                      .unwrapOr(
-                        new UserError({
-                          context: c,
-                          identifier: SUBCOMMAND_DENIED_IDENTIFIER,
-                          message: 'Unknown error',
-                        })
-                      ),
+                    result.err().unwrapOr(
+                      new UserError({
+                        context: c,
+                        identifier: SUBCOMMAND_DENIED_IDENTIFIER,
+                        message: 'Unknown error',
+                      })
+                    ),
                     payload
                   );
                 }
@@ -211,15 +205,13 @@ export const RegisterSubcommandsHooks = {
                   };
                   return piece.container.client.emit(
                     SubcommandsAdvancedEvents.MessageSubcommandDenied,
-                    result
-                      .err()
-                      .unwrapOr(
-                        new UserError({
-                          context: c,
-                          identifier: SUBCOMMAND_DENIED_IDENTIFIER,
-                          message: 'Unknown error',
-                        })
-                      ),
+                    result.err().unwrapOr(
+                      new UserError({
+                        context: c,
+                        identifier: SUBCOMMAND_DENIED_IDENTIFIER,
+                        message: 'Unknown error',
+                      })
+                    ),
                     payload
                   );
                 }
