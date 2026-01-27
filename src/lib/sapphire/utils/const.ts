@@ -45,7 +45,7 @@ export const RegisterSubcommandsHooks = {
         `[Subcommands-Hook]: Processing subcommand "${slashCommand?.name ?? commandPiece?.name}" - commandPiece has chatInputRun: ${!!commandPiece.chatInputRun}`
       );
 
-      if (slashCommand && context) {
+      if (slashCommand && context && Array.isArray(context.options)) {
         context.options.push(slashCommand);
       }
 

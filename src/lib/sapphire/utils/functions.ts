@@ -81,7 +81,7 @@ export const parseSlashSubcommand = (
  * @returns  Command class
  * @since 1.0.0
  */
-export const analizeSubCommandParsed = (
+export const analizeSubCommandParsed = async (
   piece: Command,
   parentCommandName: string,
   subcommand?:
@@ -190,7 +190,7 @@ export const analizeSubCommandParsed = (
  * @returns	Command class
  * @since 1.0.0
  */
-export const analizeSubcommandGroupParsed = (
+export const analizeSubcommandGroupParsed = async (
   piece: Command,
   parentCommandName: string,
   groupName: string,
