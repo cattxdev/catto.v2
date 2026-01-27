@@ -1,4 +1,4 @@
-import { Command } from '#root/lib/sapphire/command/command.js';
+import { Command } from '#command.js';
 import { ApplyOptions } from '@sapphire/decorators';
 import { ChannelType, VoiceChannel, type GuildMember } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';

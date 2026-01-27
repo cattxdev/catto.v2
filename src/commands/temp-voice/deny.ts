@@ -4,7 +4,7 @@ import { EMOJI } from '#lib/discord/design/index.js';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
-import { Command } from '#root/lib/sapphire/command/command.js';
+import { Command } from '#command.js';
 
 @ApplyOptions<Command.Options>({
   name: 'deny',
