@@ -109,7 +109,7 @@ export class Subcommand extends SapphirePluginSubcommand {
             ) => {
               // Automatically route to the child command's chatInputRun
               if (commandPiece.chatInputRun) {
-                return commandPiece.chatInputRun(interaction, context);
+                return await commandPiece.chatInputRun(interaction, context);
               }
               // Fallback if chatInputRun doesn't exist
               return interaction.reply({
