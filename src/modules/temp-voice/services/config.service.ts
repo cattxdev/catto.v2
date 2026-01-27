@@ -139,12 +139,6 @@ export class TempVoiceConfigService {
               if (channel) {
                 await channel.delete('Temp voice configuration deleted');
               }
-              // Delete from database
-              await this.prisma.tempVoiceChannel
-                .delete({
-                  where: { channelId: tempChannel.channelId },
-                })
-                .catch(() => {});
             } catch (error) {
               // Continue even if individual channel deletion fails
               console.error(`Failed to delete temp channel ${tempChannel.channelId}:`, error);
@@ -205,7 +199,12 @@ export class TempVoiceConfigService {
       }
     }
 
-    // Finally, delete the database record
+    // Delete temp channel records first
+    await this.prisma.tempVoiceChannel.deleteMany({
+      where: { guildId },
+    });
+
+    // Finally, delete the config record
     await this.prisma.tempVoiceConfig.delete({
       where: { guildId },
     });
