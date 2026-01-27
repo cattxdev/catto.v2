@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "moduleResolution": "nodenext",
     "rootDir": "./src",
     "outDir": "./dist",
@@ -31,18 +33,46 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
-      "#root/*": ["./src/*"],
-      "#structures/*": ["./src/structures/*"],
-      "#commands/*": ["./src/commands/*"],
-      "#listeners/*": ["./src/listeners/*"],
-      "#routes/*": ["./src/routes/*"],
-      "#preconditions/*": ["./src/preconditions/*"],
-      "#lib/*": ["./src/lib/*"],
-      "#modules/*": ["./src/modules/*"],
-      "#config": ["./src/config.ts"],
-      "#config.js": ["./src/config.ts"]
+      "#root/*": [
+        "./src/*"
+      ],
+      "#structures/*": [
+        "./src/structures/*"
+      ],
+      "#commands/*": [
+        "./src/commands/*"
+      ],
+      "#listeners/*": [
+        "./src/listeners/*"
+      ],
+      "#routes/*": [
+        "./src/routes/*"
+      ],
+      "#preconditions/*": [
+        "./src/preconditions/*"
+      ],
+      "#lib/*": [
+        "./src/lib/*"
+      ],
+      "#modules/*": [
+        "./src/modules/*"
+      ],
+      "#config": [
+        "./src/config.ts"
+      ],
+      "#config.js": [
+        "./src/config.ts"
+      ],
+      "#command/*": [
+        "./src/lib/sapphire/command/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

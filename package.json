@@ -47,7 +47,8 @@
     "#lib/*": "./dist/lib/*",
     "#modules/*": "./dist/modules/*",
     "#config": "./dist/config.js",
-    "#config.js": "./dist/config.js"
+    "#config.js": "./dist/config.js",
+    "#command": "./dist/lib/sapphire/command/command.js"
   },
   "dependencies": {
     "@discordjs/builders": "^1.13.1",
