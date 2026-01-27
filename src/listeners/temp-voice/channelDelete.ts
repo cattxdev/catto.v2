@@ -22,7 +22,7 @@ export class ChannelDeleteListener extends Listener {
   public async run(channel: GuildChannel): Promise<void> {
     // Initialize services (lazy initialization)
     if (!this.configService) {
-      this.configService = new TempVoiceConfigService(container.prisma);
+      this.configService = new TempVoiceConfigService(container.prisma, container.client);
       this.channelService = new TempChannelService(container.prisma, new PermissionsService());
       this.userPrefsService = new UserPreferencesService(container.prisma);
     }

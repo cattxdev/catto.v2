@@ -9,7 +9,7 @@ import { TempVoiceConfigService } from './config.service.js';
 import { OwnerLeaveStrategy } from '../constants.js';
 import { TempVoiceNamingScheme } from '@prisma/client';
 
-const configService = new TempVoiceConfigService(container.prisma);
+const configService = new TempVoiceConfigService(container.prisma, container.client);
 
 /**
  * Map API naming scheme strings to database enum

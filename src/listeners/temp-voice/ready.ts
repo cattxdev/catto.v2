@@ -22,7 +22,7 @@ export class TempVoiceReadyListener extends Listener {
   public async run(): Promise<void> {
     try {
       // Initialize services
-      const configService = new TempVoiceConfigService(container.prisma);
+      const configService = new TempVoiceConfigService(container.prisma, container.client);
       const cleanupService = new CleanupService(
         container.prisma,
         this.container.client,

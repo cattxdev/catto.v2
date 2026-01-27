@@ -180,7 +180,7 @@ export class TempVoiceCommand extends Command {
 
     // Initialize services lazily
     if (!this.channelService) {
-      this.configService = new TempVoiceConfigService(this.container.prisma);
+      this.configService = new TempVoiceConfigService(this.container.prisma, this.container.client);
       this.permissionsService = new PermissionsService();
       this.channelService = new TempChannelService(this.container.prisma, this.permissionsService);
       this.controlPanelService = new ControlPanelService(

@@ -27,7 +27,7 @@ export class TempVoiceStateUpdateListener extends Listener {
   public async run(oldState: VoiceState, newState: VoiceState): Promise<void> {
     // Initialize services (lazy initialization)
     if (!this.configService) {
-      this.configService = new TempVoiceConfigService(container.prisma);
+      this.configService = new TempVoiceConfigService(container.prisma, container.client);
       this.permissionsService = new PermissionsService();
       this.channelService = new TempChannelService(container.prisma, this.permissionsService);
     }
