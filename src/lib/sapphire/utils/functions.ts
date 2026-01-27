@@ -159,7 +159,7 @@ export const analizeSubCommandParsed = (
       return piece;
     }
 
-    if (commandsCompare) void parentCommand.reload();
+    if (commandsCompare) await parentCommand.reload();
 
     const subcommand = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === subcommandName && s.type === 'method'
