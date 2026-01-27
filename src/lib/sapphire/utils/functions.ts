@@ -81,7 +81,7 @@ export const parseSlashSubcommand = (
  * @returns  Command class
  * @since 1.0.0
  */
-export const analizeSubCommandParsed = async (
+export const analizeSubCommandParsed = (
   piece: Command,
   parentCommandName: string,
   subcommand?:
@@ -159,7 +159,16 @@ export const analizeSubCommandParsed = async (
       return piece;
     }
 
-    if (commandsCompare) await parentCommand.reload();
+    if (commandsCompare) {
+      // Reload parent command asynchronously to pick up new options
+      // Note: Intentionally not awaited - must remain synchronous for decorator compatibility
+      void parentCommand.reload().catch((error) => {
+        container.logger.error(
+          `[Subcommands-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName}:`,
+          error
+        );
+      });
+    }
 
     const subcommand = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === subcommandName && s.type === 'method'
@@ -190,7 +199,7 @@ export const analizeSubCommandParsed = async (
  * @returns	Command class
  * @since 1.0.0
  */
-export const analizeSubcommandGroupParsed = async (
+export const analizeSubcommandGroupParsed = (
   piece: Command,
   parentCommandName: string,
   groupName: string,
@@ -291,7 +300,15 @@ export const analizeSubcommandGroupParsed = async (
       return piece;
     }
 
-    if (commandsGroupCompare) await parentCommand.reload();
+    if (commandsGroupCompare) {
+      // Reload parent command asynchronously to pick up new options
+      parentCommand.reload().catch((error) => {
+        container.logger.error(
+          `[Subcommands-Group-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName} in group ${groupName}:`,
+          error
+        );
+      });
+    }
 
     const subcommandGroup = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === groupName && s.type === 'group'
@@ -302,8 +319,18 @@ export const analizeSubcommandGroupParsed = async (
         (s) => s.name === subcommandName && s.type === 'method'
       );
       if (subcommand) {
-        if (piece.chatInputRun) subcommand.chatInputRun = (i, c) => piece.chatInputRun?.(i, c);
-        if (piece.messageRun) subcommand.messageRun = (m, a, c) => piece.messageRun?.(m, a, c);
+        if (piece.chatInputRun) {
+          subcommand.chatInputRun = (i, c) => {
+            if (!piece.chatInputRun) throw new Error('chatInputRun is undefined');
+            return piece.chatInputRun(i, c);
+          };
+        }
+        if (piece.messageRun) {
+          subcommand.messageRun = (m, a, c) => {
+            if (!piece.messageRun) throw new Error('messageRun is undefined');
+            return piece.messageRun(m, a, c);
+          };
+        }
       }
     }
   } else {

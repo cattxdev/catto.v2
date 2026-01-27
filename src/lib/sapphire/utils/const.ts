@@ -83,9 +83,8 @@ export const RegisterSubcommandsHooks = {
                 container.logger.debug(
                   `[Subcommands-Hook]: Executing chatInputRun for "${commandPiece.name}"`
                 );
-                return commandPiece.chatInputRun
-                  ? await commandPiece.chatInputRun(i, c)
-                  : undefined;
+                if (!commandPiece.chatInputRun) throw new Error('chatInputRun is undefined');
+                return await commandPiece.chatInputRun(i, c);
               } catch (error) {
                 container.logger.error(
                   `[Subcommands-Hook]: Error executing chatInputRun for "${commandPiece.name}":`,
@@ -131,7 +130,8 @@ export const RegisterSubcommandsHooks = {
                 );
               }
 
-              return commandPiece.messageRun ? commandPiece.messageRun(m, a, c) : undefined;
+              if (!commandPiece.messageRun) throw new Error('messageRun is undefined');
+              return commandPiece.messageRun(m, a, c);
             }
           : undefined,
       };
@@ -185,7 +185,8 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
-                return commandPiece.chatInputRun ? commandPiece.chatInputRun(i, c) : undefined;
+                if (!commandPiece.chatInputRun) throw new Error('chatInputRun is undefined');
+                return await commandPiece.chatInputRun(i, c);
               }
             : undefined,
 
@@ -216,7 +217,8 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
-                return commandPiece.messageRun ? commandPiece.messageRun(m, a, c) : undefined;
+                if (!commandPiece.messageRun) throw new Error('messageRun is undefined');
+                return commandPiece.messageRun(m, a, c);
               }
             : undefined,
         };
@@ -234,11 +236,13 @@ export const RegisterSubcommandsHooks = {
         for (const option of context.options) {
           const data = option.toJSON();
           if (data.name === name && data.type === ApplicationCommandOptionType.SubcommandGroup) {
-            (option as unknown as { options: SlashCommandSubcommandBuilder[] }).options?.push(
-              ...[...commands.values()]
-                .filter(({ slashCommand }) => slashCommand)
-                .map(({ slashCommand }) => slashCommand as SlashCommandSubcommandBuilder)
-            );
+            if ('options' in option && Array.isArray((option as { options?: unknown[] }).options)) {
+              (option as { options: SlashCommandSubcommandBuilder[] }).options.push(
+                ...[...commands.values()]
+                  .filter(({ slashCommand }) => slashCommand)
+                  .map(({ slashCommand }) => slashCommand as SlashCommandSubcommandBuilder)
+              );
+            }
           }
         }
       }
