@@ -1,17 +1,17 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/validate
+ * POST /api/guilds/[guildId]/temp-voice/validate
  * Validate Temp Voice configuration without saving
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceValidateRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/validate',
+      route: 'guilds/[guildId]/temp-voice/validate',
       methods: ['POST'],
     });
   }
@@ -34,8 +34,18 @@ export class TempVoiceValidateRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
       // Validate against schema
-      const validationResult = tempVoiceConfigSchema.safeParse(request.body);
+      const validationResult = tempVoiceConfigSchema.safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -51,7 +61,7 @@ export class TempVoiceValidateRoute extends Route {
                 err.code === 'invalid_type'
                   ? undefined
                   : err.path[0] && typeof err.path[0] === 'string'
-                    ? (request.body as Record<string, unknown>)?.[err.path[0]]
+                    ? (body as Record<string, unknown>)?.[err.path[0]]
                     : undefined,
             })),
           },

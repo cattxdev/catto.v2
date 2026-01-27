@@ -1,12 +1,12 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/join-channels
+ * POST /api/guilds/[guildId]/temp-voice/join-channels
  * Add a join-to-create channel to the configuration
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { z } from 'zod';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 const addJoinChannelSchema = z.object({
   channelId: z.string().regex(/^\d{17,19}$/, 'Invalid channel ID format'),
@@ -16,7 +16,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/join-channels',
+      route: 'guilds/[guildId]/temp-voice/join-channels',
       methods: ['POST'],
     });
   }
@@ -39,8 +39,18 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
       // Validate request body
-      const validationResult = addJoinChannelSchema.safeParse(request.body);
+      const validationResult = addJoinChannelSchema.safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -69,7 +79,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
           },
           data: {
             suggestion:
-              'Create a configuration first using POST /api/guilds/:guildId/temp-voice/config',
+              'Create a configuration first using POST /api/guilds/[guildId]/temp-voice/config',
           },
         });
       }

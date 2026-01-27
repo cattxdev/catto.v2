@@ -4,18 +4,18 @@
  */
 
 // Services
-export * from './services';
+export * from './services/index.js';
 
 // Repositories
-export * from './repositories';
+export * from './repositories/index.js';
 
 // Types
-export * from './types/xp-text.types';
+export * from './types/xp-text.types.js';
 
 // DTOs
-export * from './dtos';
+export * from './dtos/index.js';
 
 // Utilities
-export * from './utils/level-curve';
-export * from './utils/validation';
-export * from './utils/templates';
+export * from './utils/level-curve.js';
+export * from './utils/validation.js';
+export * from './utils/templates.js';

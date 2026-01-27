@@ -19,7 +19,7 @@ import {
   type MultiplierRewardData,
   type AnnouncementRewardData,
   RewardData,
-} from '../../../lib/types/rewards.types';
+} from '../../../lib/types/rewards.types.js';
 
 export class RewardService {
   constructor(private readonly prisma: PrismaClient) {}

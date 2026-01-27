@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { Guild } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
-export class GuildUpdateListener extends Listener<typeof Events.GuildUpdate> {
+export class GuildUpdateListener extends LogListener<typeof Events.GuildUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,

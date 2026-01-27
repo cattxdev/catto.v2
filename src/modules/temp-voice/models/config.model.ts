@@ -2,7 +2,8 @@
  * TypeScript interfaces for Temp Voice configuration
  */
 
-import type { OwnerLeaveStrategy } from '../constants';
+import type { OwnerLeaveStrategy } from '../constants.js';
+import type { TempVoiceNamingScheme } from '@prisma/client';
 
 /**
  * Guild-level configuration for temp voice module
@@ -18,6 +19,7 @@ export interface TempVoiceConfig {
   // Creation settings
   categoryId: string | null;
   fallbackCategoryId: string | null;
+  namingScheme: TempVoiceNamingScheme;
   defaultNameTemplate: string;
 
   // Default channel settings

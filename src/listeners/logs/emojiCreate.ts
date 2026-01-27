@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildEmoji } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
-export class EmojiCreateListener extends Listener<typeof Events.GuildEmojiCreate> {
+export class EmojiCreateListener extends LogListener<typeof Events.GuildEmojiCreate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,

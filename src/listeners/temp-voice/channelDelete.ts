@@ -2,10 +2,10 @@ import { Listener } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
 import { Events } from 'discord.js';
 import { container } from '@sapphire/framework';
-import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service';
-import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service';
-import { PermissionsService } from '../../modules/temp-voice/services/permissions.service';
-import { UserPreferencesService } from '../../modules/temp-voice/services/user-preferences.service';
+import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
+import { PermissionsService } from '../../modules/temp-voice/services/permissions.service.js';
+import { UserPreferencesService } from '../../modules/temp-voice/services/user-preferences.service.js';
 
 export class ChannelDeleteListener extends Listener {
   private configService!: TempVoiceConfigService;
@@ -22,7 +22,7 @@ export class ChannelDeleteListener extends Listener {
   public async run(channel: GuildChannel): Promise<void> {
     // Initialize services (lazy initialization)
     if (!this.configService) {
-      this.configService = new TempVoiceConfigService(container.prisma);
+      this.configService = new TempVoiceConfigService(container.prisma, container.client);
       this.channelService = new TempChannelService(container.prisma, new PermissionsService());
       this.userPrefsService = new UserPreferencesService(container.prisma);
     }

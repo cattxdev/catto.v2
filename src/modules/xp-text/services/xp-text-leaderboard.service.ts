@@ -8,9 +8,9 @@ import type {
   LeaderboardResponse,
   LeaderboardEntry,
   UserStatsResponse,
-} from '../types/xp-text.types';
-import * as xpRepo from '../repositories/xp-text.repository';
-import * as levelService from './xp-text-level.service';
+} from '../types/xp-text.types.js';
+import * as xpRepo from '../repositories/xp-text.repository.js';
+import * as levelService from './xp-text-level.service.js';
 import { container } from '@sapphire/framework';
 
 /**

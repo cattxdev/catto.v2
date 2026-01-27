@@ -1,4 +1,4 @@
-import { leaderboardService } from '#root/modules/xp-text';
+import { leaderboardService } from '#root/modules/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class XPUserStatsRoute extends Route {

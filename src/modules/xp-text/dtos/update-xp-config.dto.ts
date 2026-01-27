@@ -2,7 +2,7 @@
  * DTO for updating XP configuration
  */
 
-import { XPMode, LevelCurveType } from '../types/xp-text.types';
+import { XPMode, LevelCurveType } from '../types/xp-text.types.js';
 
 export interface UpdateXPConfigDTO {
   enabled?: boolean;

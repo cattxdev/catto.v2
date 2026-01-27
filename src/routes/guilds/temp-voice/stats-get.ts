@@ -1,18 +1,19 @@
 /**
- * GET /api/guilds/:guildId/temp-voice/stats
+ * GET /api/guilds/[guildId]/temp-voice/stats
  * Get statistics about temporary voice channels in a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { ChannelType } from 'discord.js';
 
 export class TempVoiceStatsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/stats',
+      route: 'guilds/[guildId]/temp-voice/stats',
+      methods: ['GET'],
     });
   }
 

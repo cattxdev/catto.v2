@@ -1,6 +1,6 @@
 import { Precondition } from '@sapphire/framework';
 import type { CommandInteraction, ContextMenuCommandInteraction, Message } from 'discord.js';
-import { CONFIG } from '#config';
+import { CONFIG } from '#config.js';
 
 export class OwnerOnlyPrecondition extends Precondition {
   public constructor(context: Precondition.LoaderContext, options: Precondition.Options) {

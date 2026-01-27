@@ -1,18 +1,18 @@
 /**
- * PATCH /api/guilds/:guildId/temp-voice/config
+ * PATCH /api/guilds/[guildId]/temp-voice/config
  * Update existing Temp Voice configuration for a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
+import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceConfigPatchRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
       methods: ['PATCH'],
     });
   }
@@ -35,6 +35,21 @@ export class TempVoiceConfigPatchRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
+      // Default to empty object if body is undefined
+      if (!body) {
+        body = {};
+      }
+
       // Check if config exists
       const existingConfig = await TempVoiceConfigService.getConfig(guildId);
       if (!existingConfig) {
@@ -47,13 +62,13 @@ export class TempVoiceConfigPatchRoute extends Route {
           data: {
             guildId,
             suggestion:
-              'Use POST /api/guilds/:guildId/temp-voice/config to create a new configuration',
+              'Use POST /api/guilds/[guildId]/temp-voice/config to create a new configuration',
           },
         });
       }
 
       // Validate request body (partial schema for PATCH)
-      const validationResult = tempVoiceConfigSchema.partial().safeParse(request.body);
+      const validationResult = tempVoiceConfigSchema.partial().safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({

@@ -2,7 +2,7 @@ import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { ModAction } from '@prisma/client';
 import type { GuildId, UserId, CaseNumber } from '../domain/types.js';
-import { CONFIG } from '#config';
+import { CONFIG } from '#config.js';
 import { getSafeUserTag } from '#lib/discord/index.js';
 import { ensureNonNull } from '#lib/utils.js';
 import { logModAction } from '../discord/embeds/presets.js';

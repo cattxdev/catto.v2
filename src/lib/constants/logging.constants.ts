@@ -1,5 +1,5 @@
-import type { LogChannelDefinition } from '#lib/types/logging.types';
-import { LogType } from '#lib/logging';
+import type { LogChannelDefinition } from '#lib/types/logging.types.js';
+import { LogType } from '#lib/logging.js';
 
 export const LOG_CHANNEL_DEFINITIONS: Record<LogType, LogChannelDefinition> = {
   [LogType.Messages]: {

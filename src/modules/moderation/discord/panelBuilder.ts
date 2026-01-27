@@ -88,7 +88,8 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
   };
 
   // Header with optional flag indicator
-  const flagIndicator = activeFlags && activeFlags.length > 0 ? ` ${EMOJI.SUSPECTED}` : '';
+  const flagIndicator =
+    activeFlags && activeFlags.length > 0 ? ` ${EMOJI.MODERATION.STATE.SUSPICIOUS}` : '';
 
   // Stats for display
   const stats: Record<string, string | number> = {
@@ -102,8 +103,8 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
   // Account info line
   const accountCreatedTs = formatRelativeTimestamp(target.createdAt);
   const accountLine = joinedAt
-    ? `${EMOJI.INVITE_USER} ${formatRelativeTimestamp(joinedAt)} · ${EMOJI.TIME_DAY} ${accountCreatedTs}`
-    : `${EMOJI.TIME_DAY} ${accountCreatedTs}`;
+    ? `${EMOJI.USER.ACTIONS.INVITE} ${formatRelativeTimestamp(joinedAt)} · ${EMOJI.TIME.CLOCK} ${accountCreatedTs}`
+    : `${EMOJI.TIME.CLOCK} ${accountCreatedTs}`;
 
   // Primary moderation actions row (filter by allowed)
   const primaryButtons = [];
@@ -227,11 +228,11 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
   }
 
   const result = primaryContainer()
-    .h2(`${EMOJI.MOD_SHIELD} Mod Panel${flagIndicator}`)
-    .text(`${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`)
+    .h2(`${EMOJI.MODERATION.ICONS.SHIELD_BLUE} Mod Panel${flagIndicator}`)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
       c.text(
-        `${EMOJI.VOICE} <#${ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId')}>`
+        `${EMOJI.VOICE.ICONS.GENERIC} <#${ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId')}>`
       )
     )
     .text(accountLine)
@@ -258,12 +259,12 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
   const nonce = Math.random().toString(36).substring(2, 8);
 
   // Build timeline entries
-  const timeline: string[] = [`${EMOJI.TIME_DAY} ${formatRelativeTimestamp(target.createdAt)}`];
+  const timeline: string[] = [`${EMOJI.TIME.CLOCK} ${formatRelativeTimestamp(target.createdAt)}`];
   if (joinedAt) {
-    timeline.push(`${EMOJI.INVITE_USER} ${formatRelativeTimestamp(joinedAt)}`);
+    timeline.push(`${EMOJI.USER.ACTIONS.INVITE} ${formatRelativeTimestamp(joinedAt)}`);
   }
   if (voiceChannelId) {
-    timeline.push(`${EMOJI.VOICE} <#${voiceChannelId}>`);
+    timeline.push(`${EMOJI.VOICE.ICONS.GENERIC} <#${voiceChannelId}>`);
   }
 
   // Format recent cases (using same style as createHistoryEmbed, no pagination)
@@ -309,7 +310,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h2('Context Bundle')
-    .text(`${EMOJI.MEMBER} ${target.tag} (${userMention(target.id)}) · \`${target.id}\``)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (${userMention(target.id)}) · \`${target.id}\``)
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))
@@ -317,7 +318,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
       c
         .separator()
         .h2('Active statuses')
-        .text(`${EMOJI.SUSPECTED} **Muted** (check /mod mutes for details)`)
+        .text(`${EMOJI.MODERATION.STATE.SUSPICIOUS} **Muted** (check /mod mutes for details)`)
     )
     .separator()
     .h2('Recent actions')
@@ -383,13 +384,13 @@ export function buildModActionSuccess(
   };
 
   return successContainer()
-    .h2(`${EMOJI.SUCCESS} ${action} successful`)
+    .h2(`${EMOJI.STATUS.SUCCESS} ${action} successful`)
     .kv(details)
-    .when(!!duration, (c) => c.text(`> ${EMOJI.SLOWMODE} ${duration}`))
+    .when(!!duration, (c) => c.text(`> ${EMOJI.MODERATION.ACTIONS.SLOWMODE} ${duration}`))
     .when(options?.dmSent === false, (c) =>
       c
         .separator({ divider: true, spacing: 'small' })
-        .text(`${EMOJI.WARNING} Could not send DM notification to user.`)
+        .text(`${EMOJI.STATUS.WARNING} Could not send DM notification to user.`)
     )
     .footerWithTimestamp(`Case #${caseNumber}`);
 }
@@ -399,7 +400,9 @@ export function buildModActionSuccess(
  */
 export function buildModActionError(error: string, suggestion?: string): FluentContainer {
   return errorContainer()
-    .h2(`${EMOJI.ERROR} Error`)
+    .h2(`${EMOJI.STATUS.ERROR} Error`)
     .text(error)
-    .when(!!suggestion, (c) => c.separator().text(`${EMOJI.INFO} **Suggestion:** ${suggestion}`));
+    .when(!!suggestion, (c) =>
+      c.separator().text(`${EMOJI.STATUS.INFO} **Suggestion:** ${suggestion}`)
+    );
 }

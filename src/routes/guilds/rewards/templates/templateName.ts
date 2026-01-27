@@ -4,7 +4,7 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { PRESET_TEMPLATES, RewardService } from '#root/modules/rewards';
+import { PRESET_TEMPLATES, RewardService } from '#root/modules/rewards/index.js';
 
 export class ApplyTemplateRoute extends Route {
   private rewardService: RewardService;

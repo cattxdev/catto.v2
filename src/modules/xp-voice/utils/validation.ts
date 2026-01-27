@@ -3,7 +3,7 @@
  */
 
 import type { GuildVoiceXPConfig } from '@prisma/client';
-import type { VoiceValidationContext } from '../types/voice-xp.types';
+import type { VoiceValidationContext } from '../types/voice-xp.types.js';
 
 export interface VoiceValidationResult {
   valid: boolean;

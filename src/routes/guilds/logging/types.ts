@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
 
 export class LoggingTypesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -48,6 +48,7 @@ export class LoggingTypesRoute extends Route {
       currentlyEnabled: logTypes.filter((t) => t.enabled).map((t) => t.key),
       isConfigured: !!config,
       categoryId: config?.categoryId || null,
+      ignoredChannels: config?.ignoredChannels || [],
     });
   }
 }

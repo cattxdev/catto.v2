@@ -27,7 +27,7 @@ import {
   voiceMuteAllScheduler,
   disableMuteAllForChannel,
 } from '#root/modules/voice/services/VoiceMuteAllScheduler.js';
-import { ensureNonNull } from '#lib/utils';
+import { ensureNonNull } from '#lib/utils.js';
 
 export class VoiceButtonInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

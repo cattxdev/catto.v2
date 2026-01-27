@@ -1,8 +1,8 @@
 import { EmbedBuilder, WebhookClient, Colors } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
-import { CONFIG } from '#config';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants';
+import { CONFIG } from '#config.js';
+import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
 
 export enum LogType {
   Messages = 'messages',
@@ -28,6 +28,7 @@ interface LogJobData {
   guildId: string;
   type: LogType;
   embed: ReturnType<EmbedBuilder['toJSON']>;
+  channelId?: string; // Optional channel ID to check against ignored channels
 }
 
 class LoggingService {
@@ -97,7 +98,12 @@ class LoggingService {
   /**
    * Add a log entry to the queue
    */
-  public async log(guildId: string, type: LogType, embed: EmbedBuilder): Promise<void> {
+  public async log(
+    guildId: string,
+    type: LogType,
+    embed: EmbedBuilder,
+    channelId?: string
+  ): Promise<void> {
     try {
       await this.queue.add(
         `log:${guildId}:${type}`,
@@ -105,6 +111,7 @@ class LoggingService {
           guildId,
           type,
           embed: embed.toJSON(),
+          channelId,
         },
         {
           // Group jobs by guild+type for better batching
@@ -120,7 +127,7 @@ class LoggingService {
    * Process a log job (called by BullMQ worker)
    */
   private async processLog(job: Job<LogJobData>): Promise<void> {
-    const { guildId, type, embed } = job.data;
+    const { guildId, type, embed, channelId } = job.data;
 
     // Get webhook URL from database
     const config = await container.prisma.logConfig.findUnique({
@@ -129,6 +136,12 @@ class LoggingService {
 
     if (!config || !config.enabled) {
       // Silently skip if logging is disabled - this is expected behavior
+      return;
+    }
+
+    // Check if channel is ignored
+    if (channelId && config.ignoredChannels.includes(channelId)) {
+      // Silently skip if channel is ignored - this is expected behavior
       return;
     }
 
@@ -232,6 +245,7 @@ export async function logAction(options: {
   footer?: string;
   timestamp?: Date;
   thumbnail?: string;
+  channelId?: string; // Optional channel ID to check against ignored channels
 }): Promise<void> {
   const embed = createLogEmbed({
     title: options.title,
@@ -246,5 +260,5 @@ export async function logAction(options: {
     embed.setThumbnail(options.thumbnail);
   }
 
-  await loggingService.log(options.guildId, options.type, embed);
+  await loggingService.log(options.guildId, options.type, embed, options.channelId);
 }

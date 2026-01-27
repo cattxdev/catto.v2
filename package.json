@@ -11,9 +11,14 @@
     "dev:env": "tsx scripts/dev-db.ts",
     "lint": "eslint src --ext ts",
     "lint:fix": "eslint src --ext ts --fix",
+    "lint:imports": "tsx scripts/check-imports.ts",
+    "fix:imports": "tsx scripts/fix-imports.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepare": "husky",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -40,7 +45,9 @@
     "#routes/*": "./dist/routes/*",
     "#preconditions/*": "./dist/preconditions/*",
     "#lib/*": "./dist/lib/*",
-    "#config": "./dist/config.js"
+    "#modules/*": "./dist/modules/*",
+    "#config": "./dist/config.js",
+    "#config.js": "./dist/config.js"
   },
   "dependencies": {
     "@discordjs/builders": "^1.13.1",
@@ -56,11 +63,14 @@
     "@sapphire/utilities": "^3.17.3",
     "axios": "^1.13.2",
     "bullmq": "^5.66.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
     "discord-api-types": "^0.38.37",
     "discord.js": "~14.25.1",
     "dotenv": "^16.4.7",
     "ioredis": "^5.9.2",
     "prisma": "^7.2.0",
+    "reflect-metadata": "^0.2.2",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -70,21 +80,24 @@
     "@types/ioredis": "^5.0.0",
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.22.1",
-    "@typescript-eslint/parser": "^8.22.1",
+    "@typescript-eslint/parser": "^8.53.0",
     "eslint": "^9.19.0",
+    "fast-glob": "^3.3.3",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "rimraf": "^6.0.1",
     "testcontainers": "^11.11.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "lint-staged": {
-    "*.ts": [
+    "src/**/*.ts": [
+      "tsx scripts/fix-imports.ts",
       "eslint --fix",
       "prettier --write"
     ]

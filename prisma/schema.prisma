@@ -307,6 +307,9 @@ model LogConfig {
   leavesEnabled         Boolean  @default(false)
   serverEnabled         Boolean  @default(false)
   
+  // Ignored channels - logs from these channels won't be recorded
+  ignoredChannels       String[] @default([])
+  
   // Webhook URLs for each log type
   messagesWebhook       String?
   voiceWebhook          String?
@@ -619,19 +622,28 @@ model VoiceXPEventLog {
 // Temporary Voice Channels Module
 // ============================================
 
+// Naming scheme for temporary voice channels
+enum TempVoiceNamingScheme {
+  USERNAME      // Use Discord username
+  DISPLAYNAME   // Use Discord display name/nickname
+  SEQUENTIAL    // Numbered channels (e.g., "Channel 1", "Channel 2")
+  CUSTOM        // Use custom template from defaultNameTemplate
+}
+
 // Configuration for the temp voice module per guild
 model TempVoiceConfig {
-  id                    String   @id @default(cuid())
-  guildId               String   @unique
-  enabled               Boolean  @default(true)
+  id                    String                    @id @default(cuid())
+  guildId               String                    @unique
+  enabled               Boolean                   @default(true)
   
   // Join to Create channels
-  joinToCreateChannels  Json     @default("[]")        // string[] of channel IDs
+  joinToCreateChannels  Json                      @default("[]")        // string[] of channel IDs
   
   // Creation settings
   categoryId            String?
   fallbackCategoryId    String?
-  defaultNameTemplate   String   @default("{username}'s Channel")
+  namingScheme          TempVoiceNamingScheme     @default(USERNAME)
+  defaultNameTemplate   String                    @default("{username}'s Channel")
   
   // Default channel settings
   defaultUserLimit      Int      @default(0)           // 0 = unlimited

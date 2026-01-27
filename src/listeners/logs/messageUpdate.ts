@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { Message, PartialMessage } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
-export class MessageUpdateListener extends Listener<typeof Events.MessageUpdate> {
+export class MessageUpdateListener extends LogListener<typeof Events.MessageUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
@@ -16,6 +17,9 @@ export class MessageUpdateListener extends Listener<typeof Events.MessageUpdate>
 
     // Ignore if content didn't change
     if (oldMessage.content === newMessage.content) return;
+
+    // Check if channel should be ignored
+    if (await this.shouldIgnoreChannel(newMessage.guild.id, newMessage.channel.id)) return;
 
     await logAction({
       guildId: newMessage.guild.id,

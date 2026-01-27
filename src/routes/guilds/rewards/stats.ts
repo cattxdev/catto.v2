@@ -4,7 +4,7 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { RewardService } from '#root/modules/rewards';
+import { RewardService } from '#root/modules/rewards/index.js';
 
 export class RewardsStatsRoute extends Route {
   private rewardService: RewardService;

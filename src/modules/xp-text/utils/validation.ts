@@ -3,8 +3,8 @@
  * Checks all filters before awarding XP
  */
 
-import { ValidationContext } from '../types/xp-text.types';
-import type { GuildXPConfig } from '../types/xp-text.types';
+import { ValidationContext } from '../types/xp-text.types.js';
+import type { GuildXPConfig } from '../types/xp-text.types.js';
 
 export interface ValidationResult {
   valid: boolean;

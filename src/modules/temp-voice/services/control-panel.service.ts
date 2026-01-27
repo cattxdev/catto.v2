@@ -11,8 +11,8 @@ import {
   ButtonStyle,
   ChannelType,
 } from 'discord.js';
-import { CUSTOM_EMOJIS } from '#lib/emojis';
-import { TempChannelService } from './temp-channel.service';
+import { EMOJI } from '#lib/discord/design/index.js';
+import { TempChannelService } from './temp-channel.service.js';
 
 export class ControlPanelService {
   constructor(
@@ -209,46 +209,46 @@ export class ControlPanelService {
     const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`tempvoice_lock_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.LOCK_BUTTON)
+        .setEmoji(EMOJI.CHANNELS.STATE.LOCKED)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.HIDE_BUTTON)
+        .setEmoji(EMOJI.UI.INDICATORS.VISIBILITY)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.RENAME_BUTTON)
+        .setEmoji(EMOJI.UI.ACTIONS.EDIT)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.LIMIT_BUTTON)
+        .setEmoji(EMOJI.USER.ICONS.MULTIPLE_MEMBERS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.SETTINGS_BUTTON)
+        .setEmoji(EMOJI.UI.ACTIONS.SETTINGS)
         .setStyle(ButtonStyle.Secondary)
     );
 
     const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`tempvoice_permit_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.PERMIT_BUTTON)
+        .setEmoji(EMOJI.USER.ACTIONS.INVITE)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.DENY_BUTTON)
+        .setEmoji(EMOJI.MODERATION.STATE.SUSPICIOUS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_trust_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.TRUST_BUTTON)
+        .setEmoji(EMOJI.UI.ACTIONS.ADD_GREEN)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_claim_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.CLAIM_BUTTON)
+        .setEmoji(EMOJI.USER.ROLES.OWNER)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
-        .setEmoji(CUSTOM_EMOJIS.TRANSFER_BUTTON)
+        .setEmoji(EMOJI.UI.NAV.RIGHT)
         .setStyle(ButtonStyle.Secondary)
     );
 

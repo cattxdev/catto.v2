@@ -3,7 +3,7 @@ import {
   getAllGuildUsers,
   levelService,
   updateUserLevel,
-} from '#root/modules/xp-text';
+} from '#root/modules/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class XPRecalculateRoute extends Route {

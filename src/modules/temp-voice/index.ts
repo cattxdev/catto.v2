@@ -3,22 +3,22 @@
  */
 
 // Constants
-export * from './constants';
+export * from './constants.js';
 
 // Models
-export * from './models/config.model';
-export * from './models/temp-channel.model';
-export * from './models/api-response.model';
+export * from './models/config.model.js';
+export * from './models/temp-channel.model.js';
+export * from './models/api-response.model.js';
 
 // Services
-export { TempVoiceConfigService } from './services/config.service';
-export { TempChannelService } from './services/temp-channel.service';
-export { PermissionsService } from './services/permissions.service';
-export { CleanupService } from './services/cleanup.service';
-export { RecoveryService } from './services/recovery.service';
-export { ControlPanelService } from './services/control-panel.service';
+export { TempVoiceConfigService } from './services/config.service.js';
+export { TempChannelService } from './services/temp-channel.service.js';
+export { PermissionsService } from './services/permissions.service.js';
+export { CleanupService } from './services/cleanup.service.js';
+export { RecoveryService } from './services/recovery.service.js';
+export { ControlPanelService } from './services/control-panel.service.js';
 
 // Utilities
-export * from './utils/validation.util';
-export * from './utils/naming.util';
-export * from './utils/fallback.util';
+export * from './utils/validation.util.js';
+export * from './utils/naming.util.js';
+export * from './utils/fallback.util.js';

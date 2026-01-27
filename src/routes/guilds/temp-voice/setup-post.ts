@@ -1,19 +1,19 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/setup
+ * POST /api/guilds/[guildId]/temp-voice/setup
  * Auto-setup Temp Voice system (creates category, join channel, logs channel with webhook, and config)
  */
 
 import { Route } from '@sapphire/plugin-api';
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { container } from '@sapphire/framework';
-import type { RouteRequestWithBody } from '#root/lib/route-types';
+import type { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceSetupPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/setup',
+      route: 'guilds/[guildId]/temp-voice/setup',
       methods: ['POST'],
     });
   }
@@ -80,7 +80,7 @@ export class TempVoiceSetupPostRoute extends Route {
           data: {
             guildId,
             suggestion:
-              'Use PATCH /api/guilds/:guildId/temp-voice/config to update existing configuration',
+              'Use PATCH /api/guilds/[guildId]/temp-voice/config to update existing configuration',
           },
         });
       }

@@ -1,9 +1,10 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildScheduledEvent } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
 import { time, TimestampStyles } from '@discordjs/builders';
+import { LogListener } from './LogListener.js';
 
-export class GuildScheduledEventDeleteListener extends Listener<
+export class GuildScheduledEventDeleteListener extends LogListener<
   typeof Events.GuildScheduledEventDelete
 > {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
@@ -14,6 +15,8 @@ export class GuildScheduledEventDeleteListener extends Listener<
   }
 
   public async run(event: GuildScheduledEvent) {
+    // Check if channel should be ignored (for channel-based events)
+    if (event.channelId && (await this.shouldIgnoreChannel(event.guildId, event.channelId))) return;
     await logAction({
       guildId: event.guildId,
       type: LogType.Events,

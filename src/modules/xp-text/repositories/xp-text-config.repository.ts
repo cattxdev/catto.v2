@@ -5,7 +5,7 @@
 
 import { container } from '@sapphire/framework';
 import type { GuildXPConfig } from '@prisma/client';
-import type { UpdateXPConfigDTO } from '../dtos';
+import type { UpdateXPConfigDTO } from '../dtos/index.js';
 
 /**
  * Get XP configuration for a guild

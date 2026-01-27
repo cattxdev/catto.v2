@@ -4,16 +4,16 @@
  */
 
 import type { VoiceState } from 'discord.js';
-import type { VoiceValidationContext, SessionAwardResult } from '../types/voice-xp.types';
-import { VoiceXPMode } from '../types/voice-xp.types';
-import * as sessionTracking from '../utils/session-tracking';
-import * as validation from '../utils/validation';
-import * as voiceSessionRepository from '../repositories/voice-session.repository';
-import * as voiceXPRepository from '../repositories/voice-xp.repository';
-import { calculateVoiceLevel } from './voice-level-calculator.service';
-import { getVoiceXPConfig } from './voice-xp-config.service';
+import type { VoiceValidationContext, SessionAwardResult } from '../types/voice-xp.types.js';
+import { VoiceXPMode } from '../types/voice-xp.types.js';
+import * as sessionTracking from '../utils/session-tracking.js';
+import * as validation from '../utils/validation.js';
+import * as voiceSessionRepository from '../repositories/voice-session.repository.js';
+import * as voiceXPRepository from '../repositories/voice-xp.repository.js';
+import { calculateVoiceLevel } from './voice-level-calculator.service.js';
+import { getVoiceXPConfig } from './voice-xp-config.service.js';
 import { container } from '@sapphire/framework';
-import { ReputationService } from '#modules/reputation/services/reputation.service';
+import { ReputationService } from '#modules/reputation/services/reputation.service.js';
 
 export async function handleVoiceJoin(voiceState: VoiceState): Promise<void> {
   const { guild, member, channelId } = voiceState;

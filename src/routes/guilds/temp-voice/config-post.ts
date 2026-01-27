@@ -1,18 +1,18 @@
 /**
- * POST /api/guilds/:guildId/temp-voice/config
+ * POST /api/guilds/[guildId]/temp-voice/config
  * Create new Temp Voice configuration for a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema';
-import { RouteRequestWithBody } from '#root/lib/route-types';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
+import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
+import { RouteRequestWithBody } from '#root/lib/route-types.js';
 
 export class TempVoiceConfigPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
       methods: ['POST'],
     });
   }
@@ -35,6 +35,21 @@ export class TempVoiceConfigPostRoute extends Route {
         });
       }
 
+      // Parse body if it's a string
+      let body: unknown = request.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch {
+          body = {};
+        }
+      }
+
+      // Default to empty object if body is undefined
+      if (!body) {
+        body = {};
+      }
+
       // Check if config already exists
       const existingConfig = await TempVoiceConfigService.getConfig(guildId);
       if (existingConfig) {
@@ -47,13 +62,13 @@ export class TempVoiceConfigPostRoute extends Route {
           data: {
             guildId,
             suggestion:
-              'Use PATCH /api/guilds/:guildId/temp-voice/config to update existing configuration',
+              'Use PATCH /api/guilds/[guildId]/temp-voice/config to update existing configuration',
           },
         });
       }
 
       // Validate request body
-      const validationResult = tempVoiceConfigSchema.safeParse(request.body);
+      const validationResult = tempVoiceConfigSchema.safeParse(body);
 
       if (!validationResult.success) {
         return response.status(400).json({

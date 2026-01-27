@@ -1,8 +1,9 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { StageInstance } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
-export class StageInstanceUpdateListener extends Listener<typeof Events.StageInstanceUpdate> {
+export class StageInstanceUpdateListener extends LogListener<typeof Events.StageInstanceUpdate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,
@@ -12,6 +13,15 @@ export class StageInstanceUpdateListener extends Listener<typeof Events.StageIns
 
   public async run(oldStageInstance: StageInstance | null, newStageInstance: StageInstance) {
     if (!oldStageInstance) return;
+
+    // Check if channel should be ignored
+    if (
+      await this.shouldIgnoreChannel(
+        newStageInstance.guild?.id || newStageInstance.guildId,
+        newStageInstance.channelId
+      )
+    )
+      return;
 
     const changes: Array<{ name: string; value: string }> = [];
 

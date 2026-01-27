@@ -36,19 +36,19 @@ function buildSetupRow1(modLogSet: boolean, textRoleSet: boolean, voiceRoleSet: 
       customId: 'mod_setup:mod_log',
       label: 'Set Mod Log',
       style: modLogSet ? ButtonStyle.Success : ButtonStyle.Primary,
-      emoji: EMOJI.ADD_WHITE,
+      emoji: EMOJI.UI.ACTIONS.ADD_WHITE,
     }),
     button({
       customId: 'mod_setup:text_role',
       label: 'Text mute Role',
       style: textRoleSet ? ButtonStyle.Success : ButtonStyle.Primary,
-      emoji: EMOJI.TEXT_LIMITER,
+      emoji: EMOJI.CHANNELS.STATE.TEXT_LIMITED_WHITE,
     }),
     button({
       customId: 'mod_setup:voice_role',
       label: 'Voice mute Role',
       style: voiceRoleSet ? ButtonStyle.Success : ButtonStyle.Secondary,
-      emoji: EMOJI.VOICE_LIMITER,
+      emoji: EMOJI.CHANNELS.STATE.VOICE_LIMITED_WHITE,
     })
   );
 }
@@ -62,19 +62,19 @@ function buildSetupRow2() {
       customId: 'mod_setup:warning_escalation',
       label: 'Warning Escalation',
       style: ButtonStyle.Secondary,
-      emoji: EMOJI.WARNING,
+      emoji: EMOJI.STATUS.WARNING,
     }),
     button({
       customId: 'mod_setup:create_roles',
       label: 'Auto-Create Roles',
       style: ButtonStyle.Secondary,
-      emoji: EMOJI.UTILITIES,
+      emoji: EMOJI.UI.ACTIONS.SETTINGS,
     }),
     button({
       customId: 'mod_setup:done',
       label: 'Done',
       style: ButtonStyle.Success,
-      emoji: EMOJI.SUCCESS,
+      emoji: EMOJI.STATUS.SUCCESS,
     })
   );
 }
@@ -144,7 +144,7 @@ function buildSetupContainer(
   ];
 
   return infoContainer()
-    .h2(`${EMOJI.MOD_SHIELD} Moderation Setup`)
+    .h2(`${EMOJI.MODERATION.ICONS.SHIELD_BLUE} Moderation Setup`)
     .separator()
     .h2('Current Settings')
     .kv(settings)
@@ -239,7 +239,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content: `${EMOJI.TEXT_CHANNEL} Select the channel for moderation logs:`,
+          content: `${EMOJI.CHANNELS.TYPES.TEXT} Select the channel for moderation logs:`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -261,7 +261,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `${EMOJI.SUCCESS} Mod log channel set to <#${channelId}>`,
+                content: `${EMOJI.STATUS.SUCCESS} Mod log channel set to <#${channelId}>`,
                 components: [],
               });
 
@@ -287,7 +287,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content: `${EMOJI.INFO} Select the role to use for text mutes:\n*This role should have Send Messages denied in all channels.*`,
+          content: `${EMOJI.STATUS.INFO} Select the role to use for text mutes:\n*This role should have Send Messages denied in all channels.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -309,7 +309,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `${EMOJI.SUCCESS} Muted text role set to <@&${roleId}>`,
+                content: `${EMOJI.STATUS.SUCCESS} Muted text role set to <@&${roleId}>`,
                 components: [],
               });
 
@@ -334,7 +334,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content: `${EMOJI.VOICE_MUTED} Select the role to use for voice mutes (optional):\n*If not set, server mute will be used instead.*`,
+          content: `${EMOJI.VOICE.STATE.MUTED} Select the role to use for voice mutes (optional):\n*If not set, server mute will be used instead.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -356,7 +356,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `${EMOJI.SUCCESS} Muted voice role set to <@&${roleId}>`,
+                content: `${EMOJI.STATUS.SUCCESS} Muted voice role set to <@&${roleId}>`,
                 components: [],
               });
 
@@ -393,7 +393,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         });
 
         await buttonInteraction.reply({
-          content: `${EMOJI.WARNING} Configure warning escalation:\n*When enabled, moderators will see escalation recommendations based on warning count.*`,
+          content: `${EMOJI.STATUS.WARNING} Configure warning escalation:\n*When enabled, moderators will see escalation recommendations based on warning count.*`,
           components: [selectRow],
           flags: MessageFlags.Ephemeral,
         });
@@ -442,7 +442,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `${EMOJI.SUCCESS} Warning escalation enabled with default rules.`,
+                content: `${EMOJI.STATUS.SUCCESS} Warning escalation enabled with default rules.`,
                 components: [],
               });
             } else if (value === 'disable') {
@@ -454,7 +454,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               });
 
               await selectInteraction.update({
-                content: `${EMOJI.SUCCESS} Warning escalation disabled.`,
+                content: `${EMOJI.STATUS.SUCCESS} Warning escalation disabled.`,
                 components: [],
               });
             }
@@ -660,11 +660,11 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
           if (createdRoles.length > 0) {
             await buttonInteraction.editReply({
-              content: `${EMOJI.SUCCESS} Roles created:\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically (via category inheritance where possible).*`,
+              content: `${EMOJI.STATUS.SUCCESS} Roles created:\n${createdRoles.join('\n')}\n\n*Channel permissions have been configured automatically (via category inheritance where possible).*`,
             });
           } else {
             await buttonInteraction.editReply({
-              content: `${EMOJI.SUCCESS} Muted roles are already configured. To change them, use the Text/Voice mute role buttons above.`,
+              content: `${EMOJI.STATUS.SUCCESS} Muted roles are already configured. To change them, use the Text/Voice mute role buttons above.`,
             });
           }
 
@@ -677,7 +677,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         } catch (error) {
           container.logger.error('[Setup] Failed to create roles:', error);
           await buttonInteraction.editReply({
-            content: `${EMOJI.ERROR} Failed to create roles. Make sure I have the Manage Roles permission.`,
+            content: `${EMOJI.STATUS.ERROR} Failed to create roles. Make sure I have the Manage Roles permission.`,
           });
         }
         return;
@@ -833,14 +833,14 @@ export async function handleConfigView(interaction: Subcommand.ChatInputCommandI
         .h2('No Config Found')
         .text('No moderation config found.')
         .separator()
-        .text(`${EMOJI.INFO} **Suggestion:** Run \`/mod setup\` to configure.`)
+        .text(`${EMOJI.STATUS.INFO} **Suggestion:** Run \`/mod setup\` to configure.`)
     );
   }
 
   await reply(
     interaction,
     infoContainer()
-      .h2(`${EMOJI.MOD_SHIELD} Moderation Config`)
+      .h2(`${EMOJI.MODERATION.ICONS.SHIELD_BLUE} Moderation Config`)
       .separator()
       .kv({
         'Mod Log': config.modLogChannelId ? `<#${config.modLogChannelId}>` : '`Not set`',

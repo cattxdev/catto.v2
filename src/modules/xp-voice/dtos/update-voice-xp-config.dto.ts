@@ -2,7 +2,7 @@
  * DTO for updating Voice XP configuration
  */
 
-import { VoiceXPMode, VoiceLevelCurveType } from '../types/voice-xp.types';
+import { VoiceXPMode, VoiceLevelCurveType } from '../types/voice-xp.types.js';
 
 export interface UpdateVoiceXPConfigDTO {
   enabled?: boolean;

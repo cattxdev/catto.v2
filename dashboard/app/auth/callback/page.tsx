@@ -4,9 +4,9 @@ import { redirect } from 'next/navigation';
 export default async function AuthCallbackPage({
   searchParams,
 }: {
-  searchParams: { token?: string; expires?: string };
+  searchParams: Promise<{ token?: string; expires?: string }>;
 }) {
-  const { token, expires } = searchParams;
+  const { token, expires } = await searchParams;
 
   if (!token) {
     redirect('/');

@@ -4,7 +4,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import type { Client } from 'discord.js';
-import { CleanupService } from './cleanup.service';
+import { CleanupService } from './cleanup.service.js';
 
 export class RecoveryService {
   constructor(

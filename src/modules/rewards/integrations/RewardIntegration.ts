@@ -5,8 +5,8 @@
 
 import { container } from '@sapphire/framework';
 import type { Guild, GuildMember } from 'discord.js';
-import { RewardService } from '../services/RewardService';
-import type { RewardClaimResult } from '../../../lib/types/rewards.types';
+import { RewardService } from '../services/RewardService.js';
+import type { RewardClaimResult } from '../../../lib/types/rewards.types.js';
 
 export class RewardIntegration {
   private static rewardService: RewardService;

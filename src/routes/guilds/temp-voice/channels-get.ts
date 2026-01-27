@@ -1,11 +1,11 @@
 /**
- * GET /api/guilds/:guildId/temp-voice/channels
+ * GET /api/guilds/[guildId]/temp-voice/channels
  * List all active temporary voice channels in a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service';
+import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
+import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
 import { ChannelType } from 'discord.js';
 
 interface TempChannelInfo {
@@ -20,7 +20,8 @@ export class TempVoiceChannelsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/channels',
+      route: 'guilds/[guildId]/temp-voice/channels',
+      methods: ['GET'],
     });
   }
 

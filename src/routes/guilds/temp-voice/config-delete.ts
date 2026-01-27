@@ -1,16 +1,16 @@
 /**
- * DELETE /api/guilds/:guildId/temp-voice/config
+ * DELETE /api/guilds/[guildId]/temp-voice/config
  * Delete Temp Voice configuration for a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 
 export class TempVoiceConfigDeleteRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
       methods: ['DELETE'],
     });
   }

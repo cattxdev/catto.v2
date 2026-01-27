@@ -1,4 +1,4 @@
-import { resetGuildXP } from '#root/modules/xp-text';
+import { resetGuildXP } from '#root/modules/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
 import { Buffer } from 'node:buffer';
 

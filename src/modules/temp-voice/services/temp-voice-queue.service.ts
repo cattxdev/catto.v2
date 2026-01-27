@@ -5,13 +5,13 @@
 
 import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
-import { CONFIG } from '../../../config';
+import { CONFIG } from '../../../config.js';
 import { Colors, WebhookClient, EmbedBuilder } from 'discord.js';
-import { TempVoiceConfigService } from './config.service';
-import { TempChannelService } from './temp-channel.service';
-import { ControlPanelService } from './control-panel.service';
-import { PermissionsService } from './permissions.service';
-import { UserPreferencesService } from './user-preferences.service';
+import { TempVoiceConfigService } from './config.service.js';
+import { TempChannelService } from './temp-channel.service.js';
+import { ControlPanelService } from './control-panel.service.js';
+import { PermissionsService } from './permissions.service.js';
+import { UserPreferencesService } from './user-preferences.service.js';
 
 interface CreateChannelJobData {
   type: 'create';
@@ -134,7 +134,7 @@ class TempVoiceQueueService {
       }
 
       // Get config
-      const configService = new TempVoiceConfigService(container.prisma);
+      const configService = new TempVoiceConfigService(container.prisma, container.client);
       const config = await configService.getOrNull(guildId);
       if (!config || !config.enabled) {
         container.logger.warn(
@@ -220,7 +220,7 @@ class TempVoiceQueueService {
       }
 
       // Get config for logging
-      const configService = new TempVoiceConfigService(container.prisma);
+      const configService = new TempVoiceConfigService(container.prisma, container.client);
       const config = await configService.getOrNull(guildId);
 
       // Get channel data before deletion to save preferences

@@ -5,7 +5,7 @@
  * additional utility functions.
  */
 
-import { ValidationError } from './validation/zod';
+import { ValidationError } from './validation/zod.js';
 
 // Re-export embed builders from shared Discord library
 export { buildSuccessEmbed, buildErrorEmbed, buildInfoEmbed } from '#lib/discord/index.js';

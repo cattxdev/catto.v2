@@ -1,16 +1,17 @@
 /**
- * GET /api/guilds/:guildId/temp-voice/config
+ * GET /api/guilds/[guildId]/temp-voice/config
  * Retrieve Temp Voice configuration for a guild
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service';
+import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 
 export class TempVoiceConfigGetRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
       ...options,
-      route: 'guilds/:guildId/temp-voice/config',
+      route: 'guilds/[guildId]/temp-voice/config',
+      methods: ['GET'],
     });
   }
 
@@ -44,7 +45,7 @@ export class TempVoiceConfigGetRoute extends Route {
           },
           data: {
             guildId,
-            suggestion: 'Create a configuration using POST /api/guilds/:guildId/temp-voice/config',
+            suggestion: 'Create a configuration using POST /api/guilds/[guildId]/temp-voice/config',
           },
         });
       }

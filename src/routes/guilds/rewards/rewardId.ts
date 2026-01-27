@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { RewardService } from '#root/modules/rewards';
+import { RewardService } from '#root/modules/rewards/index.js';
 import { Buffer } from 'node:buffer';
 
 export class RewardRoute extends Route {
@@ -20,6 +20,14 @@ export class RewardRoute extends Route {
     if (!guildId || !rewardId) {
       return response.status(400).json({
         error: 'Guild ID and Reward ID are required',
+      });
+    }
+
+    // Skip reserved route segments to avoid conflicts with specific routes
+    const reservedPaths = ['users', 'stats', 'templates'];
+    if (reservedPaths.includes(rewardId.toLowerCase())) {
+      return response.status(404).json({
+        error: 'Not found',
       });
     }
 

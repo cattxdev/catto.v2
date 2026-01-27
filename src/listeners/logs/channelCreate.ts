@@ -1,9 +1,10 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging';
+import { LogType, logAction } from '../../lib/logging.js';
+import { LogListener } from './LogListener.js';
 
-export class ChannelCreateListener extends Listener<typeof Events.ChannelCreate> {
+export class ChannelCreateListener extends LogListener<typeof Events.ChannelCreate> {
   public constructor(context: Listener.LoaderContext, options: ListenerOptions) {
     super(context, {
       ...options,

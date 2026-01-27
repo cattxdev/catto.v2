@@ -55,6 +55,7 @@ export class LoggingConfigRoute extends Route {
         enabled: config.enabled,
         setup: true,
         categoryId: config.categoryId,
+        ignoredChannels: config.ignoredChannels,
         channels: {
           messages: !!config.messagesWebhook,
           voice: !!config.voiceWebhook,
@@ -109,6 +110,7 @@ export class LoggingConfigRoute extends Route {
         where: { guildId },
         data: {
           ...(body.enabled !== undefined && { enabled: body.enabled }),
+          ...(body.ignoredChannels !== undefined && { ignoredChannels: body.ignoredChannels }),
           updatedAt: new Date(),
         },
       });
@@ -116,6 +118,7 @@ export class LoggingConfigRoute extends Route {
       return response.json({
         success: true,
         enabled: config.enabled,
+        ignoredChannels: config.ignoredChannels,
       });
     } catch (error) {
       this.container.logger.error('Error updating logging config:', error);
@@ -125,7 +128,9 @@ export class LoggingConfigRoute extends Route {
     }
   }
 
-  private async parseBody(request: Route.Request): Promise<{ enabled?: boolean } | undefined> {
+  private async parseBody(
+    request: Route.Request
+  ): Promise<{ enabled?: boolean; ignoredChannels?: string[] } | undefined> {
     return new Promise((resolve, reject) => {
       let body = '';
       request.on('data', (chunk: Buffer) => {

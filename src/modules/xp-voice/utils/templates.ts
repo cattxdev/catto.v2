@@ -2,7 +2,7 @@
  * Voice XP Template Parsing
  */
 
-import type { VoiceTemplateVariables } from '../types/voice-xp.types';
+import type { VoiceTemplateVariables } from '../types/voice-xp.types.js';
 
 /**
  * Parse template with voice-specific variables

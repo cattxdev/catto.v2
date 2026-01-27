@@ -5,7 +5,7 @@
  */
 
 import { type InteractionReplyOptions, type MessageEditOptions, MessageFlags } from 'discord.js';
-import { EMOJI } from './design.js';
+import { EMOJI } from './design/index.js';
 
 export interface ErrorData {
   type?: string;
@@ -21,19 +21,19 @@ export interface SuccessData {
 }
 
 export function buildSuccessText(message: string): string {
-  return `${EMOJI.SUCCESS} ${message}`;
+  return `${EMOJI.STATUS.SUCCESS} ${message}`;
 }
 
 export function buildErrorText(message: string): string {
-  return `${EMOJI.ERROR} ${message}`;
+  return `${EMOJI.STATUS.ERROR} ${message}`;
 }
 
 export function buildWarningText(message: string): string {
-  return `${EMOJI.WARNING} ${message}`;
+  return `${EMOJI.STATUS.WARNING} ${message}`;
 }
 
 export function buildInfoText(message: string): string {
-  return `${EMOJI.INFO} ${message}`;
+  return `${EMOJI.STATUS.INFO} ${message}`;
 }
 
 export function ephemeralError(message: string): InteractionReplyOptions {

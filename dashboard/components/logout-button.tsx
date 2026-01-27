@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-import { useState } from "react"
+import { useState } from 'react';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
@@ -9,7 +9,7 @@ export function LogoutButton() {
 
   const handleLogout = async () => {
     setIsLoading(true);
-    
+
     try {
       // Call Sapphire's OAuth logout endpoint
       await fetch(`${BOT_API_URL}/api/oauth/logout`, {
@@ -34,5 +34,5 @@ export function LogoutButton() {
     >
       {isLoading ? 'Signing out...' : 'Sign out'}
     </button>
-  )
+  );
 }

@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { container, successMessage, defer, reply, editReply, COLORS } from '#lib/discord';
+ * import { container, successMessage, defer, reply, editReply, COLORS } from '#lib/discord/index.js';
  *
  * // Build a container message
  * const msg = successMessage('Done!', 'Operation completed.');
@@ -21,17 +21,7 @@
 
 // Design Tokens
 
-export {
-  COLORS,
-  EMOJI,
-  EMOJI_CONFIG,
-  SPACING,
-  ERROR_ICONS,
-  getEmoji,
-  setUseCustomEmojis,
-  type EmojiKey,
-  type ErrorType,
-} from './design.js';
+export { COLORS, EMOJI, SPACING, ERROR_ICONS } from './design/index.js';
 
 // Core Utilities
 

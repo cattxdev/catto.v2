@@ -54,31 +54,51 @@ const NOTIFICATION_FLAGS = MessageFlags.IsComponentsV2;
 
 const MOD_ACTION_NOTIFICATIONS: Record<ModAction, { verb: string; emoji: string; color: number }> =
   {
-    [ModAction.WARN]: { verb: 'warned', emoji: EMOJI.WARNING, color: COLORS.WARN },
-    [ModAction.KICK]: { verb: 'kicked', emoji: EMOJI.SERVER_LEAVE, color: COLORS.KICK },
-    [ModAction.BAN]: { verb: 'banned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
-    [ModAction.SOFTBAN]: { verb: 'softbanned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
-    [ModAction.TEMPBAN]: { verb: 'temporarily banned', emoji: EMOJI.RED_SHIELD, color: COLORS.BAN },
-    [ModAction.TIMEOUT]: { verb: 'timed out', emoji: EMOJI.TIME_OUT, color: COLORS.TIMEOUT },
-    [ModAction.MUTE_TEXT]: { verb: 'muted (text)', emoji: EMOJI.TEXT_LIMITER, color: COLORS.MUTE },
-    [ModAction.MUTE_VOICE]: {
-      verb: 'muted (voice)',
-      emoji: EMOJI.VOICE_SERVER_MUTED,
+    [ModAction.WARN]: { verb: 'warned', emoji: EMOJI.STATUS.WARNING, color: COLORS.WARN },
+    [ModAction.KICK]: { verb: 'kicked', emoji: EMOJI.UI.NAV.LEAVE_SERVER, color: COLORS.KICK },
+    [ModAction.BAN]: {
+      verb: 'banned',
+      emoji: EMOJI.MODERATION.ICONS.SHIELD_RED,
+      color: COLORS.BAN,
+    },
+    [ModAction.SOFTBAN]: {
+      verb: 'softbanned',
+      emoji: EMOJI.MODERATION.ICONS.SHIELD_RED,
+      color: COLORS.BAN,
+    },
+    [ModAction.TEMPBAN]: {
+      verb: 'temporarily banned',
+      emoji: EMOJI.MODERATION.ICONS.SHIELD_RED,
+      color: COLORS.BAN,
+    },
+    [ModAction.TIMEOUT]: { verb: 'timed out', emoji: EMOJI.TIME.TIMEOUT, color: COLORS.TIMEOUT },
+    [ModAction.MUTE_TEXT]: {
+      verb: 'muted (text)',
+      emoji: EMOJI.CHANNELS.STATE.TEXT_LIMITED_WHITE,
       color: COLORS.MUTE,
     },
-    [ModAction.MUTE_BOTH]: { verb: 'muted', emoji: EMOJI.VOICE_SERVER_MUTED, color: COLORS.MUTE },
+    [ModAction.MUTE_VOICE]: {
+      verb: 'muted (voice)',
+      emoji: EMOJI.VOICE.STATE.SERVER_MUTED,
+      color: COLORS.MUTE,
+    },
+    [ModAction.MUTE_BOTH]: {
+      verb: 'muted',
+      emoji: EMOJI.CHANNELS.STATE.LOCKED,
+      color: COLORS.MUTE,
+    },
     [ModAction.UNMUTE_TEXT]: {
       verb: 'unmuted (text)',
-      emoji: EMOJI.TEXT_CHANNEL_WITH_CHECK,
+      emoji: EMOJI.CHANNELS.STATE.TEXT_CHECKED_WHITE,
       color: COLORS.UNMUTE,
     },
     [ModAction.UNMUTE_VOICE]: {
       verb: 'unmuted (voice)',
-      emoji: EMOJI.MIC_WITH_CHECK,
+      emoji: EMOJI.CHANNELS.STATE.VOICE_CHECKED_WHITE,
       color: COLORS.UNMUTE,
     },
-    [ModAction.UNMUTE_BOTH]: { verb: 'unmuted', emoji: EMOJI.SUCCESS, color: COLORS.UNMUTE },
-    [ModAction.UNBAN]: { verb: 'unbanned', emoji: EMOJI.SUCCESS, color: COLORS.SUCCESS },
+    [ModAction.UNMUTE_BOTH]: { verb: 'unmuted', emoji: EMOJI.STATUS.SUCCESS, color: COLORS.UNMUTE },
+    [ModAction.UNBAN]: { verb: 'unbanned', emoji: EMOJI.STATUS.SUCCESS, color: COLORS.SUCCESS },
   };
 
 /**
@@ -117,7 +137,11 @@ export function createUserNotificationEmbed(
 ): FluentContainer {
   const notification =
     MOD_ACTION_NOTIFICATIONS[action] ??
-    ({ verb: action.toLowerCase(), emoji: EMOJI.MODERATION, color: COLORS.INFO } as const);
+    ({
+      verb: action.toLowerCase(),
+      emoji: EMOJI.MODERATION.ICONS.CENSOR_ASTERISK,
+      color: COLORS.INFO,
+    } as const);
 
   const resolvedReason = reason || 'No reason provided';
   const details = [
@@ -272,22 +296,24 @@ export function createCaseEmbed(modCase: {
   const reason = modCase.reason ?? 'No reason provided';
   return container({ color: display.color })
     .h2(`${display.emoji} Case #${modCase.caseNumber}`)
-    .text(`${EMOJI.MODERATION} ${display.label ?? modCase.action}`)
-    .text(`${EMOJI.MEMBER} ${modCase.targetTag}\n(\`${modCase.targetId}\`)`)
-    .text(`${EMOJI.MOD_SHIELD} ${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`)
-    .text(`${EMOJI.REPORT_FLAG} ${reason}`)
-    .text(`${EMOJI.TIME_DAY} ${formatRelativeTimestamp(modCase.createdAt)}`)
+    .text(`${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} ${display.label ?? modCase.action}`)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${modCase.targetTag}\n(\`${modCase.targetId}\`)`)
+    .text(
+      `${EMOJI.MODERATION.ICONS.SHIELD_BLUE} ${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`
+    )
+    .text(`${EMOJI.MODERATION.ACTIONS.REPORT} ${reason}`)
+    .text(`${EMOJI.TIME.CLOCK} ${formatRelativeTimestamp(modCase.createdAt)}`)
     .when(!!modCase.duration, (c) =>
       c.text(
-        `${EMOJI.SLOWMODE} **Duration** ${formatDuration(ensureNonNull(modCase.duration, 'presets > createCaseEmbed(270): modCase.duration'))}`
+        `${EMOJI.MODERATION.ACTIONS.SLOWMODE} **Duration** ${formatDuration(ensureNonNull(modCase.duration, 'presets > createCaseEmbed(270): modCase.duration'))}`
       )
     )
     .when(!!modCase.expiresAt, (c) =>
       c.text(
-        `${EMOJI.TIME_DAY_EXPIRED} **Expires** ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
+        `${EMOJI.TIME.EXPIRED} **Expires** ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
       )
     )
-    .text(`${EMOJI.SERVER_FOLDER} **Guild** ${modCase.guildId}`)
+    .text(`${EMOJI.CHANNELS.TYPES.FOLDER} **Guild** ${modCase.guildId}`)
     .footerWithTimestamp(`Case #${modCase.caseNumber}`, modCase.createdAt);
 }
 
@@ -337,10 +363,10 @@ export function createHistoryEmbed(
     })
     .join('\n');
 
-  const header = `${EMOJI.MEMBER} ${target.tag} (\`${target.id}\`)`;
+  const header = `${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`;
   const c = container({ color: COLORS.WARN })
     .beginSection()
-    .h2(`${EMOJI.MODERATION} Moderation history`)
+    .h2(`${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} Moderation history`)
     .text(header)
     .text(formatStatsLine(stats, 'columns'))
     .withThumbnail(target.displayAvatarURL())
@@ -393,7 +419,9 @@ export interface VoiceMuteAllLogEntry {
  * This is a special entry that doesn't create a DB case.
  */
 export function buildVoiceMuteAllLogEntry(entry: VoiceMuteAllLogEntry): FluentContainer {
-  const emoji = entry.enabled ? EMOJI.VOICE_SERVER_MUTED : EMOJI.MIC_WITH_CHECK;
+  const emoji = entry.enabled
+    ? EMOJI.VOICE.STATE.SERVER_MUTED
+    : EMOJI.CHANNELS.STATE.VOICE_CHECKED_WHITE;
   const color = entry.enabled ? COLORS.MUTE : COLORS.UNMUTE;
   const action = entry.enabled ? 'Mute All Enabled' : 'Mute All Disabled';
 
