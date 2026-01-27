@@ -10,9 +10,14 @@ import type {
   TempVoiceConfigUpdate,
 } from '../models/config.model.js';
 import { DEFAULT_TEMP_VOICE_CONFIG, type OwnerLeaveStrategy } from '../constants.js';
+import type { Client } from 'discord.js';
+import { ChannelType } from 'discord.js';
 
 export class TempVoiceConfigService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    private prisma: PrismaClient,
+    private client?: Client
+  ) {}
 
   /**
    * Get configuration for a guild
@@ -105,8 +110,102 @@ export class TempVoiceConfigService {
 
   /**
    * Delete configuration for a guild
+   * Also cleans up Discord channels and categories
    */
   async delete(guildId: string): Promise<void> {
+    // Fetch the config first
+    const config = await this.prisma.tempVoiceConfig.findUnique({
+      where: { guildId },
+    });
+
+    if (!config) {
+      return; // Already deleted or doesn't exist
+    }
+
+    // If client is available, clean up Discord resources
+    if (this.client) {
+      try {
+        const guild = await this.client.guilds.fetch(guildId).catch(() => null);
+
+        if (guild) {
+          // 1. Delete all active temp voice channels
+          const tempChannels = await this.prisma.tempVoiceChannel.findMany({
+            where: { guildId },
+          });
+
+          for (const tempChannel of tempChannels) {
+            try {
+              const channel = await guild.channels.fetch(tempChannel.channelId).catch(() => null);
+              if (channel) {
+                await channel.delete('Temp voice configuration deleted');
+              }
+              // Delete from database
+              await this.prisma.tempVoiceChannel
+                .delete({
+                  where: { channelId: tempChannel.channelId },
+                })
+                .catch(() => {});
+            } catch (error) {
+              // Continue even if individual channel deletion fails
+              console.error(`Failed to delete temp channel ${tempChannel.channelId}:`, error);
+            }
+          }
+
+          // 2. Delete join-to-create channels
+          const joinChannels = Array.isArray(config.joinToCreateChannels)
+            ? (config.joinToCreateChannels as string[])
+            : [];
+
+          for (const channelId of joinChannels) {
+            try {
+              const channel = await guild.channels.fetch(channelId).catch(() => null);
+              if (channel) {
+                await channel.delete('Temp voice configuration deleted');
+              }
+            } catch (error) {
+              // Continue even if join channel deletion fails
+              console.error(`Failed to delete join channel ${channelId}:`, error);
+            }
+          }
+
+          // 3. Delete the category if it exists and is empty (or delete it anyway)
+          if (config.categoryId) {
+            try {
+              const category = await guild.channels.fetch(config.categoryId).catch(() => null);
+              if (category && category.type === ChannelType.GuildCategory) {
+                // Delete the category (Discord will only allow if it's empty)
+                await category.delete('Temp voice configuration deleted');
+              }
+            } catch (error) {
+              // Category might not be empty or might not exist
+              console.error(`Failed to delete category ${config.categoryId}:`, error);
+            }
+          }
+
+          // 4. Delete fallback category if it exists
+          if (config.fallbackCategoryId && config.fallbackCategoryId !== config.categoryId) {
+            try {
+              const category = await guild.channels
+                .fetch(config.fallbackCategoryId)
+                .catch(() => null);
+              if (category && category.type === ChannelType.GuildCategory) {
+                await category.delete('Temp voice configuration deleted');
+              }
+            } catch (error) {
+              console.error(
+                `Failed to delete fallback category ${config.fallbackCategoryId}:`,
+                error
+              );
+            }
+          }
+        }
+      } catch (error) {
+        // Log error but continue with database deletion
+        console.error(`Failed to clean up Discord resources for guild ${guildId}:`, error);
+      }
+    }
+
+    // Finally, delete the database record
     await this.prisma.tempVoiceConfig.delete({
       where: { guildId },
     });

@@ -134,7 +134,7 @@ class TempVoiceQueueService {
       }
 
       // Get config
-      const configService = new TempVoiceConfigService(container.prisma);
+      const configService = new TempVoiceConfigService(container.prisma, container.client);
       const config = await configService.getOrNull(guildId);
       if (!config || !config.enabled) {
         container.logger.warn(
@@ -220,7 +220,7 @@ class TempVoiceQueueService {
       }
 
       // Get config for logging
-      const configService = new TempVoiceConfigService(container.prisma);
+      const configService = new TempVoiceConfigService(container.prisma, container.client);
       const config = await configService.getOrNull(guildId);
 
       // Get channel data before deletion to save preferences
