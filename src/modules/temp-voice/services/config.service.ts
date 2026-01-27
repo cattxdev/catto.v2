@@ -133,34 +133,38 @@ export class TempVoiceConfigService {
             where: { guildId },
           });
 
-          for (const tempChannel of tempChannels) {
-            try {
-              const channel = await guild.channels.fetch(tempChannel.channelId).catch(() => null);
-              if (channel) {
-                await channel.delete('Temp voice configuration deleted');
+          await Promise.all(
+            tempChannels.map(async (tempChannel) => {
+              try {
+                const channel = await guild.channels.fetch(tempChannel.channelId).catch(() => null);
+                if (channel) {
+                  await channel.delete('Temp voice configuration deleted');
+                }
+              } catch (error) {
+                // Continue even if individual channel deletion fails
+                console.error(`Failed to delete temp channel ${tempChannel.channelId}:`, error);
               }
-            } catch (error) {
-              // Continue even if individual channel deletion fails
-              console.error(`Failed to delete temp channel ${tempChannel.channelId}:`, error);
-            }
-          }
+            })
+          );
 
           // 2. Delete join-to-create channels
           const joinChannels = Array.isArray(config.joinToCreateChannels)
             ? (config.joinToCreateChannels as string[])
             : [];
 
-          for (const channelId of joinChannels) {
-            try {
-              const channel = await guild.channels.fetch(channelId).catch(() => null);
-              if (channel) {
-                await channel.delete('Temp voice configuration deleted');
+          await Promise.all(
+            joinChannels.map(async (channelId) => {
+              try {
+                const channel = await guild.channels.fetch(channelId).catch(() => null);
+                if (channel) {
+                  await channel.delete('Temp voice configuration deleted');
+                }
+              } catch (error) {
+                // Continue even if join channel deletion fails
+                console.error(`Failed to delete join channel ${channelId}:`, error);
               }
-            } catch (error) {
-              // Continue even if join channel deletion fails
-              console.error(`Failed to delete join channel ${channelId}:`, error);
-            }
-          }
+            })
+          );
 
           // 3. Delete the category if it exists and is empty (or delete it anyway)
           if (config.categoryId) {
