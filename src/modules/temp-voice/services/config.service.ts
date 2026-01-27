@@ -171,11 +171,15 @@ export class TempVoiceConfigService {
             try {
               const category = await guild.channels.fetch(config.categoryId).catch(() => null);
               if (category && category.type === ChannelType.GuildCategory) {
-                // Delete the category (Discord will only allow if it's empty)
-                await category.delete('Temp voice configuration deleted');
+                if (category.children.cache.size === 0) {
+                  await category.delete('Temp voice configuration deleted');
+                } else {
+                  console.log(
+                    `Skipping deletion of category ${config.categoryId} - contains ${category.children.cache.size} channel(s)`
+                  );
+                }
               }
             } catch (error) {
-              // Category might not be empty or might not exist
               console.error(`Failed to delete category ${config.categoryId}:`, error);
             }
           }
@@ -187,7 +191,13 @@ export class TempVoiceConfigService {
                 .fetch(config.fallbackCategoryId)
                 .catch(() => null);
               if (category && category.type === ChannelType.GuildCategory) {
-                await category.delete('Temp voice configuration deleted');
+                if (category.children.cache.size === 0) {
+                  await category.delete('Temp voice configuration deleted');
+                } else {
+                  console.log(
+                    `Skipping deletion of fallback category ${config.fallbackCategoryId} - contains ${category.children.cache.size} channel(s)`
+                  );
+                }
               }
             } catch (error) {
               console.error(
