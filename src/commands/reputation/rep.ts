@@ -1,8 +1,4 @@
-/**
- * Vouch command - Allow users to vouch for each other
- */
-
-import { Command } from '@sapphire/framework';
+import { Command } from '#command.js';
 import { EmbedBuilder, Colors } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
 import { ReputationService } from '#modules/reputation/services/reputation.service.js';

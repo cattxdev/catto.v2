@@ -65,7 +65,10 @@
       ],
       "#command/*": [
         "./src/lib/sapphire/command/*"
-      ]
+      ],
+      "#command.js": [
+        "./src/lib/sapphire/command/*"
+      ],
     }
   },
   "include": [
