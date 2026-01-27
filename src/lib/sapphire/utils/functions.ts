@@ -161,7 +161,8 @@ export const analizeSubCommandParsed = (
 
     if (commandsCompare) {
       // Reload parent command asynchronously to pick up new options
-      parentCommand.reload().catch((error) => {
+      // Note: Intentionally not awaited - must remain synchronous for decorator compatibility
+      void parentCommand.reload().catch((error) => {
         container.logger.error(
           `[Subcommands-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName}:`,
           error
