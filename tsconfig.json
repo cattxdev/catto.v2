@@ -60,14 +60,12 @@
       "#config": [
         "./src/config.ts"
       ],
-      "#config.js": [
-        "./src/config.ts"
-      ],
-      "#command/*": [
-        "./src/lib/sapphire/command/*"
-      ],
       "#command.js": [
-        "./src/lib/sapphire/command/*"
+        "./src/lib/sapphire/command/command.ts"
+      ],
+      "#subcommand.js": [
+        "./src/lib/sapphire/command/command.ts"
+      ]
       ],
     }
   },
