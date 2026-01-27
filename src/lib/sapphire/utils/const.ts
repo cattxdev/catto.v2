@@ -83,9 +83,7 @@ export const RegisterSubcommandsHooks = {
                 container.logger.debug(
                   `[Subcommands-Hook]: Executing chatInputRun for "${commandPiece.name}"`
                 );
-                return commandPiece.chatInputRun
-                  ? await commandPiece.chatInputRun(i, c)
-                  : undefined;
+                return await commandPiece.chatInputRun(i, c);
               } catch (error) {
                 container.logger.error(
                   `[Subcommands-Hook]: Error executing chatInputRun for "${commandPiece.name}":`,
@@ -131,7 +129,7 @@ export const RegisterSubcommandsHooks = {
                 );
               }
 
-              return commandPiece.messageRun ? commandPiece.messageRun(m, a, c) : undefined;
+              return commandPiece.messageRun(m, a, c);
             }
           : undefined,
       };
@@ -185,7 +183,7 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
-                return commandPiece.chatInputRun ? commandPiece.chatInputRun(i, c) : undefined;
+                return await commandPiece.chatInputRun(i, c);
               }
             : undefined,
 
@@ -216,7 +214,7 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
-                return commandPiece.messageRun ? commandPiece.messageRun(m, a, c) : undefined;
+                return commandPiece.messageRun(m, a, c);
               }
             : undefined,
         };
