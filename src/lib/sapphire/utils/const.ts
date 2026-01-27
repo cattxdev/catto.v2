@@ -129,7 +129,7 @@ export const RegisterSubcommandsHooks = {
                 );
               }
 
-              return commandPiece.messageRun(m, a, c);
+              return await commandPiece.messageRun(m, a, c);
             }
           : undefined,
       };
@@ -214,7 +214,7 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
-                return commandPiece.messageRun(m, a, c);
+                return await commandPiece.messageRun(m, a, c);
               }
             : undefined,
         };
