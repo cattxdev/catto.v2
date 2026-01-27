@@ -1,4 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
+import { Buffer } from 'node:buffer';
 
 export class ModerationConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -129,7 +130,7 @@ export class ModerationConfigRoute extends Route {
   private async parseBody(request: Route.Request): Promise<unknown> {
     return new Promise((resolve, reject) => {
       let body = '';
-      request.on('data', (chunk: unknown) => {
+      request.on('data', (chunk: Buffer) => {
         body += String(chunk);
       });
       request.on('end', () => {

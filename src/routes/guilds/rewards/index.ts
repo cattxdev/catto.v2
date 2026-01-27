@@ -3,6 +3,7 @@ import { type RewardData } from '#lib/types/rewards.types.js';
 import { Route } from '@sapphire/plugin-api';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { CreateRewardDto } from '#root/dtos/rewards/create-reward.dto.js';
+import { Buffer } from 'node:buffer';
 
 export class RewardsRoute extends Route {
   private rewardService: RewardService;
@@ -46,7 +47,7 @@ export class RewardsRoute extends Route {
   private async parseBody(request: Route.Request): Promise<unknown> {
     return new Promise((resolve, reject) => {
       let body = '';
-      request.on('data', (chunk: unknown) => {
+      request.on('data', (chunk: Buffer) => {
         body += String(chunk);
       });
       request.on('end', () => {
