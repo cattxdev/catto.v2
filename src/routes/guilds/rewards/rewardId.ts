@@ -23,6 +23,14 @@ export class RewardRoute extends Route {
       });
     }
 
+    // Skip reserved route segments to avoid conflicts with specific routes
+    const reservedPaths = ['users', 'stats', 'templates'];
+    if (reservedPaths.includes(rewardId.toLowerCase())) {
+      return response.status(404).json({
+        error: 'Not found',
+      });
+    }
+
     // Verify guild exists
     const guild = this.container.client.guilds.cache.get(guildId);
     if (!guild) {
