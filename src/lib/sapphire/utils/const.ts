@@ -83,6 +83,7 @@ export const RegisterSubcommandsHooks = {
                 container.logger.debug(
                   `[Subcommands-Hook]: Executing chatInputRun for "${commandPiece.name}"`
                 );
+                if (!commandPiece.chatInputRun) throw new Error('chatInputRun is undefined');
                 return await commandPiece.chatInputRun(i, c);
               } catch (error) {
                 container.logger.error(
@@ -129,6 +130,7 @@ export const RegisterSubcommandsHooks = {
                 );
               }
 
+              if (!commandPiece.messageRun) throw new Error('messageRun is undefined');
               return commandPiece.messageRun(m, a, c);
             }
           : undefined,
@@ -183,6 +185,7 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
+                if (!commandPiece.chatInputRun) throw new Error('chatInputRun is undefined');
                 return await commandPiece.chatInputRun(i, c);
               }
             : undefined,
@@ -214,6 +217,7 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
+                if (!commandPiece.messageRun) throw new Error('messageRun is undefined');
                 return commandPiece.messageRun(m, a, c);
               }
             : undefined,
