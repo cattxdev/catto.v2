@@ -4,7 +4,7 @@ import {
   updateVoiceXPConfig,
 } from '#root/modules/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class VoiceXPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -12,23 +12,6 @@ export class VoiceXPConfigRoute extends Route {
       ...options,
       route: 'guilds/[guildId]/voice-xp/config',
       methods: ['GET', 'PUT'],
-    });
-  }
-
-  private async parseBody(request: Route.Request): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += String(chunk);
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
     });
   }
 
@@ -44,7 +27,7 @@ export class VoiceXPConfigRoute extends Route {
     if (request.method === 'GET') {
       return this.handleGet(guildId, response);
     } else if (request.method === 'PUT') {
-      const body = await this.parseBody(request);
+      const body = await parseRequestBody(request);
       return this.handlePut(guildId, body, response);
     }
   }

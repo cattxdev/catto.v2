@@ -2,7 +2,7 @@ import { Route } from '@sapphire/plugin-api';
 import { ApplyOptions } from '@sapphire/decorators';
 
 @ApplyOptions<Route.Options>({
-  route: 'guilds/:guildId/stats',
+  route: 'guilds/[guildId]/stats',
 })
 export class GuildStatsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
