@@ -3,7 +3,7 @@ import { type RewardData } from '#lib/types/rewards.types.js';
 import { Route } from '@sapphire/plugin-api';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { CreateRewardDto } from '#root/dtos/rewards/create-reward.dto.js';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class RewardsRoute extends Route {
   private rewardService: RewardService;
@@ -37,28 +37,11 @@ export class RewardsRoute extends Route {
     if (request.method === 'GET') {
       return this.handleGet(guildId, request, response);
     } else if (request.method === 'POST') {
-      const body = await this.parseBody(request);
+      const body = await parseRequestBody(request);
       return this.handlePost(guildId, body, response);
     }
 
     return response.status(405).json({ error: 'Method not allowed' });
-  }
-
-  private async parseBody(request: Route.Request): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += String(chunk);
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
   }
 
   /**

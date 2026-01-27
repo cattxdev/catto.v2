@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import type { Prisma } from '@prisma/client';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class GuildConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -28,22 +28,7 @@ export class GuildConfigRoute extends Route {
 
     return response.status(405).json({ error: 'Method not allowed' });
   }
-  private async parseBody(request: Route.Request): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += String(chunk);
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
-  }
+
   private async handleGet(guildId: string, response: Route.Response) {
     try {
       const guild = await this.container.prisma.guild.findUnique({
@@ -92,7 +77,7 @@ export class GuildConfigRoute extends Route {
 
   private async handlePatch(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = await this.parseBody(request);
+      const body = await parseRequestBody(request);
 
       if (!body || typeof body !== 'object') {
         return response.status(400).json({

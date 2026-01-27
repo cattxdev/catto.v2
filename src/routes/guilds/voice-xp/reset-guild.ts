@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { resetGuildVoiceXP } from '#root/modules/xp-voice/index.js';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class VoiceXPResetGuildRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -8,23 +8,6 @@ export class VoiceXPResetGuildRoute extends Route {
       ...options,
       route: 'guilds/[guildId]/voice-xp/reset/guild',
       methods: ['POST'],
-    });
-  }
-
-  private async parseBody(request: Route.Request): Promise<{ reason?: string } | undefined> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += chunk.toString();
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
     });
   }
 
@@ -37,7 +20,7 @@ export class VoiceXPResetGuildRoute extends Route {
       });
     }
 
-    const body = await this.parseBody(request);
+    const body = (await parseRequestBody(request)) as { reason?: string } | undefined;
     const reason = body?.reason || 'Manual guild reset via API';
 
     try {
