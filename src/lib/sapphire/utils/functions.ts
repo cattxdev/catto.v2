@@ -319,8 +319,18 @@ export const analizeSubcommandGroupParsed = (
         (s) => s.name === subcommandName && s.type === 'method'
       );
       if (subcommand) {
-        if (piece.chatInputRun) subcommand.chatInputRun = (i, c) => piece.chatInputRun?.(i, c);
-        if (piece.messageRun) subcommand.messageRun = (m, a, c) => piece.messageRun?.(m, a, c);
+        if (piece.chatInputRun) {
+          subcommand.chatInputRun = (i, c) => {
+            if (!piece.chatInputRun) throw new Error('chatInputRun is undefined');
+            return piece.chatInputRun(i, c);
+          };
+        }
+        if (piece.messageRun) {
+          subcommand.messageRun = (m, a, c) => {
+            if (!piece.messageRun) throw new Error('messageRun is undefined');
+            return piece.messageRun(m, a, c);
+          };
+        }
       }
     }
   } else {
