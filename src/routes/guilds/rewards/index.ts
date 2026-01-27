@@ -2,7 +2,7 @@ import { RewardService } from '#root/modules/rewards/index.js';
 import { type RewardData } from '#lib/types/rewards.types.js';
 import { Route } from '@sapphire/plugin-api';
 import { validateDto } from '#lib/validation/validate-dto.js';
-import { CreateRewardDto } from '#root/dtos/rewards/create-reward.dto.js';
+import { CreateRewardDto } from '#root/lib/dtos/rewards/create-reward.dto.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 
 export class RewardsRoute extends Route {
