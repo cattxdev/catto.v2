@@ -291,7 +291,7 @@ export const analizeSubcommandGroupParsed = (
       return piece;
     }
 
-    if (commandsGroupCompare) void parentCommand.reload();
+    if (commandsGroupCompare) await parentCommand.reload();
 
     const subcommandGroup = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === groupName && s.type === 'group'
