@@ -1,4 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class ModerationConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -64,7 +65,7 @@ export class ModerationConfigRoute extends Route {
 
   private async handleUpdate(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = await this.parseBody(request);
+      const body = await parseRequestBody(request);
 
       if (!body || typeof body !== 'object') {
         return response.status(400).json({
@@ -124,22 +125,5 @@ export class ModerationConfigRoute extends Route {
         error: 'Internal server error',
       });
     }
-  }
-
-  private async parseBody(request: Route.Request): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: unknown) => {
-        body += String(chunk);
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
   }
 }

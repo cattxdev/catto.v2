@@ -1,6 +1,6 @@
 import { resetGuildXP } from '#root/modules/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class XPResetGuildRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -29,7 +29,7 @@ export class XPResetGuildRoute extends Route {
     }
 
     // Parse body
-    const body = await this.parseBody(request);
+    const body = (await parseRequestBody(request)) as { reason?: string } | undefined;
     const reason = body?.reason;
 
     try {
@@ -47,22 +47,5 @@ export class XPResetGuildRoute extends Route {
         error: 'Internal server error',
       });
     }
-  }
-
-  private async parseBody(request: Route.Request): Promise<{ reason?: string } | undefined> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += chunk.toString();
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
   }
 }
