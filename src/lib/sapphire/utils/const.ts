@@ -236,11 +236,13 @@ export const RegisterSubcommandsHooks = {
         for (const option of context.options) {
           const data = option.toJSON();
           if (data.name === name && data.type === ApplicationCommandOptionType.SubcommandGroup) {
-            (option as unknown as { options: SlashCommandSubcommandBuilder[] }).options?.push(
-              ...[...commands.values()]
-                .filter(({ slashCommand }) => slashCommand)
-                .map(({ slashCommand }) => slashCommand as SlashCommandSubcommandBuilder)
-            );
+            if ('options' in option && Array.isArray((option as { options?: unknown[] }).options)) {
+              (option as { options: SlashCommandSubcommandBuilder[] }).options.push(
+                ...[...commands.values()]
+                  .filter(({ slashCommand }) => slashCommand)
+                  .map(({ slashCommand }) => slashCommand as SlashCommandSubcommandBuilder)
+              );
+            }
           }
         }
       }
