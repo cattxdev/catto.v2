@@ -43,42 +43,57 @@ app.use(cors({
   methods: ['GET', 'POST'],
 }));
 
-// Security: Validate path is safe to access
-function isPathSafe(requestedPath: string): { safe: boolean; reason?: string } {
-  // Normalize the path to handle different separators
-  const normalizedPath = normalize(requestedPath).replace(/\\/g, '/');
-
-  // Block path traversal attempts
-  if (normalizedPath.includes('..')) {
-    return { safe: false, reason: 'Path traversal not allowed' };
+// Resolve a relative path to an absolute path within project root
+// Returns null if the path escapes the project root
+function resolveSafePath(relativePath: string): string | null {
+  // First, reject obvious traversal attempts
+  if (relativePath.includes('..') || relativePath.includes('\0')) {
+    return null;
   }
 
-  // Block absolute paths
-  if (normalizedPath.startsWith('/') || /^[a-zA-Z]:/.test(normalizedPath)) {
-    return { safe: false, reason: 'Absolute paths not allowed' };
+  // Block absolute paths in the input
+  if (relativePath.startsWith('/') || /^[a-zA-Z]:/.test(relativePath)) {
+    return null;
+  }
+
+  // Resolve to absolute path
+  const absolutePath = resolve(PROJECT_ROOT, relativePath);
+
+  // Critical: Verify the resolved path is still within PROJECT_ROOT
+  // This catches any edge cases that bypass the string checks above
+  const normalizedRoot = resolve(PROJECT_ROOT) + sep;
+  const normalizedPath = resolve(absolutePath);
+
+  if (!normalizedPath.startsWith(normalizedRoot) && normalizedPath !== resolve(PROJECT_ROOT)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+// Security: Validate path is safe to access
+function isPathSafe(requestedPath: string): { safe: boolean; reason?: string; absolutePath?: string } {
+  // Resolve and validate containment
+  const absolutePath = resolveSafePath(requestedPath);
+  if (!absolutePath) {
+    return { safe: false, reason: 'Invalid path or path traversal attempt' };
   }
 
   // Check for blocked patterns (from .gitignore + sensitive files)
-  const lowerPath = normalizedPath.toLowerCase();
+  const normalizedForCheck = requestedPath.toLowerCase().replace(/\\/g, '/');
   for (const pattern of BLOCKED_PATTERNS) {
     // Handle glob patterns like *.log
     if (pattern.startsWith('*.')) {
       const ext = pattern.slice(1).toLowerCase();
-      if (lowerPath.endsWith(ext)) {
+      if (normalizedForCheck.endsWith(ext)) {
         return { safe: false, reason: `Access to '${pattern}' files is blocked` };
       }
-    } else if (lowerPath.includes(pattern.toLowerCase())) {
+    } else if (normalizedForCheck.includes(pattern.toLowerCase())) {
       return { safe: false, reason: `Access to '${pattern}' is blocked` };
     }
   }
 
-  return { safe: true };
-}
-
-// Resolve a relative path to an absolute path within project root
-function resolvePath(relativePath: string): string {
-  const normalizedPath = normalize(relativePath).replace(/\\/g, '/');
-  return join(PROJECT_ROOT, normalizedPath);
+  return { safe: true, absolutePath };
 }
 
 // Health check endpoint
@@ -96,11 +111,11 @@ app.post('/api/read', (req, res) => {
     }
 
     const pathCheck = isPathSafe(filePath);
-    if (!pathCheck.safe) {
+    if (!pathCheck.safe || !pathCheck.absolutePath) {
       return res.status(403).json({ error: pathCheck.reason });
     }
 
-    const absolutePath = resolvePath(filePath);
+    const absolutePath = pathCheck.absolutePath;
 
     if (!existsSync(absolutePath)) {
       return res.status(404).json({ error: `File not found: ${filePath}` });
@@ -147,11 +162,11 @@ app.post('/api/list', (req, res) => {
     }
 
     const pathCheck = isPathSafe(dirPath);
-    if (!pathCheck.safe) {
+    if (!pathCheck.safe || !pathCheck.absolutePath) {
       return res.status(403).json({ error: pathCheck.reason });
     }
 
-    const absolutePath = resolvePath(dirPath);
+    const absolutePath = pathCheck.absolutePath;
 
     if (!existsSync(absolutePath)) {
       return res.status(404).json({ error: `Directory not found: ${dirPath}` });
@@ -170,9 +185,9 @@ app.post('/api/list', (req, res) => {
       // Skip hidden files and blocked patterns
       if (entry.name.startsWith('.')) continue;
 
-      const entryPath = join(dirPath, entry.name);
+      const entryPath = join(dirPath, entry.name).replace(/\\/g, '/');
       const entryCheck = isPathSafe(entryPath);
-      if (!entryCheck.safe) continue;
+      if (!entryCheck.safe || !entryCheck.absolutePath) continue;
 
       if (entry.isDirectory()) {
         files.push({ name: entry.name + '/', type: 'directory' });
@@ -217,12 +232,12 @@ app.post('/api/search', (req, res) => {
 
     const searchRegex = new RegExp(escapeRegex(query), 'gi');
 
-    // Search recursively in allowed directories
+    // Search recursively in directories
     function searchDirectory(dir: string) {
       const pathCheck = isPathSafe(dir);
-      if (!pathCheck.safe) return;
+      if (!pathCheck.safe || !pathCheck.absolutePath) return;
 
-      const absolutePath = resolvePath(dir);
+      const absolutePath = pathCheck.absolutePath;
       if (!existsSync(absolutePath)) return;
 
       try {
@@ -234,7 +249,7 @@ app.post('/api/search', (req, res) => {
 
           const entryPath = join(dir, entry.name).replace(/\\/g, '/');
           const entryCheck = isPathSafe(entryPath);
-          if (!entryCheck.safe) continue;
+          if (!entryCheck.safe || !entryCheck.absolutePath) continue;
 
           if (entry.isDirectory()) {
             searchDirectory(entryPath);

@@ -2,7 +2,21 @@
 import type { ToolDefinition, ToolCall, Source } from './types';
 
 // Backend API configuration
-const DOCS_API_URL = 'http://localhost:3001/api';
+// The docs server only runs locally during development (pnpm docs:server)
+// In production, tools gracefully fall back to static templates
+function getDocsApiUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  // Only attempt backend connection on localhost (development)
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3001/api';
+  }
+
+  // Production: no backend available, will use fallbacks
+  return null;
+}
+
 let backendAvailable: boolean | null = null;
 let lastHealthCheck = 0;
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
@@ -227,6 +241,13 @@ export function getOpenRouterTools() {
 // =============================================================================
 
 async function checkBackendHealth(): Promise<boolean> {
+  const apiUrl = getDocsApiUrl();
+
+  // No backend in production
+  if (!apiUrl) {
+    return false;
+  }
+
   const now = Date.now();
 
   // Use cached result if recent
@@ -238,7 +259,7 @@ async function checkBackendHealth(): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-    const response = await fetch(`${DOCS_API_URL}/health`, {
+    const response = await fetch(`${apiUrl}/health`, {
       signal: controller.signal,
     });
 
@@ -258,8 +279,11 @@ async function apiReadFile(
   startLine?: number,
   endLine?: number
 ): Promise<{ content: string; lines: number } | null> {
+  const apiUrl = getDocsApiUrl();
+  if (!apiUrl) return null;
+
   try {
-    const response = await fetch(`${DOCS_API_URL}/read`, {
+    const response = await fetch(`${apiUrl}/read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path, startLine, endLine }),
@@ -280,8 +304,11 @@ async function apiReadFile(
 async function apiListFiles(
   directory: string
 ): Promise<{ entries: Array<{ name: string; type: string; size?: number }> } | null> {
+  const apiUrl = getDocsApiUrl();
+  if (!apiUrl) return null;
+
   try {
-    const response = await fetch(`${DOCS_API_URL}/list`, {
+    const response = await fetch(`${apiUrl}/list`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: directory }),
@@ -303,8 +330,11 @@ async function apiSearchCode(
   query: string,
   filePattern?: string
 ): Promise<{ results: Array<{ path: string; line: number; content: string; context: string }> } | null> {
+  const apiUrl = getDocsApiUrl();
+  if (!apiUrl) return null;
+
   try {
-    const response = await fetch(`${DOCS_API_URL}/search`, {
+    const response = await fetch(`${apiUrl}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, filePattern, maxResults: 30 }),

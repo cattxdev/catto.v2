@@ -1,63 +1,65 @@
-// Secure storage utilities for sensitive data
-// Uses basic obfuscation - not cryptographically secure but prevents casual inspection
+// Local storage utilities for the research agent
+// NOTE: API keys are stored in the user's browser localStorage. This is the user's
+// own API key for their OpenRouter account - it never leaves their browser except
+// to make direct calls to OpenRouter's API. We use base64 encoding only to prevent
+// the key from being visible in plain text in browser dev tools during casual inspection.
 
 import type { ChatSession, ChatMessage, SessionListItem } from './types';
 
 const STORAGE_PREFIX = 'catto_';
-const OBFUSCATION_KEY = 'c4tt0_r3s34rch_4g3nt';
 const MAX_SESSIONS = 20;
 const SESSIONS_KEY = 'chat_sessions';
 const ACTIVE_SESSION_KEY = 'active_session_id';
 const STORAGE_VERSION = 1;
 
-function obfuscate(text: string): string {
+// Base64 encode to prevent plain text visibility in dev tools
+// This is NOT encryption - just visual obfuscation for casual inspection
+function encode(text: string): string {
   if (!text) return '';
-
-  // Simple XOR-based obfuscation with base64 encoding
-  const keyChars = OBFUSCATION_KEY.split('');
-  const obfuscated = text.split('').map((char, i) => {
-    const keyChar = keyChars[i % keyChars.length];
-    return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
-  }).join('');
-
-  // Base64 encode the result
-  return btoa(obfuscated);
-}
-
-function deobfuscate(encoded: string): string {
-  if (!encoded) return '';
-
   try {
-    // Base64 decode
-    const obfuscated = atob(encoded);
-
-    // Reverse XOR
-    const keyChars = OBFUSCATION_KEY.split('');
-    return obfuscated.split('').map((char, i) => {
-      const keyChar = keyChars[i % keyChars.length];
-      return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
-    }).join('');
+    return btoa(encodeURIComponent(text));
   } catch {
-    return '';
+    return btoa(text);
   }
 }
 
-export function saveSecure(key: string, value: string): void {
-  if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(STORAGE_PREFIX + key, obfuscate(value));
+function decode(encoded: string): string {
+  if (!encoded) return '';
+  try {
+    return decodeURIComponent(atob(encoded));
+  } catch {
+    try {
+      return atob(encoded);
+    } catch {
+      return '';
+    }
+  }
 }
 
-export function loadSecure(key: string): string {
+// Save a value with base64 encoding (for API keys)
+export function saveEncoded(key: string, value: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(STORAGE_PREFIX + key, encode(value));
+}
+
+// Load a base64-encoded value
+export function loadEncoded(key: string): string {
   if (typeof localStorage === 'undefined') return '';
   const stored = localStorage.getItem(STORAGE_PREFIX + key);
   if (!stored) return '';
-  return deobfuscate(stored);
+  return decode(stored);
 }
 
-export function removeSecure(key: string): void {
+// Remove a stored value
+export function removeStored(key: string): void {
   if (typeof localStorage === 'undefined') return;
   localStorage.removeItem(STORAGE_PREFIX + key);
 }
+
+// Legacy aliases for backward compatibility with existing stored data
+export const saveSecure = saveEncoded;
+export const loadSecure = loadEncoded;
+export const removeSecure = removeStored;
 
 export function saveSettings(settings: Record<string, unknown>): void {
   if (typeof localStorage === 'undefined') return;

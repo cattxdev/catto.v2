@@ -1,4 +1,10 @@
 // Research agent - handles conversation with tool execution
+//
+// NOTE ON API KEYS: This agent uses the user's own OpenRouter API key, which they
+// provide and store in their browser's localStorage. The key is sent directly from
+// the user's browser to OpenRouter's API - it never passes through any server we control.
+// This is a standard pattern for client-side API integrations where users bring their own keys.
+
 import type { ChatMessage, ToolCall, Source, AgentConfig } from './types';
 import { getOpenRouterTools, executeTool, AGENT_SYSTEM_PROMPT } from './tools';
 
