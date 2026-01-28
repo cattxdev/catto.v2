@@ -17,15 +17,17 @@ export class InfoCommand extends Subcommand {
 
   public override registerApplicationCommands(registry: Subcommand.Registry) {
     registry.registerChatInputCommand((builder) => {
-      builder.addSubcommandGroup((group) =>
-        group.setName('help').setDescription('Get help about various bot features')
-      );
+      builder
+        .setName(this.name)
+        .setDescription(this.description)
+        .addSubcommandGroup((group) =>
+          group.setName('help').setDescription('Get help about various bot features')
+        );
+
       // Register all subcommand groups using hooks
       this.hooks.groups(this, builder);
-      // Register all subcommands using hooks
-      this.hooks.subcommands(this, builder);
 
-      return builder.setName(this.name).setDescription(this.description);
+      return builder;
     });
   }
 }

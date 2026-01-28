@@ -148,6 +148,10 @@ export const RegisterSubcommandsHooks = {
 
     for (const [name, commands] of subcommandsGroups) {
       for (const { slashCommand, commandPiece } of [...commands.values()]) {
+        container.logger.debug(
+          `[Subcommands-Hook-Group]: Processing "${slashCommand?.name ?? commandPiece?.name}" in group "${name}" - commandPiece has chatInputRun: ${!!commandPiece.chatInputRun}`
+        );
+
         const groupMapping = piece.parsedSubcommandMappings.find(
           ({ name: x, type }) => x === name && type === 'group'
         ) as SubcommandMappingGroup;
@@ -157,8 +161,20 @@ export const RegisterSubcommandsHooks = {
           type: 'method',
           chatInputRun: commandPiece.chatInputRun
             ? async (i, c) => {
-                const result = await piece.preconditions.chatInputRun(i, piece as ChatInputCommand);
+                container.logger.debug(
+                  `[Subcommands-Hook-Group]: Executing chatInputRun for "${commandPiece.name}" in group "${name}"`
+                );
+                container.logger.debug(
+                  `[Subcommands-Hook-Group]: commandPiece.chatInputRun exists: ${!!commandPiece.chatInputRun}, type: ${typeof commandPiece.chatInputRun}`
+                );
+                const result = await commandPiece.preconditions.chatInputRun(
+                  i,
+                  commandPiece as ChatInputCommand
+                );
                 if (result.isErr()) {
+                  container.logger.debug(
+                    `[Subcommands-Hook-Group]: Precondition failed for "${commandPiece.name}"`
+                  );
                   const payload: ChatInputSubcommandDeniedPayload = {
                     command: piece,
                     interaction: i,
@@ -179,8 +195,15 @@ export const RegisterSubcommandsHooks = {
                   );
                 }
 
+                container.logger.debug(
+                  `[Subcommands-Hook-Group]: About to call commandPiece.chatInputRun for "${commandPiece.name}"`
+                );
                 if (!commandPiece.chatInputRun) throw new Error('chatInputRun is undefined');
-                return await commandPiece.chatInputRun(i, c);
+                const returnValue = await commandPiece.chatInputRun(i, c);
+                container.logger.debug(
+                  `[Subcommands-Hook-Group]: Finished calling chatInputRun for "${commandPiece.name}"`
+                );
+                return returnValue;
               }
             : undefined,
 

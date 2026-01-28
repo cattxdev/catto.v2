@@ -13,6 +13,8 @@ import {
 import {
   Subcommand as SapphirePluginSubcommand,
   type SubcommandOptions,
+  type SubcommandMappingMethod,
+  type SubcommandMappingGroup,
 } from '@sapphire/plugin-subcommands';
 import { RegisterSubcommandsHooks } from '../lib/hooks.js';
 import {
@@ -20,6 +22,7 @@ import {
   analizeSubCommandParsed,
   parseSlashSubcommand,
   subCommandsRegistry,
+  subCommandsGroupRegistry,
 } from '../lib/plugin.js';
 import type { CommandOptions } from '../lib/types.js';
 import type { CacheType } from 'discord.js';
@@ -98,28 +101,69 @@ export class Subcommand extends SapphirePluginSubcommand {
     // Automatically populate subcommands from registry if this is a parent command
     const commandName = options.name;
     if (commandName && !options.subcommands) {
+      const subcommandsConfig: Array<SubcommandMappingMethod | SubcommandMappingGroup> = [];
+
+      // Handle direct subcommands
       const registeredSubcommands = subCommandsRegistry.get(commandName);
       if (registeredSubcommands && registeredSubcommands.size > 0) {
-        const subcommandsConfig = Array.from(registeredSubcommands.values()).map(
-          ({ slashCommand, commandPiece }) => ({
-            name: slashCommand?.name ?? commandPiece.name,
-            chatInputRun: async (
-              interaction: Subcommand.ChatInputCommandInteraction,
-              context: ChatInputCommandContext
-            ) => {
-              // Automatically route to the child command's chatInputRun
-              if (commandPiece.chatInputRun) {
-                return await commandPiece.chatInputRun(interaction, context);
-              }
-              // Fallback if chatInputRun doesn't exist
-              return interaction.reply({
-                content: 'This subcommand is not yet implemented.',
-                ephemeral: true,
-              });
-            },
-          })
+        subcommandsConfig.push(
+          ...Array.from(registeredSubcommands.values()).map(
+            ({ slashCommand, commandPiece }): SubcommandMappingMethod => ({
+              name: slashCommand?.name ?? commandPiece.name,
+              type: 'method' as const,
+              chatInputRun: async (
+                interaction: Subcommand.ChatInputCommandInteraction,
+                context: ChatInputCommandContext
+              ) => {
+                // Automatically route to the child command's chatInputRun
+                if (commandPiece.chatInputRun) {
+                  return await commandPiece.chatInputRun(interaction, context);
+                }
+                // Fallback if chatInputRun doesn't exist
+                return interaction.reply({
+                  content: 'This subcommand is not yet implemented.',
+                  ephemeral: true,
+                });
+              },
+            })
+          )
         );
+      }
 
+      // Handle subcommand groups
+      const registeredGroups = subCommandsGroupRegistry.get(commandName);
+      if (registeredGroups && registeredGroups.size > 0) {
+        for (const [groupName, groupCommands] of registeredGroups) {
+          const groupEntries: SubcommandMappingMethod[] = Array.from(groupCommands.values()).map(
+            ({ slashCommand, commandPiece }): SubcommandMappingMethod => ({
+              name: slashCommand?.name ?? commandPiece.name,
+              type: 'method' as const,
+              chatInputRun: async (
+                interaction: Subcommand.ChatInputCommandInteraction,
+                context: ChatInputCommandContext
+              ) => {
+                // Automatically route to the child command's chatInputRun
+                if (commandPiece.chatInputRun) {
+                  return await commandPiece.chatInputRun(interaction, context);
+                }
+                // Fallback if chatInputRun doesn't exist
+                return interaction.reply({
+                  content: 'This subcommand is not yet implemented.',
+                  ephemeral: true,
+                });
+              },
+            })
+          );
+
+          subcommandsConfig.push({
+            name: groupName,
+            type: 'group' as const,
+            entries: groupEntries,
+          });
+        }
+      }
+
+      if (subcommandsConfig.length > 0) {
         options = { ...options, subcommands: subcommandsConfig };
       }
     }
