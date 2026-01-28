@@ -1,4 +1,4 @@
-import { Subcommand } from '#lib/sapphire/command/command.js';
+import { Subcommand } from '#subcommand.js';
 import { ApplyOptions } from '@sapphire/decorators';
 
 @ApplyOptions<Subcommand.Options>({

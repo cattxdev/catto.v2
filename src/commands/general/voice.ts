@@ -1,4 +1,4 @@
-import { Command } from '#lib/sapphire/command/command.js';
+import { Command } from '#command.js';
 import { type Message, EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { COLORS } from '#lib/constants.js';
 
