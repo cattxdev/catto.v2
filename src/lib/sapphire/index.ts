@@ -6,9 +6,8 @@ import type {
   ChatInputSubcommandDeniedPayload,
   MessageSubcommandDeniedPayload,
 } from '@sapphire/plugin-subcommands';
-
-import type { SubcommandsAdvancedEvents, PluginSubcommandOptions } from './types.js';
-import './setup.js';
+import type { SubcommandsAdvancedEvents, PluginSubcommandOptions } from './lib/types.js';
+import './lib/setup.js';
 
 declare module '@sapphire/plugin-subcommands' {
   export interface MessageSubcommandDeniedPayload extends IMessageSubcommandPayload {

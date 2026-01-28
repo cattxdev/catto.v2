@@ -11,23 +11,20 @@ import type {
   ChatInputSubcommandDeniedPayload,
   MessageSubcommandDeniedPayload,
 } from '@sapphire/plugin-subcommands';
-
 import { ApplicationCommandOptionType } from 'discord-api-types/v10';
-import type { SlashCommandSubcommandBuilder, SlashCommandBuilder } from '@discordjs/builders';
-import { subCommandsRegistry, subCommandsGroupRegistry } from './functions.js';
-import { SubcommandsAdvancedEvents } from './types.js';
-
-/**
- * Identifier for subcommand denied errors
- */
-const SUBCOMMAND_DENIED_IDENTIFIER = 'SubcommandDenied' as const;
+import type {
+  SlashCommandSubcommandBuilder,
+  SlashCommandBuilder,
+  SlashCommandSubcommandGroupBuilder,
+} from '@discordjs/builders';
+import { subCommandsRegistry, subCommandsGroupRegistry } from './plugin.js';
+import { SUBCOMMAND_DENIED_IDENTIFIER, SubcommandsAdvancedEvents } from './types.js';
 
 /**
  * **Hooks**
  *
  * Methods needed to register commands as subcommands and commands in subcommand groups.
  *
- * @since 1.0.0
  */
 export const RegisterSubcommandsHooks = {
   subcommands: (piece: Subcommand, context?: SlashCommandBuilder) => {
@@ -160,10 +157,7 @@ export const RegisterSubcommandsHooks = {
           type: 'method',
           chatInputRun: commandPiece.chatInputRun
             ? async (i, c) => {
-                const result = await piece.preconditions.chatInputRun(
-                  i,
-                  piece as unknown as ChatInputCommand
-                );
+                const result = await piece.preconditions.chatInputRun(i, piece as ChatInputCommand);
                 if (result.isErr()) {
                   const payload: ChatInputSubcommandDeniedPayload = {
                     command: piece,
@@ -192,10 +186,7 @@ export const RegisterSubcommandsHooks = {
 
           messageRun: commandPiece.messageRun
             ? async (m, a, c) => {
-                const result = await piece.preconditions.messageRun(
-                  m,
-                  piece as unknown as MessageCommand
-                );
+                const result = await piece.preconditions.messageRun(m, piece as MessageCommand);
                 if (result.isErr()) {
                   const payload: MessageSubcommandDeniedPayload = {
                     command: piece,
@@ -236,8 +227,11 @@ export const RegisterSubcommandsHooks = {
         for (const option of context.options) {
           const data = option.toJSON();
           if (data.name === name && data.type === ApplicationCommandOptionType.SubcommandGroup) {
-            if ('options' in option && Array.isArray((option as { options?: unknown[] }).options)) {
-              (option as { options: SlashCommandSubcommandBuilder[] }).options.push(
+            if (
+              'options' in option &&
+              Array.isArray((option as SlashCommandSubcommandGroupBuilder).options)
+            ) {
+              (option as SlashCommandSubcommandGroupBuilder).options.push(
                 ...[...commands.values()]
                   .filter(({ slashCommand }) => slashCommand)
                   .map(({ slashCommand }) => slashCommand as SlashCommandSubcommandBuilder)

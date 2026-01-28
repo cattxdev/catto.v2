@@ -14,14 +14,14 @@ import {
   Subcommand as SapphirePluginSubcommand,
   type SubcommandOptions,
 } from '@sapphire/plugin-subcommands';
-import { RegisterSubcommandsHooks } from '../utils/const.js';
+import { RegisterSubcommandsHooks } from '../lib/hooks.js';
 import {
   analizeSubcommandGroupParsed,
   analizeSubCommandParsed,
   parseSlashSubcommand,
   subCommandsRegistry,
-} from '../utils/functions.js';
-import type { CommandOptions } from '../utils/types.js';
+} from '../lib/plugin.js';
+import type { CommandOptions } from '../lib/types.js';
 import type { CacheType } from 'discord.js';
 
 export class Command<

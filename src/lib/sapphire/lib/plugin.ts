@@ -15,7 +15,6 @@ import type { SubcommandMappingCollection } from './types.js';
  *
  * Subcommands registry.
  *
- * @since 1.0.0
  */
 export const subCommandsRegistry: Collection<
   string,
@@ -26,8 +25,6 @@ export const subCommandsRegistry: Collection<
  * **Registry**
  *
  * Subcommands group registry.
- *
- * @since 1.0.0
  */
 export const subCommandsGroupRegistry: Collection<
   string,
@@ -42,7 +39,6 @@ export const subCommandsGroupRegistry: Collection<
  * @param c1 SubcommandBuilder 1
  * @param c2 SubcommandBuilder 2
  * @returns boolean
- * @since 1.0.0
  */
 export const isCommandOptionsUpdated = (
   c1: SlashCommandSubcommandBuilder,
@@ -54,7 +50,6 @@ export const isCommandOptionsUpdated = (
  * @param subcommand subcommand json or subcommand builder class.
  * @returns subcommand builder or undefined
  *
- * @since 2.0.0
  */
 export const parseSlashSubcommand = (
   subcommand?:
@@ -79,7 +74,6 @@ export const parseSlashSubcommand = (
  * @param parentCommandName Name of the parent command.
  * @param subcommandOptions Options for parsing subcommand
  * @returns  Command class
- * @since 1.0.0
  */
 export const analizeSubCommandParsed = (
   piece: Command,
@@ -159,24 +153,33 @@ export const analizeSubCommandParsed = (
       return piece;
     }
 
-    if (commandsCompare) {
-      // Reload parent command asynchronously to pick up new options
-      // Note: Intentionally not awaited - must remain synchronous for decorator compatibility
-      void parentCommand.reload().catch((error) => {
-        container.logger.error(
-          `[Subcommands-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName}:`,
-          error
-        );
-      });
-    }
-
     const subcommand = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === subcommandName && s.type === 'method'
     ) as unknown as SubcommandMappingMethod;
 
     if (subcommand) {
-      if (piece.chatInputRun) subcommand.chatInputRun = (i, c) => piece.chatInputRun?.(i, c);
-      if (piece.messageRun) subcommand.messageRun = (m, a, c) => piece.messageRun?.(m, a, c);
+      if (piece.chatInputRun) {
+        subcommand.chatInputRun = (i, c) => {
+          if (!piece.chatInputRun) throw new Error('chatInputRun is undefined');
+          return piece.chatInputRun(i, c);
+        };
+      }
+      if (piece.messageRun) {
+        subcommand.messageRun = (m, a, c) => {
+          if (!piece.messageRun) throw new Error('messageRun is undefined');
+          return piece.messageRun(m, a, c);
+        };
+      }
+
+      if (commandsCompare) {
+        // Reload parent command asynchronously to pick up new slash command options
+        void parentCommand.reload().catch((error) => {
+          container.logger.error(
+            `[Subcommands-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName}:`,
+            error
+          );
+        });
+      }
     }
   } else {
     container.logger.warn(
@@ -197,7 +200,6 @@ export const analizeSubCommandParsed = (
  * @param groupName Name of the subcommand group.
  * @param subcommandOptions Options for parsing subcommand
  * @returns	Command class
- * @since 1.0.0
  */
 export const analizeSubcommandGroupParsed = (
   piece: Command,
@@ -300,16 +302,6 @@ export const analizeSubcommandGroupParsed = (
       return piece;
     }
 
-    if (commandsGroupCompare) {
-      // Reload parent command asynchronously to pick up new options
-      parentCommand.reload().catch((error) => {
-        container.logger.error(
-          `[Subcommands-Group-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName} in group ${groupName}:`,
-          error
-        );
-      });
-    }
-
     const subcommandGroup = parentCommand.parsedSubcommandMappings.find(
       (s) => s.name === groupName && s.type === 'group'
     ) as unknown as SubcommandMappingGroup;
@@ -330,6 +322,16 @@ export const analizeSubcommandGroupParsed = (
             if (!piece.messageRun) throw new Error('messageRun is undefined');
             return piece.messageRun(m, a, c);
           };
+        }
+
+        if (commandsGroupCompare) {
+          // Reload parent command asynchronously to pick up new slash command options
+          void parentCommand.reload().catch((error) => {
+            container.logger.error(
+              `[Subcommands-Group-Plugin]: Failed to reload parent command ${parentCommandName} for subcommand ${subcommandName} in group ${groupName}:`,
+              error
+            );
+          });
         }
       }
     }

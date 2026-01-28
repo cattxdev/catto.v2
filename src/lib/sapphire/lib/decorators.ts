@@ -1,7 +1,7 @@
 import { createClassDecorator, createProxy } from '@sapphire/decorators';
 import { Command, container, Piece } from '@sapphire/framework';
 import { SlashCommandSubcommandBuilder } from '@discordjs/builders';
-import { analizeSubcommandGroupParsed, analizeSubCommandParsed } from './functions.js';
+import { analizeSubcommandGroupParsed, analizeSubCommandParsed } from './plugin.js';
 
 export const RegisterSubCommand = (
   parentCommandName: string,
