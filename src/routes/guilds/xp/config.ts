@@ -1,6 +1,6 @@
 import { configService, validateUpdateXPConfig } from '#root/modules/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class XPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -32,28 +32,11 @@ export class XPConfigRoute extends Route {
       return this.handleGet(guildId, response);
     } else if (request.method === 'PUT') {
       // Parse body for PUT requests
-      const body = await this.parseBody(request);
+      const body = await parseRequestBody(request);
       return this.handlePut(guildId, body, response);
     }
 
     return response.status(405).json({ error: 'Method not allowed' });
-  }
-
-  private async parseBody(request: Route.Request): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += chunk.toString();
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
   }
 
   /**

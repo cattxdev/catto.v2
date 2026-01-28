@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { Buffer } from 'node:buffer';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class LoggingConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -86,7 +86,9 @@ export class LoggingConfigRoute extends Route {
 
   private async handlePatch(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = await this.parseBody(request);
+      const body = (await parseRequestBody(request)) as
+        | { enabled?: boolean; ignoredChannels?: string[] }
+        | undefined;
 
       if (!body) {
         return response.status(400).json({
@@ -126,24 +128,5 @@ export class LoggingConfigRoute extends Route {
         error: 'Internal server error',
       });
     }
-  }
-
-  private async parseBody(
-    request: Route.Request
-  ): Promise<{ enabled?: boolean; ignoredChannels?: string[] } | undefined> {
-    return new Promise((resolve, reject) => {
-      let body = '';
-      request.on('data', (chunk: Buffer) => {
-        body += chunk.toString();
-      });
-      request.on('end', () => {
-        try {
-          resolve(body ? JSON.parse(body) : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-      request.on('error', reject);
-    });
   }
 }
