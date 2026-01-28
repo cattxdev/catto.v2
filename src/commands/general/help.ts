@@ -1,7 +1,6 @@
 import { Command } from '#lib/sapphire/command/command.js';
 import { type Message, EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { COLORS } from '#lib/constants.js';
-import { SlashCommandSubcommandBuilder } from '@discordjs/builders';
 
 export class HelpCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -14,9 +13,8 @@ export class HelpCommand extends Command {
       registerSubcommandInGroup: {
         parentCommandName: 'info',
         groupName: 'help',
-        slashSubcommand: new SlashCommandSubcommandBuilder()
-          .setName('all')
-          .setDescription('Display all available commands'),
+        slashSubcommand: (builder) =>
+          builder.setName('all').setDescription('Display all available commands'),
       },
     });
   }

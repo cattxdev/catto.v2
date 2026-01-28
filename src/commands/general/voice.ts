@@ -1,7 +1,6 @@
 import { Command } from '#lib/sapphire/command/command.js';
 import { type Message, EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { COLORS } from '#lib/constants.js';
-import { SlashCommandSubcommandBuilder } from '@discordjs/builders';
 
 export class VoiceCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -13,9 +12,8 @@ export class VoiceCommand extends Command {
       registerSubcommandInGroup: {
         parentCommandName: 'info',
         groupName: 'help',
-        slashSubcommand: new SlashCommandSubcommandBuilder()
-          .setName('voice')
-          .setDescription('Display help for voice commands'),
+        slashSubcommand: (builder) =>
+          builder.setName('voice').setDescription('Display help for voice commands'),
       },
     });
   }
