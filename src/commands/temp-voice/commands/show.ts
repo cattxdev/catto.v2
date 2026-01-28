@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'show',
+  description: 'Make your channel visible to @everyone',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

@@ -7,6 +7,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'claim',
+  description: 'Claim ownership of an abandoned temporary channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

@@ -34,28 +34,68 @@ export class VoiceCommand extends Command {
 
     const embed = new EmbedBuilder()
       .setColor(COLORS.DEFAULT)
-      .setTitle('🎤 Voice Commands Help')
-      .setDescription(
-        voiceCommands.length > 0
-          ? 'Here are all the available voice-related commands:'
-          : 'No voice commands found.'
-      )
+      .setTitle('🎤 Temporary Voice Channels')
+      .setDescription('Manage your own temporary voice channel with these commands.')
       .setThumbnail(client.user?.displayAvatarURL() ?? null);
 
     if (voiceCommands.length > 0) {
-      const commandList = voiceCommands
-        .map((cmd) => `\`${cmd.name}\` - ${cmd.description}`)
-        .join('\n');
+      // Group commands by category
+      const channelControl = voiceCommands.filter((cmd) =>
+        ['bitrate', 'limit', 'region', 'rename', 'reset'].includes(cmd.name.replace('voice/', ''))
+      );
+      const privacy = voiceCommands.filter((cmd) =>
+        ['lock', 'unlock', 'hide', 'show'].includes(cmd.name.replace('voice/', ''))
+      );
+      const userManagement = voiceCommands.filter((cmd) =>
+        ['permit', 'deny', 'kick', 'trust', 'untrust'].includes(cmd.name.replace('voice/', ''))
+      );
+      const ownership = voiceCommands.filter((cmd) =>
+        ['claim', 'transfer', 'panel'].includes(cmd.name.replace('voice/', ''))
+      );
 
-      embed.addFields({
-        name: 'Available Voice Commands',
-        value: commandList,
-        inline: false,
-      });
+      if (channelControl.length > 0) {
+        embed.addFields({
+          name: '⚙️ Channel Settings',
+          value: channelControl
+            .map((cmd) => `\`/voice ${cmd.name.replace('voice/', '')}\` • ${cmd.description}`)
+            .join('\n'),
+          inline: false,
+        });
+      }
+
+      if (privacy.length > 0) {
+        embed.addFields({
+          name: '🔒 Privacy Controls',
+          value: privacy
+            .map((cmd) => `\`/voice ${cmd.name.replace('voice/', '')}\` • ${cmd.description}`)
+            .join('\n'),
+          inline: false,
+        });
+      }
+
+      if (userManagement.length > 0) {
+        embed.addFields({
+          name: '👥 User Management',
+          value: userManagement
+            .map((cmd) => `\`/voice ${cmd.name.replace('voice/', '')}\` • ${cmd.description}`)
+            .join('\n'),
+          inline: false,
+        });
+      }
+
+      if (ownership.length > 0) {
+        embed.addFields({
+          name: '👑 Ownership & Control',
+          value: ownership
+            .map((cmd) => `\`/voice ${cmd.name.replace('voice/', '')}\` • ${cmd.description}`)
+            .join('\n'),
+          inline: false,
+        });
+      }
     }
 
     embed.setFooter({
-      text: `${voiceCommands.length} voice command(s) available`,
+      text: `${voiceCommands.length} commands available • Use /voice panel for quick access`,
       iconURL: message.author.displayAvatarURL(),
     });
 
@@ -85,28 +125,80 @@ export class VoiceCommand extends Command {
 
       const embed = new EmbedBuilder()
         .setColor(COLORS.DEFAULT)
-        .setTitle('🎤 Voice Commands Help')
-        .setDescription(
-          voiceCommands.length > 0
-            ? 'Here are all the available voice-related commands:'
-            : 'No voice commands found.'
-        )
+        .setTitle('🎤 Temporary Voice Channels')
+        .setDescription('Manage your own temporary voice channel with these commands.')
         .setThumbnail(client.user?.displayAvatarURL() ?? null);
 
       if (voiceCommands.length > 0) {
-        const commandList = voiceCommands
-          .map((cmd) => `\`${cmd.name}\` - ${cmd.description}`)
-          .join('\n');
+        // Group commands by category
+        const channelControl = voiceCommands.filter((cmd) =>
+          ['bitrate', 'limit', 'region', 'rename', 'reset'].includes(cmd.name.replace('voice/', ''))
+        );
+        const privacy = voiceCommands.filter((cmd) =>
+          ['lock', 'unlock', 'hide', 'show'].includes(cmd.name.replace('voice/', ''))
+        );
+        const userManagement = voiceCommands.filter((cmd) =>
+          ['permit', 'deny', 'kick', 'trust', 'untrust'].includes(cmd.name.replace('voice/', ''))
+        );
+        const ownership = voiceCommands.filter((cmd) =>
+          ['claim', 'transfer', 'panel'].includes(cmd.name.replace('voice/', ''))
+        );
 
-        embed.addFields({
-          name: 'Available Voice Commands',
-          value: commandList,
-          inline: false,
-        });
+        if (channelControl.length > 0) {
+          embed.addFields({
+            name: '⚙️ Channel Settings',
+            value: channelControl
+              .map(
+                (cmd) =>
+                  `</voice ${cmd.name.replace('voice/', '')}:1465799878579060880> • ${cmd.description}`
+              )
+              .join('\n'),
+            inline: false,
+          });
+        }
+
+        if (privacy.length > 0) {
+          embed.addFields({
+            name: '🔒 Privacy Controls',
+            value: privacy
+              .map(
+                (cmd) =>
+                  `</voice ${cmd.name.replace('voice/', '')}:1465799878579060880> • ${cmd.description}`
+              )
+              .join('\n'),
+            inline: false,
+          });
+        }
+
+        if (userManagement.length > 0) {
+          embed.addFields({
+            name: '👥 User Management',
+            value: userManagement
+              .map(
+                (cmd) =>
+                  `</voice ${cmd.name.replace('voice/', '')}:1465799878579060880> • ${cmd.description}`
+              )
+              .join('\n'),
+            inline: false,
+          });
+        }
+
+        if (ownership.length > 0) {
+          embed.addFields({
+            name: '👑 Ownership & Control',
+            value: ownership
+              .map(
+                (cmd) =>
+                  `</voice ${cmd.name.replace('voice/', '')}:1465799878579060880> • ${cmd.description}`
+              )
+              .join('\n'),
+            inline: false,
+          });
+        }
       }
 
       embed.setFooter({
-        text: `${voiceCommands.length} voice command(s) available`,
+        text: `${voiceCommands.length} commands available • Use /voice panel for quick access`,
         iconURL: interaction.user.displayAvatarURL(),
       });
 

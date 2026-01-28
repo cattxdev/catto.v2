@@ -8,6 +8,7 @@ import { Command } from '#command.js';
 
 @ApplyOptions<Command.Options>({
   name: 'deny',
+  description: 'Deny a user from joining your channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'unlock',
+  description: 'Unlock your channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

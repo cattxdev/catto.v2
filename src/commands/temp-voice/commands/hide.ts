@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'hide',
+  description: 'Hide your channel from @everyone',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

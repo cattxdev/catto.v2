@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'region',
+  description: 'Set the region for your channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

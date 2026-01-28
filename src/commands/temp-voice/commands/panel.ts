@@ -9,6 +9,7 @@ import { ControlPanelService } from '#modules/temp-voice/services/control-panel.
 
 @ApplyOptions<Command.Options>({
   name: 'panel',
+  description: 'Show the control panel for your channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

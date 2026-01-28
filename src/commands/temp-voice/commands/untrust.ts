@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'untrust',
+  description: 'Remove trust from a user',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

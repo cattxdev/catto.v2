@@ -8,6 +8,7 @@ import { Command } from '#command.js';
 
 @ApplyOptions<Command.Options>({
   name: 'bitrate',
+  description: 'Set the bitrate for your channel',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',

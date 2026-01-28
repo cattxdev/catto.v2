@@ -8,6 +8,7 @@ import { PermissionsService } from '#modules/temp-voice/services/permissions.ser
 
 @ApplyOptions<Command.Options>({
   name: 'lock',
+  description: 'Lock your channel (only allowed users can join)',
   preconditions: ['GuildOnly'],
   registerSubCommand: {
     parentCommandName: 'voice',
