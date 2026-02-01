@@ -63,3 +63,35 @@
 [data-theme='mod'] .type-document,
 [data-theme='mod'] .type-url,
 [data-theme='mod'] .type-snapshot { color: var(--mono-400); }
+
+/* Chart palette — monochrome shades */
+[data-theme='mod'] {
+  --mod-chart-1: var(--mono-300);
+  --mod-chart-2: var(--mono-400);
+  --mod-chart-3: var(--mono-500);
+  --mod-chart-4: var(--mono-600);
+  --mod-chart-5: var(--mono-700);
+}
+
+/* SOON badge tokens */
+[data-theme='mod'] {
+  --mod-soon-bg: rgba(136, 136, 136, 0.08);
+  --mod-soon-text: var(--mono-500);
+  --mod-soon-border: var(--mono-700);
+}
+
+/* Recharts tooltip override inside mod theme */
+[data-theme='mod'] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--mono-900) !important;
+  border: 1px solid var(--mono-700) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-mono) !important;
+}
+[data-theme='mod'] .recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-label {
+  color: var(--mono-white) !important;
+  font-family: var(--font-mono) !important;
+}
+[data-theme='mod'] .recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-item {
+  color: var(--mono-300) !important;
+  font-family: var(--font-mono) !important;
+}

@@ -32,7 +32,16 @@ export async function getModDashboardAccess(guildId: string): Promise<DashboardP
 
 export async function getCases(
   guildId: string,
-  params?: { page?: number; limit?: number; action?: string; targetId?: string }
+  params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    targetId?: string;
+    status?: string;
+    sort?: string;
+    order?: string;
+    search?: string;
+  }
 ): Promise<{ total: number; page: number; totalPages: number; cases: ModCase[] }> {
   const res = await api().get(`/guilds/${guildId}/moderation/cases`, { params });
   return res.data;
@@ -48,6 +57,14 @@ export async function getCaseDetail(guildId: string, caseNumber: number): Promis
 }
 
 // ─── Evidence ───
+
+export async function getGuildEvidence(
+  guildId: string,
+  params?: { page?: number; limit?: number; type?: string; case?: number }
+): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
+  const res = await api().get(`/guilds/${guildId}/moderation/evidence`, { params });
+  return res.data;
+}
 
 export async function getEvidenceForCase(
   guildId: string,

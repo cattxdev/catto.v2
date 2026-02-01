@@ -131,7 +131,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
           return (
             <div
               key={item.id}
-              className={`relative border bg-[var(--mod-surface)] p-4 transition-colors hover:border-[var(--mod-border-hover)] ${
+              className={`relative border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
                 isFocused ? 'border-[var(--mono-500)]' : 'border-[var(--mod-border)]'
               }`}
               onClick={() => setFocusIndex(index)}
@@ -139,7 +139,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
               {/* Selection checkbox */}
               <button
                 onClick={(e) => { e.stopPropagation(); toggleSelection(item.id); }}
-                className={`absolute right-2 top-2 flex h-4 w-4 items-center justify-center border transition-all ${
+                className={`absolute right-2 top-2 flex h-4 w-4 items-center justify-center border transition-[background-color,border-color] duration-75 ${
                   isChecked
                     ? 'border-[var(--mono-400)] bg-[var(--mono-700)]'
                     : hasSelection
@@ -194,7 +194,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 {(item.storageKey || item.url || item.snapshotId) && (
                   <button
                     onClick={() => setSelectedId(item.id)}
-                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
                   >
                     <IconEye size={14} />
                     View
@@ -203,7 +203,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 {item.storageKey && (
                   <button
                     onClick={() => handleDownload(item)}
-                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
                   >
                     <IconDownload size={14} />
                     Download
@@ -211,14 +211,14 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 )}
                 <button
                   onClick={() => setShowHistory(item.id)}
-                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
                 >
                   <IconHistory size={14} />
                   History
                 </button>
                 <button
                   onClick={() => setAmendingId(amendingId === item.id ? null : item.id)}
-                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
                 >
                   <IconPencil size={14} />
                   Amend
@@ -249,21 +249,21 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
           <button
             onClick={handleBulkFlag}
             disabled={bulkSubmitting}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
+            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
           >
             <IconFlag size={14} />
             Flag Selected
           </button>
           <button
             onClick={handleBulkDownload}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
           >
             <IconDownload size={14} />
             Download Selected
           </button>
           <button
             onClick={() => setBulkAction('note')}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
           >
             <IconNote size={14} />
             Add Note to Selected
@@ -390,7 +390,7 @@ function InlineAmendForm({
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="border border-[var(--mono-500)] px-3 py-1 text-xs text-[var(--mono-white)] transition-colors hover:bg-[var(--mono-800)] disabled:opacity-30"
+          className="border border-[var(--mono-500)] px-3 py-1 text-xs text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] disabled:opacity-30"
         >
           {submitting ? 'Submitting...' : 'Confirm'}
         </button>
@@ -432,13 +432,13 @@ function BulkNoteModal({
           <button
             onClick={() => onSubmit(note)}
             disabled={submitting || !note.trim()}
-            className="border border-[var(--mono-500)] px-4 py-1.5 text-xs text-[var(--mono-white)] transition-colors hover:bg-[var(--mono-800)] disabled:opacity-30"
+            className="border border-[var(--mono-500)] px-4 py-1.5 text-xs text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] disabled:opacity-30"
           >
             {submitting ? 'Adding...' : 'Add Note'}
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs text-[var(--mod-text-dim)] transition-colors hover:text-[var(--mono-white)]"
+            className="px-4 py-1.5 text-xs text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
           >
             Cancel
           </button>

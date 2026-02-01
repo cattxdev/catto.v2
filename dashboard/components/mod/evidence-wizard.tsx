@@ -195,7 +195,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
         {[1, 2, 3].map((s) => (
           <div
             key={s}
-            className={`flex-1 px-4 py-3 text-center text-xs font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 text-center text-xs font-medium transition-[background-color] duration-75 ${
               s === step
                 ? 'bg-[var(--mono-800)] text-[var(--mono-white)]'
                 : s < step
@@ -222,7 +222,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
                     key={opt.type}
                     onClick={() => setSelectedType(opt.type)}
                     disabled={opt.disabled}
-                    className={`flex flex-col items-center gap-2 border p-4 text-center transition-colors ${
+                    className={`flex flex-col items-center gap-2 border p-4 text-center transition-[background-color,border-color] duration-75 ${
                       isSelected
                         ? 'border-[var(--mono-500)] bg-[var(--mono-850)]'
                         : 'border-[var(--mod-border)] hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)]'
@@ -257,7 +257,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`cursor-pointer border-2 border-dashed p-6 text-center transition-colors ${
+              className={`cursor-pointer border-2 border-dashed p-6 text-center transition-[background-color,border-color] duration-75 ${
                 dragOver
                   ? 'border-[var(--mono-400)] bg-[var(--mono-850)]'
                   : 'border-[var(--mod-border)] hover:border-[var(--mod-border-hover)]'
@@ -332,7 +332,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
                 <div className="mb-2 flex items-center gap-2">
                   <button
                     onClick={() => setApplyDescToAll(!applyDescToAll)}
-                    className={`flex h-4 w-4 items-center justify-center border transition-colors ${
+                    className={`flex h-4 w-4 items-center justify-center border transition-[background-color,border-color] duration-75 ${
                       applyDescToAll
                         ? 'border-[var(--mono-500)] bg-[var(--mono-700)]'
                         : 'border-[var(--mod-border)]'
@@ -370,7 +370,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
                     <span className="min-w-0 flex-1 truncate text-[var(--mono-white)]">{files[p.index]?.file.name}</span>
                     <div className="h-1.5 w-24 bg-[var(--mono-800)]">
                       <div
-                        className={`h-full transition-all ${
+                        className={`h-full transition-[width] duration-150 ${
                           p.status === 'error' ? 'bg-red-500' :
                           p.status === 'done' ? 'bg-green-500' : 'bg-[var(--mono-400)]'
                         }`}
@@ -401,7 +401,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
             setStep((s) => (s - 1) as WizardStep);
           }}
           disabled={step === 1 || uploading}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-[var(--mod-text-muted)] transition-colors hover:text-[var(--mono-white)] disabled:opacity-30"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm text-[var(--mod-text-muted)] hover:text-[var(--mono-white)] disabled:opacity-30"
         >
           <IconChevronLeft size={16} />
           Back
@@ -411,7 +411,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
             <button
               onClick={() => setStep((s) => (s + 1) as WizardStep)}
               disabled={!canAdvance()}
-              className="flex items-center gap-1 border border-[var(--mod-border)] px-4 py-1.5 text-sm text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
+              className="flex items-center gap-1 border border-[var(--mod-border)] px-4 py-1.5 text-sm text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
             >
               Next
               <IconChevronRight size={16} />
@@ -421,7 +421,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="flex items-center gap-1 border border-[var(--mono-500)] px-4 py-1.5 text-sm text-[var(--mono-white)] transition-colors hover:bg-[var(--mono-800)] disabled:opacity-30"
+              className="flex items-center gap-1 border border-[var(--mono-500)] px-4 py-1.5 text-sm text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] disabled:opacity-30"
             >
               <IconPlus size={16} />
               {uploading ? 'Uploading...' : 'Upload'}

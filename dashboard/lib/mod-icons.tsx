@@ -25,6 +25,13 @@ import {
   IconTrash,
   IconSearch,
   IconKeyboard,
+  IconLayoutDashboard,
+  IconGavel,
+  IconFolder,
+  IconClipboardList,
+  IconShieldCheck,
+  IconFilter,
+  IconMessageReport,
   type Icon,
 } from '@tabler/icons-react';
 import type { EvidenceType } from '@/lib/mod-types';
@@ -76,4 +83,11 @@ export {
   IconTrash,
   IconSearch,
   IconKeyboard,
+  IconLayoutDashboard,
+  IconGavel,
+  IconFolder,
+  IconClipboardList,
+  IconShieldCheck,
+  IconFilter,
+  IconMessageReport,
 };

@@ -136,7 +136,7 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`cursor-pointer border-2 border-dashed p-8 text-center transition-colors ${
+        className={`cursor-pointer border-2 border-dashed p-8 text-center transition-[background-color,border-color] duration-75 ${
           dragOver
             ? 'border-[var(--mono-400)] bg-[var(--mono-850)]'
             : 'border-[var(--mod-border)] bg-[var(--mod-surface)] hover:border-[var(--mod-border-hover)]'
@@ -173,7 +173,7 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
                 <div className="mt-1 flex items-center gap-2">
                   <div className="h-1.5 flex-1 overflow-hidden bg-[var(--mono-800)]">
                     <div
-                      className={`h-full transition-all ${
+                      className={`h-full transition-[width] duration-150 ${
                         fs.status === 'error' ? 'bg-red-500' :
                         fs.status === 'done' ? 'bg-green-500' : 'bg-[var(--mono-400)]'
                       }`}
@@ -225,7 +225,7 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
           <button
             onClick={handleUrlSubmit}
             disabled={urlLoading || !urlInput.trim()}
-            className="border border-[var(--mod-border)] px-4 py-1.5 text-sm text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
+            className="border border-[var(--mod-border)] px-4 py-1.5 text-sm text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
           >
             {urlLoading ? 'Adding...' : 'Add URL'}
           </button>

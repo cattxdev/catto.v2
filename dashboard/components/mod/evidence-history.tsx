@@ -42,7 +42,7 @@ export function EvidenceHistory({ guildId, evidenceId, onClose }: EvidenceHistor
           <h2 className="text-lg font-semibold text-[var(--mono-white)]">Amendment History</h2>
           <button
             onClick={onClose}
-            className="p-1 text-[var(--mod-text-dim)] transition-colors hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
+            className="p-1 text-[var(--mod-text-dim)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
           >
             <IconX size={18} />
           </button>

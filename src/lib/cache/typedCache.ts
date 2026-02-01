@@ -160,4 +160,7 @@ export const CacheKey = {
     `voiceMuteAll:ignore:${guildId}:${channelId}`,
   voiceMuteAllAffected: (guildId: string, channelId: string) =>
     `voiceMuteAll:affected:${guildId}:${channelId}`,
+  // Discord OAuth token cache keys (keyed by truncated SHA-256 hash of token)
+  discordUser: (tokenHash: string) => `discord:user:${tokenHash}`,
+  discordGuilds: (tokenHash: string) => `discord:guilds:${tokenHash}`,
 } as const;

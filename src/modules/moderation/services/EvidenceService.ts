@@ -398,6 +398,47 @@ export class EvidenceService {
   }
 
   /**
+   * Get paginated evidence for an entire guild with optional filters.
+   */
+  async getEvidenceForGuild(
+    guildId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      type?: string;
+      status?: string;
+      caseNumber?: number;
+    }
+  ): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options.limit ?? 50));
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = { guildId };
+    if (options.type) where.type = options.type;
+    if (options.status) where.status = options.status;
+    if (options.caseNumber) where.caseNumber = options.caseNumber;
+
+    const [evidence, total] = await Promise.all([
+      container.prisma.evidence.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { snapshot: true },
+      }),
+      container.prisma.evidence.count({ where }),
+    ]);
+
+    return {
+      evidence,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
    * Get a single evidence item by ID.
    */
   async getEvidenceById(evidenceId: string): Promise<Evidence | null> {

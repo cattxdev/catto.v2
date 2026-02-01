@@ -119,7 +119,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="p-1 text-[var(--mod-text-dim)] transition-colors hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
+                className="p-1 text-[var(--mod-text-dim)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
                 title="Download"
               >
                 <IconDownload size={18} />
@@ -127,7 +127,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
             )}
             <button
               onClick={onClose}
-              className="p-1 text-[var(--mod-text-dim)] transition-colors hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
+              className="p-1 text-[var(--mod-text-dim)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)]"
             >
               <IconX size={18} />
             </button>
@@ -158,7 +158,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-xs font-medium transition-colors ${
+                className={`px-4 py-2 text-xs font-medium transition-[background-color] duration-75 ${
                   activeTab === tab
                     ? 'border-b-2 border-[var(--mono-white)] text-[var(--mono-white)]'
                     : 'text-[var(--mod-text-dim)] hover:text-[var(--mod-text-muted)]'
@@ -247,7 +247,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
                 <button
                   onClick={handleAmendSubmit}
                   disabled={amendSubmitting}
-                  className="border border-[var(--mono-500)] px-4 py-1.5 text-sm text-[var(--mono-white)] transition-colors hover:bg-[var(--mono-800)] disabled:opacity-30"
+                  className="border border-[var(--mono-500)] px-4 py-1.5 text-sm text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] disabled:opacity-30"
                 >
                   {amendSubmitting ? 'Submitting...' : 'Submit Amendment'}
                 </button>
@@ -348,7 +348,7 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
         href={viewUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="border border-[var(--mod-border)] px-4 py-2 text-sm text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+        className="border border-[var(--mod-border)] px-4 py-2 text-sm text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
       >
         Download
       </a>

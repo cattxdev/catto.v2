@@ -27,6 +27,7 @@
     "prisma:push": "prisma db push",
     "prisma:pull": "prisma db pull",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed-mod": "tsx prisma/seed-mod-dashboard.ts",
     "prisma:reset": "prisma migrate reset",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

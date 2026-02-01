@@ -17,6 +17,9 @@ import { RateLimitGate, type RateLimitOptions, type RateLimitResult } from './Ra
 import { WeightGate, type WeightResult } from './WeightGate.js';
 import type { Route } from '@sapphire/plugin-api';
 import axios from 'axios';
+import { createHash } from 'node:crypto';
+import { getOrSetJson, CacheKey } from '#lib/cache/typedCache.js';
+import { z } from 'zod';
 
 export interface ApiGateResult {
   ok: boolean;
@@ -44,6 +47,8 @@ export interface GateCheck {
   weightBytes?: number;
   maxWeightBytes?: number;
 }
+
+const discordUserSchema = z.object({ id: z.string() }).passthrough();
 
 function apiPass(): ApiGateResult {
   return { ok: true };
@@ -91,15 +96,34 @@ export class ApiGate {
 
       if (!token) return null;
 
-      // Validate token directly against Discord API (independent of bot routes)
-      const response = await axios.get('https://discord.com/api/v10/users/@me', {
-        headers: { Authorization: `Bearer ${token}` },
-        validateStatus: () => true,
-      });
+      // Cache Discord user validation by hashed token to avoid repeated API calls
+      const tokenHash = createHash('sha256').update(token).digest('hex').slice(0, 16);
+      let userData: { id: string } | null = null;
 
-      if (response.status !== 200) return null;
+      try {
+        userData = await getOrSetJson(
+          CacheKey.discordUser(tokenHash),
+          discordUserSchema,
+          async () => {
+            const response = await axios.get('https://discord.com/api/v10/users/@me', {
+              headers: { Authorization: `Bearer ${token}` },
+              validateStatus: () => true,
+            });
+            if (response.status !== 200) throw new Error('Discord API returned non-200');
+            return response.data;
+          },
+          60
+        );
+      } catch {
+        // Redis unavailable or Discord API error — fall back to direct call
+        const response = await axios.get('https://discord.com/api/v10/users/@me', {
+          headers: { Authorization: `Bearer ${token}` },
+          validateStatus: () => true,
+        });
+        if (response.status !== 200) return null;
+        userData = response.data as { id: string };
+      }
 
-      const userData = response.data as { id: string };
       if (!userData?.id) return null;
 
       // Get the guild

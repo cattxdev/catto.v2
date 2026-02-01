@@ -14,7 +14,7 @@ export function NsfwScanner({ result, filename, onConfirmSafe, onReject }: NsfwS
   const [confirmed, setConfirmed] = useState(false);
 
   return (
-    <div className="rounded-lg border border-yellow-800 bg-yellow-950/20 p-4">
+    <div className="border border-yellow-800 bg-yellow-950/20 p-4">
       <div className="mb-3 flex items-center gap-2">
         <span className="text-lg">⚠️</span>
         <h3 className="font-semibold text-yellow-400">Content Flagged</h3>
@@ -25,7 +25,7 @@ export function NsfwScanner({ result, filename, onConfirmSafe, onReject }: NsfwS
         with {(result.confidence * 100).toFixed(1)}% confidence.
       </p>
 
-      <div className="mb-3 rounded bg-[var(--mono-950)] p-2 text-xs text-[var(--mod-text-dim)]">
+      <div className="mb-3 bg-[var(--mono-950)] p-2 text-xs text-[var(--mod-text-dim)]">
         {Object.entries(result.categories)
           .sort(([, a], [, b]) => b - a)
           .map(([cat, score]) => (
@@ -47,7 +47,6 @@ export function NsfwScanner({ result, filename, onConfirmSafe, onReject }: NsfwS
             type="checkbox"
             checked={confirmed}
             onChange={(e) => setConfirmed(e.target.checked)}
-            className="rounded"
           />
           I confirm this is legitimate moderation evidence
         </label>
@@ -57,13 +56,13 @@ export function NsfwScanner({ result, filename, onConfirmSafe, onReject }: NsfwS
         <button
           onClick={onConfirmSafe}
           disabled={!confirmed}
-          className="rounded border border-yellow-800 px-3 py-1 text-sm text-yellow-400 transition-colors hover:bg-yellow-950/40 disabled:opacity-30"
+          className="border border-yellow-800 px-3 py-1 text-sm text-yellow-400 transition-[background-color] duration-75 hover:bg-yellow-950/40 disabled:opacity-30"
         >
           Proceed with Upload
         </button>
         <button
           onClick={onReject}
-          className="rounded border border-[var(--mod-border)] px-3 py-1 text-sm text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mod-surface-hover)]"
+          className="border border-[var(--mod-border)] px-3 py-1 text-sm text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
         >
           Cancel
         </button>

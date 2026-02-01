@@ -49,14 +49,30 @@ export class EvidenceRoute extends Route {
           .json({ error: 'Rate Limited', retryAfterMs: rateLimit.metadata?.retryAfterMs });
 
       const caseNumber = parseInt((request.query?.caseNumber as string) ?? '0');
-      if (!caseNumber || caseNumber < 1) {
-        return response.status(400).json({ error: 'Valid caseNumber query parameter is required' });
+
+      // If caseNumber is provided and valid, return per-case evidence (existing behavior)
+      if (caseNumber && caseNumber >= 1) {
+        const evidence = await evidenceService.getEvidenceForCase(guildId, caseNumber);
+        const summary = await evidenceService.getEvidenceSummary(guildId, caseNumber);
+        return response.json({ evidence, summary });
       }
 
-      const evidence = await evidenceService.getEvidenceForCase(guildId, caseNumber);
-      const summary = await evidenceService.getEvidenceSummary(guildId, caseNumber);
+      // Otherwise, return guild-wide paginated evidence
+      const page = parseInt((request.query?.page as string) ?? '1');
+      const limit = parseInt((request.query?.limit as string) ?? '50');
+      const type = (request.query?.type as string) || undefined;
+      const status = (request.query?.status as string) || undefined;
+      const filterCaseNumber = parseInt((request.query?.case as string) ?? '0') || undefined;
 
-      return response.json({ evidence, summary });
+      const result = await evidenceService.getEvidenceForGuild(guildId, {
+        page,
+        limit,
+        type,
+        status,
+        caseNumber: filterCaseNumber,
+      });
+
+      return response.json(result);
     } catch (error) {
       this.container.logger.error('Error fetching evidence:', error);
       return response.status(500).json({ error: 'Internal server error' });

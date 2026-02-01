@@ -12,13 +12,16 @@ interface UserInfo {
   global_name: string | null;
 }
 
-export function AccountSwitcher() {
+interface AccountSwitcherProps {
+  variant?: 'sidebar' | 'inline';
+}
+
+export function AccountSwitcher({ variant = 'sidebar' }: AccountSwitcherProps) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch user info from the existing bot API session endpoint
     fetch(`${BOT_API_URL}/api/users/@me`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
@@ -38,7 +41,6 @@ export function AccountSwitcher() {
   }, []);
 
   const handleLogout = () => {
-    // Use the existing dashboard logout endpoint which clears DASHBOARD_AUTH
     fetch('/api/oauth/logout', { method: 'POST' })
       .then(() => {
         window.location.href = '/mod/login';
@@ -49,7 +51,6 @@ export function AccountSwitcher() {
   };
 
   const handleSwitch = () => {
-    // Set redirect cookie and open OAuth in popup
     document.cookie = `mod_auth_redirect=/mod; path=/; max-age=300; SameSite=Lax`;
     window.open(`${BOT_API_URL}/api/oauth/login`, 'auth', 'width=500,height=700');
   };
@@ -61,11 +62,15 @@ export function AccountSwitcher() {
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
     : null;
 
+  const isInline = variant === 'inline';
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 border-t border-[var(--mod-border)] p-3 text-left transition-colors hover:bg-[var(--mono-850)]"
+        className={`flex w-full items-center gap-2 text-left transition-[background-color] duration-75 hover:bg-[var(--mono-850)] ${
+          isInline ? 'p-2' : 'border-t border-[var(--mod-border)] p-3'
+        }`}
       >
         {avatarUrl ? (
           <img src={avatarUrl} alt="" className="h-7 w-7 shrink-0" />
@@ -79,16 +84,18 @@ export function AccountSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 w-full border border-[var(--mod-border)] bg-[var(--mono-900)] shadow-lg">
+        <div className={`absolute left-0 z-50 mb-1 w-full border border-[var(--mod-border)] bg-[var(--mono-900)] shadow-lg ${
+          isInline ? 'top-full mt-1' : 'bottom-full'
+        }`}>
           <button
             onClick={handleSwitch}
-            className="w-full px-3 py-2 text-left text-xs text-[var(--mod-text-muted)] transition-colors hover:bg-[var(--mono-850)]"
+            className="w-full px-3 py-2 text-left text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mono-850)]"
           >
             Switch Account
           </button>
           <button
             onClick={handleLogout}
-            className="w-full border-t border-[var(--mod-border)] px-3 py-2 text-left text-xs text-red-400 transition-colors hover:bg-[var(--mono-850)]"
+            className="w-full border-t border-[var(--mod-border)] px-3 py-2 text-left text-xs text-red-400 transition-[background-color] duration-75 hover:bg-[var(--mono-850)]"
           >
             Log Out
           </button>
