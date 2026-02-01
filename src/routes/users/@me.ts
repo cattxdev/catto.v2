@@ -2,6 +2,7 @@ import { Route, type ApiRequest, type ApiResponse, HttpCodes } from '@sapphire/p
 import axios from 'axios';
 import { createHash } from 'node:crypto';
 import { getOrSetJson, CacheKey } from '#lib/cache/typedCache.js';
+import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
 import { z } from 'zod';
 
 const discordUserSchema = z.object({ id: z.string() }).passthrough();
@@ -21,21 +22,9 @@ export class UserMeRoute extends Route {
   }
 
   public async run(request: ApiRequest, response: ApiResponse) {
-    // Get the auth token from cookie or Authorization header
-    const authCookieName = 'DASHBOARD_AUTH';
-    let authToken = request.headers.cookie
-      ?.split('; ')
-      .find((c) => c.startsWith(`${authCookieName}=`))
-      ?.split('=')[1];
+    const value = extractSessionId(request);
 
-    if (!authToken) {
-      const authHeader = request.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        authToken = authHeader.slice(7);
-      }
-    }
-
-    if (!authToken) {
+    if (!value) {
       return response.status(HttpCodes.Unauthorized).json({
         error: 'Unauthorized',
         message: 'You must be logged in to access this resource',
@@ -43,7 +32,24 @@ export class UserMeRoute extends Route {
     }
 
     try {
-      const tokenHash = createHash('sha256').update(authToken).digest('hex').slice(0, 16);
+      let accessToken: string;
+
+      // New path: session ID → resolve accessToken from Redis
+      if (isSessionId(value)) {
+        const session = await resolveSession(value);
+        if (!session) {
+          return response.status(HttpCodes.Unauthorized).json({
+            error: 'SessionExpired',
+            message: 'Your session has expired. Please log in again.',
+          });
+        }
+        accessToken = session.accessToken;
+      } else {
+        // Legacy path: raw Discord token
+        accessToken = value;
+      }
+
+      const tokenHash = createHash('sha256').update(accessToken).digest('hex').slice(0, 16);
 
       // Fetch user data from Discord API (cached for 60s by token hash)
       let userData: Record<string, unknown>;
@@ -53,7 +59,7 @@ export class UserMeRoute extends Route {
           discordUserSchema,
           async () => {
             const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
-              headers: { Authorization: `Bearer ${authToken}` },
+              headers: { Authorization: `Bearer ${accessToken}` },
             });
             if (userResponse.status !== 200) throw new Error('Discord API returned non-200');
             return userResponse.data;
@@ -63,7 +69,7 @@ export class UserMeRoute extends Route {
       } catch {
         // Redis unavailable — fall back to direct call
         const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
-          headers: { Authorization: `Bearer ${authToken}` },
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (userResponse.status !== 200) {
           return response.status(HttpCodes.InternalServerError).json({
@@ -81,7 +87,7 @@ export class UserMeRoute extends Route {
           discordGuildsSchema,
           async () => {
             const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
-              headers: { Authorization: `Bearer ${authToken}` },
+              headers: { Authorization: `Bearer ${accessToken}` },
             });
             if (guildsResponse.status !== 200) throw new Error('Discord API returned non-200');
             return guildsResponse.data;

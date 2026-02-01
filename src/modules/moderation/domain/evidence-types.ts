@@ -13,6 +13,7 @@ export interface SerializedAttachment {
   size: number;
   contentType: string | null;
   storageKey?: string; // B2 key if archived
+  archiveFailed?: boolean; // true if B2 archival failed
 }
 
 /** Serialized sticker for snapshots */

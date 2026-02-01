@@ -148,11 +148,7 @@ export class EvidenceRoute extends Route {
     }
 
     // Check weight limit
-    const weight = await gate.checkWeight(
-      'evidence.upload',
-      sizeBytes,
-      undefined as unknown as number
-    );
+    const weight = await gate.checkWeight('evidence.upload', sizeBytes);
     if (!weight.ok)
       return response
         .status(413)

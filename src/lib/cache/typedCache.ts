@@ -163,4 +163,15 @@ export const CacheKey = {
   // Discord OAuth token cache keys (keyed by truncated SHA-256 hash of token)
   discordUser: (tokenHash: string) => `discord:user:${tokenHash}`,
   discordGuilds: (tokenHash: string) => `discord:guilds:${tokenHash}`,
+  // Server-side session keys
+  session: (sessionId: string) => `session:${sessionId}`,
 } as const;
+
+/** Zod schema for server-side session data stored in Redis */
+export const SessionDataSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string().optional(),
+  userId: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+});

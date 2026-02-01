@@ -1,7 +1,12 @@
 import { ApiRequest, ApiResponse, Middleware, type MiddlewareOptions } from '@sapphire/plugin-api';
+import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
 
 /**
- * Middleware to ensure a user is authenticated via OAuth2
+ * Middleware to ensure a user is authenticated via a server-side session.
+ *
+ * - Raw Discord tokens (non-UUID values) are rejected with SessionExpired
+ *   to force re-login through the new session flow.
+ * - Valid session IDs are verified against Redis.
  */
 export class AuthenticatedMiddleware extends Middleware {
   public constructor(context: Middleware.LoaderContext, options: MiddlewareOptions) {
@@ -17,17 +22,31 @@ export class AuthenticatedMiddleware extends Middleware {
       return;
     }
 
-    // Check if the request has authentication cookie
-    const authCookieName = 'DASHBOARD_AUTH';
-    const authToken = request.headers.cookie
-      ?.split('; ')
-      .find((c) => c.startsWith(`${authCookieName}=`))
-      ?.split('=')[1];
+    const value = extractSessionId(request);
 
-    if (!authToken) {
+    if (!value) {
       response.status(401).json({
         error: 'Unauthorized',
         message: 'You must be logged in to access this resource',
+      });
+      return;
+    }
+
+    // Reject legacy raw tokens — force re-login
+    if (!isSessionId(value)) {
+      response.status(401).json({
+        error: 'SessionExpired',
+        message: 'Your session has expired. Please log in again.',
+      });
+      return;
+    }
+
+    // Validate session exists and is not expired
+    const session = await resolveSession(value);
+    if (!session) {
+      response.status(401).json({
+        error: 'SessionExpired',
+        message: 'Your session has expired. Please log in again.',
       });
       return;
     }

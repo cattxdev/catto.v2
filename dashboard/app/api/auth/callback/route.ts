@@ -3,16 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const token = searchParams.get('token');
+  const sessionId = searchParams.get('sessionId');
 
-  if (!token) {
+  // Legacy raw-token param — force re-login
+  if (!sessionId) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
   const cookieStore = await cookies();
 
-  // Set the auth cookie
-  cookieStore.set('DASHBOARD_AUTH', token, {
+  // Set the auth cookie (value is now the opaque session ID)
+  cookieStore.set('DASHBOARD_AUTH', sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

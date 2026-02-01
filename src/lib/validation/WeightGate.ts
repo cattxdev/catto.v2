@@ -34,8 +34,8 @@ export class WeightGate {
     try {
       const redis = (container as unknown as { redis?: import('ioredis').default }).redis;
       if (!redis) {
-        // Fail open if Redis unavailable
-        return { allowed: true, used: 0, max };
+        // Fail closed if Redis unavailable — deny uploads when we can't track weight
+        return { allowed: false, used: 0, max };
       }
 
       const key = `weight:upload:${userId}:${guildId}`;
@@ -48,7 +48,8 @@ export class WeightGate {
 
       return { allowed: true, used: current, max };
     } catch {
-      return { allowed: true, used: 0, max };
+      // Fail closed on Redis errors — deny uploads when we can't track weight
+      return { allowed: false, used: 0, max };
     }
   }
 

@@ -2,7 +2,7 @@
  * API Gate - REST API authorization middleware
  *
  * Provides authorization, rate limiting, and weight tracking for REST API routes.
- * Resolves dashboard authentication cookies to Discord guild members
+ * Resolves dashboard session cookies to Discord guild members
  * and delegates permission checks to the existing permission system.
  */
 
@@ -19,6 +19,7 @@ import type { Route } from '@sapphire/plugin-api';
 import axios from 'axios';
 import { createHash } from 'node:crypto';
 import { getOrSetJson, CacheKey } from '#lib/cache/typedCache.js';
+import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
 import { z } from 'zod';
 
 export interface ApiGateResult {
@@ -71,60 +72,53 @@ export class ApiGate {
   ) {}
 
   /**
-   * Create an ApiGate from an HTTP request by resolving the DASHBOARD_AUTH cookie
-   * to a Discord guild member.
+   * Create an ApiGate from an HTTP request by resolving the session cookie
+   * (or legacy raw token) to a Discord guild member.
    */
   static async fromRequest(request: Route.Request, guildId: string): Promise<ApiGate | null> {
     try {
-      // Extract auth token from cookie or Authorization header
-      const cookies = request.headers.cookie;
-      let token: string | null = null;
+      const value = extractSessionId(request);
+      if (!value) return null;
 
-      if (cookies) {
-        const match = cookies.match(/DASHBOARD_AUTH=([^;]+)/);
-        if (match?.[1]) {
-          token = match[1];
+      let userId: string | null = null;
+
+      // New path: session ID → resolve from Redis (no Discord API call)
+      if (isSessionId(value)) {
+        const session = await resolveSession(value);
+        if (!session) return null;
+        userId = session.userId;
+      } else {
+        // Legacy path: raw Discord access token — validate via Discord API
+        const tokenHash = createHash('sha256').update(value).digest('hex').slice(0, 16);
+        let userData: { id: string } | null = null;
+
+        try {
+          userData = await getOrSetJson(
+            CacheKey.discordUser(tokenHash),
+            discordUserSchema,
+            async () => {
+              const response = await axios.get('https://discord.com/api/v10/users/@me', {
+                headers: { Authorization: `Bearer ${value}` },
+                validateStatus: () => true,
+              });
+              if (response.status !== 200) throw new Error('Discord API returned non-200');
+              return response.data;
+            },
+            60
+          );
+        } catch {
+          // Redis unavailable or Discord API error — fall back to direct call
+          const response = await axios.get('https://discord.com/api/v10/users/@me', {
+            headers: { Authorization: `Bearer ${value}` },
+            validateStatus: () => true,
+          });
+          if (response.status !== 200) return null;
+          userData = response.data as { id: string };
         }
+
+        if (!userData?.id) return null;
+        userId = userData.id;
       }
-
-      if (!token) {
-        const authHeader = request.headers.authorization;
-        if (authHeader?.startsWith('Bearer ')) {
-          token = authHeader.slice(7);
-        }
-      }
-
-      if (!token) return null;
-
-      // Cache Discord user validation by hashed token to avoid repeated API calls
-      const tokenHash = createHash('sha256').update(token).digest('hex').slice(0, 16);
-      let userData: { id: string } | null = null;
-
-      try {
-        userData = await getOrSetJson(
-          CacheKey.discordUser(tokenHash),
-          discordUserSchema,
-          async () => {
-            const response = await axios.get('https://discord.com/api/v10/users/@me', {
-              headers: { Authorization: `Bearer ${token}` },
-              validateStatus: () => true,
-            });
-            if (response.status !== 200) throw new Error('Discord API returned non-200');
-            return response.data;
-          },
-          60
-        );
-      } catch {
-        // Redis unavailable or Discord API error — fall back to direct call
-        const response = await axios.get('https://discord.com/api/v10/users/@me', {
-          headers: { Authorization: `Bearer ${token}` },
-          validateStatus: () => true,
-        });
-        if (response.status !== 200) return null;
-        userData = response.data as { id: string };
-      }
-
-      if (!userData?.id) return null;
 
       // Get the guild
       const discordGuild = container.client.guilds.cache.get(guildId);
@@ -133,12 +127,12 @@ export class ApiGate {
       // Resolve the member
       let member: GuildMember;
       try {
-        member = await discordGuild.members.fetch(userData.id);
+        member = await discordGuild.members.fetch(userId);
       } catch {
         return null;
       }
 
-      return new ApiGate(userData.id, guildId, member, discordGuild);
+      return new ApiGate(userId, guildId, member, discordGuild);
     } catch {
       return null;
     }
@@ -211,7 +205,7 @@ export class ApiGate {
   async checkWeight(
     _actionKey: string,
     weightBytes: number,
-    maxWeightBytes: number
+    maxWeightBytes?: number
   ): Promise<ApiGateResult> {
     const result: WeightResult = await WeightGate.checkUploadWeight(
       this.userId,
@@ -249,7 +243,7 @@ export class ApiGate {
           result = await this.checkWeight(
             check.actionKey!,
             check.weightBytes!,
-            check.maxWeightBytes!
+            check.maxWeightBytes
           );
           break;
         default:

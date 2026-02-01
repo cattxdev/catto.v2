@@ -274,8 +274,12 @@ export class EvidenceService {
               serialized.storageKey = key;
               mediaStorageKeys.push(key);
             }
-          } catch {
-            container.logger.warn(`Failed to archive attachment ${attachment.id}`);
+          } catch (archiveError) {
+            serialized.archiveFailed = true;
+            container.logger.warn(
+              `Failed to archive attachment ${attachment.id} (message=${msg.id}, filename=${attachment.name ?? 'unknown'}):`,
+              archiveError
+            );
           }
         }
 

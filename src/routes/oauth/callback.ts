@@ -1,10 +1,15 @@
 import { Route, type ApiRequest, type ApiResponse, HttpCodes } from '@sapphire/plugin-api';
 import axios from 'axios';
 import { URLSearchParams } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { setJson, SessionDataSchema, CacheKey } from '#lib/cache/typedCache.js';
+
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 /**
  * OAuth Callback Route
- * Handles Discord OAuth2 callback and exchanges code for access token
+ * Handles Discord OAuth2 callback and exchanges code for access token,
+ * then creates a server-side session in Redis and redirects to dashboard.
  */
 export class OAuthCallbackRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -57,12 +62,44 @@ export class OAuthCallbackRoute extends Route {
         }
       );
 
-      const { access_token } = tokenResponse.data;
+      const { access_token, refresh_token } = tokenResponse.data;
 
-      // Instead of setting cookie here, redirect to dashboard with token
-      // Dashboard will set the cookie on its own domain
+      // Fetch user identity from Discord
+      const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
+        headers: { Authorization: `Bearer ${access_token}` },
+        validateStatus: () => true,
+      });
+
+      if (userResponse.status !== 200 || !userResponse.data?.id) {
+        this.container.logger.error('OAuth callback: failed to fetch Discord user identity');
+        return response.status(HttpCodes.InternalServerError).json({
+          error: 'Failed to verify user identity with Discord',
+        });
+      }
+
+      const userId: string = userResponse.data.id;
+
+      // Generate opaque session ID and store in Redis
+      const sessionId = randomUUID();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
+
+      await setJson(
+        CacheKey.session(sessionId),
+        SessionDataSchema,
+        {
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          userId,
+          createdAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+        },
+        SESSION_TTL_SECONDS
+      );
+
+      // Redirect to dashboard with sessionId (not raw token)
       const redirectUrl = process.env.DASHBOARD_URL || 'http://localhost:3000';
-      const callbackUrl = `${redirectUrl}/api/auth/callback?token=${encodeURIComponent(access_token)}`;
+      const callbackUrl = `${redirectUrl}/api/auth/callback?sessionId=${encodeURIComponent(sessionId)}`;
 
       return response.status(302).setHeader('Location', callbackUrl).text('');
     } catch (error) {
