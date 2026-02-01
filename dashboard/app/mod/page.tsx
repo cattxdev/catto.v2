@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default async function ModDashboardHome() {
   const session = await getUserSession();
-  if (!session) redirect('/');
+  if (!session) redirect('/mod/login');
 
   const guilds = session.guilds.filter(
     (g) => (BigInt(g.permissions) & BigInt(0x20)) === BigInt(0x20) || g.owner
