@@ -23,6 +23,7 @@ import {
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
 import { ensureNonNull } from '#root/lib/utils.js';
+import { CONFIG } from '#root/config.js';
 
 /**
  * Context data for mod panel
@@ -375,7 +376,7 @@ export function buildModActionSuccess(
   caseNumber: number,
   reason: string,
   duration?: string,
-  options?: { dmSent?: boolean }
+  options?: { dmSent?: boolean; guildId?: string }
 ): FluentContainer {
   const targetTag = target.tag;
   const details: Record<string, string> = {
@@ -383,7 +384,7 @@ export function buildModActionSuccess(
     [`Reason`]: reason,
   };
 
-  return successContainer()
+  const result = successContainer()
     .h2(`${EMOJI.STATUS.SUCCESS} ${action} successful`)
     .kv(details)
     .when(!!duration, (c) => c.text(`> ${EMOJI.MODERATION.ACTIONS.SLOWMODE} ${duration}`))
@@ -393,6 +394,13 @@ export function buildModActionSuccess(
         .text(`${EMOJI.STATUS.WARNING} Could not send DM notification to user.`)
     )
     .footerWithTimestamp(`Case #${caseNumber}`);
+
+  if (options?.guildId) {
+    const evidenceUrl = `${CONFIG.DASHBOARD_URL}/mod/${options.guildId}/cases/${caseNumber}/evidence`;
+    result.linkButtons({ url: evidenceUrl, label: 'Attach Evidence', emoji: '📎' });
+  }
+
+  return result;
 }
 
 /**

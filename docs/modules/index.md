@@ -23,6 +23,7 @@ modules/
 | Module | Location | Purpose |
 |--------|----------|---------|
 | [Moderation](moderation.md) | `src/modules/moderation/` | Ban, kick, warn, mute, cases |
+| [Evidence](evidence.md) | `src/lib/storage/`, `src/modules/moderation/services/EvidenceService.ts` | Evidence storage, B2, signing |
 | [XP System](xp-system.md) | `src/modules/xp-text/`, `xp-voice/` | Leveling and leaderboards |
 | [Reputation](reputation.md) | `src/modules/reputation/` | Vouching and reputation |
 | [Rewards](rewards.md) | `src/modules/rewards/` | Guild reward system |

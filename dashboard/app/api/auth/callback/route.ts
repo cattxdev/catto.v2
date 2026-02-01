@@ -5,16 +5,13 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const token = searchParams.get('token');
 
-  console.log('Auth callback received, token:', token ? 'present' : 'missing');
-
   if (!token) {
-    // No token, redirect to home
-    console.log('No token, redirecting to home');
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Set the cookie
   const cookieStore = await cookies();
+
+  // Set the auth cookie
   cookieStore.set('DASHBOARD_AUTH', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -23,8 +20,14 @@ export async function GET(request: NextRequest) {
     path: '/',
   });
 
-  console.log('Cookie set, redirecting to /guilds');
+  // Check if there's a redirect destination (e.g. set by /mod/login)
+  const redirectCookie = cookieStore.get('mod_auth_redirect');
+  const destination = redirectCookie?.value || '/guilds';
 
-  // Redirect to guilds page
-  return NextResponse.redirect(new URL('/guilds', request.url));
+  // Clear the redirect cookie
+  if (redirectCookie) {
+    cookieStore.delete('mod_auth_redirect');
+  }
+
+  return NextResponse.redirect(new URL(destination, request.url));
 }

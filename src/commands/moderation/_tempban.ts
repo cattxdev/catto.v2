@@ -126,7 +126,8 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
           '_tempban > handleTempban > buildModActionSuccess: result.caseNumber'
         ),
         reason ?? 'No reason provided',
-        formatDuration(durationSeconds)
+        formatDuration(durationSeconds),
+        { guildId: guild.id }
       )
     );
   } catch (error) {

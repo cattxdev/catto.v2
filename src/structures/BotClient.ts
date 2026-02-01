@@ -63,7 +63,7 @@ export class BotClient extends SapphireClient {
           scopes: [OAuth2Scopes.Identify, OAuth2Scopes.Guilds],
         },
         prefix: CONFIG.API_PREFIX,
-        origin: CONFIG.API_ORIGIN,
+        origin: CONFIG.API_ORIGIN === '*' ? CONFIG.DASHBOARD_URL : CONFIG.API_ORIGIN,
         listenOptions: {
           port: CONFIG.API_PORT,
         },

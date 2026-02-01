@@ -291,6 +291,7 @@ export function createCaseEmbed(modCase: {
   duration: number | null;
   expiresAt: Date | null;
   guildId: string;
+  evidenceCount?: number;
 }): FluentContainer {
   const display = getActionDisplay(modCase.action);
   const reason = modCase.reason ?? 'No reason provided';
@@ -312,6 +313,9 @@ export function createCaseEmbed(modCase: {
       c.text(
         `${EMOJI.TIME.EXPIRED} **Expires** ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
       )
+    )
+    .when(modCase.evidenceCount !== undefined && modCase.evidenceCount > 0, (c) =>
+      c.text(`${EMOJI.MODERATION.ACTIONS.REPORT} **Evidence:** ${modCase.evidenceCount} item(s)`)
     )
     .text(`${EMOJI.CHANNELS.TYPES.FOLDER} **Guild** ${modCase.guildId}`)
     .footerWithTimestamp(`Case #${modCase.caseNumber}`, modCase.createdAt);

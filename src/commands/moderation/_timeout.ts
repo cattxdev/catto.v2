@@ -142,7 +142,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
         ),
         options.reason ?? 'No reason provided',
         durationText,
-        { dmSent: notified }
+        { dmSent: notified, guildId: options.guild.id }
       )
     );
   } catch (error) {

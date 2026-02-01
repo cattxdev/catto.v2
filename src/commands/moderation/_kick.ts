@@ -108,7 +108,7 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
         ensureNonNull(result.caseNumber, 'buildModActionSuccess(96): result.caseNumber'),
         options.reason ?? 'No reason provided',
         undefined,
-        { dmSent: notified }
+        { dmSent: notified, guildId: options.guild.id }
       )
     );
   } catch (error) {

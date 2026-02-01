@@ -43,11 +43,31 @@ enum PermissionSubjectType {
 enum PermissionResourceType {
   COMMAND
   CATEGORY
+  RESOURCE
 }
 
 enum PermissionEffect {
   ALLOW
   DENY
+}
+
+// Evidence system enums
+enum EvidenceType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  URL
+  DISCORD_URL
+  MESSAGE_SNAPSHOT
+}
+
+enum EvidenceStatus {
+  PENDING // Awaiting upload completion
+  PROCESSING // NSFW scan / signing in progress
+  VERIFIED // Passed all checks, immutable
+  FLAGGED // Failed NSFW check, user confirmed safe
+  REJECTED // Illegal/explicit content, not stored
 }
 
 // Moderation case status
@@ -76,18 +96,20 @@ model Guild {
   updatedAt DateTime @updatedAt
   settings  Json?
 
-  users         User[]
-  modCases      ModCase[]
-  modConfig     ModConfig?
-  logConfig     LogConfig?
-  xpConfig      GuildXPConfig?
-  userXP        UserXP[]
-  xpEventLogs   XPEventLog[]
-  voiceXPConfig GuildVoiceXPConfig?
-  userVoiceXP   UserVoiceXP[]
+  users            User[]
+  modCases         ModCase[]
+  modConfig        ModConfig?
+  logConfig        LogConfig?
+  xpConfig         GuildXPConfig?
+  userXP           UserXP[]
+  xpEventLogs      XPEventLog[]
+  voiceXPConfig    GuildVoiceXPConfig?
+  userVoiceXP      UserVoiceXP[]
   voiceXPEventLogs VoiceXPEventLog[]
-  voiceSessions VoiceSession[]
+  voiceSessions    VoiceSession[]
   reputationVouches ReputationVouch[]
+  evidence         Evidence[]
+  messageSnapshots MessageSnapshot[]
 
   @@index([guildId])
   @@map("guilds")
@@ -138,7 +160,8 @@ model ModCase {
   updatedAt   DateTime   @updatedAt
   expiresAt   DateTime?
   
-  guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  guild         Guild      @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  evidenceItems Evidence[]
 
   @@unique([guildId, caseNumber])
   @@index([guildId])
@@ -375,6 +398,116 @@ model ModAppeal {
   @@index([status])
   @@index([guildId, status])
   @@map("mod_appeals")
+}
+
+// ============================================
+// Evidence Management System
+// ============================================
+
+// Evidence attached to moderation cases
+model Evidence {
+  id               String         @id @default(cuid())
+  guildId          String
+  caseId           String
+  caseNumber       Int // Denormalized for fast lookups
+  uploadedById     String // Discord user ID
+  uploadedByTag    String
+  type             EvidenceType
+  status           EvidenceStatus @default(PENDING)
+
+  // Storage
+  storageKey       String? // B2 object key (null for URLs)
+  storageBucket    String?
+  originalFilename String?
+  mimeType         String?
+  sizeBytes        Int?
+
+  // Integrity
+  contentHash      String? // SHA-256 of file content
+  hmacSignature    String? // HMAC-SHA256 with server secret
+
+  // URL evidence
+  url              String? // For URL/DISCORD_URL types
+
+  // Snapshot reference
+  snapshotId       String? // FK to MessageSnapshot.id
+
+  // Metadata
+  description      String?
+  metadata         Json?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  guild      Guild            @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  case       ModCase          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  snapshot   MessageSnapshot? @relation(fields: [snapshotId], references: [id])
+  amendments EvidenceAmendment[]
+
+  @@index([guildId])
+  @@index([caseId])
+  @@index([caseNumber, guildId])
+  @@index([uploadedById])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("evidence")
+}
+
+// Append-only history log for evidence amendments
+model EvidenceAmendment {
+  id            String   @id @default(cuid())
+  evidenceId    String
+  amendedById   String // Discord user ID
+  amendedByTag  String
+  action        String // "NOTE_ADDED", "DESCRIPTION_UPDATED", "FLAGGED", "UNFLAGGED"
+  previousValue String? // JSON of what changed
+  newValue      String? // JSON of new value
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@index([evidenceId])
+  @@index([amendedById])
+  @@index([createdAt])
+  @@map("evidence_amendments")
+}
+
+// Captured message state for evidence preservation
+model MessageSnapshot {
+  id             String   @id @default(cuid())
+  guildId        String
+  channelId      String
+  capturedById   String // Moderator who triggered the capture
+  capturedByTag  String
+
+  // Range info
+  firstMessageId String
+  lastMessageId  String? // Null if single message
+  messageCount   Int     @default(1)
+
+  // Serialized content (the actual snapshot data)
+  snapshotData   Json // Array of MessageSnapshotEntry objects
+
+  // Storage for media extracted from messages
+  mediaStorageKeys Json? // Array of B2 keys for attachments/embeds captured
+
+  // Integrity
+  contentHash    String // SHA-256 of snapshotData JSON
+  hmacSignature  String // HMAC-SHA256 with server secret
+
+  createdAt      DateTime @default(now())
+
+  guild    Guild      @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
+  evidence Evidence[]
+
+  @@index([guildId])
+  @@index([channelId])
+  @@index([capturedById])
+  @@index([firstMessageId])
+  @@map("message_snapshots")
 }
 
 // Scheduled Tasks for Tempbans

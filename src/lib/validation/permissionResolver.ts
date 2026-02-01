@@ -45,7 +45,7 @@ const PermissionGrantSchema = z.object({
   guildId: z.string(),
   subjectType: z.enum(['USER', 'ROLE']),
   subjectId: z.string(),
-  resourceType: z.enum(['COMMAND', 'CATEGORY']),
+  resourceType: z.enum(['COMMAND', 'CATEGORY', 'RESOURCE']),
   resourceKey: z.string(),
   effect: z.enum(['ALLOW', 'DENY']),
   createdById: z.string().nullable(),
@@ -239,6 +239,49 @@ export async function checkCommandAccess(
   }
 
   return { allowed: true, reason: 'public' };
+}
+
+/**
+ * Resource-level access result with additional metadata for dashboard UI
+ */
+export interface ResourceAccessResult extends CommandAccessResult {
+  metadata?: {
+    disabledReason?: string;
+    requiredPermission?: string;
+    grantSource?: string;
+  };
+}
+
+/**
+ * Check resource-level access with optional context (e.g., case ownership).
+ * Delegates to checkCommandAccess for the core permission check,
+ * then layers on resource-specific context.
+ */
+export async function checkResourceAccess(
+  member: GuildMember,
+  resourceKey: string,
+  _resourceContext?: {
+    caseId?: string;
+    ownerId?: string;
+  }
+): Promise<ResourceAccessResult> {
+  const baseResult = await checkCommandAccess(member, resourceKey);
+
+  return {
+    ...baseResult,
+    metadata: baseResult.allowed
+      ? undefined
+      : {
+          disabledReason:
+            baseResult.reason === 'explicit_deny' || baseResult.reason === 'category_deny'
+              ? 'You have been explicitly denied access to this resource.'
+              : 'You do not have the required permission.',
+          requiredPermission: resourceKey,
+          grantSource: baseResult.source
+            ? `${baseResult.source.type}:${baseResult.source.id}`
+            : undefined,
+        },
+  };
 }
 
 export async function checkModPanelActionAccess(

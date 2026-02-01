@@ -15,12 +15,19 @@ export class UserMeRoute extends Route {
   }
 
   public async run(request: ApiRequest, response: ApiResponse) {
-    // Get the auth token from cookie
+    // Get the auth token from cookie or Authorization header
     const authCookieName = 'DASHBOARD_AUTH';
-    const authToken = request.headers.cookie
+    let authToken = request.headers.cookie
       ?.split('; ')
       .find((c) => c.startsWith(`${authCookieName}=`))
       ?.split('=')[1];
+
+    if (!authToken) {
+      const authHeader = request.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        authToken = authHeader.slice(7);
+      }
+    }
 
     if (!authToken) {
       return response.status(HttpCodes.Unauthorized).json({

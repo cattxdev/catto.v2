@@ -209,7 +209,9 @@ export class ModModalInteractionListener extends Listener {
         action.toUpperCase(),
         target,
         ensureNonNull(result.caseNumber, 'handleReasonModal > result.caseNumber for success'),
-        reason
+        reason,
+        undefined,
+        { guildId: gate.guild.id }
       );
       await interaction.editReply({
         components: [successContainer.build()],
@@ -375,7 +377,8 @@ export class ModModalInteractionListener extends Listener {
         target,
         ensureNonNull(result.caseNumber, 'handleDurationModal > result.caseNumber for success'),
         reason,
-        durationText
+        durationText,
+        { guildId: gate.guild.id }
       );
       await interaction.editReply({
         components: [successContainer.build()],
@@ -605,7 +608,8 @@ export class ModModalInteractionListener extends Listener {
         target,
         ensureNonNull(result.caseNumber, 'handleMuteModal > result.caseNumber for success'),
         reason,
-        durationText
+        durationText,
+        { guildId: gate.guild.id }
       );
       await interaction.editReply({
         components: [successContainer.build()],

@@ -127,7 +127,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
         options.reason ?? 'No reason provided',
         undefined,
         // Only report DM sent if we actually attempted it (target in guild) and it succeeded
-        { dmSent: Boolean(targetMember && notified) }
+        { dmSent: Boolean(targetMember && notified), guildId: options.guild.id }
       )
     );
   } catch (error) {

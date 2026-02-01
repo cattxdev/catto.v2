@@ -97,7 +97,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
         ),
         options.reason ?? 'No reason provided',
         undefined,
-        { dmSent: notified }
+        { dmSent: notified, guildId: options.guild.id }
       )
     );
   } catch (error) {

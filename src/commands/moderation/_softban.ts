@@ -124,7 +124,9 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
           result.caseNumber,
           '_softban > handleSoftban > buildModActionSuccess: result.caseNumber'
         ),
-        reason ?? 'No reason provided'
+        reason ?? 'No reason provided',
+        undefined,
+        { guildId: guild.id }
       )
     );
   } catch (error) {

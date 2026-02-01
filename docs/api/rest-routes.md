@@ -228,6 +228,135 @@ Get moderation statistics.
 
 ---
 
+## Evidence Routes
+
+### `GET /guilds/:guildId/moderation/evidence`
+
+List evidence for a case.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `caseNumber` | `number` | Case number (required) |
+
+**Response:**
+```json
+{
+  "evidence": [...],
+  "summary": {
+    "total": 3,
+    "byType": { "IMAGE": 2, "DISCORD_URL": 1 },
+    "byStatus": { "VERIFIED": 3 },
+    "totalSizeBytes": 524288,
+    "latestAt": "2026-01-30T...",
+    "hasWeakEvidenceOnly": false
+  }
+}
+```
+
+---
+
+### `POST /guilds/:guildId/moderation/evidence` (action: initiate)
+
+Initiate a file upload. Returns a presigned B2 upload URL.
+
+**Body:**
+```json
+{
+  "action": "initiate",
+  "caseNumber": 413,
+  "filename": "screenshot.png",
+  "mimeType": "image/png",
+  "sizeBytes": 204800
+}
+```
+
+**Response:**
+```json
+{
+  "evidenceId": "clx...",
+  "uploadUrl": "https://s3.us-west-004.backblazeb2.com/...",
+  "expiresAt": "2026-01-30T..."
+}
+```
+
+---
+
+### `POST /guilds/:guildId/moderation/evidence` (action: confirm)
+
+Confirm an upload completed. Verifies file exists in B2, signs with HMAC.
+
+**Body:**
+```json
+{
+  "action": "confirm",
+  "evidenceId": "clx...",
+  "contentHash": "sha256hex..."
+}
+```
+
+---
+
+### `POST /guilds/:guildId/moderation/evidence` (action: url)
+
+Add URL-type evidence. Auto-detects Discord message links.
+
+**Body:**
+```json
+{
+  "action": "url",
+  "caseNumber": 413,
+  "url": "https://discord.com/channels/...",
+  "description": "User's message before deletion"
+}
+```
+
+---
+
+### `GET /guilds/:guildId/moderation/evidence/:evidenceId`
+
+Get evidence detail. Supports `?action=view-url` for presigned download URL and `?action=history` for amendment history.
+
+---
+
+### `POST /guilds/:guildId/moderation/evidence/:evidenceId`
+
+Add an amendment to evidence (append-only).
+
+**Body:**
+```json
+{
+  "action": "NOTE_ADDED",
+  "newValue": "Confirmed this is the user's alt account",
+  "reason": "Cross-referenced with IP logs"
+}
+```
+
+---
+
+### `GET /guilds/:guildId/moderation/dashboard-access`
+
+Get the authenticated user's mod dashboard permissions for a guild.
+
+**Response:**
+```json
+{
+  "userId": "123456789",
+  "guildId": "987654321",
+  "isAdmin": false,
+  "isOwner": false,
+  "hasAccess": true,
+  "sections": {
+    "cases": true,
+    "evidence": true,
+    "evidenceAdd": true,
+    "evidenceCapture": false
+  }
+}
+```
+
+---
+
 ## Permissions Routes
 
 ### `GET /guilds/:guildId/permissions/registry`

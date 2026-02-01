@@ -21,16 +21,16 @@ const features = [
   { icon: Shield, title: 'Moderation', desc: 'Case tracking, warnings, mutes, tempbans', link: '/modules/moderation' },
   { icon: Zap, title: 'XP System', desc: 'Text and voice leveling with leaderboards', link: '/modules/xp-system' },
   { icon: Mic, title: 'Temp Voice', desc: 'Join-to-create with control panels', link: '/modules/temp-voice' },
-  { icon: Lock, title: 'Permission Gate', desc: 'Custom RBAC with fine-grained grants', link: '/core/permission-gate' },
+  { icon: Lock, title: 'Gate System', desc: 'Authorization, rate limiting, and resource guards', link: '/core/gate-system' },
   { icon: Globe, title: 'REST API', desc: 'HTTP endpoints with OAuth2', link: '/api/rest-routes' },
   { icon: Database, title: 'Database', desc: 'PostgreSQL + Prisma + Redis', link: '/api/database' },
 ];
 
 const quickLinks = [
   { icon: Book, title: 'Getting Started', desc: 'Setup and run locally', link: '/getting-started' },
+  { icon: Globe, title: 'Dashboard Setup', desc: 'Run the mod dashboard', link: '/dashboard' },
   { icon: Code, title: 'Commands', desc: 'Create slash commands', link: '/commands/creating-commands' },
   { icon: Layers, title: 'Architecture', desc: 'System design overview', link: '/architecture' },
-  { icon: Settings, title: 'Coding Rules', desc: 'Style guide & conventions', link: '/RULES' },
 ];
 </script>
 

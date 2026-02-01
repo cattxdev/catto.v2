@@ -12,6 +12,8 @@ This document describes the system architecture of Catto v2.x and how components
 | ORM | Prisma v7 | Database operations and migrations |
 | Cache | Redis | Caching, rate limiting, pub/sub |
 | Queue | BullMQ | Background job processing |
+| Object Storage | Backblaze B2 (S3-compatible) | Evidence file storage |
+| Dashboard | Next.js 15 | Moderator web UI |
 | Validation | Zod | Schema validation |
 | i18n | i18next | Internationalization |
 
@@ -57,6 +59,13 @@ This document describes the system architecture of Catto v2.x and how components
 │   PostgreSQL  │    │     Redis     │    │    BullMQ     │
 │   (Prisma)    │    │   (Cache)     │    │   (Jobs)      │
 └───────────────┘    └───────────────┘    └───────────────┘
+        │                                         │
+        │                                         │
+        ▼                                         ▼
+┌───────────────┐                        ┌───────────────┐
+│  Backblaze B2 │                        │   Dashboard   │
+│  (Evidence)   │                        │  (Next.js)    │
+└───────────────┘                        └───────────────┘
 ```
 
 ## Request Flow
@@ -92,18 +101,43 @@ This document describes the system architecture of Catto v2.x and how components
 
 ```
 1. HTTP request to /api/...
+   (from dashboard or external client)
                 │
                 ▼
 2. Sapphire API middleware
                 │
                 ▼
-3. Route handler executes
+3. ApiGate resolves session → Discord member
                 │
                 ▼
-4. Service layer (if needed)
+4. Permission + rate limit checks
                 │
                 ▼
-5. JSON response returned
+5. Route handler executes
+                │
+                ▼
+6. Service layer (if needed)
+                │
+                ▼
+7. JSON response returned
+```
+
+### Dashboard Flow
+
+```
+1. User opens dashboard (Next.js on port 3000)
+                │
+                ▼
+2. Login → bot /api/oauth/login → Discord OAuth2 → bot /api/oauth/callback
+                │
+                ▼
+3. Bot redirects to dashboard /api/auth/callback with token
+                │
+                ▼
+4. Dashboard sets DASHBOARD_AUTH cookie
+                │
+                ▼
+5. Dashboard calls bot REST API with cookie for all data
 ```
 
 ## Directory Structure
@@ -122,9 +156,12 @@ commands/
 │   ├── help.ts
 │   └── language.ts
 ├── moderation/     # Moderation commands
-│   ├── mod.ts      # Main subcommand entry
-│   ├── _ban.ts     # Subcommand handlers
+│   ├── mod.ts           # Main subcommand entry
+│   ├── _ban.ts          # Subcommand handlers
 │   ├── _kick.ts
+│   ├── _evidenceAdd.ts  # Evidence subcommands
+│   ├── _evidenceList.ts
+│   ├── captureEvidence.ts  # Context menu command
 │   └── ...
 ├── reputation/     # Reputation commands
 ├── rewards/        # Reward commands
@@ -153,10 +190,10 @@ Business logic organized by feature:
 ```
 modules/
 ├── moderation/
-│   ├── services/   # ModerationService, MuteService, etc.
+│   ├── services/   # ModerationService, MuteService, EvidenceService, etc.
 │   ├── handlers/   # Command execution handlers
 │   ├── discord/    # Embeds, components, modals
-│   └── domain/     # Types and domain logic
+│   └── domain/     # Types and domain logic (incl. evidence-types.ts)
 ├── xp-text/
 ├── xp-voice/
 ├── reputation/
@@ -171,6 +208,14 @@ Shared utilities and helpers:
 ```
 lib/
 ├── validation/     # Gate permission system
+│   ├── Gate.ts         # Discord interaction gate
+│   ├── ApiGate.ts      # REST API gate
+│   ├── RateLimitGate.ts# Rate limiting
+│   ├── WeightGate.ts   # Upload weight tracking
+│   └── ...
+├── storage/        # Object storage (Backblaze B2)
+│   ├── StorageService.ts  # S3-compatible client
+│   └── SigningService.ts  # HMAC-SHA256 integrity
 ├── discord/        # Discord component utilities
 │   ├── components/ # Buttons, modals, selects
 │   ├── containers/ # Fluent message builders
@@ -251,11 +296,15 @@ Key models in Prisma schema:
 | `ModCase` | Moderation case tracking |
 | `ModConfig` | Server mod settings |
 | `Mute` | Active mute tracking |
+| `Evidence` | Evidence files and URLs per case |
+| `EvidenceAmendment` | Append-only evidence history |
+| `MessageSnapshot` | Captured Discord message state |
 | `UserXP` | Text message XP |
 | `UserVoiceXP` | Voice channel XP |
 | `UserReputation` | Reputation scores |
 | `TempVoiceChannel` | Temp voice tracking |
 | `LogConfig` | Audit log settings |
+| `PermissionGrant` | Custom RBAC grants |
 
 ## Caching Strategy
 
@@ -282,6 +331,7 @@ BullMQ handles scheduled tasks:
 ## Related Documentation
 
 - [BotClient](core/bot-client.md) - Client initialization details
-- [Permission Gate](core/permission-gate.md) - RBAC system
+- [Gate System](core/gate-system.md) - RBAC system
+- [Dashboard Setup](dashboard.md) - Dashboard configuration and OAuth
 - [Database API](api/database.md) - Database helpers
 - [Redis API](api/redis.md) - Caching utilities

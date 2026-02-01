@@ -353,5 +353,5 @@ Translation file (`languages/en-US/commands/ping.json`):
 ## Related
 
 - [Preconditions](preconditions.md) - Permission checks
-- [Permission Gate](../core/permission-gate.md) - Authorization system
+- [Gate System](../core/gate-system.md) - Authorization system
 - [Discord Components](../core/discord-components.md) - Building responses

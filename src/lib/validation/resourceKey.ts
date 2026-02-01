@@ -159,11 +159,17 @@ export function resolveCommandKey(interaction: ChatInputCommandInteraction): str
 }
 
 /**
+ * Context menu command name to resource key mapping.
+ */
+const CONTEXT_MENU_KEY_MAP: Record<string, string> = {
+  'Capture Evidence': 'mod.evidence.capture',
+};
+
+/**
  * Resolve the resource key from a context menu command interaction.
  */
 export function resolveContextMenuKey(interaction: ContextMenuCommandInteraction): string {
-  // Context menus use the command name directly as the key
-  return interaction.commandName;
+  return CONTEXT_MENU_KEY_MAP[interaction.commandName] ?? interaction.commandName;
 }
 
 /**
