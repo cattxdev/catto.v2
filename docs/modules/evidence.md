@@ -1,3 +1,41 @@
+<script setup>
+const corsFields = [
+  { key: 'bucket', label: 'Bucket name', placeholder: 'mod-evidence-staging' },
+  { key: 'origin', label: 'Dashboard origin', placeholder: 'http://localhost:3000' },
+  { key: 'region', label: 'B2 region', placeholder: 'us-east-005', tabs: ['AWS CLI'] },
+];
+
+const corsRules = JSON.stringify([{
+  corsRuleName: 'evidenceUploads',
+  allowedOrigins: ['{{origin}}'],
+  allowedOperations: ['s3_put', 's3_get', 's3_head'],
+  allowedHeaders: ['authorization', 'content-type', 'content-length', 'x-amz-content-sha256', 'x-amz-date'],
+  exposeHeaders: ['ETag'],
+  maxAgeSeconds: 3600,
+}], null, 2);
+
+const awsCorsConfig = JSON.stringify({
+  CORSRules: [{
+    AllowedOrigins: ['{{origin}}'],
+    AllowedMethods: ['PUT', 'GET', 'HEAD'],
+    AllowedHeaders: ['authorization', 'content-type', 'content-length', 'x-amz-content-sha256', 'x-amz-date'],
+    ExposeHeaders: ['ETag'],
+    MaxAgeSeconds: 3600,
+  }],
+}, null, 2);
+
+const corsCommands = [
+  {
+    label: 'B2 CLI',
+    template: `b2 bucket update --cors-rules '${corsRules}' {{bucket}} allPrivate`,
+  },
+  {
+    label: 'AWS CLI',
+    template: `aws s3api put-bucket-cors \\\n  --bucket {{bucket}} \\\n  --endpoint-url https://s3.{{region}}.backblazeb2.com \\\n  --cors-configuration '${awsCorsConfig}'`,
+  },
+];
+</script>
+
 # Evidence System
 
 > Location: `src/modules/moderation/services/EvidenceService.ts`, `src/lib/storage/`
@@ -51,24 +89,13 @@ Browser                    Bot API                    Backblaze B2
 
 ### 3. Configure CORS (Required for Browser Uploads)
 
-Browser-based uploads via presigned URLs require CORS rules on the bucket. Set them using the B2 CLI:
+Browser-based uploads via presigned URLs require CORS rules on the bucket. Fill in your values below and copy the command for either the B2 CLI (`pip install b2-cli`) or the AWS CLI.
 
-```bash
-b2 update-bucket --corsRules '[
-  {
-    "corsRuleName": "evidenceUploads",
-    "allowedOrigins": ["https://your-dashboard-domain.com"],
-    "allowedOperations": ["s3_put", "s3_get", "s3_head"],
-    "allowedHeaders": ["authorization", "content-type", "content-length", "x-amz-content-sha256", "x-amz-date"],
-    "exposeHeaders": ["ETag"],
-    "maxAgeSeconds": 3600
-  }
-]' your-bucket-name allPrivate
-```
+<CommandBuilder :fields="corsFields" :commands="corsCommands" />
 
-For development, you can use `"allowedOrigins": ["*"]`, but restrict this in production.
-
-Alternatively, set CORS via the S3-compatible API using `PutBucketCors`.
+::: tip
+For development, use `http://localhost:3000` as the origin. In production, restrict this to your actual dashboard domain. The AWS CLI variant requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` env vars set to your B2 application key credentials.
+:::
 
 ### 4. Environment Variables
 
