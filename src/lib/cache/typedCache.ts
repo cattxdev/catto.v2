@@ -1,10 +1,53 @@
 import { container } from '@sapphire/framework';
 import { z } from 'zod';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 function assertRedisAvailable(): void {
   const redis = (container as unknown as { redis?: unknown }).redis;
   if (!redis) {
     throw new Error('Redis is not configured (container.redis is missing).');
+  }
+}
+
+// ─── Token Encryption ───
+// Encrypts sensitive tokens for storage in Redis
+const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY || 'default-dev-key';
+const ALGORITHM = 'aes-256-gcm';
+
+function encryptToken(token: string): string {
+  const iv = randomBytes(16);
+  const key = scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(token, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+
+  // Format: iv:authTag:encrypted
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+function decryptToken(encrypted: string): string {
+  const parts = encrypted.split(':');
+  // If format is invalid or not encrypted (backward compatibility with plain text tokens)
+  if (parts.length !== 3) {
+    return encrypted; // Return as-is if not in encrypted format
+  }
+
+  try {
+    const iv = Buffer.from(parts[0]!, 'hex');
+    const authTag = Buffer.from(parts[1]!, 'hex');
+    const key = scryptSync(ENCRYPTION_KEY, 'salt', 32);
+    const decipher = createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(parts[2]!, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    // If decryption fails, assume it's plain text (backward compatibility)
+    return encrypted;
   }
 }
 
@@ -167,11 +210,35 @@ export const CacheKey = {
   session: (sessionId: string) => `session:${sessionId}`,
 } as const;
 
-/** Zod schema for server-side session data stored in Redis */
+/** Zod schema for server-side session data stored in Redis (tokens are encrypted) */
 export const SessionDataSchema = z.object({
-  accessToken: z.string(),
-  refreshToken: z.string().optional(),
+  accessToken: z.string(), // Encrypted
+  refreshToken: z.string().optional(), // Encrypted
   userId: z.string(),
   createdAt: z.string(),
   expiresAt: z.string(),
 });
+
+export type SessionData = z.infer<typeof SessionDataSchema>;
+
+/**
+ * Encrypt tokens in session data before storage
+ */
+export function encryptSessionData(data: SessionData): SessionData {
+  return {
+    ...data,
+    accessToken: encryptToken(data.accessToken),
+    refreshToken: data.refreshToken ? encryptToken(data.refreshToken) : undefined,
+  };
+}
+
+/**
+ * Decrypt tokens in session data after retrieval
+ */
+export function decryptSessionData(data: SessionData): SessionData {
+  return {
+    ...data,
+    accessToken: decryptToken(data.accessToken),
+    refreshToken: data.refreshToken ? decryptToken(data.refreshToken) : undefined,
+  };
+}

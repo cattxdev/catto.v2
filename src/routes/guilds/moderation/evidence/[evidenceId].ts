@@ -81,8 +81,19 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=view-url
    * Get a presigned view URL for an evidence file.
    */
-  private async handleViewUrl(_gate: ApiGate, evidenceId: string, response: Route.Response) {
+  private async handleViewUrl(gate: ApiGate, evidenceId: string, response: Route.Response) {
     try {
+      const evidence = await evidenceService.getEvidenceById(evidenceId);
+      if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+
+      // Verify user has access to this specific case
+      const caseAuth = await gate.checkResourceAuth('mod.evidence.view', {
+        caseId: evidence.caseId,
+      });
+      if (!caseAuth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
+      }
+
       const url = await evidenceService.generateViewUrl(evidenceId);
       return response.json({ url });
     } catch (error) {
@@ -95,8 +106,19 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=download-url
    * Get a presigned download URL for an evidence file.
    */
-  private async handleDownloadUrl(_gate: ApiGate, evidenceId: string, response: Route.Response) {
+  private async handleDownloadUrl(gate: ApiGate, evidenceId: string, response: Route.Response) {
     try {
+      const evidence = await evidenceService.getEvidenceById(evidenceId);
+      if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+
+      // Verify user has access to this specific case
+      const caseAuth = await gate.checkResourceAuth('mod.evidence.view', {
+        caseId: evidence.caseId,
+      });
+      if (!caseAuth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
+      }
+
       const url = await evidenceService.generateDownloadUrl(evidenceId);
       return response.json({ url });
     } catch (error) {

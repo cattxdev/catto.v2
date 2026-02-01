@@ -6,7 +6,7 @@
  */
 
 import type { Route } from '@sapphire/plugin-api';
-import { getJson, SessionDataSchema, CacheKey } from '#lib/cache/typedCache.js';
+import { getJson, SessionDataSchema, CacheKey, decryptSessionData } from '#lib/cache/typedCache.js';
 import { z } from 'zod';
 
 export type SessionData = z.infer<typeof SessionDataSchema>;
@@ -53,5 +53,6 @@ export async function resolveSession(sessionId: string): Promise<SessionData | n
     return null;
   }
 
-  return data;
+  // Decrypt tokens before returning
+  return decryptSessionData(data);
 }

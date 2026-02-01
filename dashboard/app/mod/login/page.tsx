@@ -17,15 +17,6 @@ export default function ModLoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* ASCII decorative header */}
-        <pre
-          className="mb-8 text-center text-xs text-[var(--mono-500)] select-none"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
-{`╔══════════════════════════════════╗
-║   CATTO // MOD TERMINAL          ║
-╚══════════════════════════════════╝`}
-        </pre>
 
         <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-8">
           {/* Section label */}
@@ -68,14 +59,6 @@ export default function ModLoginPage() {
           </p>
         </div>
 
-        {/* Status bar */}
-        <div
-          className="mt-4 flex items-center justify-between border border-[var(--mod-border)] bg-[var(--mono-950)] px-4 py-2 text-xs text-[var(--mod-text-dim)]"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
-          <span>SYSTEM READY</span>
-          <span>// AWAITING AUTHENTICATION</span>
-        </div>
       </div>
     </div>
   );

@@ -65,7 +65,10 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
         // Step 2: Upload to presigned URL
         const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'Content-Length': file.size.toString(),
+          },
           body: file,
         });
         if (!uploadResponse.ok) {

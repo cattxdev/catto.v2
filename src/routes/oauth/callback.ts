@@ -2,7 +2,7 @@ import { Route, type ApiRequest, type ApiResponse, HttpCodes } from '@sapphire/p
 import axios from 'axios';
 import { URLSearchParams } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { setJson, SessionDataSchema, CacheKey } from '#lib/cache/typedCache.js';
+import { setJson, SessionDataSchema, CacheKey, encryptSessionData } from '#lib/cache/typedCache.js';
 
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -84,16 +84,18 @@ export class OAuthCallbackRoute extends Route {
       const now = new Date();
       const expiresAt = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
 
+      const sessionData = {
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        userId,
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      };
+
       await setJson(
         CacheKey.session(sessionId),
         SessionDataSchema,
-        {
-          accessToken: access_token,
-          refreshToken: refresh_token,
-          userId,
-          createdAt: now.toISOString(),
-          expiresAt: expiresAt.toISOString(),
-        },
+        encryptSessionData(sessionData),
         SESSION_TTL_SECONDS
       );
 

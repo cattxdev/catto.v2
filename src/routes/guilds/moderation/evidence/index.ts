@@ -148,7 +148,7 @@ export class EvidenceRoute extends Route {
     }
 
     // Check weight limit
-    const weight = await gate.checkWeight('evidence.upload', sizeBytes);
+    const weight = await gate.checkWeight('evidence.upload', sizeBytes, 2 * 1024 * 1024 * 1024); // 2GB default max
     if (!weight.ok)
       return response
         .status(413)
