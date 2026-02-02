@@ -363,6 +363,162 @@ export function isHistoryPaginationCustomId(customId: string): boolean {
   return customId.startsWith(`${HISTORY_PREFIX}:${CUSTOM_ID_VERSION}:`);
 }
 
+// ==================== Evidence Capture Modal Custom ID ====================
+
+/**
+ * Schema for evidence capture modal custom_id
+ * Format: evidence_capture:v1:{messageId}:{channelId}
+ */
+export const EvidenceCaptureModalCustomIdSchema = z.object({
+  prefix: z.literal('evidence_capture'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  messageId: snowflakeSchema,
+  channelId: snowflakeSchema,
+});
+
+export type EvidenceCaptureModalCustomId = z.infer<typeof EvidenceCaptureModalCustomIdSchema>;
+
+/**
+ * Encode an evidence capture modal custom_id
+ */
+export function encodeEvidenceCaptureModalCustomId(messageId: string, channelId: string): string {
+  return `evidence_capture:${CUSTOM_ID_VERSION}:${messageId}:${channelId}`;
+}
+
+/**
+ * Decode and validate an evidence capture modal custom_id
+ */
+export function decodeEvidenceCaptureModalCustomId(
+  customId: string
+): EvidenceCaptureModalCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [prefix, version, messageId, channelId] = parts;
+
+  const result = EvidenceCaptureModalCustomIdSchema.safeParse({
+    prefix,
+    version,
+    messageId,
+    channelId,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
+// ==================== Evidence Action Select Menu Custom ID ====================
+
+/**
+ * Schema for evidence action select menu custom_id
+ * Format: evidence_action:v1:{targetId}:{caseNumber}
+ */
+export const EvidenceActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_action'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  targetId: snowflakeSchema,
+  caseNumber: z.string().regex(/^\d+$/),
+});
+
+export type EvidenceActionCustomId = z.infer<typeof EvidenceActionCustomIdSchema>;
+
+/**
+ * Encode an evidence action select menu custom_id
+ */
+export function encodeEvidenceActionCustomId(targetId: string, caseNumber: number): string {
+  return `evidence_action:${CUSTOM_ID_VERSION}:${targetId}:${caseNumber}`;
+}
+
+/**
+ * Decode and validate an evidence action select menu custom_id
+ */
+export function decodeEvidenceActionCustomId(customId: string): EvidenceActionCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [prefix, version, targetId, caseNumber] = parts;
+
+  const result = EvidenceActionCustomIdSchema.safeParse({
+    prefix,
+    version,
+    targetId,
+    caseNumber,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
+// ==================== Evidence Mod Action Modal Custom ID ====================
+
+/**
+ * Schema for evidence mod action modal custom_id
+ * Used when a moderator picks a follow-up action after evidence capture.
+ * The modal submission updates the existing case instead of creating a new one.
+ * Format: evidence_modaction:v1:{action}:{targetId}:{caseNumber}
+ */
+export const EvidenceModActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_modaction'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  action: z.enum(['warn', 'kick', 'ban', 'softban', 'timeout', 'tempban']),
+  targetId: snowflakeSchema,
+  caseNumber: z.string().regex(/^\d+$/),
+});
+
+export type EvidenceModActionCustomId = z.infer<typeof EvidenceModActionCustomIdSchema>;
+
+/**
+ * Encode an evidence mod action modal custom_id
+ */
+export function encodeEvidenceModActionCustomId(
+  action: 'warn' | 'kick' | 'ban' | 'softban' | 'timeout' | 'tempban',
+  targetId: string,
+  caseNumber: number
+): string {
+  return `evidence_modaction:${CUSTOM_ID_VERSION}:${action}:${targetId}:${caseNumber}`;
+}
+
+/**
+ * Decode and validate an evidence mod action modal custom_id
+ */
+export function decodeEvidenceModActionCustomId(
+  customId: string
+): EvidenceModActionCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 5) {
+    return null;
+  }
+
+  const [prefix, version, action, targetId, caseNumber] = parts;
+
+  const result = EvidenceModActionCustomIdSchema.safeParse({
+    prefix,
+    version,
+    action,
+    targetId,
+    caseNumber,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
 // ==================== Helper to check all mod interaction types ====================
 
 /**
@@ -375,6 +531,9 @@ export function isModInteractionCustomId(customId: string): boolean {
     customId.startsWith('moddur:') ||
     customId.startsWith('modreason:') ||
     customId.startsWith('modmute:') ||
-    customId.startsWith(`${HISTORY_PREFIX}:`)
+    customId.startsWith(`${HISTORY_PREFIX}:`) ||
+    customId.startsWith('evidence_capture:') ||
+    customId.startsWith('evidence_action:') ||
+    customId.startsWith('evidence_modaction:')
   );
 }

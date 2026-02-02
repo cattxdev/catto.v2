@@ -6,6 +6,8 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { getCases } from '@/lib/services/mod.service';
 import type { ModCase } from '@/lib/mod-types';
+import { useSwipe } from '@/hooks/use-swipe';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ACTION_LABELS: Record<string, string> = {
   BAN: 'Ban', UNBAN: 'Unban', KICK: 'Kick', TIMEOUT: 'Timeout',
@@ -64,6 +66,7 @@ export default function CasesPage() {
 
   const [focusIndex, setFocusIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -210,7 +213,7 @@ export default function CasesPage() {
             type="text"
             value={searchParam}
             onChange={(e) => updateParams({ search: e.target.value || undefined })}
-            placeholder="Search target..."
+            placeholder="Search by user or ID..."
             className="w-40 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2 py-1 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
           />
         </div>
@@ -225,39 +228,44 @@ export default function CasesPage() {
       ) : (
         <div ref={listRef} className="space-y-2">
           {cases.map((c, index) => (
-            <Link
+            <SwipeableCaseRow
               key={c.id}
-              href={`/mod/${guildId}/cases/${c.caseNumber}`}
-              className={`flex flex-col gap-2 border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)] md:flex-row md:items-center md:justify-between md:gap-4 ${
-                index === focusIndex
-                  ? 'border-[var(--mono-500)]'
-                  : 'border-[var(--mod-border)]'
-              }`}
+              isMobile={isMobile}
+              onSwipeRight={() => router.push(`/mod/${guildId}/cases/${c.caseNumber}`)}
             >
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-mono font-medium text-[var(--mod-text-dim)]">
-                  #{c.caseNumber}
-                </span>
-                <div>
-                  <span className="text-sm font-medium text-[var(--mono-white)]">
-                    {ACTION_LABELS[c.action] ?? c.action}
+              <Link
+                href={`/mod/${guildId}/cases/${c.caseNumber}`}
+                className={`flex flex-col gap-2 border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)] md:flex-row md:items-center md:justify-between md:gap-4 ${
+                  index === focusIndex
+                    ? 'border-[var(--mono-500)]'
+                    : 'border-[var(--mod-border)]'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-mono font-medium text-[var(--mod-text-dim)]">
+                    #{c.caseNumber}
                   </span>
-                  <span className="ml-2 text-sm text-[var(--mod-text-muted)]">
-                    {c.targetTag}
-                  </span>
+                  <div>
+                    <span className="text-sm font-medium text-[var(--mono-white)]">
+                      {ACTION_LABELS[c.action] ?? c.action}
+                    </span>
+                    <span className="ml-2 text-sm text-[var(--mod-text-muted)]">
+                      {c.targetTag}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-[var(--mod-text-dim)] md:justify-end">
-                <span className={`border px-2 py-0.5 ${
-                  c.status === 'OPEN' ? 'border-green-800 text-green-400'
-                  : c.status === 'VOID' ? 'border-red-800 text-red-400'
-                  : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
-                }`}>
-                  {c.status}
-                </span>
-                <span>{new Date(c.createdAt).toLocaleDateString()}</span>
-              </div>
-            </Link>
+                <div className="flex items-center gap-4 text-xs text-[var(--mod-text-dim)] md:justify-end">
+                  <span className={`border px-2 py-0.5 ${
+                    c.status === 'OPEN' ? 'border-green-800 text-green-400'
+                    : c.status === 'VOID' ? 'border-red-800 text-red-400'
+                    : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
+                  }`}>
+                    {c.status}
+                  </span>
+                  <span>{new Date(c.createdAt).toLocaleDateString()}</span>
+                </div>
+              </Link>
+            </SwipeableCaseRow>
           ))}
         </div>
       )}
@@ -287,4 +295,20 @@ export default function CasesPage() {
       )}
     </div>
   );
+}
+
+function SwipeableCaseRow({
+  children,
+  isMobile,
+  onSwipeRight,
+}: {
+  children: React.ReactNode;
+  isMobile: boolean;
+  onSwipeRight: () => void;
+}) {
+  const swipeHandlers = useSwipe({ onSwipeRight });
+
+  if (!isMobile) return <>{children}</>;
+
+  return <div {...swipeHandlers}>{children}</div>;
 }

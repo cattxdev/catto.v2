@@ -162,6 +162,7 @@ model ModCase {
   
   guild         Guild      @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
   evidenceItems Evidence[]
+  notes         CaseNote[]
 
   @@unique([guildId, caseNumber])
   @@index([guildId])
@@ -184,13 +185,32 @@ model ModConfig {
   muteSettings    Json     @default("{}") // { allowInThreads: false, exemptChannels: [] }
   autoModEnabled  Boolean  @default(false)
   warningEscalation Json   @default("{}") // { enabled: true, thresholds: { 3: 'timeout', 5: 'mute', 10: 'tempban' } }
+  metadata        Json?    // Guild-level config like { customEvidenceTags: string[] }
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
   @@index([guildId])
   @@map("mod_configs")
+}
+
+// Case Discussion Notes
+model CaseNote {
+  id        String   @id @default(cuid())
+  caseId    String
+  guildId   String
+  authorId  String
+  authorTag String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  case ModCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([guildId])
+  @@index([createdAt])
+  @@map("case_notes")
 }
 
 // Active Mutes tracking
@@ -435,6 +455,7 @@ model Evidence {
   // Metadata
   description      String?
   metadata         Json?
+  tags             String[] @default([])
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -452,6 +473,7 @@ model Evidence {
   @@index([type])
   @@index([status])
   @@index([createdAt])
+  @@index([tags])
   @@map("evidence")
 }
 

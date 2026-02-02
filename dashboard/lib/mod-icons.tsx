@@ -33,6 +33,13 @@ import {
   IconFilter,
   IconMessageReport,
   IconMenu2,
+  IconClipboard,
+  IconSend,
+  IconTag,
+  IconFileExport,
+  IconBrush,
+  IconPlayerPlay,
+  IconPlayerPause,
   type Icon,
 } from '@tabler/icons-react';
 import type { EvidenceType } from '@/lib/mod-types';
@@ -92,4 +99,11 @@ export {
   IconFilter,
   IconMessageReport,
   IconMenu2,
+  IconClipboard,
+  IconSend,
+  IconTag,
+  IconFileExport,
+  IconBrush,
+  IconPlayerPlay,
+  IconPlayerPause,
 };

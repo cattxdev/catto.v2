@@ -146,6 +146,39 @@ registerCustomIdParser({
   parse: () => 'mod.history',
 });
 
+// Register evidence capture modal parser
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_capture:'),
+  parse: () => 'mod.evidence.capture',
+});
+
+// Register evidence action select menu parser
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_action:'),
+  parse: () => 'mod.evidence.capture',
+});
+
+// Register evidence mod action modal parser (follow-up action after evidence capture)
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_modaction:'),
+  parse: (customId) => {
+    // Format: evidence_modaction:v1:{action}:{targetId}:{caseNumber}
+    const parts = customId.split(':');
+    if (parts.length < 3) return null;
+    const action = parts[2];
+    // Map to the same resource keys as the standard mod actions
+    const actionMap: Record<string, string> = {
+      warn: 'mod.warn',
+      kick: 'mod.kick',
+      ban: 'mod.ban',
+      softban: 'mod.softban',
+      timeout: 'mod.timeout',
+      tempban: 'mod.tempban',
+    };
+    return action ? (actionMap[action] ?? null) : null;
+  },
+});
+
 // Core Resolution Functions
 
 /**

@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useSWRConfig } from 'swr';
 import { AccountSwitcher } from '@/components/mod/account-switcher';
 import { ModBreadcrumb } from '@/components/mod/mod-breadcrumb';
 import { CommandPalette } from '@/components/mod/command-palette';
 import { ShortcutHelp } from '@/components/mod/shortcut-help';
+import { FloatingActionButton } from '@/components/mod/fab';
 import { useGuildInfo } from '@/hooks/use-guild-info';
+import { useModEvents, type ModEvent } from '@/hooks/use-mod-events';
 import {
   IconLayoutDashboard,
   IconGavel,
@@ -147,6 +150,33 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const sidebarOpenRef = useRef(false);
   sidebarOpenRef.current = sidebarOpen;
+
+  // Real-time event handling via SSE
+  const { mutate: globalMutate } = useSWRConfig();
+  const handleModEvent = useCallback(
+    (event: ModEvent) => {
+      // Revalidate relevant SWR keys based on event type
+      if (event.type === 'evidence:created' || event.type === 'evidence:amended' || event.type === 'evidence:status-changed') {
+        globalMutate((key: unknown) => {
+          if (!Array.isArray(key)) return false;
+          return key[0] === 'case-evidence' || key[0] === 'guild-evidence';
+        }, undefined, { revalidate: true });
+      }
+      if (event.type === 'case:created' || event.type === 'case:updated' || event.type === 'case:closed') {
+        globalMutate((key: unknown) => {
+          if (!Array.isArray(key)) return false;
+          return key[0] === 'cases' || key[0] === 'case-detail';
+        }, undefined, { revalidate: true });
+      }
+    },
+    [globalMutate],
+  );
+
+  useModEvents({
+    guildId,
+    enabled: true,
+    onEvent: handleModEvent,
+  });
 
   // Close sidebar on route change (covers browser back/forward + keyboard nav)
   useEffect(() => {
@@ -318,6 +348,9 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
 
       {/* Command palette */}
       <CommandPalette onShowShortcuts={handleShowShortcuts} />
+
+      {/* Floating action button (mobile) */}
+      <FloatingActionButton />
 
       {/* Shortcut help modal */}
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}

@@ -3,6 +3,7 @@ import { ApiGate } from '#lib/validation/ApiGate.js';
 import { RateLimitGate } from '#lib/validation/RateLimitGate.js';
 import { evidenceService } from '#modules/moderation/services/EvidenceService.js';
 import { parseRequestBody } from '#lib/route-utils.js';
+import { fetchOGData } from '#lib/utils/ogFetcher.js';
 
 export class EvidenceRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -63,6 +64,13 @@ export class EvidenceRoute extends Route {
       const type = (request.query?.type as string) || undefined;
       const status = (request.query?.status as string) || undefined;
       const filterCaseNumber = parseInt((request.query?.case as string) ?? '0') || undefined;
+      const tagsParam = (request.query?.tags as string) || undefined;
+      const tags = tagsParam
+        ? tagsParam
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter(Boolean)
+        : undefined;
 
       const result = await evidenceService.getEvidenceForGuild(guildId, {
         page,
@@ -70,6 +78,7 @@ export class EvidenceRoute extends Route {
         type,
         status,
         caseNumber: filterCaseNumber,
+        tags,
       });
 
       return response.json(result);
@@ -99,12 +108,16 @@ export class EvidenceRoute extends Route {
           return this.handleConfirm(gate, body, response);
         case 'url':
           return this.handleUrl(gate, body, response, guildId);
+        case 'preview-og':
+          return this.handlePreviewOG(gate, body, response);
         case 'bulk-amend':
           return this.handleBulkAmend(gate, body, response);
         default:
           return response
             .status(400)
-            .json({ error: 'Unknown action. Use: initiate, confirm, url, or bulk-amend' });
+            .json({
+              error: 'Unknown action. Use: initiate, confirm, url, preview-og, or bulk-amend',
+            });
       }
     } catch (error) {
       this.container.logger.error('Error in evidence POST:', error);
@@ -133,12 +146,13 @@ export class EvidenceRoute extends Route {
         .status(429)
         .json({ error: 'Rate Limited', retryAfterMs: rateLimit.metadata?.retryAfterMs });
 
-    const { caseNumber, filename, mimeType, sizeBytes, description } = body as {
+    const { caseNumber, filename, mimeType, sizeBytes, description, tags } = body as {
       caseNumber: number;
       filename: string;
       mimeType: string;
       sizeBytes: number;
       description?: string;
+      tags?: string[];
     };
 
     if (!caseNumber || !filename || !mimeType || !sizeBytes) {
@@ -163,6 +177,7 @@ export class EvidenceRoute extends Route {
       mimeType,
       sizeBytes,
       description,
+      tags,
     });
 
     return response.json(result);
@@ -210,11 +225,12 @@ export class EvidenceRoute extends Route {
         .status(429)
         .json({ error: 'Rate Limited', retryAfterMs: rateLimit.metadata?.retryAfterMs });
 
-    const { caseNumber, url, type, description } = body as {
+    const { caseNumber, url, type, description, tags } = body as {
       caseNumber: number;
       url: string;
       type?: 'URL' | 'DISCORD_URL';
       description?: string;
+      tags?: string[];
     };
 
     if (!caseNumber || !url) {
@@ -229,9 +245,39 @@ export class EvidenceRoute extends Route {
       url,
       type: type ?? 'URL',
       description,
+      tags,
     });
 
     return response.json(evidence);
+  }
+
+  /**
+   * Preview OG metadata for a URL without creating evidence.
+   */
+  private async handlePreviewOG(
+    gate: ApiGate,
+    body: Record<string, unknown>,
+    response: Route.Response
+  ) {
+    const auth = await gate.checkAuth('mod.evidence.view');
+    if (!auth.ok) return response.status(403).json({ error: 'Forbidden', code: auth.code });
+
+    const rateLimit = await gate.checkRateLimit(
+      'evidence.view',
+      RateLimitGate.LIMITS['evidence.view']!
+    );
+    if (!rateLimit.ok)
+      return response
+        .status(429)
+        .json({ error: 'Rate Limited', retryAfterMs: rateLimit.metadata?.retryAfterMs });
+
+    const { url } = body as { url: string };
+    if (!url) {
+      return response.status(400).json({ error: 'url is required' });
+    }
+
+    const og = await fetchOGData(url);
+    return response.json({ og });
   }
 
   /**

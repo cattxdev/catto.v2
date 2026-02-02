@@ -8,19 +8,27 @@ import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/ser
 import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconLink, IconBrandDiscord, IconFile, IconVolume } from '@/lib/mod-icons';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
+import { AudioPlayer } from './audio-player';
+import { OGCard } from './og-card';
+import { TagSelector } from './tag-selector';
 import { useEscapeClose } from '@/hooks/use-escape-close';
+import { useSwipe } from '@/hooks/use-swipe';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface EvidenceViewerProps {
   guildId: string;
   evidenceId: string;
+  caseNumber?: number;
   evidence: Evidence;
   onClose: () => void;
   onDownload?: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 type ViewerTab = 'details' | 'history' | 'amend';
 
-export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownload }: EvidenceViewerProps) {
+export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onClose, onDownload, onPrev, onNext }: EvidenceViewerProps) {
   // Derive sync values from props (no useEffect needed for URL/snapshot types)
   const syncViewUrl = useMemo(() => {
     if (evidence.type === 'URL' || evidence.type === 'DISCORD_URL') return evidence.url;
@@ -35,6 +43,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
   const [amendAction, setAmendAction] = useState('NOTE_ADDED');
   const [amendReason, setAmendReason] = useState('');
   const [amendNewValue, setAmendNewValue] = useState('');
+  const [amendTags, setAmendTags] = useState<string[]>(evidence.tags ?? []);
   const [amendSubmitting, setAmendSubmitting] = useState(false);
 
   // Async URL fetch (presigned URLs for file-backed evidence)
@@ -57,12 +66,22 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
 
   useEscapeClose(onClose);
 
+  const isMobile = useIsMobile();
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: onNext,
+    onSwipeRight: onPrev,
+    onSwipeDown: onClose,
+  });
+
   const handleAmendSubmit = async () => {
     setAmendSubmitting(true);
     try {
+      const newValue = amendAction === 'TAGS_UPDATED'
+        ? JSON.stringify(amendTags)
+        : (amendNewValue.trim() || undefined);
       await amendEvidence(guildId, evidenceId, {
         action: amendAction,
-        newValue: amendNewValue.trim() || undefined,
+        newValue,
         reason: amendReason.trim() || undefined,
       });
       setAmendReason('');
@@ -114,7 +133,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
         </div>
 
         {/* Content */}
-        <div className="min-h-[200px]">
+        <div className="min-h-[200px]" {...(isMobile ? swipeHandlers : {})}>
           {loading && (
             <div className="flex h-[200px] items-center justify-center text-[var(--mod-text-dim)]">
               Loading...
@@ -168,6 +187,19 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
                     {evidence.description}
                   </div>
                 )}
+                {/* Tags */}
+                {evidence.tags && evidence.tags.length > 0 && (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Tags</label>
+                    <div className="flex flex-wrap gap-1">
+                      {evidence.tags.map((tag) => (
+                        <span key={tag} className="border border-[var(--mod-border)] px-2 py-0.5 text-xs text-[var(--mod-text-muted)]">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -194,6 +226,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
                   >
                     <option value="NOTE_ADDED">Add Note</option>
                     <option value="DESCRIPTION_UPDATED">Update Description</option>
+                    <option value="TAGS_UPDATED">Update Tags</option>
                     <option value="FLAGGED">Flag</option>
                     <option value="UNFLAGGED">Unflag</option>
                   </select>
@@ -209,6 +242,13 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
                       placeholder="New description..."
                       className="w-full border border-[var(--mod-border)] bg-[var(--mono-950)] px-3 py-2 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
                     />
+                  </div>
+                )}
+
+                {amendAction === 'TAGS_UPDATED' && (
+                  <div>
+                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Tags</label>
+                    <TagSelector value={amendTags} onChange={setAmendTags} />
                   </div>
                 )}
 
@@ -235,6 +275,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
           </div>
         </div>
       </div>
+
     </div>
   );
 }
@@ -245,9 +286,10 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
   // URL types
   if (type === 'URL' || type === 'DISCORD_URL') {
     const UrlIcon = type === 'DISCORD_URL' ? IconBrandDiscord : IconLink;
+    const og = (evidence.metadata as Record<string, unknown> | null)?.og as { title?: string; description?: string; image?: string; siteName?: string } | undefined;
     return (
-      <div className="flex flex-col items-center gap-4 py-8">
-        <UrlIcon size={40} className="text-[var(--mono-400)]" />
+      <div className="flex flex-col items-center gap-4 py-8"> 
+        {og && <OGCard og={og} url={evidence.url ?? '#'} />}
         <a
           href={evidence.url ?? '#'}
           target="_blank"
@@ -310,10 +352,7 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
   if (type === 'AUDIO') {
     return (
       <div className="flex flex-col items-center gap-4 py-8">
-        <IconVolume size={40} className="text-[var(--mono-400)]" />
-        <audio src={viewUrl} controls className="w-full max-w-md">
-          Your browser does not support audio playback.
-        </audio>
+        <AudioPlayer src={viewUrl} />
       </div>
     );
   }

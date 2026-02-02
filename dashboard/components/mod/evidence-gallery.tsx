@@ -9,6 +9,9 @@ import { EvidenceHistory } from './evidence-history';
 import { ShortcutHelp } from './shortcut-help';
 import { getEvidenceDownloadUrl, amendEvidence } from '@/lib/services/mod.service';
 import { useModShortcuts } from '@/hooks/use-mod-shortcuts';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useLongPress } from '@/hooks/use-long-press';
+import { useSwipe } from '@/hooks/use-swipe';
 
 interface EvidenceGalleryProps {
   evidence: Evidence[];
@@ -26,6 +29,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const hasSelection = selectedIds.size > 0;
 
@@ -120,7 +124,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
   return (
     <>
-      <div ref={galleryRef} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={galleryRef} className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3" style={{ overscrollBehavior: 'contain' }}>
         {evidence.map((item, index) => {
           const typeMeta = EVIDENCE_TYPE_META[item.type];
           const statusMeta = EVIDENCE_STATUS_META[item.status];
@@ -129,12 +133,23 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
           const isChecked = selectedIds.has(item.id);
 
           return (
-            <div
+            <GalleryCard
               key={item.id}
+              isMobile={isMobile}
+              hasSelection={hasSelection}
+              onLongPress={() => toggleSelection(item.id)}
+              onTap={() => {
+                if (hasSelection) {
+                  toggleSelection(item.id);
+                } else {
+                  setFocusIndex(index);
+                }
+              }}
+              onSwipeLeftAction={() => setSelectedId(item.id)}
+              onSwipeRightAction={() => toggleSelection(item.id)}
               className={`relative min-w-0 overflow-hidden border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
                 isFocused ? 'border-[var(--mono-500)]' : 'border-[var(--mod-border)]'
               }`}
-              onClick={() => setFocusIndex(index)}
             >
               {/* Selection checkbox */}
               <button
@@ -169,11 +184,34 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 {item.originalFilename ?? item.url ?? item.description ?? item.id}
               </p>
 
+              {/* OG site name for URL types */}
+              {(item.type === 'URL' || item.type === 'DISCORD_URL') &&
+                (item.metadata as Record<string, unknown> | null)?.og &&
+                ((item.metadata as Record<string, unknown>).og as { siteName?: string })?.siteName && (
+                <p className="mb-2 text-[10px] uppercase tracking-wider text-[var(--mod-text-dim)]">
+                  {((item.metadata as Record<string, unknown>).og as { siteName: string }).siteName}
+                </p>
+              )}
+
               {/* Description */}
               {item.description && (
                 <p className="mb-2 text-xs text-[var(--mod-text-muted)] line-clamp-2">
                   {item.description}
                 </p>
+              )}
+
+              {/* Tags */}
+              {item.tags && item.tags.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {item.tags.slice(0, 3).map((tag) => (
+                    <span key={tag} className="border border-[var(--mod-border)] px-1.5 py-0.5 text-[10px] text-[var(--mod-text-dim)]">
+                      {tag}
+                    </span>
+                  ))}
+                  {item.tags.length > 3 && (
+                    <span className="px-1 text-[10px] text-[var(--mod-text-dim)]">+{item.tags.length - 3}</span>
+                  )}
+                </div>
               )}
 
               {/* Meta */}
@@ -194,34 +232,34 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 {(item.storageKey || item.url || item.snapshotId) && (
                   <button
                     onClick={() => setSelectedId(item.id)}
-                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:min-h-0 md:min-w-0"
                   >
                     <IconEye size={14} />
-                    View
+                    {!isMobile && 'View'}
                   </button>
                 )}
                 {item.storageKey && (
                   <button
                     onClick={() => handleDownload(item)}
-                    className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:min-h-0 md:min-w-0"
                   >
                     <IconDownload size={14} />
-                    Download
+                    {!isMobile && 'Download'}
                   </button>
                 )}
                 <button
                   onClick={() => setShowHistory(item.id)}
-                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:min-h-0 md:min-w-0"
                 >
                   <IconHistory size={14} />
-                  History
+                  {!isMobile && 'History'}
                 </button>
                 <button
                   onClick={() => setAmendingId(amendingId === item.id ? null : item.id)}
-                  className="flex items-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 border border-[var(--mod-border)] px-2 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:min-h-0 md:min-w-0"
                 >
                   <IconPencil size={14} />
-                  Amend
+                  {!isMobile && 'Amend'}
                 </button>
               </div>
 
@@ -237,7 +275,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                   }}
                 />
               )}
-            </div>
+            </GalleryCard>
           );
         })}
       </div>
@@ -292,6 +330,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
         <EvidenceViewer
           guildId={guildId}
           evidenceId={selectedId}
+          caseNumber={evidence.find((e) => e.id === selectedId)?.caseNumber}
           evidence={evidence.find((e) => e.id === selectedId)!}
           onClose={() => setSelectedId(null)}
           onDownload={
@@ -299,6 +338,14 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
               ? () => handleDownload(evidence.find((e) => e.id === selectedId)!)
               : undefined
           }
+          onPrev={() => {
+            const idx = evidence.findIndex((e) => e.id === selectedId);
+            if (idx > 0) setSelectedId(evidence[idx - 1].id);
+          }}
+          onNext={() => {
+            const idx = evidence.findIndex((e) => e.id === selectedId);
+            if (idx < evidence.length - 1) setSelectedId(evidence[idx + 1].id);
+          }}
         />
       )}
 
@@ -314,6 +361,73 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
       {/* Shortcut help */}
       {showHelp && <ShortcutHelp onClose={() => setShowHelp(false)} />}
     </>
+  );
+}
+
+function GalleryCard({
+  children,
+  className,
+  isMobile,
+  hasSelection,
+  onLongPress,
+  onTap,
+  onSwipeLeftAction,
+  onSwipeRightAction,
+}: {
+  children: React.ReactNode;
+  className: string;
+  isMobile: boolean;
+  hasSelection: boolean;
+  onLongPress: () => void;
+  onTap: () => void;
+  onSwipeLeftAction?: () => void;
+  onSwipeRightAction?: () => void;
+}) {
+  const longPressHandlers = useLongPress({ onLongPress });
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: onSwipeLeftAction,
+    onSwipeRight: onSwipeRightAction,
+  });
+
+  if (isMobile) {
+    return (
+      <div
+        className={className}
+        {...longPressHandlers}
+        onPointerDown={(e) => {
+          longPressHandlers.onPointerDown(e);
+          swipeHandlers.onPointerDown(e);
+        }}
+        onPointerUp={(e) => {
+          longPressHandlers.onPointerUp();
+          swipeHandlers.onPointerUp(e);
+        }}
+        onPointerCancel={(e) => {
+          longPressHandlers.onPointerCancel();
+          swipeHandlers.onPointerCancel();
+        }}
+        onPointerLeave={() => {
+          longPressHandlers.onPointerLeave();
+        }}
+        onClickCapture={(e) => {
+          longPressHandlers.onClick(e);
+          if (!e.defaultPrevented && hasSelection) {
+            e.stopPropagation();
+            onTap();
+          } else if (!e.defaultPrevented) {
+            onTap();
+          }
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className={className} onClick={onTap}>
+      {children}
+    </div>
   );
 }
 

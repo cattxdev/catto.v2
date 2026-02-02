@@ -7,7 +7,7 @@
 
 import { container } from '@sapphire/framework';
 import type { Evidence, EvidenceAmendment, MessageSnapshot } from '@prisma/client';
-import type { Guild, TextChannel } from 'discord.js';
+import type { Guild, TextChannel, Message } from 'discord.js';
 import { Buffer } from 'node:buffer';
 import axios from 'axios';
 import { storageService, StorageService } from '#lib/storage/StorageService.js';
@@ -27,6 +27,8 @@ import type {
   SerializedReaction,
 } from '../domain/evidence-types.js';
 import { mimeToEvidenceType, isDiscordUrl } from '../domain/evidence-types.js';
+import { fetchOGData } from '#lib/utils/ogFetcher.js';
+import { publish, ModEventChannels } from '#lib/redis.js';
 
 export class EvidenceService {
   // ─── Upload Flow ───
@@ -60,6 +62,7 @@ export class EvidenceService {
         sizeBytes: params.sizeBytes,
         storageBucket: CONFIG.B2_BUCKET_NAME ?? null,
         description: params.description,
+        tags: params.tags ?? [],
       },
     });
 
@@ -140,7 +143,7 @@ export class EvidenceService {
     }
 
     // Update to VERIFIED
-    return container.prisma.evidence.update({
+    const confirmed = await container.prisma.evidence.update({
       where: { id: evidenceId },
       data: {
         status: 'VERIFIED',
@@ -148,6 +151,16 @@ export class EvidenceService {
         hmacSignature,
       },
     });
+
+    // Publish real-time event
+    await publish(ModEventChannels.MOD_EVENTS(confirmed.guildId), {
+      type: 'evidence:created',
+      guildId: confirmed.guildId,
+      caseNumber: confirmed.caseNumber,
+      evidenceId: confirmed.id,
+    }).catch(() => {});
+
+    return confirmed;
   }
 
   // ─── URL Evidence ───
@@ -166,7 +179,45 @@ export class EvidenceService {
     // Auto-detect Discord URLs
     const type = params.type === 'URL' && isDiscordUrl(params.url) ? 'DISCORD_URL' : params.type;
 
-    return container.prisma.evidence.create({
+    // Fetch OG metadata for enrichment
+    let metadata: Record<string, unknown> | undefined;
+
+    if (type === 'DISCORD_URL') {
+      // Attempt to resolve Discord message content
+      try {
+        const match = params.url.match(/channels\/(\d+)\/(\d+)\/(\d+)/);
+        if (match) {
+          const [, , channelId, messageId] = match;
+          const guild = container.client.guilds.cache.get(params.guildId);
+          if (guild) {
+            const channel = await guild.channels.fetch(channelId!).catch(() => null);
+            if (channel?.isTextBased()) {
+              const msg = await (channel as import('discord.js').TextChannel).messages
+                .fetch(messageId!)
+                .catch(() => null);
+              if (msg) {
+                metadata = {
+                  og: {
+                    title: msg.author.tag,
+                    description: msg.content.slice(0, 200) || undefined,
+                    siteName: 'Discord',
+                  },
+                };
+              }
+            }
+          }
+        }
+      } catch {
+        // Fail silently — enrichment is optional
+      }
+    } else {
+      const ogData = await fetchOGData(params.url);
+      if (ogData) {
+        metadata = { og: ogData };
+      }
+    }
+
+    const urlEvidence = await container.prisma.evidence.create({
       data: {
         guildId: params.guildId,
         caseId: modCase.id,
@@ -177,8 +228,22 @@ export class EvidenceService {
         status: 'VERIFIED', // URLs are immediately verified
         url: params.url,
         description: params.description,
+        metadata: (metadata ?? undefined) as
+          | import('@prisma/client').Prisma.InputJsonValue
+          | undefined,
+        tags: params.tags ?? [],
       },
     });
+
+    // Publish real-time event
+    await publish(ModEventChannels.MOD_EVENTS(params.guildId), {
+      type: 'evidence:created',
+      guildId: params.guildId,
+      caseNumber: params.caseNumber,
+      evidenceId: urlEvidence.id,
+    }).catch(() => {});
+
+    return urlEvidence;
   }
 
   // ─── Message Snapshot ───
@@ -202,37 +267,52 @@ export class EvidenceService {
 
     const textChannel = channel as TextChannel;
 
-    // Fetch messages
-    const fetchOptions: { limit: number; after?: string; before?: string } = { limit: 100 };
-    if (params.lastMessageId) {
-      fetchOptions.after = params.firstMessageId;
-      // We'll filter to include only messages up to lastMessageId
-    }
+    // Fetch messages based on capture mode
+    let collected: Map<string, Message>;
 
-    let messages;
-    if (params.lastMessageId) {
-      messages = await textChannel.messages.fetch({
+    if (params.messageCount && params.messageCount > 0) {
+      // Count-based capture: fetch the first message + next N messages after it
+      const firstMsg = await textChannel.messages.fetch(params.firstMessageId);
+      collected = new Map([[firstMsg.id, firstMsg]]);
+
+      if (params.messageCount > 1) {
+        const afterMessages = await textChannel.messages.fetch({
+          after: params.firstMessageId,
+          limit: Math.min(params.messageCount - 1, 99),
+        });
+        for (const [id, msg] of afterMessages) {
+          collected.set(id, msg);
+        }
+      }
+    } else if (params.lastMessageId) {
+      // Range capture: fetch first message explicitly (after: is exclusive), then fetch rest
+      const firstMsg = await textChannel.messages.fetch(params.firstMessageId);
+      collected = new Map([[firstMsg.id, firstMsg]]);
+
+      const afterMessages = await textChannel.messages.fetch({
         after: params.firstMessageId,
         limit: 100,
       });
-      // Filter to only include messages up to lastMessageId
-      messages = messages.filter(
-        (m) => m.id <= params.lastMessageId! && m.id >= params.firstMessageId
-      );
+      // Merge and filter to only include messages up to lastMessageId
+      for (const [id, msg] of afterMessages) {
+        if (id <= params.lastMessageId && id >= params.firstMessageId) {
+          collected.set(id, msg);
+        }
+      }
     } else {
       // Single message capture
       const msg = await textChannel.messages.fetch(params.firstMessageId);
-      messages = new Map([[msg.id, msg]]);
+      collected = new Map([[msg.id, msg]]);
     }
 
     // Sort by creation time
-    const sortedMessages = [...messages.values()].sort(
+    const sortedMessages = [...collected.values()].sort(
       (a, b) => a.createdTimestamp - b.createdTimestamp
     );
 
     if (sortedMessages.length === 0) throw new Error('No messages found in the specified range');
 
-    // Find the case
+    // Look up the case — caller is responsible for ensuring it exists
     const modCase = await container.prisma.modCase.findFirst({
       where: { guildId: params.guildId, caseNumber: params.caseNumber },
     });
@@ -415,6 +495,7 @@ export class EvidenceService {
       type?: string;
       status?: string;
       caseNumber?: number;
+      tags?: string[];
     }
   ): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
     const page = Math.max(1, options.page ?? 1);
@@ -425,6 +506,7 @@ export class EvidenceService {
     if (options.type) where.type = options.type;
     if (options.status) where.status = options.status;
     if (options.caseNumber) where.caseNumber = options.caseNumber;
+    if (options.tags && options.tags.length > 0) where.tags = { hasSome: options.tags };
 
     const [evidence, total] = await Promise.all([
       container.prisma.evidence.findMany({
@@ -543,7 +625,30 @@ export class EvidenceService {
         where: { id: params.evidenceId },
         data: { status: 'VERIFIED' },
       });
+    } else if (params.action === 'TAGS_UPDATED' && params.newValue) {
+      try {
+        const tags = JSON.parse(params.newValue) as string[];
+        await container.prisma.evidence.update({
+          where: { id: params.evidenceId },
+          data: { tags },
+        });
+      } catch {
+        // Invalid JSON for tags, skip
+      }
     }
+
+    // Publish real-time event
+    const eventType =
+      params.action === 'FLAGGED' || params.action === 'UNFLAGGED'
+        ? 'evidence:status-changed'
+        : 'evidence:amended';
+    await publish(ModEventChannels.MOD_EVENTS(evidence.guildId), {
+      type: eventType,
+      guildId: evidence.guildId,
+      caseNumber: evidence.caseNumber,
+      evidenceId: evidence.id,
+      data: { action: params.action },
+    }).catch(() => {});
 
     return amendment;
   }
@@ -585,6 +690,20 @@ export class EvidenceService {
 
     const filename = evidence.originalFilename ?? `evidence_${evidenceId}`;
     return storageService.generateDownloadUrl(evidence.storageKey, filename);
+  }
+
+  // ─── Case Number ───
+
+  /**
+   * Get the next available case number for a guild (for pre-filling the modal).
+   */
+  async getNextCaseNumber(guildId: string): Promise<number> {
+    const lastCase = await container.prisma.modCase.findFirst({
+      where: { guildId },
+      orderBy: { caseNumber: 'desc' },
+    });
+
+    return (lastCase?.caseNumber ?? 0) + 1;
   }
 
   // ─── Dashboard URL Generation ───

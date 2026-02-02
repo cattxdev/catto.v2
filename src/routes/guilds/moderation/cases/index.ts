@@ -68,7 +68,11 @@ export class ModerationCasesRoute extends Route {
       if (moderatorId) where.moderatorId = moderatorId;
       if (status) where.status = status;
       if (search) {
-        where.targetTag = { contains: search, mode: 'insensitive' };
+        where.OR = [
+          { targetTag: { contains: search, mode: 'insensitive' } },
+          { targetId: { contains: search } },
+          { moderatorTag: { contains: search, mode: 'insensitive' } },
+        ];
       }
 
       // Get total count and cases in parallel

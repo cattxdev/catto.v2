@@ -25,6 +25,7 @@ export interface Evidence {
   snapshotId: string | null;
   description: string | null;
   metadata: Record<string, unknown> | null;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
   snapshot?: MessageSnapshot | null;
@@ -141,6 +142,21 @@ export interface PresignedUpload {
   evidenceId: string;
   uploadUrl: string;
   uploadFields: Record<string, string>;
+}
+
+export const PREDEFINED_TAGS = [
+  'harassment', 'spam', 'nsfw', 'raid', 'threats',
+  'impersonation', 'scam', 'hate-speech', 'doxxing', 'other',
+] as const;
+
+export interface CaseNote {
+  id: string;
+  caseId: string;
+  guildId: string;
+  authorId: string;
+  authorTag: string;
+  content: string;
+  createdAt: string;
 }
 
 /** Evidence type display metadata */

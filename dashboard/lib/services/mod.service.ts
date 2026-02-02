@@ -6,6 +6,7 @@ import type {
   ModCase,
   DashboardPermissions,
   PresignedUpload,
+  CaseNote,
 } from '@/lib/mod-types';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
@@ -60,7 +61,7 @@ export async function getCaseDetail(guildId: string, caseNumber: number): Promis
 
 export async function getGuildEvidence(
   guildId: string,
-  params?: { page?: number; limit?: number; type?: string; case?: number }
+  params?: { page?: number; limit?: number; type?: string; case?: number; tags?: string }
 ): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
   const res = await api().get(`/guilds/${guildId}/moderation/evidence`, { params });
   return res.data;
@@ -127,6 +128,7 @@ export async function initiateUpload(
     mimeType: string;
     sizeBytes: number;
     description?: string;
+    tags?: string[];
   }
 ): Promise<PresignedUpload> {
   const res = await api().post(`/guilds/${guildId}/moderation/evidence`, {
@@ -156,6 +158,7 @@ export async function addUrlEvidence(
     url: string;
     type?: 'URL' | 'DISCORD_URL';
     description?: string;
+    tags?: string[];
   }
 ): Promise<Evidence> {
   const res = await api().post(`/guilds/${guildId}/moderation/evidence`, {
@@ -163,6 +166,23 @@ export async function addUrlEvidence(
     ...params,
   });
   return res.data;
+}
+
+// ─── OG Preview ───
+
+export async function previewOG(
+  guildId: string,
+  url: string
+): Promise<{ title?: string; description?: string; image?: string; siteName?: string } | null> {
+  try {
+    const res = await api().post(`/guilds/${guildId}/moderation/evidence`, {
+      action: 'preview-og',
+      url,
+    });
+    return res.data.og ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Amendments ───
@@ -177,6 +197,36 @@ export async function amendEvidence(
   }
 ): Promise<EvidenceAmendment> {
   const res = await api().post(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, params);
+  return res.data;
+}
+
+// ─── Case Notes ───
+
+export async function getCaseNotes(
+  guildId: string,
+  caseNumber: number,
+  params?: { page?: number; limit?: number }
+): Promise<{ notes: CaseNote[]; total: number }> {
+  const res = await api().get(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, { params });
+  return res.data;
+}
+
+export async function addCaseNote(
+  guildId: string,
+  caseNumber: number,
+  content: string
+): Promise<CaseNote> {
+  const res = await api().post(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, { content });
+  return res.data;
+}
+
+// ─── Export ───
+
+export async function exportCase(
+  guildId: string,
+  caseNumber: number
+): Promise<{ downloadUrl: string }> {
+  const res = await api().post(`/guilds/${guildId}/moderation/cases/${caseNumber}/export`);
   return res.data;
 }
 

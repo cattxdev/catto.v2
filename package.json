@@ -70,6 +70,7 @@
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/plugin-subcommands": "^7.0.1",
     "@sapphire/utilities": "^3.17.3",
+    "archiver": "^7.0.1",
     "axios": "^1.13.2",
     "bullmq": "^5.66.5",
     "class-transformer": "^0.5.1",
@@ -84,6 +85,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@eslint/js": "^9.39.2",
     "@iconify/vue": "^5.0.0",
     "@testcontainers/postgresql": "^11.11.0",

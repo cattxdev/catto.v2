@@ -1,12 +1,14 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { getCaseDetail, getEvidenceForCase } from '@/lib/services/mod.service';
+import { getCaseDetail, getEvidenceForCase, exportCase } from '@/lib/services/mod.service';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
 import { EvidenceWizard } from '@/components/mod/evidence-wizard';
+import { CaseNotes } from '@/components/mod/case-notes';
+import { IconFileExport } from '@/lib/mod-icons';
 
 const ACTION_LABELS: Record<string, string> = {
   BAN: 'Ban', UNBAN: 'Unban', KICK: 'Kick', TIMEOUT: 'Timeout',
@@ -34,6 +36,19 @@ export default function CaseDetailPage() {
   const loading = caseLoading || evidenceLoading;
 
   const refreshEvidence = useCallback(() => { mutateEvidence(); }, [mutateEvidence]);
+
+  const [exporting, setExporting] = useState(false);
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const result = await exportCase(guildId, caseNumber);
+      window.open(result.downloadUrl, '_blank');
+    } catch {
+      // silent
+    } finally {
+      setExporting(false);
+    }
+  }, [guildId, caseNumber]);
 
   if (loading) {
     return <div className="py-12 text-center text-[var(--mod-text-dim)]">Loading case...</div>;
@@ -65,13 +80,23 @@ export default function CaseDetailPage() {
             {ACTION_LABELS[modCase.action] ?? modCase.action} — {modCase.targetTag}
           </p>
         </div>
-        <span className={`self-start border px-3 py-1 text-xs ${
-          modCase.status === 'OPEN' ? 'border-green-800 text-green-400'
-          : modCase.status === 'VOID' ? 'border-red-800 text-red-400'
-          : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
-        }`}>
-          {modCase.status}
-        </span>
+        <div className="flex items-center gap-2 self-start">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
+          >
+            <IconFileExport size={14} />
+            {exporting ? 'Exporting...' : 'Export Case'}
+          </button>
+          <span className={`border px-3 py-1 text-xs ${
+            modCase.status === 'OPEN' ? 'border-green-800 text-green-400'
+            : modCase.status === 'VOID' ? 'border-red-800 text-red-400'
+            : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
+          }`}>
+            {modCase.status}
+          </span>
+        </div>
       </div>
 
       {/* Case Details */}
@@ -128,6 +153,11 @@ export default function CaseDetailPage() {
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-[var(--mono-white)]">Add Evidence</h2>
         <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={refreshEvidence} />
+      </div>
+
+      {/* Discussion */}
+      <div className="mt-8">
+        <CaseNotes guildId={guildId} caseNumber={caseNumber} />
       </div>
     </div>
   );

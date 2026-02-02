@@ -57,6 +57,7 @@ export interface UploadInitParams {
   mimeType: string;
   sizeBytes: number;
   description?: string;
+  tags?: string[];
 }
 
 /** Result of initiating an upload */
@@ -75,6 +76,7 @@ export interface UrlEvidenceParams {
   url: string;
   type: 'URL' | 'DISCORD_URL';
   description?: string;
+  tags?: string[];
 }
 
 /** Parameters for capturing a message range */
@@ -83,6 +85,7 @@ export interface CaptureParams {
   channelId: string;
   firstMessageId: string;
   lastMessageId?: string;
+  messageCount?: number;
   capturedById: string;
   capturedByTag: string;
   caseNumber: number;

@@ -25,6 +25,9 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { container } from '@sapphire/framework';
 import { Buffer } from 'node:buffer';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
+import type { Readable } from 'node:stream';
 import { CONFIG } from '#config.js';
 
 /** Max single-part upload size for B2 (5 GB). */
@@ -193,6 +196,42 @@ export class StorageService {
       sizeBytes: buffer.length,
       etag: result.ETag,
     };
+  }
+
+  /**
+   * Download a file from storage to a local path.
+   * Used by the export system to gather evidence files into a ZIP.
+   */
+  async downloadFile(key: string, destPath: string): Promise<void> {
+    if (!this.s3) throw new Error('Storage not configured');
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const response = await this.s3.send(command);
+    if (!response.Body) throw new Error('Empty response body');
+
+    const writeStream = createWriteStream(destPath);
+    await pipeline(response.Body as Readable, writeStream);
+  }
+
+  /**
+   * Upload a readable stream to storage.
+   * Used by the export system to upload ZIP archives.
+   */
+  async uploadStream(key: string, stream: Readable, contentType: string): Promise<UploadResult> {
+    if (!this.s3) throw new Error('Storage not configured');
+
+    // Collect stream into buffer for S3 PutObject
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const buffer = Buffer.concat(chunks);
+
+    return this.uploadBuffer(key, buffer, contentType);
   }
 
   /**
