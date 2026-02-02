@@ -64,7 +64,7 @@ export function ModBreadcrumb() {
 
   return (
     <nav
-      className="mb-6 flex items-center gap-1 text-xs text-[var(--mod-text-dim)]"
+      className="mb-6 flex items-center gap-1 overflow-x-auto whitespace-nowrap text-xs text-[var(--mod-text-dim)] scrollbar-none"
       style={{ fontFamily: 'var(--font-mono)' }}
     >
       {segments.map((seg, i) => (

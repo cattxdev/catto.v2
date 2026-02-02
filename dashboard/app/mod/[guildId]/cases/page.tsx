@@ -232,7 +232,7 @@ export default function CasesPage() {
             <Link
               key={c.id}
               href={`/mod/${guildId}/cases/${c.caseNumber}`}
-              className={`flex items-center justify-between border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)] ${
+              className={`flex flex-col gap-2 border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)] md:flex-row md:items-center md:justify-between md:gap-4 ${
                 index === focusIndex
                   ? 'border-[var(--mono-500)]'
                   : 'border-[var(--mod-border)]'
@@ -251,7 +251,7 @@ export default function CasesPage() {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-xs text-[var(--mod-text-dim)]">
+              <div className="flex items-center gap-4 text-xs text-[var(--mod-text-dim)] md:justify-end">
                 <span className={`border px-2 py-0.5 ${
                   c.status === 'OPEN' ? 'border-green-800 text-green-400'
                   : c.status === 'VOID' ? 'border-red-800 text-red-400'

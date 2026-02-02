@@ -244,7 +244,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
       {/* Bulk action bar */}
       {hasSelection && (
-        <div className="sticky bottom-0 mt-3 flex items-center gap-3 border border-[var(--mod-border)] bg-[var(--mono-900)] px-4 py-3">
+        <div className="sticky bottom-0 mt-3 flex flex-wrap items-center gap-2 border border-[var(--mod-border)] bg-[var(--mono-900)] px-4 py-3 md:gap-3">
           <span className="text-xs text-[var(--mod-text-muted)]">{selectedIds.size} selected</span>
           <button
             onClick={handleBulkFlag}

@@ -32,6 +32,7 @@ import {
   IconShieldCheck,
   IconFilter,
   IconMessageReport,
+  IconMenu2,
   type Icon,
 } from '@tabler/icons-react';
 import type { EvidenceType } from '@/lib/mod-types';
@@ -90,4 +91,5 @@ export {
   IconShieldCheck,
   IconFilter,
   IconMessageReport,
+  IconMenu2,
 };

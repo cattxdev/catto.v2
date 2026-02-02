@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AccountSwitcher } from '@/components/mod/account-switcher';
 import { ModBreadcrumb } from '@/components/mod/mod-breadcrumb';
 import { CommandPalette } from '@/components/mod/command-palette';
@@ -16,6 +16,8 @@ import {
   IconShieldCheck,
   IconFilter,
   IconMessageReport,
+  IconMenu2,
+  IconX,
 } from '@/lib/mod-icons';
 import type { Icon } from '@tabler/icons-react';
 
@@ -58,11 +60,12 @@ function SoonBadge() {
   );
 }
 
-function NavSection({ label, items, basePath, pathname }: {
+function NavSection({ label, items, basePath, pathname, onNavClick }: {
   label: string;
   items: NavItem[];
   basePath: string;
   pathname: string;
+  onNavClick?: () => void;
 }) {
   return (
     <div className="mb-4">
@@ -97,6 +100,7 @@ function NavSection({ label, items, basePath, pathname }: {
             <Link
               key={item.id}
               href={href}
+              onClick={onNavClick}
               className={`flex items-center gap-2 px-3 py-2 text-sm transition-[background-color] duration-75 ${
                 isActive
                   ? 'bg-[var(--mono-800)] text-[var(--mono-white)]'
@@ -136,8 +140,27 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
   const basePath = `/mod/${guildId}`;
   const guildInfo = useGuildInfo(guildId);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const gPressedRef = useRef(false);
   const gTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  // Close sidebar on route change
+  useEffect(() => {
+    closeSidebar();
+  }, [pathname, closeSidebar]);
+
+  // Close sidebar on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        closeSidebar();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [sidebarOpen, closeSidebar]);
 
   // G-prefix navigation shortcuts and ? for help
   useEffect(() => {
@@ -212,45 +235,88 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
     ? `https://cdn.discordapp.com/icons/${guildId}/${guildInfo.icon}.png?size=64`
     : null;
 
+  const sidebarContent = (
+    <>
+      {/* Guild header */}
+      <div className="border-b border-[var(--mod-border)] p-4">
+        <Link
+          href="/mod"
+          className="mb-3 flex items-center gap-1 text-xs uppercase tracking-widest text-[var(--mod-text-dim)] transition-[background-color] duration-75 hover:text-[var(--mod-text-muted)]"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
+          &larr; ALL SERVERS
+        </Link>
+        <div className="flex items-center gap-2">
+          {guildIconUrl ? (
+            <img src={guildIconUrl} alt="" className="h-8 w-8 shrink-0" />
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-[var(--mono-700)] text-xs font-medium text-[var(--mono-white)]">
+              {guildInfo?.name?.charAt(0) ?? '?'}
+            </div>
+          )}
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--mono-white)]">
+            {guildInfo?.name ?? 'Loading...'}
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-auto p-2">
+        <NavSection label="MODERATION" items={MODERATION_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
+        <NavSection label="CONFIGURATION" items={CONFIG_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
+      </nav>
+
+      <AccountSwitcher />
+    </>
+  );
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="sticky top-0 flex h-screen w-56 flex-col border-r border-[var(--mod-border)] bg-[var(--mod-surface)]">
-        {/* Guild header */}
-        <div className="border-b border-[var(--mod-border)] p-4">
-          <Link
-            href="/mod"
-            className="mb-3 flex items-center gap-1 text-xs uppercase tracking-widest text-[var(--mod-text-dim)] transition-[background-color] duration-75 hover:text-[var(--mod-text-muted)]"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            &larr; ALL SERVERS
-          </Link>
-          <div className="flex items-center gap-2">
-            {guildIconUrl ? (
-              <img src={guildIconUrl} alt="" className="h-8 w-8 shrink-0" />
-            ) : (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-[var(--mono-700)] text-xs font-medium text-[var(--mono-white)]">
-                {guildInfo?.name?.charAt(0) ?? '?'}
-              </div>
-            )}
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--mono-white)]">
-              {guildInfo?.name ?? 'Loading...'}
-            </span>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-auto p-2">
-          <NavSection label="MODERATION" items={MODERATION_NAV} basePath={basePath} pathname={pathname} />
-          <NavSection label="CONFIGURATION" items={CONFIG_NAV} basePath={basePath} pathname={pathname} />
-        </nav>
-
-        <AccountSwitcher />
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-56 flex-col border-r border-[var(--mod-border)] bg-[var(--mod-surface)] md:flex">
+        {sidebarContent}
       </aside>
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            onClick={closeSidebar}
+          />
+          {/* Drawer */}
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-[var(--mod-border)] bg-[var(--mod-surface)] md:hidden">
+            {/* Close button */}
+            <div className="flex justify-end p-2">
+              <button
+                onClick={closeSidebar}
+                className="p-1 text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
+              >
+                <IconX size={18} />
+              </button>
+            </div>
+            {sidebarContent}
+          </aside>
+        </>
+      )}
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-6xl px-6 py-8">
+        {/* Mobile top bar */}
+        <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--mod-border)] bg-[var(--mod-surface)] px-4 py-3 md:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1 text-[var(--mod-text-muted)] hover:text-[var(--mono-white)]"
+          >
+            <IconMenu2 size={20} />
+          </button>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--mono-white)]">
+            {guildInfo?.name ?? 'Loading...'}
+          </span>
+        </div>
+
+        <div className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-8">
           <ModBreadcrumb />
           {children}
         </div>

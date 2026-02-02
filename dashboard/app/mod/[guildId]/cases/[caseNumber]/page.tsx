@@ -56,7 +56,7 @@ export default function CaseDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <Link href={`/mod/${guildId}/cases`} className="mb-2 inline-block text-xs text-[var(--mod-text-dim)] hover:text-[var(--mod-text-muted)]">
             ← Back to cases
@@ -68,7 +68,7 @@ export default function CaseDetailPage() {
             {ACTION_LABELS[modCase.action] ?? modCase.action} — {modCase.targetTag}
           </p>
         </div>
-        <span className={` border px-3 py-1 text-xs ${
+        <span className={`self-start border px-3 py-1 text-xs ${
           modCase.status === 'OPEN' ? 'border-green-800 text-green-400'
           : modCase.status === 'VOID' ? 'border-red-800 text-red-400'
           : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
