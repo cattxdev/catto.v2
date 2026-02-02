@@ -131,7 +131,7 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
           return (
             <div
               key={item.id}
-              className={`relative border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
+              className={`relative min-w-0 overflow-hidden border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
                 isFocused ? 'border-[var(--mono-500)]' : 'border-[var(--mod-border)]'
               }`}
               onClick={() => setFocusIndex(index)}

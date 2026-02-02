@@ -2,33 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { IconSettings } from '@/lib/mod-icons';
+import { useUserMe } from '@/hooks/use-user-me';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
-
-interface UserInfo {
-  id: string;
-  username: string;
-  avatar: string | null;
-  global_name: string | null;
-}
 
 interface AccountSwitcherProps {
   variant?: 'sidebar' | 'inline';
 }
 
 export function AccountSwitcher({ variant = 'sidebar' }: AccountSwitcherProps) {
-  const [user, setUser] = useState<UserInfo | null>(null);
+  const userMe = useUserMe();
+  const user = userMe?.user ?? null;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch(`${BOT_API_URL}/api/users/@me`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.user) setUser(data.user);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -55,14 +41,25 @@ export function AccountSwitcher({ variant = 'sidebar' }: AccountSwitcherProps) {
     window.open(`${BOT_API_URL}/api/oauth/login`, 'auth', 'width=500,height=700');
   };
 
-  if (!user) return null;
+  const isInline = variant === 'inline';
+
+  if (!user) {
+    return (
+      <div
+        className={`flex items-center gap-2 ${
+          isInline ? 'p-2' : 'border-t border-[var(--mod-border)] p-3'
+        }`}
+      >
+        <div className="h-7 w-7 shrink-0 animate-pulse bg-[var(--mono-800)]" />
+        <div className="h-3 w-20 animate-pulse bg-[var(--mono-800)]" />
+      </div>
+    );
+  }
 
   const displayName = user.global_name || user.username;
   const avatarUrl = user.avatar
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
     : null;
-
-  const isInline = variant === 'inline';
 
   return (
     <div ref={ref} className="relative">

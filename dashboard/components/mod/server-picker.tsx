@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { IconSearch } from '@/lib/mod-icons';
 import { IconLayoutGrid, IconLayoutList } from '@tabler/icons-react';
@@ -80,24 +80,24 @@ const ACTION_LABELS: Record<string, string> = {
 export function ServerPicker({ session }: ServerPickerProps) {
   const { guilds, user } = session;
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
+  const [recentIds, setRecentIds] = useState<string[]>(getRecentGuilds);
   const [userStats, setUserStats] = useState<UserModStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
   const modGuilds = useMemo(() => guilds.filter(hasMod), [guilds]);
 
-  useEffect(() => {
-    setViewMode(getStoredViewMode());
-    setRecentIds(getRecentGuilds());
-  }, []);
+  // Stabilize modGuilds reference to avoid refetching on parent re-renders
+  const modGuildsRef = useRef(modGuilds);
+  modGuildsRef.current = modGuilds;
 
-  // Fetch user stats across all mod guilds
+  // Fetch user stats across all mod guilds (run once on mount)
   useEffect(() => {
     let cancelled = false;
     setStatsLoading(true);
 
     async function fetchStats() {
+      const currentModGuilds = modGuildsRef.current;
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -105,7 +105,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
       let allCases: { action: string; createdAt: string; guildId: string; moderatorId: string }[] = [];
 
       // Fetch cases from each mod guild (limit to first 5 guilds to avoid too many requests)
-      const guildSlice = modGuilds.slice(0, 5);
+      const guildSlice = currentModGuilds.slice(0, 5);
       const results = await Promise.allSettled(
         guildSlice.map((g) =>
           fetch(`${BOT_API_URL}/api/guilds/${g.id}/moderation/cases?limit=200`, { credentials: 'include' })
@@ -160,7 +160,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
       const topGuilds = Object.entries(guildCounts)
         .map(([guildId, count]) => ({
           guildId,
-          guildName: modGuilds.find((g) => g.id === guildId)?.name || guildId,
+          guildName: currentModGuilds.find((g) => g.id === guildId)?.name || guildId,
           count,
         }))
         .sort((a, b) => b.count - a.count)
@@ -179,14 +179,15 @@ export function ServerPicker({ session }: ServerPickerProps) {
       }
     }
 
-    if (modGuilds.length > 0) {
+    if (modGuildsRef.current.length > 0) {
       fetchStats();
     } else {
       setStatsLoading(false);
     }
 
     return () => { cancelled = true; };
-  }, [modGuilds, user.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
 
   const toggleView = () => {
     const next = viewMode === 'grid' ? 'list' : 'grid';

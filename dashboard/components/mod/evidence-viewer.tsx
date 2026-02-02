@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { Evidence, EvidenceAmendment } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
 import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconLink, IconBrandDiscord, IconFile, IconVolume } from '@/lib/mod-icons';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
+import { useEscapeClose } from '@/hooks/use-escape-close';
 
 interface EvidenceViewerProps {
   guildId: string;
@@ -19,8 +20,16 @@ interface EvidenceViewerProps {
 type ViewerTab = 'details' | 'history' | 'amend';
 
 export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownload }: EvidenceViewerProps) {
-  const [viewUrl, setViewUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Derive sync values from props (no useEffect needed for URL/snapshot types)
+  const syncViewUrl = useMemo(() => {
+    if (evidence.type === 'URL' || evidence.type === 'DISCORD_URL') return evidence.url;
+    return null;
+  }, [evidence]);
+
+  const needsAsyncLoad = !!(evidence.storageKey && evidence.type !== 'URL' && evidence.type !== 'DISCORD_URL');
+
+  const [asyncViewUrl, setAsyncViewUrl] = useState<string | null>(null);
+  const [asyncLoading, setAsyncLoading] = useState(needsAsyncLoad);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ViewerTab>('details');
   const [amendments, setAmendments] = useState<EvidenceAmendment[]>([]);
@@ -32,51 +41,35 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
   const [amendNewValue, setAmendNewValue] = useState('');
   const [amendSubmitting, setAmendSubmitting] = useState(false);
 
+  const viewUrl = syncViewUrl ?? asyncViewUrl;
+  const loading = needsAsyncLoad ? asyncLoading : false;
+
+  // Only fetch for file-backed evidence that needs a presigned URL
   useEffect(() => {
-    if (evidence.type === 'URL' || evidence.type === 'DISCORD_URL') {
-      setViewUrl(evidence.url);
-      setLoading(false);
-      return;
-    }
+    if (!needsAsyncLoad) return;
 
-    if (evidence.snapshotId && evidence.type === 'MESSAGE_SNAPSHOT') {
-      setLoading(false);
-      return;
-    }
+    getEvidenceViewUrl(guildId, evidenceId)
+      .then((url) => {
+        if (url) setAsyncViewUrl(url);
+        else setError('Could not generate view URL.');
+      })
+      .catch(() => setError('Failed to load evidence.'))
+      .finally(() => setAsyncLoading(false));
+  }, [guildId, evidenceId, needsAsyncLoad]);
 
-    if (evidence.storageKey) {
-      getEvidenceViewUrl(guildId, evidenceId)
-        .then((url) => {
-          if (url) setViewUrl(url);
-          else setError('Could not generate view URL.');
-        })
-        .catch(() => setError('Failed to load evidence.'))
-        .finally(() => setLoading(false));
-      return;
-    }
+  useEscapeClose(onClose);
 
-    setLoading(false);
-  }, [guildId, evidenceId, evidence]);
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
-
-  const loadHistory = () => {
+  const loadHistory = useCallback(() => {
     setHistoryLoading(true);
     getEvidenceHistory(guildId, evidenceId)
       .then(setAmendments)
       .catch(() => {})
       .finally(() => setHistoryLoading(false));
-  };
+  }, [guildId, evidenceId]);
 
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
-  }, [activeTab]);
+  }, [activeTab, loadHistory]);
 
   const handleAmendSubmit = async () => {
     setAmendSubmitting(true);

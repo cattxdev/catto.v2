@@ -145,26 +145,25 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
   const gTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const sidebarOpenRef = useRef(false);
+  sidebarOpenRef.current = sidebarOpen;
 
-  // Close sidebar on route change
+  // Close sidebar on route change (covers browser back/forward + keyboard nav)
   useEffect(() => {
     closeSidebar();
   }, [pathname, closeSidebar]);
 
-  // Close sidebar on Escape
+  // All keyboard shortcuts: Escape (sidebar), G-prefix nav, ? help
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && sidebarOpen) {
-        closeSidebar();
+      // Escape closes sidebar regardless of input focus
+      if (e.key === 'Escape') {
+        if (sidebarOpenRef.current) {
+          closeSidebar();
+          return;
+        }
       }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [sidebarOpen, closeSidebar]);
 
-  // G-prefix navigation shortcuts and ? for help
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
       if (isInputFocused()) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -222,14 +221,9 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
       window.removeEventListener('keydown', handler);
       if (gTimerRef.current) clearTimeout(gTimerRef.current);
     };
-  }, [guildId, router]);
+  }, [guildId, router, closeSidebar]);
 
-  // Listen for custom event from command palette
-  useEffect(() => {
-    const handler = () => setShowShortcuts(true);
-    window.addEventListener('mod:show-shortcuts', handler);
-    return () => window.removeEventListener('mod:show-shortcuts', handler);
-  }, []);
+  const handleShowShortcuts = useCallback(() => setShowShortcuts(true), []);
 
   const guildIconUrl = guildInfo?.icon
     ? `https://cdn.discordapp.com/icons/${guildId}/${guildInfo.icon}.png?size=64`
@@ -323,7 +317,7 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
       </main>
 
       {/* Command palette */}
-      <CommandPalette />
+      <CommandPalette onShowShortcuts={handleShowShortcuts} />
 
       {/* Shortcut help modal */}
       {showShortcuts && <ShortcutHelp onClose={() => setShowShortcuts(false)} />}

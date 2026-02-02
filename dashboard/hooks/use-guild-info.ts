@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-
-const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
+import { useMemo } from 'react';
+import { useUserMe } from '@/hooks/use-user-me';
 
 interface GuildInfo {
   id: string;
@@ -20,43 +19,23 @@ export function cacheGuildInfo(guild: { id: string; name: string; icon: string |
 }
 
 export function useGuildInfo(guildId: string): GuildInfo | null {
-  const [info, setInfo] = useState<GuildInfo | null>(null);
+  const userMe = useUserMe();
 
-  const fetchedRef = useRef(false);
-
-  useEffect(() => {
-    // Try sessionStorage first (populated by cacheGuildInfo before navigation)
-    const cached = sessionStorage.getItem(`guild-info:${guildId}`);
-    if (cached) {
-      try {
-        setInfo(JSON.parse(cached));
-        return;
-      } catch {
-        // fall through to fetch
-      }
+  return useMemo(() => {
+    // If we have fresh API data, use it and update the cache
+    const guild = userMe?.guilds?.find((g) => g.id === guildId);
+    if (guild) {
+      const info: GuildInfo = { id: guild.id, name: guild.name, icon: guild.icon };
+      sessionStorage.setItem(`guild-info:${guildId}`, JSON.stringify(info));
+      return info;
     }
 
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+    // Fall back to sessionStorage cache (populated by cacheGuildInfo before navigation)
+    try {
+      const cached = sessionStorage.getItem(`guild-info:${guildId}`);
+      if (cached) return JSON.parse(cached) as GuildInfo;
+    } catch {}
 
-    fetch(`${BOT_API_URL}/api/users/@me`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.guilds) {
-          const guild = data.guilds.find((g: { id: string }) => g.id === guildId);
-          if (guild) {
-            const guildInfo: GuildInfo = {
-              id: guild.id,
-              name: guild.name,
-              icon: guild.icon,
-            };
-            setInfo(guildInfo);
-            sessionStorage.setItem(`guild-info:${guildId}`, JSON.stringify(guildInfo));
-          }
-        }
-      })
-      .catch(() => {});
-  }, [guildId]);
-
-  return info;
+    return null;
+  }, [userMe, guildId]);
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
 import { IconX, IconKeyboard } from '@/lib/mod-icons';
+import { useEscapeClose } from '@/hooks/use-escape-close';
 
 interface ShortcutHelpProps {
   onClose: () => void;
@@ -50,16 +50,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
 ];
 
 export function ShortcutHelp({ onClose }: ShortcutHelpProps) {
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === '?') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  useEscapeClose(onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>

@@ -26,7 +26,11 @@ interface ActionItem {
   icon: typeof IconLayoutDashboard;
 }
 
-export function CommandPalette() {
+interface CommandPaletteProps {
+  onShowShortcuts?: () => void;
+}
+
+export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const params = useParams();
@@ -59,7 +63,7 @@ export function CommandPalette() {
   ];
 
   const utilityActions: ActionItem[] = [
-    { label: 'Show keyboard shortcuts', action: () => { setOpen(false); window.dispatchEvent(new CustomEvent('mod:show-shortcuts')); }, icon: IconKeyboard },
+    { label: 'Show keyboard shortcuts', action: () => { setOpen(false); onShowShortcuts?.(); }, icon: IconKeyboard },
   ];
 
   // Toggle on Cmd+K / Ctrl+K

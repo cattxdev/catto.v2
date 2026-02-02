@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { getCaseDetail, getEvidenceForCase } from '@/lib/services/mod.service';
 import type { ModCase, Evidence, EvidenceSummary } from '@/lib/mod-types';
@@ -24,7 +24,7 @@ export default function CaseDetailPage() {
   const [summary, setSummary] = useState<EvidenceSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
       getCaseDetail(guildId, caseNumber),
@@ -34,9 +34,9 @@ export default function CaseDetailPage() {
       setEvidence(evidenceData.evidence);
       setSummary(evidenceData.summary);
     }).catch(() => {}).finally(() => setLoading(false));
-  };
+  }, [guildId, caseNumber]);
 
-  useEffect(() => { loadData(); }, [guildId, caseNumber]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   if (loading) {
     return <div className="py-12 text-center text-[var(--mod-text-dim)]">Loading case...</div>;

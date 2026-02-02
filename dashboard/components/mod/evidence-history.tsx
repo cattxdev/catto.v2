@@ -5,6 +5,7 @@ import type { EvidenceAmendment } from '@/lib/mod-types';
 import { getEvidenceHistory } from '@/lib/services/mod.service';
 import { IconX } from '@/lib/mod-icons';
 import { AmendmentTimeline } from './amendment-timeline';
+import { useEscapeClose } from '@/hooks/use-escape-close';
 
 interface EvidenceHistoryProps {
   guildId: string;
@@ -23,13 +24,7 @@ export function EvidenceHistory({ guildId, evidenceId, onClose }: EvidenceHistor
       .finally(() => setLoading(false));
   }, [guildId, evidenceId]);
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  useEscapeClose(onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>

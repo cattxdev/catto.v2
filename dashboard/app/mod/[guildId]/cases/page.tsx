@@ -67,6 +67,10 @@ export default function CasesPage() {
   const [loading, setLoading] = useState(true);
   const [focusIndex, setFocusIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const casesRef = useRef(cases);
+  casesRef.current = cases;
+  const focusIndexRef = useRef(focusIndex);
+  focusIndexRef.current = focusIndex;
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -123,7 +127,7 @@ export default function CasesPage() {
       switch (e.key) {
         case 'j':
           e.preventDefault();
-          setFocusIndex((i) => Math.min(i + 1, cases.length - 1));
+          setFocusIndex((i) => Math.min(i + 1, casesRef.current.length - 1));
           break;
         case 'k':
           e.preventDefault();
@@ -131,7 +135,7 @@ export default function CasesPage() {
           break;
         case 'Enter': {
           e.preventDefault();
-          const c = cases[focusIndex];
+          const c = casesRef.current[focusIndexRef.current];
           if (c) router.push(`/mod/${guildId}/cases/${c.caseNumber}`);
           break;
         }
@@ -139,7 +143,7 @@ export default function CasesPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [cases, focusIndex, guildId, router]);
+  }, [guildId, router]);
 
   // Scroll focused item into view
   useEffect(() => {

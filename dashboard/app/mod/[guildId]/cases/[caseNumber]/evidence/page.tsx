@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { getEvidenceForCase } from '@/lib/services/mod.service';
 import type { Evidence, EvidenceSummary } from '@/lib/mod-types';
@@ -16,7 +16,7 @@ export default function EvidencePage() {
   const [summary, setSummary] = useState<EvidenceSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
     getEvidenceForCase(guildId, caseNumber)
       .then((data) => {
@@ -25,9 +25,9 @@ export default function EvidencePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
+  }, [guildId, caseNumber]);
 
-  useEffect(() => { loadData(); }, [guildId, caseNumber]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   return (
     <div>
