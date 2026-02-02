@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useUserMe } from '@/hooks/use-user-me';
 
 interface GuildInfo {
@@ -18,8 +18,15 @@ export function cacheGuildInfo(guild: { id: string; name: string; icon: string |
   sessionStorage.setItem(`guild-info:${guild.id}`, JSON.stringify(guild));
 }
 
+const noop = () => () => {};
+
 export function useGuildInfo(guildId: string): GuildInfo | null {
   const userMe = useUserMe();
+  const cachedRaw = useSyncExternalStore(
+    noop,
+    () => sessionStorage.getItem(`guild-info:${guildId}`),
+    () => null,
+  );
 
   return useMemo(() => {
     // If we have fresh API data, use it and update the cache
@@ -31,11 +38,12 @@ export function useGuildInfo(guildId: string): GuildInfo | null {
     }
 
     // Fall back to sessionStorage cache (populated by cacheGuildInfo before navigation)
-    try {
-      const cached = sessionStorage.getItem(`guild-info:${guildId}`);
-      if (cached) return JSON.parse(cached) as GuildInfo;
-    } catch {}
+    if (cachedRaw) {
+      try {
+        return JSON.parse(cachedRaw) as GuildInfo;
+      } catch {}
+    }
 
     return null;
-  }, [userMe, guildId]);
+  }, [userMe, guildId, cachedRaw]);
 }
