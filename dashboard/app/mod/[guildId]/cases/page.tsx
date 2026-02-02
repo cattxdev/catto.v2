@@ -2,6 +2,7 @@
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { getCases } from '@/lib/services/mod.service';
 import type { ModCase } from '@/lib/mod-types';
@@ -61,16 +62,8 @@ export default function CasesPage() {
   const searchParam = searchParams.get('search') ?? '';
   const pageParam = parseInt(searchParams.get('page') ?? '1') || 1;
 
-  const [cases, setCases] = useState<ModCase[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [focusIndex, setFocusIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const casesRef = useRef(cases);
-  casesRef.current = cases;
-  const focusIndexRef = useRef(focusIndex);
-  focusIndexRef.current = focusIndex;
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -90,33 +83,32 @@ export default function CasesPage() {
     [searchParams, router]
   );
 
-  useEffect(() => {
-    setLoading(true);
-    const [sortField, sortOrder] = sortParam.split(':');
-    const fetchParams: Record<string, unknown> = {
+  const [sortField, sortOrder] = sortParam.split(':');
+  const { data: casesData, isLoading: loading } = useSWR(
+    ['cases', guildId, actionParam, statusParam, sortParam, searchParam, pageParam],
+    () => getCases(guildId, {
       page: pageParam,
       limit: PAGE_SIZE,
       sort: sortField,
       order: sortOrder,
-    };
-    if (actionParam) fetchParams.action = actionParam;
-    if (statusParam) fetchParams.status = statusParam;
-    if (searchParam) fetchParams.search = searchParam;
+      ...(actionParam && { action: actionParam }),
+      ...(statusParam && { status: statusParam }),
+      ...(searchParam && { search: searchParam }),
+    } as Parameters<typeof getCases>[1]),
+    {
+      keepPreviousData: true,
+      onSuccess: () => setFocusIndex(0),
+    },
+  );
 
-    getCases(guildId, fetchParams as Parameters<typeof getCases>[1])
-      .then((data) => {
-        setCases(data.cases);
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
-        setFocusIndex(0);
-      })
-      .catch(() => {
-        setCases([]);
-        setTotal(0);
-        setTotalPages(1);
-      })
-      .finally(() => setLoading(false));
-  }, [guildId, actionParam, statusParam, sortParam, searchParam, pageParam]);
+  const cases = casesData?.cases ?? [];
+  const total = casesData?.total ?? 0;
+  const totalPages = casesData?.totalPages ?? 1;
+
+  const casesRef = useRef(cases);
+  casesRef.current = cases;
+  const focusIndexRef = useRef(focusIndex);
+  focusIndexRef.current = focusIndex;
 
   // Keyboard shortcuts for case list navigation
   useEffect(() => {

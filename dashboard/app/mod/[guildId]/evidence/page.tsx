@@ -1,7 +1,8 @@
 'use client';
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import useSWR from 'swr';
 import { getGuildEvidence } from '@/lib/services/mod.service';
 import type { Evidence } from '@/lib/mod-types';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
@@ -29,11 +30,6 @@ export default function GuildEvidencePage() {
   const caseParam = searchParams.get('case') ?? '';
   const pageParam = parseInt(searchParams.get('page') ?? '1') || 1;
 
-  const [evidence, setEvidence] = useState<Evidence[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
       const next = new URLSearchParams(searchParams.toString());
@@ -53,47 +49,21 @@ export default function GuildEvidencePage() {
     [searchParams, router]
   );
 
-  useEffect(() => {
-    setLoading(true);
-    const fetchParams: Record<string, unknown> = {
+  const { data: evidenceData, isLoading: loading, mutate } = useSWR(
+    ['guild-evidence', guildId, typeParam, caseParam, pageParam],
+    () => getGuildEvidence(guildId, {
       page: pageParam,
       limit: PAGE_SIZE,
-    };
-    if (typeParam) fetchParams.type = typeParam;
-    if (caseParam) fetchParams.case = parseInt(caseParam);
+      ...(typeParam && { type: typeParam }),
+      ...(caseParam && { case: parseInt(caseParam) }),
+    }),
+    { keepPreviousData: true },
+  );
 
-    getGuildEvidence(guildId, fetchParams as { page?: number; limit?: number; type?: string; case?: number })
-      .then((data) => {
-        setEvidence(data.evidence);
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
-      })
-      .catch(() => {
-        setEvidence([]);
-        setTotal(0);
-        setTotalPages(1);
-      })
-      .finally(() => setLoading(false));
-  }, [guildId, typeParam, caseParam, pageParam]);
-
-  const handleRefresh = useCallback(() => {
-    setLoading(true);
-    const fetchParams: Record<string, unknown> = {
-      page: pageParam,
-      limit: PAGE_SIZE,
-    };
-    if (typeParam) fetchParams.type = typeParam;
-    if (caseParam) fetchParams.case = parseInt(caseParam);
-
-    getGuildEvidence(guildId, fetchParams as { page?: number; limit?: number; type?: string; case?: number })
-      .then((data) => {
-        setEvidence(data.evidence);
-        setTotal(data.total);
-        setTotalPages(data.totalPages);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [guildId, typeParam, caseParam, pageParam]);
+  const evidence = evidenceData?.evidence ?? [];
+  const total = evidenceData?.total ?? 0;
+  const totalPages = evidenceData?.totalPages ?? 1;
+  const handleRefresh = useCallback(() => { mutate(); }, [mutate]);
 
   return (
     <div>

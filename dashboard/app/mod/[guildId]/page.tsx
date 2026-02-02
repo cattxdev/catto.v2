@@ -1,7 +1,8 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import useSWR from 'swr';
 import { getCases } from '@/lib/services/mod.service';
 import { useGuildInfo } from '@/hooks/use-guild-info';
 import type { ModCase } from '@/lib/mod-types';
@@ -34,16 +35,13 @@ export default function GuildModOverview() {
   const params = useParams();
   const guildId = params.guildId as string;
   const guildInfo = useGuildInfo(guildId);
-  const [cases, setCases] = useState<ModCase[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLoading(true);
-    getCases(guildId, { limit: 200 })
-      .then((data) => setCases(data.cases))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [guildId]);
+  const { data: casesData, isLoading: loading } = useSWR(
+    ['overview-cases', guildId],
+    () => getCases(guildId, { limit: 200 }),
+  );
+
+  const cases = casesData?.cases ?? [];
 
   // Aggregated stats
   const stats = useMemo(() => {

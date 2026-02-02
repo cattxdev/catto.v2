@@ -1,10 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { getCaseDetail, getEvidenceForCase } from '@/lib/services/mod.service';
-import type { ModCase, Evidence, EvidenceSummary } from '@/lib/mod-types';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
 import { EvidenceWizard } from '@/components/mod/evidence-wizard';
 
@@ -19,24 +19,21 @@ export default function CaseDetailPage() {
   const params = useParams();
   const guildId = params.guildId as string;
   const caseNumber = parseInt(params.caseNumber as string);
-  const [modCase, setModCase] = useState<ModCase | null>(null);
-  const [evidence, setEvidence] = useState<Evidence[]>([]);
-  const [summary, setSummary] = useState<EvidenceSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: modCase, isLoading: caseLoading } = useSWR(
+    ['case-detail', guildId, caseNumber],
+    () => getCaseDetail(guildId, caseNumber),
+  );
 
-  const loadData = useCallback(() => {
-    setLoading(true);
-    Promise.all([
-      getCaseDetail(guildId, caseNumber),
-      getEvidenceForCase(guildId, caseNumber),
-    ]).then(([caseData, evidenceData]) => {
-      setModCase(caseData);
-      setEvidence(evidenceData.evidence);
-      setSummary(evidenceData.summary);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [guildId, caseNumber]);
+  const { data: evidenceData, isLoading: evidenceLoading, mutate: mutateEvidence } = useSWR(
+    ['case-evidence', guildId, caseNumber],
+    () => getEvidenceForCase(guildId, caseNumber),
+  );
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const evidence = evidenceData?.evidence ?? [];
+  const summary = evidenceData?.summary ?? null;
+  const loading = caseLoading || evidenceLoading;
+
+  const refreshEvidence = useCallback(() => { mutateEvidence(); }, [mutateEvidence]);
 
   if (loading) {
     return <div className="py-12 text-center text-[var(--mod-text-dim)]">Loading case...</div>;
@@ -130,7 +127,7 @@ export default function CaseDetailPage() {
       {/* Upload */}
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-[var(--mono-white)]">Add Evidence</h2>
-        <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={loadData} />
+        <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={refreshEvidence} />
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { getEvidenceForCase } from '@/lib/services/mod.service';
-import type { Evidence, EvidenceSummary } from '@/lib/mod-types';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
 import { EvidenceWizard } from '@/components/mod/evidence-wizard';
 
@@ -12,22 +12,15 @@ export default function EvidencePage() {
   const params = useParams();
   const guildId = params.guildId as string;
   const caseNumber = parseInt(params.caseNumber as string);
-  const [evidence, setEvidence] = useState<Evidence[]>([]);
-  const [summary, setSummary] = useState<EvidenceSummary | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(() => {
-    setLoading(true);
-    getEvidenceForCase(guildId, caseNumber)
-      .then((data) => {
-        setEvidence(data.evidence);
-        setSummary(data.summary);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [guildId, caseNumber]);
+  const { data: evidenceData, isLoading: loading, mutate } = useSWR(
+    ['case-evidence', guildId, caseNumber],
+    () => getEvidenceForCase(guildId, caseNumber),
+  );
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const evidence = evidenceData?.evidence ?? [];
+  const summary = evidenceData?.summary ?? null;
+  const refreshData = useCallback(() => { mutate(); }, [mutate]);
 
   return (
     <div>
@@ -57,7 +50,7 @@ export default function EvidencePage() {
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-[var(--mono-white)]">Upload Evidence</h2>
-        <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={loadData} />
+        <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={refreshData} />
       </div>
     </div>
   );

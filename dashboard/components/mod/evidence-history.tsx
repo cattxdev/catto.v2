@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import type { EvidenceAmendment } from '@/lib/mod-types';
 import { getEvidenceHistory } from '@/lib/services/mod.service';
 import { IconX } from '@/lib/mod-icons';
@@ -14,15 +14,10 @@ interface EvidenceHistoryProps {
 }
 
 export function EvidenceHistory({ guildId, evidenceId, onClose }: EvidenceHistoryProps) {
-  const [amendments, setAmendments] = useState<EvidenceAmendment[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getEvidenceHistory(guildId, evidenceId)
-      .then(setAmendments)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [guildId, evidenceId]);
+  const { data: amendments = [], isLoading: loading } = useSWR(
+    ['evidence-history', guildId, evidenceId],
+    () => getEvidenceHistory(guildId, evidenceId),
+  );
 
   useEscapeClose(onClose);
 

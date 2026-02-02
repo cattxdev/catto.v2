@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import type { Evidence, EvidenceAmendment } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
@@ -28,12 +29,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
 
   const needsAsyncLoad = !!(evidence.storageKey && evidence.type !== 'URL' && evidence.type !== 'DISCORD_URL');
 
-  const [asyncViewUrl, setAsyncViewUrl] = useState<string | null>(null);
-  const [asyncLoading, setAsyncLoading] = useState(needsAsyncLoad);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ViewerTab>('details');
-  const [amendments, setAmendments] = useState<EvidenceAmendment[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Amend form state
   const [amendAction, setAmendAction] = useState('NOTE_ADDED');
@@ -41,35 +37,25 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
   const [amendNewValue, setAmendNewValue] = useState('');
   const [amendSubmitting, setAmendSubmitting] = useState(false);
 
-  const viewUrl = syncViewUrl ?? asyncViewUrl;
+  // Async URL fetch (presigned URLs for file-backed evidence)
+  const { data: asyncViewUrl, error: urlError, isLoading: asyncLoading } = useSWR(
+    needsAsyncLoad ? ['evidence-view-url', guildId, evidenceId] : null,
+    () => getEvidenceViewUrl(guildId, evidenceId),
+  );
+
+  const viewUrl = syncViewUrl ?? asyncViewUrl ?? null;
   const loading = needsAsyncLoad ? asyncLoading : false;
+  const error = urlError
+    ? 'Failed to load evidence.'
+    : (needsAsyncLoad && !asyncLoading && !asyncViewUrl ? 'Could not generate view URL.' : null);
 
-  // Only fetch for file-backed evidence that needs a presigned URL
-  useEffect(() => {
-    if (!needsAsyncLoad) return;
-
-    getEvidenceViewUrl(guildId, evidenceId)
-      .then((url) => {
-        if (url) setAsyncViewUrl(url);
-        else setError('Could not generate view URL.');
-      })
-      .catch(() => setError('Failed to load evidence.'))
-      .finally(() => setAsyncLoading(false));
-  }, [guildId, evidenceId, needsAsyncLoad]);
+  // History (only fetches when history tab is active)
+  const { data: amendments = [], isLoading: historyLoading, mutate: mutateHistory } = useSWR(
+    activeTab === 'history' ? ['evidence-history', guildId, evidenceId] : null,
+    () => getEvidenceHistory(guildId, evidenceId),
+  );
 
   useEscapeClose(onClose);
-
-  const loadHistory = useCallback(() => {
-    setHistoryLoading(true);
-    getEvidenceHistory(guildId, evidenceId)
-      .then(setAmendments)
-      .catch(() => {})
-      .finally(() => setHistoryLoading(false));
-  }, [guildId, evidenceId]);
-
-  useEffect(() => {
-    if (activeTab === 'history') loadHistory();
-  }, [activeTab, loadHistory]);
 
   const handleAmendSubmit = async () => {
     setAmendSubmitting(true);
@@ -82,7 +68,7 @@ export function EvidenceViewer({ guildId, evidenceId, evidence, onClose, onDownl
       setAmendReason('');
       setAmendNewValue('');
       setActiveTab('history');
-      loadHistory();
+      mutateHistory();
     } catch {
       // silent
     } finally {

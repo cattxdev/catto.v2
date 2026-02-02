@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import useSWR from 'swr';
 import Link from 'next/link';
 import { IconSearch } from '@/lib/mod-icons';
 import { IconLayoutGrid, IconLayoutList } from '@tabler/icons-react';
@@ -82,21 +83,16 @@ export function ServerPicker({ session }: ServerPickerProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
   const [recentIds, setRecentIds] = useState<string[]>(getRecentGuilds);
-  const [userStats, setUserStats] = useState<UserModStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
-
   const modGuilds = useMemo(() => guilds.filter(hasMod), [guilds]);
 
   // Stabilize modGuilds reference to avoid refetching on parent re-renders
   const modGuildsRef = useRef(modGuilds);
   modGuildsRef.current = modGuilds;
 
-  // Fetch user stats across all mod guilds (run once on mount)
-  useEffect(() => {
-    let cancelled = false;
-    setStatsLoading(true);
-
-    async function fetchStats() {
+  // Fetch user stats across all mod guilds
+  const { data: userStats, isLoading: statsLoading } = useSWR(
+    modGuilds.length > 0 ? ['user-mod-stats', user.id] : null,
+    async () => {
       const currentModGuilds = modGuildsRef.current;
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -104,7 +100,6 @@ export function ServerPicker({ session }: ServerPickerProps) {
 
       let allCases: { action: string; createdAt: string; guildId: string; moderatorId: string }[] = [];
 
-      // Fetch cases from each mod guild (limit to first 5 guilds to avoid too many requests)
       const guildSlice = currentModGuilds.slice(0, 5);
       const results = await Promise.allSettled(
         guildSlice.map((g) =>
@@ -120,15 +115,11 @@ export function ServerPicker({ session }: ServerPickerProps) {
         }
       }
 
-      // Filter to only cases by this user
       const myCases = allCases.filter((c) => c.moderatorId === user.id);
-
-      // Aggregate stats
       const totalActions = myCases.length;
       const last30d = myCases.filter((c) => new Date(c.createdAt) >= thirtyDaysAgo);
       const last7d = myCases.filter((c) => new Date(c.createdAt) >= sevenDaysAgo);
 
-      // Action breakdown
       const actionCounts: Record<string, number> = {};
       for (const c of myCases) {
         const label = ACTION_LABELS[c.action] || c.action;
@@ -139,7 +130,6 @@ export function ServerPicker({ session }: ServerPickerProps) {
         .sort((a, b) => b.count - a.count)
         .slice(0, 6);
 
-      // Activity timeline (last 30 days)
       const days: { label: string; count: number }[] = [];
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
@@ -152,7 +142,6 @@ export function ServerPicker({ session }: ServerPickerProps) {
         if (entry) entry.count++;
       }
 
-      // Top guilds
       const guildCounts: Record<string, number> = {};
       for (const c of myCases) {
         guildCounts[c.guildId] = (guildCounts[c.guildId] || 0) + 1;
@@ -166,28 +155,17 @@ export function ServerPicker({ session }: ServerPickerProps) {
         .sort((a, b) => b.count - a.count)
         .slice(0, 3);
 
-      if (!cancelled) {
-        setUserStats({
-          totalActions,
-          last30dActions: last30d.length,
-          last7dActions: last7d.length,
-          actionBreakdown,
-          activityTimeline: days,
-          topGuilds,
-        });
-        setStatsLoading(false);
-      }
-    }
-
-    if (modGuildsRef.current.length > 0) {
-      fetchStats();
-    } else {
-      setStatsLoading(false);
-    }
-
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.id]);
+      return {
+        totalActions,
+        last30dActions: last30d.length,
+        last7dActions: last7d.length,
+        actionBreakdown,
+        activityTimeline: days,
+        topGuilds,
+      } as UserModStats;
+    },
+    { revalidateOnFocus: false },
+  );
 
   const toggleView = () => {
     const next = viewMode === 'grid' ? 'list' : 'grid';
