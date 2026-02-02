@@ -12,37 +12,62 @@ function assertRedisAvailable(): void {
 
 // ─── Token Encryption ───
 // Encrypts sensitive tokens for storage in Redis
-const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY || 'default-dev-key';
+const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY;
+if (!ENCRYPTION_KEY && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'SESSION_ENCRYPTION_KEY environment variable is required in production. Generate one with: openssl rand -hex 32'
+  );
+}
+const RESOLVED_ENCRYPTION_KEY = ENCRYPTION_KEY || 'default-dev-key-do-not-use-in-production';
 const ALGORITHM = 'aes-256-gcm';
 
 function encryptToken(token: string): string {
+  const salt = randomBytes(16);
   const iv = randomBytes(16);
-  const key = scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
   const cipher = createCipheriv(ALGORITHM, key, iv);
 
   let encrypted = cipher.update(token, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   const authTag = cipher.getAuthTag();
 
-  // Format: iv:authTag:encrypted
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  // Format: salt:iv:authTag:encrypted
+  return `${salt.toString('hex')}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 }
 
 function decryptToken(encrypted: string): string {
   const parts = encrypted.split(':');
-  // If format is invalid or not encrypted (backward compatibility with plain text tokens)
-  if (parts.length !== 3) {
-    return encrypted; // Return as-is if not in encrypted format
+
+  // 4 parts = new format (salt:iv:authTag:encrypted)
+  // 3 parts = legacy format (iv:authTag:encrypted) with hardcoded salt
+  if (parts.length !== 4 && parts.length !== 3) {
+    return encrypted; // Return as-is if not in encrypted format (plain text backward compat)
   }
 
   try {
-    const iv = Buffer.from(parts[0]!, 'hex');
-    const authTag = Buffer.from(parts[1]!, 'hex');
-    const key = scryptSync(ENCRYPTION_KEY, 'salt', 32);
+    let salt: Buffer;
+    let iv: Buffer;
+    let authTag: Buffer;
+    let ciphertext: string;
+
+    if (parts.length === 4) {
+      salt = Buffer.from(parts[0]!, 'hex');
+      iv = Buffer.from(parts[1]!, 'hex');
+      authTag = Buffer.from(parts[2]!, 'hex');
+      ciphertext = parts[3]!;
+    } else {
+      // Legacy format: hardcoded salt
+      salt = Buffer.from('salt');
+      iv = Buffer.from(parts[0]!, 'hex');
+      authTag = Buffer.from(parts[1]!, 'hex');
+      ciphertext = parts[2]!;
+    }
+
+    const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
 
-    let decrypted = decipher.update(parts[2]!, 'hex', 'utf8');
+    let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch {

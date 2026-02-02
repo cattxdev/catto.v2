@@ -272,7 +272,6 @@ export class EvidenceService {
                 attachment.contentType ?? 'application/octet-stream'
               );
               serialized.storageKey = key;
-              mediaStorageKeys.push(key);
             }
           } catch (archiveError) {
             serialized.archiveFailed = true;
@@ -281,6 +280,10 @@ export class EvidenceService {
               archiveError
             );
           }
+        }
+
+        if (serialized.storageKey && !serialized.archiveFailed) {
+          mediaStorageKeys.push(serialized.storageKey);
         }
 
         attachments.push(serialized);
