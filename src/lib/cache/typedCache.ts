@@ -38,42 +38,37 @@ function encryptToken(token: string): string {
 function decryptToken(encrypted: string): string {
   const parts = encrypted.split(':');
 
-  // 4 parts = new format (salt:iv:authTag:encrypted)
+  // 4 parts = current format (salt:iv:authTag:encrypted)
   // 3 parts = legacy format (iv:authTag:encrypted) with hardcoded salt
   if (parts.length !== 4 && parts.length !== 3) {
-    return encrypted; // Return as-is if not in encrypted format (plain text backward compat)
+    throw new Error('Invalid encrypted token format');
   }
 
-  try {
-    let salt: Buffer;
-    let iv: Buffer;
-    let authTag: Buffer;
-    let ciphertext: string;
+  let salt: Buffer;
+  let iv: Buffer;
+  let authTag: Buffer;
+  let ciphertext: string;
 
-    if (parts.length === 4) {
-      salt = Buffer.from(parts[0]!, 'hex');
-      iv = Buffer.from(parts[1]!, 'hex');
-      authTag = Buffer.from(parts[2]!, 'hex');
-      ciphertext = parts[3]!;
-    } else {
-      // Legacy format: hardcoded salt
-      salt = Buffer.from('salt');
-      iv = Buffer.from(parts[0]!, 'hex');
-      authTag = Buffer.from(parts[1]!, 'hex');
-      ciphertext = parts[2]!;
-    }
-
-    const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
-    const decipher = createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(authTag);
-
-    let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-  } catch {
-    // If decryption fails, assume it's plain text (backward compatibility)
-    return encrypted;
+  if (parts.length === 4) {
+    salt = Buffer.from(parts[0]!, 'hex');
+    iv = Buffer.from(parts[1]!, 'hex');
+    authTag = Buffer.from(parts[2]!, 'hex');
+    ciphertext = parts[3]!;
+  } else {
+    // Legacy format: hardcoded salt
+    salt = Buffer.from('salt');
+    iv = Buffer.from(parts[0]!, 'hex');
+    authTag = Buffer.from(parts[1]!, 'hex');
+    ciphertext = parts[2]!;
   }
+
+  const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+
+  let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
 }
 
 /**
