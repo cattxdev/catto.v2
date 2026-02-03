@@ -24,7 +24,8 @@
             background: #0d1117;
             padding: 24px;
             border: 1px solid #21262d;
-            max-width: 600px;
+            max-width: 650px;
+            width: 100%;
         }
 
         .leaderboard-header {
@@ -342,25 +343,17 @@
             <div class="xp-bar-row">
                 <span class="xp-bar-label">#2</span>
                 <div class="xp-bar-track">
-                    <div class="xp-bar-fill" style="width: 78%;"></div>
+                    <div class="xp-bar-fill" style="width: {{secondPercent}}%;"></div>
                 </div>
                 <span class="xp-bar-value">{{secondXp}}</span>
             </div>
             <div class="xp-bar-row">
                 <span class="xp-bar-label">#3</span>
                 <div class="xp-bar-track">
-                    <div class="xp-bar-fill" style="width: 62%;"></div>
+                    <div class="xp-bar-fill" style="width: {{thirdPercent}}%;"></div>
                 </div>
                 <span class="xp-bar-value">{{thirdXp}}</span>
             </div>
-        </div>
-
-        <div class="pagination">
-            <button class="pagination-btn active">1</button>
-            <button class="pagination-btn">2</button>
-            <button class="pagination-btn">3</button>
-            <button class="pagination-btn">...</button>
-            <button class="pagination-btn">10</button>
         </div>
     </div>
 </body>

@@ -47,6 +47,9 @@ export interface LeaderboardCardData {
     xp: number;
   }[];
   accentColor?: string;
+  totalMembers?: number;
+  totalXp?: number;
+  weeklyXp?: number;
 }
 
 export class ImageGeneratorService {
@@ -273,7 +276,10 @@ export class ImageGeneratorService {
     const page = await this.getPage();
 
     try {
-      await page.setViewport({ width: 800, height: Math.min(600, 150 + data.entries.length * 80) });
+      await page.setViewport({
+        width: 700,
+        height: Math.min(1200, 300 + data.entries.length * 80),
+      });
 
       // Convert all avatars to base64 in parallel
       const avatarPromises = data.entries.map((entry) => this.imageUrlToBase64(entry.avatarUrl));
@@ -291,12 +297,18 @@ export class ImageGeneratorService {
 
       // Use 'load' instead of 'networkidle0' for faster rendering
       await page.setContent(html, { waitUntil: 'load', timeout: 5000 });
+      // Small delay to ensure fonts are loaded
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
-      const screenshot = await page.screenshot({
+      // Get the actual card dimensions
+      const cardElement = await page.$('.leaderboard-card');
+      if (!cardElement) {
+        throw new Error('Leaderboard card element not found');
+      }
+
+      const screenshot = await cardElement.screenshot({
         type: 'png',
         omitBackground: false,
-        captureBeyondViewport: false,
-        optimizeForSpeed: true,
       });
 
       return screenshot as Buffer;
@@ -397,25 +409,39 @@ export class ImageGeneratorService {
   private getLeaderboardCardTemplate(data: LeaderboardCardData): string {
     const accentColor = data.accentColor || '#7289DA';
 
+    // Calculate stats
+    const totalMembers = data.totalMembers || data.entries.length;
+    const totalXp = data.totalXp || data.entries.reduce((sum, e) => sum + e.xp, 0);
+    const weeklyXp = data.weeklyXp || 0;
+
+    // Calculate XP distribution for bars
+    const topXp = data.entries[0]?.xp || 0;
+    const secondXp = data.entries[1]?.xp || 0;
+    const thirdXp = data.entries[2]?.xp || 0;
+    const secondPercent = topXp > 0 ? (secondXp / topXp) * 100 : 0;
+    const thirdPercent = topXp > 0 ? (thirdXp / topXp) * 100 : 0;
+
     const entriesHtml = data.entries
       .map((entry, index) => {
-        const isTopThree = index < 3;
         const rankClass =
           index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
         const rankDisplay = this.getRankIcon(entry.rank);
-        const rankClass2 = isTopThree ? 'medal' : '';
 
         return `
       <div class="leaderboard-entry ${rankClass}">
-        <div class="entry-rank ${rankClass2}">${rankDisplay}</div>
+        <div class="entry-rank">${rankDisplay}</div>
         <img src="${entry.avatarUrl}" alt="Avatar" class="entry-avatar">
         <div class="entry-info">
           <div class="entry-username">${this.escapeHtml(entry.username)}</div>
-          <div class="entry-stats">Level ${entry.level} • ${entry.xp.toLocaleString()} XP</div>
+          <div class="entry-messages">${entry.xp.toLocaleString()} XP</div>
         </div>
         <div class="entry-xp">
-          <div class="entry-level">LVL ${entry.level}</div>
           <div class="entry-xp-value">${entry.xp.toLocaleString()}</div>
+          <div class="entry-xp-label">XP</div>
+        </div>
+        <div class="entry-level">
+          <div class="entry-level-value">${entry.level}</div>
+          <div class="entry-level-label">Level</div>
         </div>
       </div>`;
       })
@@ -424,6 +450,14 @@ export class ImageGeneratorService {
     return this.leaderboardCardTemplate
       .replace(/{{guildName}}/g, this.escapeHtml(data.guildName))
       .replace(/{{entriesCount}}/g, String(data.entries.length))
+      .replace(/{{totalMembers}}/g, totalMembers.toLocaleString())
+      .replace(/{{totalXp}}/g, totalXp.toLocaleString())
+      .replace(/{{weeklyXp}}/g, weeklyXp.toLocaleString())
+      .replace(/{{topXp}}/g, topXp.toLocaleString())
+      .replace(/{{secondXp}}/g, secondXp.toLocaleString())
+      .replace(/{{thirdXp}}/g, thirdXp.toLocaleString())
+      .replace(/{{secondPercent}}/g, secondPercent.toFixed(0))
+      .replace(/{{thirdPercent}}/g, thirdPercent.toFixed(0))
       .replace(/{{entries}}/g, entriesHtml)
       .replace(/{{accentColor}}/g, accentColor);
   }
