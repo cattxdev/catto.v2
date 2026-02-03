@@ -42,6 +42,21 @@ export async function endVoiceSession(
   });
 }
 
+export async function updateVoiceSessionState(
+  sessionId: string,
+  updates: {
+    wasStreaming?: boolean;
+    wasVideo?: boolean;
+    wasMuted?: boolean;
+    wasDeafened?: boolean;
+  }
+): Promise<VoiceSession> {
+  return await container.prisma.voiceSession.update({
+    where: { id: sessionId },
+    data: updates,
+  });
+}
+
 export async function getActiveVoiceSession(
   guildId: string,
   userId: string

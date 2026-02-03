@@ -31,7 +31,8 @@ export async function awardVoiceXPSafe(
   userId: string,
   xpGain: number,
   newLevel: number,
-  minutesGained: number
+  minutesGained: number,
+  metadata?: { channelId?: string; wasStreaming?: boolean; wasVideo?: boolean; sessionId?: string }
 ): Promise<{ userXP: UserVoiceXP; leveledUp: boolean; previousLevel: number }> {
   return await container.prisma.$transaction(async (tx) => {
     const existing = await getUserVoiceXPForUpdate(guildId, userId, tx);
@@ -74,7 +75,10 @@ export async function awardVoiceXPSafe(
         levelBefore: currentLevel,
         levelAfter: newLevel,
         reason: 'voice_session',
-        metadata: { minutesGained },
+        metadata: {
+          minutesGained,
+          ...metadata,
+        },
       },
     });
 
