@@ -1,7 +1,7 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging.js';
+import { LogType, logAction } from '../../lib/services/logging.js';
 import { LogListener } from './LogListener.js';
 
 export class ChannelCreateListener extends LogListener<typeof Events.ChannelCreate> {

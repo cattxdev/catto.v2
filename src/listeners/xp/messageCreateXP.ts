@@ -5,9 +5,9 @@
 
 import { Listener, Events } from '@sapphire/framework';
 import { Message, EmbedBuilder, TextChannel, NewsChannel } from 'discord.js';
-import { awardService, configService } from '../../modules/xp-text/services/index.js';
-import { parseTemplate } from '../../modules/xp-text/utils/templates.js';
-import type { ValidationContext } from '../../modules/xp-text/types/xp-text.types.js';
+import { awardService, configService } from '../../modules/xp/xp-text/services/index.js';
+import { parseTemplate } from '../../modules/xp/xp-text/utils/templates.js';
+import type { ValidationContext } from '../../modules/xp/xp-text/types/xp-text.types.js';
 import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration.js';
 import type { RewardClaimResult } from '../../lib/types/rewards.types.js';
 

@@ -1,6 +1,6 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { GuildEmoji } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging.js';
+import { LogType, logAction } from '../../lib/services/logging.js';
 import { LogListener } from './LogListener.js';
 
 export class EmojiDeleteListener extends LogListener<typeof Events.GuildEmojiDelete> {

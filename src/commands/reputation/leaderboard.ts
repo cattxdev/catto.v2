@@ -5,8 +5,8 @@
 import { Command } from '@sapphire/framework';
 import { AttachmentBuilder, EmbedBuilder, Colors } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { ImageGeneratorService } from '#lib/image-generator.js';
-import * as leaderboardService from '#modules/xp-text/services/xp-text-leaderboard.service.js';
+import { ImageGeneratorService } from '#root/lib/services/image-generator.js';
+import * as leaderboardService from '#root/modules/xp/xp-text/services/xp-text-leaderboard.service.js';
 
 export class LeaderboardCommand extends Command {
   private imageGenerator: ImageGeneratorService;

@@ -1,4 +1,4 @@
-import { configService, validateUpdateXPConfig } from '#root/modules/xp-text/index.js';
+import { configService, validateUpdateXPConfig } from '#root/modules/xp/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
 

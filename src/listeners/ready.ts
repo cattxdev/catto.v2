@@ -4,7 +4,7 @@ import { type Client } from 'discord.js';
 import type { Server } from '@sapphire/plugin-api';
 import { CONFIG } from '#config.js';
 import { Prisma } from '@prisma/client';
-import { loggingService } from '../lib/logging.js';
+import { loggingService } from '../lib/services/logging.js';
 
 export class ReadyListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

@@ -2,7 +2,7 @@ import {
   getVoiceXPConfig,
   validateUpdateVoiceXPConfig,
   updateVoiceXPConfig,
-} from '#root/modules/xp-voice/index.js';
+} from '#root/modules/xp/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
 
