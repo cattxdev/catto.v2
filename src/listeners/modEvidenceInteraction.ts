@@ -258,9 +258,12 @@ export class ModEvidenceInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      // Use existing case or create a new one at the requested number
+      // Track whether this is a new placeholder case or an existing one
+      const isNewCase = !existingCase;
+
+      // Use existing case or create a new placeholder at the requested number
       // (We already validated that caseNumber is either existing or == nextCaseNumber)
-      if (!existingCase) {
+      if (isNewCase) {
         await container.prisma.modCase.create({
           data: {
             caseNumber,
@@ -305,8 +308,12 @@ export class ModEvidenceInteractionListener extends Listener {
         )
         .linkButtons({ url: dashboardUrl, label: 'View Evidence' });
 
-      // Offer follow-up mod action if the target is someone else
-      if (targetUserId && targetUserId !== gate.member.id) {
+      // Only offer follow-up mod action if:
+      // 1. This is a NEW placeholder case (not attaching to an existing case)
+      // 2. The target is someone other than the moderator
+      const shouldOfferModAction = isNewCase && targetUserId && targetUserId !== gate.member.id;
+
+      if (shouldOfferModAction) {
         const selectRow = stringSelectRow({
           customId: encodeEvidenceActionCustomId(targetUserId, caseNumber),
           placeholder: 'Take a mod action on the author?',
