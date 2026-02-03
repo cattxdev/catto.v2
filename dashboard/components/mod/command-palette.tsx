@@ -129,16 +129,20 @@ export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
     { label: 'Show keyboard shortcuts', action: () => { setOpen(false); onShowShortcuts?.(); }, icon: IconKeyboard },
   ];
 
-  // Detect "Go to case #N" pattern
+  // Parse search for special patterns
   const caseNumberMatch = useMemo(() => {
     const match = search.trim().match(/^#?(\d+)$/);
     return match ? parseInt(match[1], 10) : null;
   }, [search]);
 
-  // When search is active, we always show either JUMP TO or SEARCH via forceMount,
-  // so the cmdk Empty component should only appear when no search text is entered
-  // and the fuzzy filter genuinely finds nothing (unlikely with empty input).
-  const showEmpty = !search;
+  // @username search (strip @ from query)
+  const userSearchQuery = useMemo(() => {
+    const trimmed = search.trim();
+    return trimmed.startsWith('@') && trimmed.length > 1 ? trimmed.slice(1) : null;
+  }, [search]);
+
+  // Determine if we're in a special mode where we want to disable filtering
+  const isSpecialMode = caseNumberMatch !== null || userSearchQuery !== null;
 
   // Toggle on Cmd+K / Ctrl+K
   useEffect(() => {
@@ -199,7 +203,7 @@ export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
       >
         <CommandPrimitive
           className="flex flex-col"
-          filter={fuzzyFilter}
+          filter={isSpecialMode ? () => 1 : fuzzyFilter}
           onKeyDown={(e) => {
             if (e.key === 'Escape') setOpen(false);
           }}
@@ -208,7 +212,7 @@ export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
           <div className="flex items-center border-b border-[var(--mod-border)] px-4">
             <IconSearch size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
             <CommandPrimitive.Input
-              placeholder="Type a command or #caseNumber..."
+              placeholder="Type a command, #case, or @user..."
               value={search}
               onValueChange={setSearch}
               className="flex-1 bg-transparent px-3 py-3 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none"
@@ -219,7 +223,7 @@ export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
 
           {/* List */}
           <CommandPrimitive.List className="max-h-[300px] overflow-y-auto p-2">
-            {showEmpty && (
+            {!search && (
               <CommandPrimitive.Empty className="py-6 text-center text-sm text-[var(--mod-text-dim)]">
                 No results found.
               </CommandPrimitive.Empty>
@@ -229,144 +233,127 @@ export function CommandPalette({ onShowShortcuts }: CommandPaletteProps) {
             {caseNumberMatch !== null && (
               <CommandPrimitive.Group heading={groupHeading('JUMP TO')} forceMount>
                 <CommandPrimitive.Item
-                  value={`Go to case #${caseNumberMatch}`}
+                  value={`__jump_case_${caseNumberMatch}`}
                   onSelect={() => handleNavSelect(`Case #${caseNumberMatch}`, `/mod/${guildId}/cases/${caseNumberMatch}`)}
                   className={itemClass}
                   forceMount
                 >
                   <IconGavel size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
                   <span className="flex-1">Go to Case #{caseNumberMatch}</span>
-                  <span
-                    className="text-[10px] tracking-wider text-[var(--mod-text-dim)]"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  >
-                    Enter
-                  </span>
+                  <span className="text-[10px] tracking-wider text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>Enter</span>
                 </CommandPrimitive.Item>
               </CommandPrimitive.Group>
             )}
 
-            {/* Search cases — when text is entered but not a case number */}
-            {search && caseNumberMatch === null && (
+            {/* User search @username */}
+            {userSearchQuery && (
+              <CommandPrimitive.Group heading={groupHeading('SEARCH USERS')} forceMount>
+                <CommandPrimitive.Item
+                  value={`__user_search_${userSearchQuery}`}
+                  onSelect={() => handleNavSelect(`Search: @${userSearchQuery}`, `/mod/${guildId}/cases?search=${encodeURIComponent(userSearchQuery)}`)}
+                  className={itemClass}
+                  forceMount
+                >
+                  <IconSearch size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                  <span className="flex-1">Search cases for user &apos;{userSearchQuery}&apos;</span>
+                  <span className="text-[10px] tracking-wider text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>Enter</span>
+                </CommandPrimitive.Item>
+              </CommandPrimitive.Group>
+            )}
+
+            {/* General search — when text is entered but not a special pattern */}
+            {search && !isSpecialMode && (
               <CommandPrimitive.Group heading={groupHeading('SEARCH')} forceMount>
                 <CommandPrimitive.Item
-                  value={`Search cases for ${search}`}
+                  value={`__general_search_${search}`}
                   onSelect={() => handleNavSelect(`Search: ${search}`, `/mod/${guildId}/cases?search=${encodeURIComponent(search)}`)}
                   className={itemClass}
                   forceMount
                 >
                   <IconSearch size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
                   <span className="flex-1">Search cases for &apos;{search}&apos;</span>
-                  <span
-                    className="text-[10px] tracking-wider text-[var(--mod-text-dim)]"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  >
-                    Enter
-                  </span>
+                  <span className="text-[10px] tracking-wider text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>Enter</span>
                 </CommandPrimitive.Item>
               </CommandPrimitive.Group>
             )}
 
-            {/* Recent searches — only when input is empty */}
-            {!search && recentItems.length > 0 && (
-              <CommandPrimitive.Group heading={groupHeading('RECENT')}>
-                {recentItems.map((item) => (
-                  <CommandPrimitive.Item
-                    key={item.href}
-                    value={`Recent: ${item.label}`}
-                    onSelect={() => handleNavSelect(item.label, item.href)}
-                    className={itemClass}
-                  >
-                    <IconHistory size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                    <span className="flex-1">{item.label}</span>
-                  </CommandPrimitive.Item>
-                ))}
-              </CommandPrimitive.Group>
-            )}
+            {/* Regular items — hidden when in special mode */}
+            {!isSpecialMode && (
+              <>
+                {/* Recent searches — only when input is empty */}
+                {!search && recentItems.length > 0 && (
+                  <CommandPrimitive.Group heading={groupHeading('RECENT')}>
+                    {recentItems.map((item, i) => (
+                      <CommandPrimitive.Item
+                        key={item.href}
+                        value={`__recent_${i}`}
+                        onSelect={() => handleNavSelect(item.label, item.href)}
+                        className={itemClass}
+                      >
+                        <IconHistory size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                        <span className="flex-1">{item.label}</span>
+                      </CommandPrimitive.Item>
+                    ))}
+                  </CommandPrimitive.Group>
+                )}
 
-            <CommandPrimitive.Group heading={groupHeading('NAVIGATION')}>
-              {navItems.map((item) => (
-                <CommandPrimitive.Item
-                  key={item.href}
-                  value={item.label}
-                  onSelect={() => handleNavSelect(item.label, item.href)}
-                  className={itemClass}
-                >
-                  <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.shortcut && (
-                    <span
-                      className="text-[10px] tracking-wider text-[var(--mod-text-dim)]"
-                      style={{ fontFamily: 'var(--font-mono)' }}
+                <CommandPrimitive.Group heading={groupHeading('NAVIGATION')}>
+                  {navItems.map((item) => (
+                    <CommandPrimitive.Item
+                      key={item.href}
+                      value={item.label}
+                      onSelect={() => handleNavSelect(item.label, item.href)}
+                      className={itemClass}
                     >
-                      {item.shortcut}
-                    </span>
-                  )}
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+                      <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                      <span className="flex-1">{item.label}</span>
+                      {item.shortcut && (
+                        <span className="text-[10px] tracking-wider text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>
+                          {item.shortcut}
+                        </span>
+                      )}
+                    </CommandPrimitive.Item>
+                  ))}
+                </CommandPrimitive.Group>
 
-            <CommandPrimitive.Group heading={groupHeading('QUICK ACTIONS')}>
-              {quickActions.map((item) => (
-                <CommandPrimitive.Item
-                  key={item.label}
-                  value={item.label}
-                  onSelect={() => handleActionSelect(item.label, item.action)}
-                  className={itemClass}
-                >
-                  <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                  <span className="flex-1">{item.label}</span>
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+                <CommandPrimitive.Group heading={groupHeading('QUICK ACTIONS')}>
+                  {quickActions.map((item) => (
+                    <CommandPrimitive.Item key={item.label} value={item.label} onSelect={() => handleActionSelect(item.label, item.action)} className={itemClass}>
+                      <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                      <span className="flex-1">{item.label}</span>
+                    </CommandPrimitive.Item>
+                  ))}
+                </CommandPrimitive.Group>
 
-            <CommandPrimitive.Group heading={groupHeading('CASES')}>
-              {caseFilterActions.map((item) => (
-                <CommandPrimitive.Item
-                  key={item.label}
-                  value={item.label}
-                  onSelect={() => handleActionSelect(item.label, item.action)}
-                  className={itemClass}
-                >
-                  <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                  <span className="flex-1">{item.label}</span>
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+                <CommandPrimitive.Group heading={groupHeading('CASES')}>
+                  {caseFilterActions.map((item) => (
+                    <CommandPrimitive.Item key={item.label} value={item.label} onSelect={() => handleActionSelect(item.label, item.action)} className={itemClass}>
+                      <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                      <span className="flex-1">{item.label}</span>
+                    </CommandPrimitive.Item>
+                  ))}
+                </CommandPrimitive.Group>
 
-            <CommandPrimitive.Group heading={groupHeading('EVIDENCE')}>
-              {evidenceFilterActions.map((item) => (
-                <CommandPrimitive.Item
-                  key={item.label}
-                  value={item.label}
-                  onSelect={() => handleActionSelect(item.label, item.action)}
-                  className={itemClass}
-                >
-                  <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                  <span className="flex-1">{item.label}</span>
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+                <CommandPrimitive.Group heading={groupHeading('EVIDENCE')}>
+                  {evidenceFilterActions.map((item) => (
+                    <CommandPrimitive.Item key={item.label} value={item.label} onSelect={() => handleActionSelect(item.label, item.action)} className={itemClass}>
+                      <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                      <span className="flex-1">{item.label}</span>
+                    </CommandPrimitive.Item>
+                  ))}
+                </CommandPrimitive.Group>
 
-            <CommandPrimitive.Group heading={groupHeading('UTILITY')}>
-              {utilityActions.map((item) => (
-                <CommandPrimitive.Item
-                  key={item.label}
-                  value={item.label}
-                  onSelect={() => handleActionSelect(item.label, item.action)}
-                  className={itemClass}
-                >
-                  <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
-                  <span className="flex-1">{item.label}</span>
-                  <span
-                    className="text-[10px] tracking-wider text-[var(--mod-text-dim)]"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  >
-                    ?
-                  </span>
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+                <CommandPrimitive.Group heading={groupHeading('UTILITY')}>
+                  {utilityActions.map((item) => (
+                    <CommandPrimitive.Item key={item.label} value={item.label} onSelect={() => handleActionSelect(item.label, item.action)} className={itemClass}>
+                      <item.icon size={16} className="shrink-0 text-[var(--mod-text-dim)]" />
+                      <span className="flex-1">{item.label}</span>
+                      <span className="text-[10px] tracking-wider text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>?</span>
+                    </CommandPrimitive.Item>
+                  ))}
+                </CommandPrimitive.Group>
+              </>
+            )}
           </CommandPrimitive.List>
         </CommandPrimitive>
       </div>
