@@ -91,3 +91,16 @@ export async function getVoiceUserStats(
     rank: rank ?? 0,
   };
 }
+
+/**
+ * Get total voice XP gained in the past 7 days
+ *
+ * @param guildId Guild ID
+ * @returns Total voice XP gained in the past week
+ */
+export async function getWeeklyVoiceXP(guildId: string): Promise<number> {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  return await voiceXPRepository.getVoiceXPGainedSince(guildId, sevenDaysAgo);
+}
