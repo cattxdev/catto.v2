@@ -5,10 +5,10 @@
 import { Command } from '@sapphire/framework';
 import { AttachmentBuilder, EmbedBuilder, Colors } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { ImageGeneratorService } from '#lib/image-generator.js';
 import { RankCardDataService } from '#modules/xp/services/rank-card-data.service.js';
-import * as leaderboardService from '#modules/xp-text/services/xp-text-leaderboard.service.js';
-import * as voiceLeaderboardService from '#modules/xp-voice/services/voice-xp-leaderboard.service.js';
+import { leaderboardService } from '#root/modules/xp/xp-text/index.js';
+import * as voiceLeaderboardService from '#root/modules/xp/xp-voice/index.js';
+import { ImageGeneratorService } from '#root/lib/services/image-generator.js';
 
 export class RankCommand extends Command {
   private imageGenerator: ImageGeneratorService;

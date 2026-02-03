@@ -60,19 +60,25 @@ export class ImageGeneratorService {
 
   constructor() {
     // Load templates on initialization
-    // In dist, __dirname will be dist/lib, templates are in dist/lib/templates
+    // In dist, __dirname will be dist/lib/services, templates are in dist/lib/templates
     try {
-      this.rankCardTemplate = readFileSync(join(__dirname, 'templates', 'rank-card.html'), 'utf-8');
+      this.rankCardTemplate = readFileSync(
+        join(__dirname, '..', 'templates', 'rank-card.html'),
+        'utf-8'
+      );
       this.leaderboardCardTemplate = readFileSync(
-        join(__dirname, 'templates', 'leaderboard-card.html'),
+        join(__dirname, '..', 'templates', 'leaderboard-card.html'),
         'utf-8'
       );
     } catch {
       // Fallback: try src path during development
       const srcPath = __dirname.replace(/dist[\\/]/, 'src/');
-      this.rankCardTemplate = readFileSync(join(srcPath, 'templates', 'rank-card.html'), 'utf-8');
+      this.rankCardTemplate = readFileSync(
+        join(srcPath, '..', 'templates', 'rank-card.html'),
+        'utf-8'
+      );
       this.leaderboardCardTemplate = readFileSync(
-        join(srcPath, 'templates', 'leaderboard-card.html'),
+        join(srcPath, '..', 'templates', 'leaderboard-card.html'),
         'utf-8'
       );
     }
