@@ -249,19 +249,14 @@ export class EvidenceService {
   // ─── Message Snapshot ───
 
   /**
-   * Capture a range of messages as evidence.
-   *
-   * 1. Fetches messages in the range
-   * 2. Serializes each message
-   * 3. Downloads and archives attachments to B2
-   * 4. Computes integrity hashes
-   * 5. Creates MessageSnapshot + Evidence records
-   * 6. Optionally deletes original messages
+   * Capture a range of messages as a snapshot.
+   * If caseNumber is provided, also creates an Evidence record linked to that case.
+   * If caseNumber is omitted, only creates the snapshot (for later linking via createEvidenceFromSnapshot).
    */
   async captureMessageRange(
     guild: Guild,
     params: CaptureParams
-  ): Promise<{ snapshot: MessageSnapshot; evidence: Evidence }> {
+  ): Promise<{ snapshot: MessageSnapshot; evidence?: Evidence }> {
     const channel = await guild.channels.fetch(params.channelId);
     if (!channel?.isTextBased()) throw new Error('Channel not found or not text-based');
 
@@ -271,7 +266,6 @@ export class EvidenceService {
     let collected: Map<string, Message>;
 
     if (params.messageCount && params.messageCount > 0) {
-      // Count-based capture: fetch the first message + next N messages after it
       const firstMsg = await textChannel.messages.fetch(params.firstMessageId);
       collected = new Map([[firstMsg.id, firstMsg]]);
 
@@ -285,7 +279,6 @@ export class EvidenceService {
         }
       }
     } else if (params.lastMessageId) {
-      // Range capture: fetch first message explicitly (after: is exclusive), then fetch rest
       const firstMsg = await textChannel.messages.fetch(params.firstMessageId);
       collected = new Map([[firstMsg.id, firstMsg]]);
 
@@ -293,30 +286,30 @@ export class EvidenceService {
         after: params.firstMessageId,
         limit: 100,
       });
-      // Merge and filter to only include messages up to lastMessageId
       for (const [id, msg] of afterMessages) {
         if (id <= params.lastMessageId && id >= params.firstMessageId) {
           collected.set(id, msg);
         }
       }
     } else {
-      // Single message capture
       const msg = await textChannel.messages.fetch(params.firstMessageId);
       collected = new Map([[msg.id, msg]]);
     }
 
-    // Sort by creation time
     const sortedMessages = [...collected.values()].sort(
       (a, b) => a.createdTimestamp - b.createdTimestamp
     );
 
     if (sortedMessages.length === 0) throw new Error('No messages found in the specified range');
 
-    // Look up the case — caller is responsible for ensuring it exists
-    const modCase = await container.prisma.modCase.findFirst({
-      where: { guildId: params.guildId, caseNumber: params.caseNumber },
-    });
-    if (!modCase) throw new Error(`Case #${params.caseNumber} not found`);
+    // Look up case if caseNumber provided
+    let modCase = null;
+    if (params.caseNumber != null) {
+      modCase = await container.prisma.modCase.findFirst({
+        where: { guildId: params.guildId, caseNumber: params.caseNumber },
+      });
+      if (!modCase) throw new Error(`Case #${params.caseNumber} not found`);
+    }
 
     // Serialize messages
     const snapshotEntries: MessageSnapshotEntry[] = [];
@@ -334,13 +327,12 @@ export class EvidenceService {
           contentType: attachment.contentType,
         };
 
-        // Archive attachment to B2 if storage is configured
         if (storageService.isConfigured) {
           try {
             const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
             if (response.status === 200) {
               const buffer = Buffer.from(response.data);
-              const snapshotId = `pre_${Date.now()}`; // Temporary, will be updated
+              const snapshotId = `pre_${Date.now()}`;
               const key = StorageService.buildSnapshotMediaKey(
                 params.guildId,
                 snapshotId,
@@ -355,10 +347,7 @@ export class EvidenceService {
             }
           } catch (archiveError) {
             serialized.archiveFailed = true;
-            container.logger.warn(
-              `Failed to archive attachment ${attachment.id} (message=${msg.id}, filename=${attachment.name ?? 'unknown'}):`,
-              archiveError
-            );
+            container.logger.warn(`Failed to archive attachment ${attachment.id}:`, archiveError);
           }
         }
 
@@ -401,12 +390,11 @@ export class EvidenceService {
     const snapshotJson = JSON.stringify(snapshotEntries);
     const contentHash = SigningService.sha256(Buffer.from(snapshotJson));
 
-    // Create a temporary signing metadata
-    const tempId = `snapshot_${Date.now()}`;
+    // HMAC signature only if we have a case
     let hmacSignature = '';
-    if (signingService.isConfigured) {
+    if (modCase && signingService.isConfigured) {
       hmacSignature = signingService.sign(contentHash, {
-        evidenceId: tempId,
+        evidenceId: `snapshot_${Date.now()}`,
         guildId: params.guildId,
         caseId: modCase.id,
         uploadedById: params.capturedById,
@@ -431,22 +419,25 @@ export class EvidenceService {
       },
     });
 
-    // Create Evidence record linked to the snapshot
-    const evidence = await container.prisma.evidence.create({
-      data: {
-        guildId: params.guildId,
-        caseId: modCase.id,
-        caseNumber: params.caseNumber,
-        uploadedById: params.capturedById,
-        uploadedByTag: params.capturedByTag,
-        type: 'MESSAGE_SNAPSHOT',
-        status: 'VERIFIED',
-        snapshotId: snapshot.id,
-        contentHash,
-        hmacSignature,
-        description: `Message snapshot: ${sortedMessages.length} message(s) from #${textChannel.name}`,
-      },
-    });
+    // Create Evidence record only if we have a case
+    let evidence: Evidence | undefined;
+    if (modCase) {
+      evidence = await container.prisma.evidence.create({
+        data: {
+          guildId: params.guildId,
+          caseId: modCase.id,
+          caseNumber: params.caseNumber!,
+          uploadedById: params.capturedById,
+          uploadedByTag: params.capturedByTag,
+          type: 'MESSAGE_SNAPSHOT',
+          status: 'VERIFIED',
+          snapshotId: snapshot.id,
+          contentHash,
+          hmacSignature,
+          description: `Message snapshot: ${sortedMessages.length} message(s) from #${textChannel.name}`,
+        },
+      });
+    }
 
     // Delete original messages if requested
     if (params.deleteAfterCapture && sortedMessages.length > 0) {
@@ -454,10 +445,8 @@ export class EvidenceService {
         if (sortedMessages.length === 1 && sortedMessages[0]) {
           await sortedMessages[0].delete();
         } else {
-          // Bulk delete (only works for messages < 14 days old)
           const messageIds = sortedMessages.map((m) => m.id);
           await textChannel.bulkDelete(messageIds).catch(async () => {
-            // Fallback to individual deletion if bulk fails
             for (const msg of sortedMessages) {
               await msg.delete().catch(() => {});
             }
@@ -469,6 +458,52 @@ export class EvidenceService {
     }
 
     return { snapshot, evidence };
+  }
+
+  /**
+   * Create an evidence record from an existing snapshot, linking it to a case.
+   * Used after a mod action creates the case.
+   */
+  async createEvidenceFromSnapshot(
+    snapshotId: string,
+    caseId: string,
+    caseNumber: number
+  ): Promise<Evidence> {
+    const snapshot = await container.prisma.messageSnapshot.findUnique({
+      where: { id: snapshotId },
+    });
+    if (!snapshot) throw new Error('Snapshot not found');
+
+    const guild = container.client.guilds.cache.get(snapshot.guildId);
+    const channelName = guild
+      ? ((await guild.channels.fetch(snapshot.channelId).catch(() => null))?.name ?? 'unknown')
+      : 'unknown';
+
+    const evidence = await container.prisma.evidence.create({
+      data: {
+        guildId: snapshot.guildId,
+        caseId,
+        caseNumber,
+        uploadedById: snapshot.capturedById,
+        uploadedByTag: snapshot.capturedByTag,
+        type: 'MESSAGE_SNAPSHOT',
+        status: 'VERIFIED',
+        snapshotId: snapshot.id,
+        contentHash: snapshot.contentHash,
+        hmacSignature: snapshot.hmacSignature,
+        description: `Message snapshot: ${snapshot.messageCount} message(s) from #${channelName}`,
+      },
+    });
+
+    // Publish real-time event
+    await publish(ModEventChannels.MOD_EVENTS(snapshot.guildId), {
+      type: 'evidence:created',
+      guildId: snapshot.guildId,
+      caseNumber,
+      evidenceId: evidence.id,
+    }).catch(() => {});
+
+    return evidence;
   }
 
   // ─── Queries ───

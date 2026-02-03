@@ -376,7 +376,7 @@ export function buildModActionSuccess(
   caseNumber: number,
   reason: string,
   duration?: string,
-  options?: { dmSent?: boolean; guildId?: string }
+  options?: { dmSent?: boolean; guildId?: string; evidenceAttached?: boolean }
 ): FluentContainer {
   const targetTag = target.tag;
   const details: Record<string, string> = {
@@ -393,11 +393,13 @@ export function buildModActionSuccess(
         .separator({ divider: true, spacing: 'small' })
         .text(`${EMOJI.STATUS.WARNING} Could not send DM notification to user.`)
     )
+    .when(!!options?.evidenceAttached, (c) => c.text(`> Evidence has been attached to this case.`))
     .footerWithTimestamp(`Case #${caseNumber}`);
 
   if (options?.guildId) {
     const evidenceUrl = `${CONFIG.DASHBOARD_URL}/mod/${options.guildId}/cases/${caseNumber}/evidence`;
-    result.linkButtons({ url: evidenceUrl, label: 'Attach Evidence', emoji: '📎' });
+    const label = options.evidenceAttached ? 'View Evidence' : 'Attach Evidence';
+    result.linkButtons({ url: evidenceUrl, label, emoji: '📎' });
   }
 
   return result;

@@ -413,45 +413,48 @@ export function decodeEvidenceCaptureModalCustomId(
   return result.data;
 }
 
-// ==================== Evidence Action Select Menu Custom ID ====================
+// ==================== Evidence Pending Action Select Menu Custom ID ====================
 
 /**
- * Schema for evidence action select menu custom_id
- * Format: evidence_action:v1:{targetId}:{caseNumber}
+ * Schema for evidence pending action select menu custom_id
+ * Used when evidence is captured without a case — case will be created with mod action.
+ * Format: evidence_pending:v1:{targetId}:{snapshotId}
  */
-export const EvidenceActionCustomIdSchema = z.object({
-  prefix: z.literal('evidence_action'),
+export const EvidencePendingActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_pending'),
   version: z.literal(CUSTOM_ID_VERSION),
   targetId: snowflakeSchema,
-  caseNumber: z.string().regex(/^\d+$/),
+  snapshotId: z.string().min(1),
 });
 
-export type EvidenceActionCustomId = z.infer<typeof EvidenceActionCustomIdSchema>;
+export type EvidencePendingActionCustomId = z.infer<typeof EvidencePendingActionCustomIdSchema>;
 
 /**
- * Encode an evidence action select menu custom_id
+ * Encode an evidence pending action select menu custom_id
  */
-export function encodeEvidenceActionCustomId(targetId: string, caseNumber: number): string {
-  return `evidence_action:${CUSTOM_ID_VERSION}:${targetId}:${caseNumber}`;
+export function encodeEvidencePendingActionCustomId(targetId: string, snapshotId: string): string {
+  return `evidence_pending:${CUSTOM_ID_VERSION}:${targetId}:${snapshotId}`;
 }
 
 /**
- * Decode and validate an evidence action select menu custom_id
+ * Decode and validate an evidence pending action select menu custom_id
  */
-export function decodeEvidenceActionCustomId(customId: string): EvidenceActionCustomId | null {
+export function decodeEvidencePendingActionCustomId(
+  customId: string
+): EvidencePendingActionCustomId | null {
   const parts = customId.split(':');
 
   if (parts.length !== 4) {
     return null;
   }
 
-  const [prefix, version, targetId, caseNumber] = parts;
+  const [prefix, version, targetId, snapshotId] = parts;
 
-  const result = EvidenceActionCustomIdSchema.safeParse({
+  const result = EvidencePendingActionCustomIdSchema.safeParse({
     prefix,
     version,
     targetId,
-    caseNumber,
+    snapshotId,
   });
 
   if (!result.success) {
@@ -461,55 +464,55 @@ export function decodeEvidenceActionCustomId(customId: string): EvidenceActionCu
   return result.data;
 }
 
-// ==================== Evidence Mod Action Modal Custom ID ====================
-
 /**
- * Schema for evidence mod action modal custom_id
- * Used when a moderator picks a follow-up action after evidence capture.
- * The modal submission updates the existing case instead of creating a new one.
- * Format: evidence_modaction:v1:{action}:{targetId}:{caseNumber}
+ * Schema for evidence pending mod action modal custom_id
+ * Used when a moderator picks a follow-up action after evidence capture without a case.
+ * Creates a new case and links the snapshot as evidence.
+ * Format: evidence_pending_mod:v1:{action}:{targetId}:{snapshotId}
  */
-export const EvidenceModActionCustomIdSchema = z.object({
-  prefix: z.literal('evidence_modaction'),
+export const EvidencePendingModActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_pending_mod'),
   version: z.literal(CUSTOM_ID_VERSION),
   action: z.enum(['warn', 'kick', 'ban', 'softban', 'timeout', 'tempban']),
   targetId: snowflakeSchema,
-  caseNumber: z.string().regex(/^\d+$/),
+  snapshotId: z.string().min(1),
 });
 
-export type EvidenceModActionCustomId = z.infer<typeof EvidenceModActionCustomIdSchema>;
+export type EvidencePendingModActionCustomId = z.infer<
+  typeof EvidencePendingModActionCustomIdSchema
+>;
 
 /**
- * Encode an evidence mod action modal custom_id
+ * Encode an evidence pending mod action modal custom_id
  */
-export function encodeEvidenceModActionCustomId(
+export function encodeEvidencePendingModActionCustomId(
   action: 'warn' | 'kick' | 'ban' | 'softban' | 'timeout' | 'tempban',
   targetId: string,
-  caseNumber: number
+  snapshotId: string
 ): string {
-  return `evidence_modaction:${CUSTOM_ID_VERSION}:${action}:${targetId}:${caseNumber}`;
+  return `evidence_pending_mod:${CUSTOM_ID_VERSION}:${action}:${targetId}:${snapshotId}`;
 }
 
 /**
- * Decode and validate an evidence mod action modal custom_id
+ * Decode and validate an evidence pending mod action modal custom_id
  */
-export function decodeEvidenceModActionCustomId(
+export function decodeEvidencePendingModActionCustomId(
   customId: string
-): EvidenceModActionCustomId | null {
+): EvidencePendingModActionCustomId | null {
   const parts = customId.split(':');
 
   if (parts.length !== 5) {
     return null;
   }
 
-  const [prefix, version, action, targetId, caseNumber] = parts;
+  const [prefix, version, action, targetId, snapshotId] = parts;
 
-  const result = EvidenceModActionCustomIdSchema.safeParse({
+  const result = EvidencePendingModActionCustomIdSchema.safeParse({
     prefix,
     version,
     action,
     targetId,
-    caseNumber,
+    snapshotId,
   });
 
   if (!result.success) {
@@ -533,7 +536,7 @@ export function isModInteractionCustomId(customId: string): boolean {
     customId.startsWith('modmute:') ||
     customId.startsWith(`${HISTORY_PREFIX}:`) ||
     customId.startsWith('evidence_capture:') ||
-    customId.startsWith('evidence_action:') ||
-    customId.startsWith('evidence_modaction:')
+    customId.startsWith('evidence_pending:') ||
+    customId.startsWith('evidence_pending_mod:')
   );
 }

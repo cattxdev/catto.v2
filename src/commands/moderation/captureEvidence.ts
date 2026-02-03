@@ -6,7 +6,6 @@ import {
   type ContextMenuCommandInteraction,
 } from 'discord.js';
 import { Gate } from '#lib/validation/Gate.js';
-import { evidenceService } from '#modules/moderation/services/EvidenceService.js';
 import { encodeEvidenceCaptureModalCustomId } from '#modules/moderation/discord/customId.js';
 import { errorContainer, formModal, EMOJI } from '#lib/discord/index.js';
 
@@ -57,19 +56,14 @@ export class CaptureEvidenceCommand extends Command {
       return;
     }
 
-    // Pre-fill with next available case number
-    const nextCaseNumber = await evidenceService.getNextCaseNumber(gate.guild.id);
-
     const customId = encodeEvidenceCaptureModalCustomId(targetMessage.id, targetMessage.channelId);
 
     const modal = formModal(customId, 'Capture Evidence', [
       {
         id: 'case_number',
-        label: 'Case Number',
-        placeholder: 'Enter the case number to attach this evidence to',
-        value: String(nextCaseNumber),
-        required: true,
-        minLength: 1,
+        label: 'Case Number (optional — existing cases only)',
+        placeholder: 'Leave empty to create a new case with the mod action',
+        required: false,
         maxLength: 10,
       },
       {

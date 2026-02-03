@@ -1,5 +1,6 @@
 import { Listener, container } from '@sapphire/framework';
 import { Events, type Interaction, MessageFlags, type ModalSubmitInteraction } from 'discord.js';
+import { ModAction } from '@prisma/client';
 import {
   decodeReasonModalCustomId,
   decodeDurationModalCustomId,
@@ -10,6 +11,7 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '#root/modules/moderation/discord/panelBuilder.js';
+import { getActionDisplay } from '#root/modules/moderation/discord/modlog.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
 import {
   buildModerationContext,
@@ -32,11 +34,19 @@ import { getGate } from '#lib/validation/gateContext.js';
 import { resolveModalKey } from '#lib/validation/resourceKey.js';
 import { ephemeralError } from '#lib/discord/index.js';
 
-const REASON_LABELS: Record<string, string> = {
-  warn: 'Warned',
-  kick: 'Kicked',
-  ban: 'Banned',
-  softban: 'Softbanned',
+const ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
+  warn: ModAction.WARN,
+  kick: ModAction.KICK,
+  ban: ModAction.BAN,
+  softban: ModAction.SOFTBAN,
+  timeout: ModAction.TIMEOUT,
+  tempban: ModAction.TEMPBAN,
+};
+
+const MUTE_ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
+  text: ModAction.MUTE_TEXT,
+  voice: ModAction.MUTE_VOICE,
+  both: ModAction.MUTE_BOTH,
 };
 
 export class ModModalInteractionListener extends Listener {
@@ -128,7 +138,8 @@ export class ModModalInteractionListener extends Listener {
         return void (await this.editError(interaction, result.error ?? 'Action failed.'));
 
       const caseNumber = ensureNonNull(result.caseNumber, 'reason modal > caseNumber');
-      const label = REASON_LABELS[parsed.action] ?? parsed.action;
+      const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
       const success = buildModActionSuccess(label, ctx.target, caseNumber, reason, undefined, {
         guildId: gate.guild.id,
       });
@@ -197,8 +208,10 @@ export class ModModalInteractionListener extends Listener {
         return void (await this.editError(interaction, result.error ?? 'Action failed.'));
 
       const caseNumber = ensureNonNull(result.caseNumber, 'duration modal > caseNumber');
+      const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
       const success = buildModActionSuccess(
-        parsed.action.toUpperCase(),
+        label,
         ctx.target,
         caseNumber,
         reason,
@@ -308,14 +321,11 @@ export class ModModalInteractionListener extends Listener {
 
       const caseNumber = ensureNonNull(result.caseNumber, 'mute modal > caseNumber');
       const durationText = duration ? formatDuration(duration) : undefined;
-      const success = buildModActionSuccess(
-        `MUTE ${parsed.action.toUpperCase()}`,
-        ctx.target,
-        caseNumber,
-        reason,
-        durationText,
-        { guildId: gate.guild.id }
-      );
+      const modAction = MUTE_ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
+      const success = buildModActionSuccess(label, ctx.target, caseNumber, reason, durationText, {
+        guildId: gate.guild.id,
+      });
       await interaction.editReply({
         components: [success.build()],
         flags: MessageFlags.IsComponentsV2,

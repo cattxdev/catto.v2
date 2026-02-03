@@ -88,7 +88,8 @@ export interface CaptureParams {
   messageCount?: number;
   capturedById: string;
   capturedByTag: string;
-  caseNumber: number;
+  /** If omitted, only a snapshot is created (no evidence record). */
+  caseNumber?: number;
   deleteAfterCapture: boolean;
 }
 

@@ -152,21 +152,20 @@ registerCustomIdParser({
   parse: () => 'mod.evidence.capture',
 });
 
-// Register evidence action select menu parser
+// Register evidence pending action select menu parser
 registerCustomIdParser({
-  matches: (customId) => customId.startsWith('evidence_action:'),
+  matches: (customId) => customId.startsWith('evidence_pending:'),
   parse: () => 'mod.evidence.capture',
 });
 
-// Register evidence mod action modal parser (follow-up action after evidence capture)
+// Register evidence pending mod action modal parser
 registerCustomIdParser({
-  matches: (customId) => customId.startsWith('evidence_modaction:'),
+  matches: (customId) => customId.startsWith('evidence_pending_mod:'),
   parse: (customId) => {
-    // Format: evidence_modaction:v1:{action}:{targetId}:{caseNumber}
+    // Format: evidence_pending_mod:v1:{action}:{targetId}:{snapshotId}
     const parts = customId.split(':');
     if (parts.length < 3) return null;
     const action = parts[2];
-    // Map to the same resource keys as the standard mod actions
     const actionMap: Record<string, string> = {
       warn: 'mod.warn',
       kick: 'mod.kick',
