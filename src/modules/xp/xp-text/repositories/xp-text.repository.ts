@@ -396,3 +396,30 @@ export async function getUserXPLogs(
     take: limit,
   });
 }
+
+/**
+ * Get total XP gained in a guild within a time period
+ *
+ * @param guildId Guild ID
+ * @param since Start date
+ * @returns Total XP gained since the given date
+ */
+export async function getXPGainedSince(guildId: string, since: Date): Promise<number> {
+  const result = await container.prisma.xPEventLog.aggregate({
+    where: {
+      guildId,
+      createdAt: {
+        gte: since,
+      },
+      eventType: 'AWARD', // Only count awarded XP, not resets or manual adjustments
+      xpChange: {
+        gt: 0, // Only positive changes
+      },
+    },
+    _sum: {
+      xpChange: true,
+    },
+  });
+
+  return result._sum.xpChange || 0;
+}

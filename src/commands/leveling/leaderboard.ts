@@ -76,6 +76,9 @@ export class LeaderboardCommand extends Command {
       // Calculate total XP from entries
       const totalXp = entries.reduce((sum, entry) => sum + entry.xp, 0);
 
+      // Get weekly XP
+      const weeklyXp = await leaderboardService.getWeeklyXP(interaction.guildId);
+
       // Generate leaderboard card
       const cardImage = await this.imageGenerator.generateLeaderboardCard({
         guildName: interaction.guild.name,
@@ -84,7 +87,7 @@ export class LeaderboardCommand extends Command {
         accentColor: '#5865F2',
         totalMembers: leaderboardData.total || entries.length,
         totalXp: totalXp,
-        weeklyXp: 0, // TODO: Calculate weekly XP if available
+        weeklyXp: weeklyXp,
       });
 
       // Create attachment

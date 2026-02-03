@@ -193,3 +193,16 @@ export async function getLeaderboardPage(
   const offset = (page - 1) * pageSize;
   return await getLeaderboard(guildId, pageSize, offset);
 }
+
+/**
+ * Get total XP gained in the past 7 days
+ *
+ * @param guildId Guild ID
+ * @returns Total XP gained in the past week
+ */
+export async function getWeeklyXP(guildId: string): Promise<number> {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  return await xpRepo.getXPGainedSince(guildId, sevenDaysAgo);
+}
