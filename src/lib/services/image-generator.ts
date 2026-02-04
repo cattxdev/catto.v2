@@ -318,24 +318,6 @@ export class ImageGeneratorService {
   }
 
   /**
-
-      // Cache it (limit cache size)
-      if (this.avatarCache.size > 100) {
-        const firstKey = this.avatarCache.keys().next().value;
-        if (firstKey) {
-          this.avatarCache.delete(firstKey);
-        }
-      }
-      this.avatarCache.set(url, dataUrl);
-
-      return dataUrl;
-    } catch (error) {
-      // Return fallback
-      return url;
-    }
-  }
-
-  /**
    * Generate rank card HTML from template
    */
   private getRankCardTemplate(data: RankCardData): string {
