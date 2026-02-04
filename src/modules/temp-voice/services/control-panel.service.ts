@@ -66,6 +66,7 @@ export class ControlPanelService {
       const rows = this.buildButtons(tempChannel);
 
       const message = await textChannel.send({
+        content: `<@${owner.id}> Here's your voice channel control panel.`,
         embeds: [embed],
         components: rows,
       });
