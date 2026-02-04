@@ -53,6 +53,21 @@ pnpm prisma:migrate
 pnpm dev
 ```
 
+## Testing
+
+Run the test suite using Vitest:
+
+```bash
+# Run tests once
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage report
+pnpm test:coverage
+```
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
