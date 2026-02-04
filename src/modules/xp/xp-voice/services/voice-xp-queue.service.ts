@@ -5,7 +5,7 @@
 
 import { Queue, Worker, type Job } from 'bullmq';
 import { container } from '@sapphire/framework';
-import { CONFIG } from '../../../config.js';
+import { CONFIG } from '../../../../config.js';
 import { awardPerMinuteXP } from './voice-xp-session.service.js';
 import { getVoiceXPConfig } from './voice-xp-config.service.js';
 

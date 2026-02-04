@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { resetUserXP } from '#root/modules/xp-text/index.js';
+import { resetUserXP } from '#root/modules/xp/xp-text/index.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 
 export class XPResetUserRoute extends Route {

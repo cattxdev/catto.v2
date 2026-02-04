@@ -5,10 +5,10 @@
 
 import { Listener } from '@sapphire/framework';
 import { Events } from 'discord.js';
-import { handleVoiceJoin } from '../../modules/xp-voice/services/voice-xp-session.service.js';
-import { getActiveSession } from '../../modules/xp-voice/utils/session-tracking.js';
-import { getVoiceXPConfig } from '../../modules/xp-voice/services/voice-xp-config.service.js';
-import { voiceXPQueue } from '../../modules/xp-voice/services/voice-xp-queue.service.js';
+import { handleVoiceJoin } from '../../modules/xp/xp-voice/services/voice-xp-session.service.js';
+import { getActiveSession } from '../../modules/xp/xp-voice/utils/session-tracking.js';
+import { getVoiceXPConfig } from '../../modules/xp/xp-voice/services/voice-xp-config.service.js';
+import { voiceXPQueue } from '../../modules/xp/xp-voice/services/voice-xp-queue.service.js';
 
 export class VoiceXPReadyListener extends Listener<typeof Events.ClientReady> {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

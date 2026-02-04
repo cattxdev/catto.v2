@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: transparent;
+            padding: 20px;
+        }
+
+        .leaderboard-card {
+            background: #0d1117;
+            padding: 24px;
+            border: 1px solid #21262d;
+            max-width: 650px;
+            width: 100%;
+        }
+
+        .leaderboard-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .leaderboard-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #c9d1d9;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .leaderboard-subtitle {
+            color: #484f58;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .leaderboard-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-box {
+            background: #161b22;
+            border: 1px solid #21262d;
+            padding: 12px 16px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #c9d1d9;
+        }
+
+        .leaderboard-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .entry-header {
+            display: grid;
+            grid-template-columns: 50px 48px 1fr 100px 80px;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+        }
+
+        .entry-header span {
+            font-size: 10px;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .entry-header span:nth-child(4),
+        .entry-header span:nth-child(5) {
+            text-align: right;
+        }
+
+        .leaderboard-entry {
+            display: grid;
+            grid-template-columns: 50px 48px 1fr 100px 80px;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            background: #161b22;
+            border: 1px solid #21262d;
+            transition: background 0.15s ease;
+        }
+
+        .leaderboard-entry:hover {
+            background: #1c2128;
+        }
+
+        .leaderboard-entry.first {
+            border-left: 2px solid #7c9885;
+        }
+
+        .leaderboard-entry.second {
+            border-left: 2px solid #8b949e;
+        }
+
+        .leaderboard-entry.third {
+            border-left: 2px solid #6e5c3b;
+        }
+
+        .entry-rank {
+            font-size: 14px;
+            font-weight: 600;
+            color: #484f58;
+            text-align: center;
+        }
+
+        .leaderboard-entry.first .entry-rank {
+            color: #7c9885;
+        }
+
+        .leaderboard-entry.second .entry-rank {
+            color: #8b949e;
+        }
+
+        .leaderboard-entry.third .entry-rank {
+            color: #6e5c3b;
+        }
+
+        .entry-avatar {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #21262d;
+            object-fit: cover;
+            background: #0d1117;
+        }
+
+        .entry-info {
+            min-width: 0;
+        }
+
+        .entry-username {
+            font-size: 14px;
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .entry-messages {
+            font-size: 11px;
+            color: #484f58;
+        }
+
+        .entry-xp {
+            text-align: right;
+        }
+
+        .entry-xp-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #7c9885;
+        }
+
+        .entry-xp-label {
+            font-size: 10px;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .entry-level {
+            text-align: right;
+        }
+
+        .entry-level-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #c9d1d9;
+        }
+
+        .entry-level-label {
+            font-size: 10px;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .xp-bar-container {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #21262d;
+        }
+
+        .xp-bar-title {
+            font-size: 10px;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+        }
+
+        .xp-bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .xp-bar-label {
+            width: 80px;
+            font-size: 11px;
+            color: #8b949e;
+            text-align: right;
+            padding-right: 12px;
+        }
+
+        .xp-bar-track {
+            flex: 1;
+            height: 8px;
+            background: #21262d;
+            position: relative;
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            background: #484f58;
+            transition: width 0.3s ease;
+        }
+
+        .xp-bar-row:nth-child(2) .xp-bar-fill {
+            background: #7c9885;
+        }
+
+        .xp-bar-value {
+            width: 50px;
+            font-size: 11px;
+            color: #8b949e;
+            text-align: right;
+            padding-left: 12px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #21262d;
+        }
+
+        .pagination-btn {
+            background: #161b22;
+            border: 1px solid #21262d;
+            color: #8b949e;
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .pagination-btn:hover {
+            background: #1c2128;
+            color: #c9d1d9;
+        }
+
+        .pagination-btn.active {
+            background: #7c9885;
+            border-color: #7c9885;
+            color: #0d1117;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="leaderboard-card">
+        <div class="leaderboard-header">
+            <div class="leaderboard-title">{{guildName}}</div>
+            <div class="leaderboard-subtitle">XP Leaderboard • Top {{entriesCount}}</div>
+        </div>
+
+        <div class="leaderboard-stats">
+            <div class="stat-box">
+                <div class="stat-label">Total Members</div>
+                <div class="stat-value">{{totalMembers}}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Total XP</div>
+                <div class="stat-value">{{totalXp}}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">This Week</div>
+                <div class="stat-value">{{weeklyXp}}</div>
+            </div>
+        </div>
+
+        <div class="entry-header">
+            <span>Rank</span>
+            <span></span>
+            <span>User</span>
+            <span>XP</span>
+            <span>Level</span>
+        </div>
+
+        <div class="leaderboard-entries">
+            {{entries}}
+        </div>
+
+        <div class="xp-bar-container">
+            <div class="xp-bar-title">XP Distribution</div>
+            <div class="xp-bar-row">
+                <span class="xp-bar-label">#1</span>
+                <div class="xp-bar-track">
+                    <div class="xp-bar-fill" style="width: 100%;"></div>
+                </div>
+                <span class="xp-bar-value">{{topXp}}</span>
+            </div>
+            <div class="xp-bar-row">
+                <span class="xp-bar-label">#2</span>
+                <div class="xp-bar-track">
+                    <div class="xp-bar-fill" style="width: {{secondPercent}}%;"></div>
+                </div>
+                <span class="xp-bar-value">{{secondXp}}</span>
+            </div>
+            <div class="xp-bar-row">
+                <span class="xp-bar-label">#3</span>
+                <div class="xp-bar-track">
+                    <div class="xp-bar-fill" style="width: {{thirdPercent}}%;"></div>
+                </div>
+                <span class="xp-bar-value">{{thirdXp}}</span>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

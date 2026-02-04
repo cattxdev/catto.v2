@@ -132,7 +132,13 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
     member.id,
     xpAwarded,
     levelCalc.level,
-    durationMinutes
+    durationMinutes,
+    {
+      channelId: session.channelId,
+      wasStreaming: session.isStreaming,
+      wasVideo: session.isVideo,
+      sessionId: session.sessionId,
+    }
   );
 
   // Update database session
@@ -182,7 +188,7 @@ export async function handleVoiceStateUpdate(
   const wasInvalid = session.isMuted || session.isDeafened;
   const isNowValid = !newMuted && !newDeafened;
 
-  // Update session state
+  // Update in-memory session state
   await sessionTracking.updateSession(guild.id, member.id, {
     isMuted: newMuted,
     isDeafened: newDeafened,
@@ -191,6 +197,18 @@ export async function handleVoiceStateUpdate(
     // Reset lastAwardTime if user transitions from invalid to valid state
     ...(wasInvalid && isNowValid ? { lastAwardTime: Date.now() } : {}),
   });
+
+  // Update database session state to track streaming/video
+  try {
+    await voiceSessionRepository.updateVoiceSessionState(session.sessionId, {
+      wasStreaming: newStreaming || session.isStreaming, // Keep true if was ever streaming
+      wasVideo: newVideo || session.isVideo, // Keep true if was ever on video
+      wasMuted: newMuted,
+      wasDeafened: newDeafened,
+    });
+  } catch (error) {
+    container.logger.error('[Voice XP] Failed to update session state in database:', error);
+  }
 
   if (wasInvalid && isNowValid) {
     container.logger.debug(
@@ -263,7 +281,13 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
       session.userId,
       xpAwarded,
       levelCalc.level,
-      1 // 1 minute
+      1, // 1 minute
+      {
+        channelId: session.channelId,
+        wasStreaming: session.isStreaming,
+        wasVideo: session.isVideo,
+        sessionId: session.sessionId,
+      }
     );
 
     await sessionTracking.updateSession(guildId, session.userId, {

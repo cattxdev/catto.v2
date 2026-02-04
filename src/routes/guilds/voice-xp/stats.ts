@@ -1,4 +1,4 @@
-import { getVoiceUserStats } from '#root/modules/xp-voice/index.js';
+import { getVoiceUserStats } from '#root/modules/xp/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class VoiceXPStatsRoute extends Route {

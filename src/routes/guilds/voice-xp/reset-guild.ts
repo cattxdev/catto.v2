@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { resetGuildVoiceXP } from '#root/modules/xp-voice/index.js';
+import { resetGuildVoiceXP } from '#root/modules/xp/xp-voice/index.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 
 export class VoiceXPResetGuildRoute extends Route {

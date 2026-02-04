@@ -1,4 +1,4 @@
-import { getVoiceLeaderboard } from '#root/modules/xp-voice/index.js';
+import { getVoiceLeaderboard } from '#root/modules/xp/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class VoiceXPLeaderboardRoute extends Route {

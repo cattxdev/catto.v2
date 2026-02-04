@@ -1,7 +1,7 @@
 import { Events, Listener, type ListenerOptions } from '@sapphire/framework';
 import type { DMChannel, GuildChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
-import { LogType, logAction } from '../../lib/logging.js';
+import { LogType, logAction } from '../../lib/services/logging.js';
 import { LogListener } from './LogListener.js';
 
 export class ChannelDeleteListener extends LogListener<typeof Events.ChannelDelete> {
