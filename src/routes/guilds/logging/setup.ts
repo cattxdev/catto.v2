@@ -35,11 +35,15 @@ export class LoggingSetupRoute extends Route {
       });
     }
 
+    if (!validation.data) {
+      return response.status(400).json({ error: 'Invalid request data' });
+    }
+
     const { enabledTypes, categoryName = '📋 Admin Logs' } = validation.data;
 
     // Verify all enabled types are valid
     const invalidTypes = enabledTypes.filter(
-      (type) => !LOG_CHANNEL_DEFINITIONS[type as keyof typeof LOG_CHANNEL_DEFINITIONS]
+      (type: string) => !LOG_CHANNEL_DEFINITIONS[type as keyof typeof LOG_CHANNEL_DEFINITIONS]
     );
 
     if (invalidTypes.length > 0) {

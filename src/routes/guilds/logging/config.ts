@@ -99,6 +99,10 @@ export class LoggingConfigRoute extends Route {
         });
       }
 
+      if (!validation.data) {
+        return response.status(400).json({ error: 'Invalid request data' });
+      }
+
       const updateData = validation.data;
 
       // Check if config exists
