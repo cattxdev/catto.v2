@@ -75,15 +75,21 @@ export class ImageGeneratorService {
       );
     } catch {
       // Fallback: try src path during development
-      const srcPath = __dirname.replace(/dist[\\/]/, 'src/');
-      this.rankCardTemplate = readFileSync(
-        join(srcPath, '..', 'templates', 'rank-card.html'),
-        'utf-8'
-      );
-      this.leaderboardCardTemplate = readFileSync(
-        join(srcPath, '..', 'templates', 'leaderboard-card.html'),
-        'utf-8'
-      );
+      try {
+        const srcPath = __dirname.replace(/dist[\\/]/, 'src/');
+        this.rankCardTemplate = readFileSync(
+          join(srcPath, '..', 'templates', 'rank-card.html'),
+          'utf-8'
+        );
+        this.leaderboardCardTemplate = readFileSync(
+          join(srcPath, '..', 'templates', 'leaderboard-card.html'),
+          'utf-8'
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to load image templates from ${__dirname}. Ensure templates are copied to dist/lib/templates: ${error}`
+        );
+      }
     }
   }
 
