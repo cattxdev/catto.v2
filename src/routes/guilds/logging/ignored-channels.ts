@@ -1,8 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
-
-interface IgnoredChannelsRequest {
-  channelIds: string[];
-}
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { IgnoredChannelsDto } from '#lib/dtos/logging/logging-config.dto.js';
 
 interface AddRemoveChannelRequest {
   channelId: string;
@@ -77,18 +75,23 @@ export class LoggingIgnoredChannelsRoute extends Route {
    */
   private async handlePut(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = (await request.readBodyJson()) as IgnoredChannelsRequest;
+      const body = await request.readBodyJson();
 
-      if (!Array.isArray(body?.channelIds)) {
+      // Validate request body
+      const validation = await validateDto(IgnoredChannelsDto, body);
+      if (!validation.success) {
         return response.status(400).json({
-          error: 'channelIds must be an array',
+          error: 'Validation failed',
+          details: validation.errors,
         });
       }
+
+      const { channelIds } = validation.data;
 
       // Validate all channel IDs
       const guild = this.container.client.guilds.cache.get(guildId);
       if (guild) {
-        const invalidChannels = body.channelIds.filter((id) => !guild.channels.cache.has(id));
+        const invalidChannels = channelIds.filter((id) => !guild.channels.cache.has(id));
 
         if (invalidChannels.length > 0) {
           return response.status(400).json({
@@ -101,7 +104,7 @@ export class LoggingIgnoredChannelsRoute extends Route {
       const config = await this.container.prisma.logConfig.update({
         where: { guildId },
         data: {
-          ignoredChannels: body.channelIds,
+          ignoredChannels: channelIds,
           updatedAt: new Date(),
         },
       });

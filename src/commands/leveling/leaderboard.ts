@@ -81,8 +81,8 @@ export class LeaderboardCommand extends Command {
     interaction: Command.ChatInputCommandInteraction,
     limit: number
   ) {
-    const guildId = interaction.guildId!;
-    const guild = interaction.guild!;
+    const guildId = interaction.guildId as string;
+    const guild = interaction.guild as NonNullable<typeof interaction.guild>;
 
     try {
       // Get leaderboard data
@@ -170,8 +170,8 @@ export class LeaderboardCommand extends Command {
     interaction: Command.ChatInputCommandInteraction,
     limit: number
   ) {
-    const guildId = interaction.guildId!;
-    const guild = interaction.guild!;
+    const guildId = interaction.guildId as string;
+    const guild = interaction.guild as NonNullable<typeof interaction.guild>;
 
     try {
       // Get voice leaderboard data

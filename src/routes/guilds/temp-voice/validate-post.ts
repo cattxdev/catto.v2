@@ -4,8 +4,9 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { CreateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 
 export class TempVoiceValidateRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -45,7 +46,7 @@ export class TempVoiceValidateRoute extends Route {
       }
 
       // Validate against schema
-      const validationResult = tempVoiceConfigSchema.safeParse(body);
+      const validationResult = await validateDto(CreateTempVoiceConfigDto, body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -54,21 +55,16 @@ export class TempVoiceValidateRoute extends Route {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Configuration validation failed',
-            details: validationResult.error.issues.map((err) => ({
-              field: err.path.join('.'),
-              message: err.message,
-              value:
-                err.code === 'invalid_type'
-                  ? undefined
-                  : err.path[0] && typeof err.path[0] === 'string'
-                    ? (body as Record<string, unknown>)?.[err.path[0]]
-                    : undefined,
+            details: validationResult.errors?.map((err) => ({
+              field: err.field,
+              message: err.constraints.join(', '),
+              value: (body as Record<string, unknown>)?.[err.field],
             })),
           },
         });
       }
 
-      const configData = validationResult.data;
+      const configData = validationResult.data as CreateTempVoiceConfigDto;
 
       // Get guild for channel validation
       const guild = this.container.client.guilds.cache.get(guildId);

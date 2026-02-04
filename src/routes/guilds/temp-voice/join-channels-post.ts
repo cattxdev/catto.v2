@@ -5,12 +5,9 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
-import { z } from 'zod';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
-
-const addJoinChannelSchema = z.object({
-  channelId: z.string().regex(/^\d{17,19}$/, 'Invalid channel ID format'),
-});
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { AddJoinChannelDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 
 export class TempVoiceJoinChannelsPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -50,7 +47,7 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
       }
 
       // Validate request body
-      const validationResult = addJoinChannelSchema.safeParse(body);
+      const validationResult = await validateDto(AddJoinChannelDto, body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -58,9 +55,9 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid request data',
-            details: validationResult.error.issues.map((err) => ({
-              field: err.path.join('.'),
-              message: err.message,
+            details: validationResult.errors?.map((err) => ({
+              field: err.field,
+              message: err.constraints.join(', '),
             })),
           },
         });

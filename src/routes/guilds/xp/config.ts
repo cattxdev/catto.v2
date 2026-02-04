@@ -1,6 +1,9 @@
-import { configService, validateUpdateXPConfig } from '#root/modules/xp/xp-text/index.js';
+import { configService } from '#root/modules/xp/xp-text/index.js';
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { UpdateXPConfigDto } from '#root/lib/dtos/xp/update-xp-config.dto.js';
+import type { UpdateXPConfigDTO } from '#root/modules/xp/xp-text/dtos/update-xp-config.dto.js';
 
 export class XPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -73,16 +76,19 @@ export class XPConfigRoute extends Route {
       this.container.logger.debug('XP Config Update Request:', JSON.stringify(updateData, null, 2));
 
       // Validate update data
-      const validation = validateUpdateXPConfig(updateData);
-      if (!validation.valid) {
+      const validation = await validateDto(UpdateXPConfigDto, updateData);
+      if (!validation.success) {
         return response.status(400).json({
           error: 'Validation failed',
           details: validation.errors,
         });
       }
 
-      // Update configuration
-      const config = await configService.updateConfig(guildId, updateData);
+      // Update configuration (cast to service's expected interface)
+      const config = await configService.updateConfig(
+        guildId,
+        validation.data as UpdateXPConfigDTO
+      );
 
       return response.json({
         success: true,
