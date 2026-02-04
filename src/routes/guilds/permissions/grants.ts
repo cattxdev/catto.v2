@@ -1,11 +1,9 @@
 import { Route } from '@sapphire/plugin-api';
 import { URL } from 'url';
 import { listPermissionGrants, createPermissionGrant } from '#lib/validation/permissionResolver.js';
-import type {
-  PermissionSubjectType,
-  PermissionResourceType,
-  PermissionEffect,
-} from '@prisma/client';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { CreatePermissionGrantDto } from '#lib/dtos/permissions/permission-grant.dto.js';
+import type { PermissionSubjectType, PermissionResourceType } from '@prisma/client';
 
 export class PermissionGrantsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -82,43 +80,19 @@ export class PermissionGrantsRoute extends Route {
 
   private async handlePost(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = (request as Route.Request & { body?: unknown }).body as
-        | {
-            subjectType: PermissionSubjectType;
-            subjectId: string;
-            resourceType: PermissionResourceType;
-            resourceKey: string;
-            effect: PermissionEffect;
-            createdById?: string;
-          }
-        | undefined;
+      const body = (request as Route.Request & { body?: unknown }).body;
 
-      if (!body) {
-        return response.status(400).json({ error: 'Request body is required' });
-      }
-
-      const { subjectType, subjectId, resourceType, resourceKey, effect, createdById } = body;
-
-      if (!subjectType || !subjectId || !resourceType || !resourceKey || !effect) {
+      // Validate request body
+      const validation = await validateDto(CreatePermissionGrantDto, body);
+      if (!validation.success) {
         return response.status(400).json({
-          error:
-            'Missing required fields: subjectType, subjectId, resourceType, resourceKey, effect',
+          error: 'Validation failed',
+          details: validation.errors,
         });
       }
 
-      if (!['USER', 'ROLE'].includes(subjectType)) {
-        return response.status(400).json({ error: 'Invalid subjectType. Must be USER or ROLE.' });
-      }
-
-      if (!['COMMAND', 'CATEGORY'].includes(resourceType)) {
-        return response
-          .status(400)
-          .json({ error: 'Invalid resourceType. Must be COMMAND or CATEGORY.' });
-      }
-
-      if (!['ALLOW', 'DENY'].includes(effect)) {
-        return response.status(400).json({ error: 'Invalid effect. Must be ALLOW or DENY.' });
-      }
+      const { subjectType, subjectId, resourceType, resourceKey, effect, createdById } =
+        validation.data;
 
       const grant = await createPermissionGrant(
         guildId,

@@ -5,8 +5,9 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { UpdateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 
 export class TempVoiceConfigPatchRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -67,8 +68,8 @@ export class TempVoiceConfigPatchRoute extends Route {
         });
       }
 
-      // Validate request body (partial schema for PATCH)
-      const validationResult = tempVoiceConfigSchema.partial().safeParse(body);
+      // Validate request body (UpdateDto already has all fields optional for PATCH)
+      const validationResult = await validateDto(UpdateTempVoiceConfigDto, body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -76,15 +77,15 @@ export class TempVoiceConfigPatchRoute extends Route {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid configuration data',
-            details: validationResult.error.issues.map((err) => ({
-              field: err.path.join('.'),
-              message: err.message,
+            details: validationResult.errors?.map((err) => ({
+              field: err.field,
+              message: err.constraints.join(', '),
             })),
           },
         });
       }
 
-      const updates = validationResult.data;
+      const updates = validationResult.data as UpdateTempVoiceConfigDto;
 
       // Get guild for validation
       const guild = this.container.client.guilds.cache.get(guildId);

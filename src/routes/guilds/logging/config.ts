@@ -1,5 +1,7 @@
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { UpdateLogConfigDto } from '#lib/dtos/logging/logging-config.dto.js';
 
 export class LoggingConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -86,15 +88,18 @@ export class LoggingConfigRoute extends Route {
 
   private async handlePatch(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const body = (await parseRequestBody(request)) as
-        | { enabled?: boolean; ignoredChannels?: string[] }
-        | undefined;
+      const body = await parseRequestBody(request);
 
-      if (!body) {
+      // Validate request body
+      const validation = await validateDto(UpdateLogConfigDto, body);
+      if (!validation.success) {
         return response.status(400).json({
-          error: 'Request body is required',
+          error: 'Validation failed',
+          details: validation.errors,
         });
       }
+
+      const updateData = validation.data;
 
       // Check if config exists
       const existingConfig = await this.container.prisma.logConfig.findUnique({
@@ -111,8 +116,11 @@ export class LoggingConfigRoute extends Route {
       const config = await this.container.prisma.logConfig.update({
         where: { guildId },
         data: {
-          ...(body.enabled !== undefined && { enabled: body.enabled }),
-          ...(body.ignoredChannels !== undefined && { ignoredChannels: body.ignoredChannels }),
+          ...(updateData.enabled !== undefined && { enabled: updateData.enabled }),
+          ...(updateData.enabledTypes !== undefined && { enabledTypes: updateData.enabledTypes }),
+          ...(updateData.ignoredChannels !== undefined && {
+            ignoredChannels: updateData.ignoredChannels,
+          }),
           updatedAt: new Date(),
         },
       });

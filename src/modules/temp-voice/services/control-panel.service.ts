@@ -261,8 +261,8 @@ export class ControlPanelService {
    */
   private parseEmoji(emoji: string): string {
     const customMatch = emoji.match(/<a?:(\w+):(\d+)>/);
-    if (customMatch) {
-      return customMatch[2]!;
+    if (customMatch && customMatch[2]) {
+      return customMatch[2];
     }
     return emoji;
   }

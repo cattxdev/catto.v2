@@ -1,5 +1,7 @@
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { UpdateModConfigDto } from '#lib/dtos/moderation/moderation-config.dto.js';
 
 export class ModerationConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -67,17 +69,16 @@ export class ModerationConfigRoute extends Route {
     try {
       const body = await parseRequestBody(request);
 
-      if (!body || typeof body !== 'object') {
+      // Validate request body
+      const validation = await validateDto(UpdateModConfigDto, body);
+      if (!validation.success) {
         return response.status(400).json({
-          error: 'Request body is required',
+          error: 'Validation failed',
+          details: validation.errors,
         });
       }
 
-      const config = body as {
-        modLogChannelId?: string | null;
-        muteRoleId?: string | null;
-        autoModEnabled?: boolean;
-      };
+      const config = validation.data;
 
       // Validate channel exists if provided
       if (config.modLogChannelId) {

@@ -5,8 +5,9 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
-import { tempVoiceConfigSchema } from '#modules/temp-voice/validation/config.schema.js';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { CreateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 
 export class TempVoiceConfigPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -68,7 +69,7 @@ export class TempVoiceConfigPostRoute extends Route {
       }
 
       // Validate request body
-      const validationResult = tempVoiceConfigSchema.safeParse(body);
+      const validationResult = await validateDto(CreateTempVoiceConfigDto, body);
 
       if (!validationResult.success) {
         return response.status(400).json({
@@ -76,15 +77,15 @@ export class TempVoiceConfigPostRoute extends Route {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid configuration data',
-            details: validationResult.error.issues.map((err) => ({
-              field: err.path.join('.'),
-              message: err.message,
+            details: validationResult.errors?.map((err) => ({
+              field: err.field,
+              message: err.constraints.join(', '),
             })),
           },
         });
       }
 
-      const configData = validationResult.data;
+      const configData = validationResult.data as CreateTempVoiceConfigDto;
 
       // Validate join channel IDs exist and are voice channels
       const guild = this.container.client.guilds.cache.get(guildId);

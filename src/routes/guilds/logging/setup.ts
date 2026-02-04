@@ -1,7 +1,9 @@
 import { Route } from '@sapphire/plugin-api';
 import { ChannelType, PermissionFlagsBits, type TextChannel } from 'discord.js';
 import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
-import type { LogSetupRequest, LogSetupResponse } from '#lib/types/logging.types.js';
+import type { LogSetupResponse } from '#lib/types/logging.types.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { LogSetupDto } from '#lib/dtos/logging/logging-config.dto.js';
 
 export class LoggingSetupRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -22,17 +24,18 @@ export class LoggingSetupRoute extends Route {
     }
 
     // Parse request body
-    const body = (await request.readBodyJson()) as LogSetupRequest;
-    const enabledTypes = body?.enabledTypes || [];
-    const categoryName = body.categoryName || '📋 Admin Logs';
+    const body = await request.readBodyJson();
 
-    // Validate enabled types
-    if (!Array.isArray(enabledTypes) || enabledTypes.length === 0) {
+    // Validate request body
+    const validation = await validateDto(LogSetupDto, body);
+    if (!validation.success) {
       return response.status(400).json({
-        error: 'At least one log type must be enabled',
-        availableTypes: Object.keys(LOG_CHANNEL_DEFINITIONS),
+        error: 'Validation failed',
+        details: validation.errors,
       });
     }
+
+    const { enabledTypes, categoryName = '📋 Admin Logs' } = validation.data;
 
     // Verify all enabled types are valid
     const invalidTypes = enabledTypes.filter(

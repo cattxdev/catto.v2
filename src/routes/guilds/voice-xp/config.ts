@@ -1,10 +1,9 @@
-import {
-  getVoiceXPConfig,
-  validateUpdateVoiceXPConfig,
-  updateVoiceXPConfig,
-} from '#root/modules/xp/xp-voice/index.js';
+import { getVoiceXPConfig, updateVoiceXPConfig } from '#root/modules/xp/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 import { parseRequestBody } from '#lib/route-utils.js';
+import { validateDto } from '#lib/validation/validate-dto.js';
+import { UpdateVoiceXPConfigDto } from '#root/lib/dtos/voice-xp/update-voice-xp-config.dto.js';
+import type { UpdateVoiceXPConfigDTO } from '#root/modules/xp/xp-voice/dtos/update-voice-xp-config.dto.js';
 
 export class VoiceXPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -51,8 +50,8 @@ export class VoiceXPConfigRoute extends Route {
       });
     }
 
-    const validation = validateUpdateVoiceXPConfig(body);
-    if (!validation.valid) {
+    const validation = await validateDto(UpdateVoiceXPConfigDto, body);
+    if (!validation.success) {
       return response.status(400).json({
         error: 'Invalid request body',
         details: validation.errors,
@@ -60,7 +59,8 @@ export class VoiceXPConfigRoute extends Route {
     }
 
     try {
-      const config = await updateVoiceXPConfig(guildId, body);
+      // Cast to service's expected interface (both DTOs have compatible structure)
+      const config = await updateVoiceXPConfig(guildId, validation.data as UpdateVoiceXPConfigDTO);
       return response.json(config);
     } catch (error) {
       this.container.logger.error('[Voice XP API] Error updating voice XP config:', error);
