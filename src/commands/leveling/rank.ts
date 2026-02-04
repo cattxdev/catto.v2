@@ -208,9 +208,7 @@ export class RankCommand extends Command {
       }
 
       // Get total members for context
-      const totalMembers = await this.container.prisma.userVoiceXP.count({
-        where: { guildId },
-      });
+      const totalMembers = await voiceLeaderboardService.getVoiceUserCount(guildId);
 
       // Calculate XP needed for next level
       const xpNeededForNextLevel = stats.nextLevelXp - stats.currentLevelXp;
