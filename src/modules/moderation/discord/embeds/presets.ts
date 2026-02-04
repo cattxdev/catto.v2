@@ -152,18 +152,12 @@ export function createUserNotificationEmbed(
     .filter(Boolean)
     .join('\n');
 
-  const c = container({ color: notification.color }).h2(
-    `${notification.emoji} You have been ${notification.verb}`
-  );
+  const c = container({ color: notification.color })
+    .h2(`${notification.emoji} You have been ${notification.verb}`)
+    .text(details)
+    .footerWithTimestamp();
 
-  const iconUrl = guild.iconURL();
-  if (iconUrl) {
-    c.sectionWithThumbnail(details, iconUrl);
-  } else {
-    c.text(details);
-  }
-
-  return c.footerWithTimestamp();
+  return c;
 }
 
 /**

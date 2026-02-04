@@ -55,7 +55,7 @@ const RAW_EMOJIS = {
     ACTIONS: {
       REPORT: { custom: '<:report_flag:1463366118667190337>', fallback: '\uD83D\uDEA9' },
       SLOWMODE: { custom: '<:slowmode:1463366107804205240>', fallback: '\u23F1\uFE0F' },
-      KICK: { custom: '\uD83D\uDC62', fallback: '\uD83D\uDC62' }, // Generic boot
+      KICK: { custom: '<:server_leave:1462784544490000445>', fallback: '\uD83D\uDC62' }, // todo: find better one
     },
     STATE: {
       SUSPICIOUS: {
