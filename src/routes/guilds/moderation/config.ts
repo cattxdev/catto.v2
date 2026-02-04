@@ -78,6 +78,10 @@ export class ModerationConfigRoute extends Route {
         });
       }
 
+      if (!validation.data) {
+        return response.status(400).json({ error: 'Invalid request data' });
+      }
+
       const config = validation.data;
 
       // Validate channel exists if provided

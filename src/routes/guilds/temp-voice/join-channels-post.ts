@@ -63,6 +63,13 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
         });
       }
 
+      if (!validationResult.data) {
+        return response.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid request data' },
+        });
+      }
+
       const { channelId } = validationResult.data;
 
       // Get config

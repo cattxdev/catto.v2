@@ -91,6 +91,10 @@ export class PermissionGrantsRoute extends Route {
         });
       }
 
+      if (!validation.data) {
+        return response.status(400).json({ error: 'Invalid request data' });
+      }
+
       const { subjectType, subjectId, resourceType, resourceKey, effect, createdById } =
         validation.data;
 

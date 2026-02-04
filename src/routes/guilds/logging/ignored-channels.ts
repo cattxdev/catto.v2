@@ -86,12 +86,16 @@ export class LoggingIgnoredChannelsRoute extends Route {
         });
       }
 
+      if (!validation.data) {
+        return response.status(400).json({ error: 'Invalid request data' });
+      }
+
       const { channelIds } = validation.data;
 
       // Validate all channel IDs
       const guild = this.container.client.guilds.cache.get(guildId);
       if (guild) {
-        const invalidChannels = channelIds.filter((id) => !guild.channels.cache.has(id));
+        const invalidChannels = channelIds.filter((id: string) => !guild.channels.cache.has(id));
 
         if (invalidChannels.length > 0) {
           return response.status(400).json({
