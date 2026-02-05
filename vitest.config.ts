@@ -23,7 +23,15 @@ export default defineConfig({
     testTimeout: 10000,
     coverage: {
       provider: 'v8',
-      include: ['scripts/lib/**/*.ts', 'src/routes/**/*.ts', 'src/lib/dtos/**/*.ts'],
+      include: [
+        'scripts/lib/**/*.ts',
+        'src/routes/**/*.ts',
+        'src/lib/dtos/**/*.ts',
+        'src/lib/storage/**/*.ts',
+        'src/lib/cache/**/*.ts',
+        'src/lib/utils/ogFetcher.ts',
+        'src/modules/moderation/services/**/*.ts',
+      ],
       exclude: ['scripts/lib/**/*.test.ts', 'tests/**/*.test.ts'],
     },
   },
