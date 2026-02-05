@@ -1,5 +1,7 @@
 import { ModAction } from '@prisma/client';
 import { Route } from '@sapphire/plugin-api';
+import { ApiGate } from '#lib/validation/ApiGate.js';
+import { RateLimitGate } from '#lib/validation/RateLimitGate.js';
 
 export class ModerationStatsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -27,108 +29,176 @@ export class ModerationStatsRoute extends Route {
       });
     }
 
-    return this.handleGet(guildId, request, response);
+    // Authenticate request
+    const gate = await ApiGate.fromRequest(request, guildId);
+    if (!gate) {
+      return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+    }
+
+    const auth = await gate.checkAuth('mod.cases.view');
+    if (!auth.ok) {
+      return response.status(403).json({ error: 'Forbidden', code: auth.code });
+    }
+
+    const rateLimit = await gate.checkRateLimit('cases.view', RateLimitGate.LIMITS['cases.view']!);
+    if (!rateLimit.ok) {
+      return response
+        .status(429)
+        .json({ error: 'Rate Limited', retryAfterMs: rateLimit.metadata?.retryAfterMs });
+    }
+
+    return this.handleGet(guildId, gate.userId, request, response);
   }
 
-  private async handleGet(guildId: string, request: Route.Request, response: Route.Response) {
+  private async handleGet(
+    guildId: string,
+    userId: string,
+    request: Route.Request,
+    response: Route.Response
+  ) {
     try {
-      // Parse query parameters for date range
+      // Parse query parameters
       const startDate = request.query?.startDate as string | undefined;
       const endDate = request.query?.endDate as string | undefined;
+      const moderatorId = request.query?.moderatorId as string | undefined;
 
-      const dateFilter: {
+      // Build base filter
+      const baseFilter: {
         guildId: string;
+        moderatorId?: string;
         createdAt?: {
           gte?: Date;
           lte?: Date;
         };
       } = { guildId };
 
-      if (startDate || endDate) {
-        dateFilter.createdAt = {};
-        if (startDate) dateFilter.createdAt.gte = new Date(startDate);
-        if (endDate) dateFilter.createdAt.lte = new Date(endDate);
+      // Optional moderator filter (for user-specific stats)
+      if (moderatorId) {
+        baseFilter.moderatorId = moderatorId;
       }
 
-      // Get total cases
-      const totalCases = await this.container.prisma.modCase.count({
-        where: dateFilter,
-      });
+      // Optional date range filter
+      if (startDate || endDate) {
+        baseFilter.createdAt = {};
+        if (startDate) {
+          const parsedStart = new Date(startDate);
+          if (!isNaN(parsedStart.getTime())) {
+            baseFilter.createdAt.gte = parsedStart;
+          }
+        }
+        if (endDate) {
+          const parsedEnd = new Date(endDate);
+          if (!isNaN(parsedEnd.getTime())) {
+            baseFilter.createdAt.lte = parsedEnd;
+          }
+        }
+      }
 
-      // Get cases by action
-      const casesByAction = await this.container.prisma.modCase.groupBy({
-        by: ['action'],
-        where: dateFilter,
-        _count: {
-          action: true,
-        },
-      });
+      // Run all queries in parallel for performance
+      const [totalCases, casesByAction, topModerators, recentCases, activePunishments, userStats] =
+        await Promise.all([
+          // Total cases (no limit on count)
+          this.container.prisma.modCase.count({
+            where: baseFilter,
+          }),
 
-      // Get top moderators
-      const topModerators = await this.container.prisma.modCase.groupBy({
-        by: ['moderatorId', 'moderatorTag'],
-        where: dateFilter,
-        _count: {
-          moderatorId: true,
-        },
-        orderBy: {
-          _count: {
-            moderatorId: 'desc',
+          // Cases grouped by action (no limit on groupBy)
+          this.container.prisma.modCase.groupBy({
+            by: ['action'],
+            where: baseFilter,
+            _count: {
+              action: true,
+            },
+          }),
+
+          // Top moderators
+          this.container.prisma.modCase.groupBy({
+            by: ['moderatorId', 'moderatorTag'],
+            where: { guildId }, // Always show top mods for guild, not filtered
+            _count: {
+              moderatorId: true,
+            },
+            orderBy: {
+              _count: {
+                moderatorId: 'desc',
+              },
+            },
+            take: 10,
+          }),
+
+          // Recent cases
+          this.container.prisma.modCase.findMany({
+            where: baseFilter,
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          }),
+
+          // Active temporary punishments
+          this.container.prisma.modCase.count({
+            where: {
+              guildId,
+              action: {
+                in: [
+                  ModAction.TIMEOUT,
+                  ModAction.MUTE_TEXT,
+                  ModAction.MUTE_VOICE,
+                  ModAction.MUTE_BOTH,
+                ],
+              },
+              expiresAt: {
+                gt: new Date(),
+              },
+            },
+          }),
+
+          // Current user's stats in this guild (for dashboard user activity)
+          this.container.prisma.modCase.groupBy({
+            by: ['action'],
+            where: {
+              guildId,
+              moderatorId: userId,
+            },
+            _count: {
+              action: true,
+            },
+          }),
+        ]);
+
+      // Format action counts from groupBy results
+      const formatActionCounts = (grouped: { action: ModAction; _count: { action: number } }[]) => {
+        const counts = grouped.reduce(
+          (acc, stat) => {
+            acc[stat.action] = stat._count.action;
+            return acc;
           },
-        },
-        take: 10,
-      });
+          {} as Record<string, number>
+        );
 
-      // Get recent cases
-      const recentCases = await this.container.prisma.modCase.findMany({
-        where: dateFilter,
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      });
+        const muteCount =
+          (counts.MUTE_TEXT ?? 0) + (counts.MUTE_VOICE ?? 0) + (counts.MUTE_BOTH ?? 0);
+        const unmuteCount =
+          (counts.UNMUTE_TEXT ?? 0) + (counts.UNMUTE_VOICE ?? 0) + (counts.UNMUTE_BOTH ?? 0);
 
-      // Get active temporary punishments
-      const activePunishments = await this.container.prisma.modCase.count({
-        where: {
-          guildId,
-          action: {
-            in: [ModAction.TIMEOUT, ModAction.MUTE_TEXT, ModAction.MUTE_VOICE, ModAction.MUTE_BOTH],
-          },
-          expiresAt: {
-            gt: new Date(),
-          },
-        },
-      });
+        return {
+          bans: counts.BAN ?? 0,
+          kicks: counts.KICK ?? 0,
+          timeouts: counts.TIMEOUT ?? 0,
+          warns: counts.WARN ?? 0,
+          unbans: counts.UNBAN ?? 0,
+          softbans: counts.SOFTBAN ?? 0,
+          tempbans: counts.TEMPBAN ?? 0,
+          mutes: muteCount,
+          unmutes: unmuteCount,
+        };
+      };
 
-      // Format action counts
-      const actionCounts = casesByAction.reduce(
-        (acc, stat) => {
-          acc[stat.action] = stat._count.action;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
-
-      const muteCount =
-        (actionCounts.MUTE_TEXT ?? 0) +
-        (actionCounts.MUTE_VOICE ?? 0) +
-        (actionCounts.MUTE_BOTH ?? 0);
-      const unmuteCount =
-        (actionCounts.UNMUTE_TEXT ?? 0) +
-        (actionCounts.UNMUTE_VOICE ?? 0) +
-        (actionCounts.UNMUTE_BOTH ?? 0);
+      // Calculate user's total actions
+      const userTotalActions = userStats.reduce((sum, s) => sum + s._count.action, 0);
 
       return response.json({
         guildId,
         totalCases,
-        actionCounts: {
-          bans: actionCounts.BAN ?? 0,
-          kicks: actionCounts.KICK ?? 0,
-          timeouts: actionCounts.TIMEOUT ?? 0,
-          warns: actionCounts.WARN ?? 0,
-          unbans: actionCounts.UNBAN ?? 0,
-          mutes: muteCount,
-          unmutes: unmuteCount,
-        },
+        actionCounts: formatActionCounts(casesByAction),
         activePunishments,
         topModerators: topModerators.map((mod) => ({
           id: mod.moderatorId,
@@ -136,6 +206,12 @@ export class ModerationStatsRoute extends Route {
           cases: mod._count.moderatorId,
         })),
         recentCases,
+        // User-specific stats for the requesting user
+        userStats: {
+          moderatorId: userId,
+          totalActions: userTotalActions,
+          actionCounts: formatActionCounts(userStats),
+        },
       });
     } catch (error) {
       this.container.logger.error('Error fetching moderation stats:', error);
