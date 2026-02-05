@@ -223,6 +223,29 @@ export class StorageService {
   }
 
   /**
+   * Download a file from storage to a buffer.
+   * Used by watermarking service to process images in memory.
+   */
+  async downloadToBuffer(key: string): Promise<Buffer> {
+    if (!this.s3) throw new Error('Storage not configured');
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    const response = await this.s3.send(command);
+    if (!response.Body) throw new Error('Empty response body');
+
+    // Collect stream into buffer
+    const chunks: Buffer[] = [];
+    for await (const chunk of response.Body as Readable) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /**
    * Upload a readable stream to storage.
    * Used by the export system to upload ZIP archives.
    */

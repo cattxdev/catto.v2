@@ -49,7 +49,6 @@ export default function ModLoginPage() {
             ) : (
               <>
                 Authenticate with Discord
-                <span className="ml-1 animate-pulse">_</span>
               </>
             )}
           </button>

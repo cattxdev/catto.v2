@@ -85,6 +85,7 @@
     "re2-wasm": "^1.0.2",
     "reflect-metadata": "^0.2.2",
     "signale": "^1.4.0",
+    "sharp": "^0.34.5",
     "zod": "^4.3.5"
   },
   "devDependencies": {

@@ -3,9 +3,10 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Evidence } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META, EVIDENCE_STATUS_META } from '@/lib/mod-types';
-import { EVIDENCE_TYPE_ICONS, IconEye, IconHistory, IconDownload, IconPencil, IconX, IconFlag, IconNote, IconCheck } from '@/lib/mod-icons';
+import { EVIDENCE_TYPE_ICONS, IconEye, IconHistory, IconDownload, IconPencil, IconX, IconFlag, IconNote, IconCheck, IconGrid, IconList, IconCompare } from '@/lib/mod-icons';
 import { EvidenceViewer } from './evidence-viewer';
 import { EvidenceHistory } from './evidence-history';
+import { EvidenceComparison } from './evidence-comparison';
 import { ShortcutHelp } from './shortcut-help';
 import { getEvidenceDownloadUrl, amendEvidence } from '@/lib/services/mod.service';
 import { useModShortcuts } from '@/hooks/use-mod-shortcuts';
@@ -19,19 +20,23 @@ interface EvidenceGalleryProps {
   onEvidenceUpdated?: () => void;
 }
 
+type ViewMode = 'grid' | 'table';
+
 export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: EvidenceGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState<string | null>(null);
   const [amendingId, setAmendingId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [focusIndex, setFocusIndex] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [showComparison, setShowComparison] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
   const hasSelection = selectedIds.size > 0;
+  const canCompare = selectedIds.size === 2;
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
@@ -91,24 +96,6 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
   // Keyboard shortcuts
   useModShortcuts({
-    onNavigateDown: useCallback(() => {
-      setFocusIndex((i) => Math.min(i + 1, evidence.length - 1));
-    }, [evidence.length]),
-    onNavigateUp: useCallback(() => {
-      setFocusIndex((i) => Math.max(i - 1, 0));
-    }, []),
-    onOpen: useCallback(() => {
-      if (evidence[focusIndex]) setSelectedId(evidence[focusIndex].id);
-    }, [evidence, focusIndex]),
-    onDownload: useCallback(() => {
-      if (evidence[focusIndex]?.storageKey) handleDownload(evidence[focusIndex]);
-    }, [evidence, focusIndex]),
-    onHistory: useCallback(() => {
-      if (evidence[focusIndex]) setShowHistory(evidence[focusIndex].id);
-    }, [evidence, focusIndex]),
-    onAmend: useCallback(() => {
-      if (evidence[focusIndex]) setAmendingId(evidence[focusIndex].id);
-    }, [evidence, focusIndex]),
     onHelp: useCallback(() => {
       setShowHelp((prev) => !prev);
     }, []),
@@ -122,14 +109,36 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
     );
   }
 
+  // Get comparison items
+  const comparisonItems = canCompare
+    ? (Array.from(selectedIds).map((id) => evidence.find((e) => e.id === id)).filter(Boolean) as [Evidence, Evidence])
+    : null;
+
   return (
     <>
-      <div ref={galleryRef} className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3" style={{ overscrollBehavior: 'contain' }}>
-        {evidence.map((item, index) => {
+      {/* View toggle */}
+      <div className="mb-3 flex items-center justify-end gap-1">
+        <button
+          onClick={() => setViewMode('grid')}
+          className={`p-2 ${viewMode === 'grid' ? 'text-[var(--mono-white)]' : 'text-[var(--mod-text-dim)]'} hover:text-[var(--mono-white)]`}
+          title="Grid view"
+        >
+          <IconGrid size={16} />
+        </button>
+        <button
+          onClick={() => setViewMode('table')}
+          className={`p-2 ${viewMode === 'table' ? 'text-[var(--mono-white)]' : 'text-[var(--mod-text-dim)]'} hover:text-[var(--mono-white)]`}
+          title="Table view"
+        >
+          <IconList size={16} />
+        </button>
+      </div>
+
+      <div ref={galleryRef} className={viewMode === 'grid' ? "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2"} style={{ overscrollBehavior: 'contain' }}>
+        {evidence.map((item) => {
           const typeMeta = EVIDENCE_TYPE_META[item.type];
           const statusMeta = EVIDENCE_STATUS_META[item.status];
           const TypeIcon = EVIDENCE_TYPE_ICONS[item.type];
-          const isFocused = index === focusIndex;
           const isChecked = selectedIds.has(item.id);
 
           return (
@@ -141,29 +150,26 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
               onTap={() => {
                 if (hasSelection) {
                   toggleSelection(item.id);
-                } else {
-                  setFocusIndex(index);
                 }
               }}
               onSwipeLeftAction={() => setSelectedId(item.id)}
               onSwipeRightAction={() => toggleSelection(item.id)}
-              className={`relative min-w-0 overflow-hidden border bg-[var(--mod-surface)] p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
-                isFocused ? 'border-[var(--mono-500)]' : 'border-[var(--mod-border)]'
+              className={`group relative min-w-0 overflow-hidden border p-4 transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] ${
+                isChecked
+                  ? 'border-[var(--mono-400)] bg-[var(--mono-800)]'
+                  : 'border-[var(--mod-border)] bg-[var(--mod-surface)]'
               }`}
             >
               {/* Selection checkbox */}
               <button
                 onClick={(e) => { e.stopPropagation(); toggleSelection(item.id); }}
-                className={`absolute right-2 top-2 flex h-4 w-4 items-center justify-center border transition-[background-color,border-color] duration-75 ${
+                className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center border transition-all duration-75 ${
                   isChecked
-                    ? 'border-[var(--mono-400)] bg-[var(--mono-700)]'
-                    : hasSelection
-                      ? 'border-[var(--mod-border)]'
-                      : 'border-[var(--mod-border)] opacity-0 group-hover:opacity-100 hover:opacity-100'
-                } ${!hasSelection ? 'hover:opacity-100' : ''}`}
-                style={{ opacity: hasSelection || isChecked ? 1 : undefined }}
+                    ? 'border-[var(--mono-white)] bg-[var(--mono-600)]'
+                    : 'border-[var(--mono-500)] bg-[var(--mono-900)] opacity-0 group-hover:opacity-100'
+                }`}
               >
-                {isChecked && <IconCheck size={10} className="text-[var(--mono-white)]" />}
+                {isChecked && <IconCheck size={12} className="text-[var(--mono-white)]" />}
               </button>
 
               {/* Header */}
@@ -185,13 +191,14 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
               </p>
 
               {/* OG site name for URL types */}
-              {(item.type === 'URL' || item.type === 'DISCORD_URL') &&
-                (item.metadata as Record<string, unknown> | null)?.og &&
-                ((item.metadata as Record<string, unknown>).og as { siteName?: string })?.siteName && (
-                <p className="mb-2 text-[10px] uppercase tracking-wider text-[var(--mod-text-dim)]">
-                  {((item.metadata as Record<string, unknown>).og as { siteName: string }).siteName}
-                </p>
-              )}
+              {(item.type === 'URL' || item.type === 'DISCORD_URL') && (() => {
+                const og = (item.metadata as Record<string, unknown> | null)?.og as { siteName?: string } | undefined;
+                return og?.siteName ? (
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-[var(--mod-text-dim)]">
+                    {og.siteName}
+                  </p>
+                ) : null;
+              })()}
 
               {/* Description */}
               {item.description && (
@@ -280,10 +287,19 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
         })}
       </div>
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar - fixed at bottom of viewport */}
       {hasSelection && (
-        <div className="sticky bottom-0 mt-3 flex flex-wrap items-center gap-2 border border-[var(--mod-border)] bg-[var(--mono-900)] px-4 py-3 md:gap-3">
+        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-wrap items-center gap-2 border border-[var(--mono-500)] bg-[var(--mono-900)] px-4 py-3 shadow-lg md:gap-3">
           <span className="text-xs text-[var(--mod-text-muted)]">{selectedIds.size} selected</span>
+          {canCompare && (
+            <button
+              onClick={() => setShowComparison(true)}
+              className="flex items-center gap-1 border border-[var(--mono-500)] px-3 py-1 text-xs text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)]"
+            >
+              <IconCompare size={14} />
+              Compare
+            </button>
+          )}
           <button
             onClick={handleBulkFlag}
             disabled={bulkSubmitting}
@@ -360,6 +376,15 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
       {/* Shortcut help */}
       {showHelp && <ShortcutHelp onClose={() => setShowHelp(false)} />}
+
+      {/* Comparison Modal */}
+      {showComparison && comparisonItems && (
+        <EvidenceComparison
+          guildId={guildId}
+          items={comparisonItems}
+          onClose={() => setShowComparison(false)}
+        />
+      )}
     </>
   );
 }

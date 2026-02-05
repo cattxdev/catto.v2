@@ -8,7 +8,7 @@ import { getCaseDetail, getEvidenceForCase, exportCase } from '@/lib/services/mo
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
 import { EvidenceWizard } from '@/components/mod/evidence-wizard';
 import { CaseNotes } from '@/components/mod/case-notes';
-import { IconFileExport } from '@/lib/mod-icons';
+import { IconFileExport, IconLock } from '@/lib/mod-icons';
 
 const ACTION_LABELS: Record<string, string> = {
   BAN: 'Ban', UNBAN: 'Unban', KICK: 'Kick', TIMEOUT: 'Timeout',
@@ -89,26 +89,45 @@ export default function CaseDetailPage() {
             <IconFileExport size={14} />
             {exporting ? 'Exporting...' : 'Export Case'}
           </button>
-          <span className={`border px-3 py-1 text-xs ${
+          <span className={`flex items-center gap-1.5 border px-3 py-1 text-xs ${
             modCase.status === 'OPEN' ? 'border-green-800 text-green-400'
             : modCase.status === 'VOID' ? 'border-red-800 text-red-400'
             : 'border-[var(--mono-700)] text-[var(--mod-text-dim)]'
           }`}>
+            {modCase.status === 'CLOSED' && <IconLock size={12} />}
             {modCase.status}
           </span>
         </div>
       </div>
 
       {/* Case Details */}
-      <div className="mb-8  border border-[var(--mod-border)] bg-[var(--mod-surface)] p-5">
+      <div className="mb-8 border border-[var(--mod-border)] bg-[var(--mod-surface)] p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Target</label>
-            <p className="text-sm text-[var(--mono-white)]">{modCase.targetTag} <span className="text-[var(--mod-text-dim)]">({modCase.targetId})</span></p>
+            <p className="text-sm text-[var(--mono-white)]">
+              <Link
+                href={`/mod/${guildId}/users/${modCase.targetId}`}
+                className="hover:underline"
+              >
+                {modCase.targetTag}
+              </Link>
+              {' '}
+              <span className="text-[var(--mod-text-dim)]">({modCase.targetId})</span>
+            </p>
           </div>
           <div>
             <label className="text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Moderator</label>
-            <p className="text-sm text-[var(--mono-white)]">{modCase.moderatorTag} <span className="text-[var(--mod-text-dim)]">({modCase.moderatorId})</span></p>
+            <p className="text-sm text-[var(--mono-white)]">
+              <Link
+                href={`/mod/${guildId}/users/${modCase.moderatorId}`}
+                className="hover:underline"
+              >
+                {modCase.moderatorTag}
+              </Link>
+              {' '}
+              <span className="text-[var(--mod-text-dim)]">({modCase.moderatorId})</span>
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Reason</label>

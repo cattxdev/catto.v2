@@ -1,6 +1,7 @@
 import { Route } from '@sapphire/plugin-api';
 import { ModAction } from '@prisma/client';
 import { parseModAction } from '#lib/validation/modAction.js';
+import { userProfileService } from '#modules/moderation/services/UserProfileService.js';
 
 export class ModerationUserCasesRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -13,6 +14,10 @@ export class ModerationUserCasesRoute extends Route {
 
   public async run(request: Route.Request, response: Route.Response) {
     const { guildId, userId } = request.params;
+    const queryAction = request.query?.action as string | undefined;
+    this.container.logger.info(
+      `[UserRoute] run() guildId=${guildId} userId=${userId} action=${queryAction} full=${request.query?.full}`
+    );
 
     if (!guildId || !userId) {
       return response.status(400).json({
@@ -38,15 +43,32 @@ export class ModerationUserCasesRoute extends Route {
     response: Route.Response
   ) {
     try {
+      // Server status action
+      const queryAction = request.query?.action as string | undefined;
+      if (queryAction === 'server-status') {
+        return this.handleServerStatus(guildId, userId, response);
+      }
+
+      // NH-6: Full profile mode
+      const fullProfile = request.query?.full === 'true';
+      if (fullProfile) {
+        // Fetch DB profile and Discord avatar in parallel
+        const [profile, avatarInfo] = await Promise.all([
+          userProfileService.getUserProfile(guildId, userId),
+          this.fetchAvatarInfo(guildId, userId),
+        ]);
+        return response.json({ ...profile, ...avatarInfo });
+      }
+
       // Parse query parameters for pagination
       const page = parseInt((request.query?.page as string) ?? '1') || 1;
       const limit = Math.min(parseInt((request.query?.limit as string) ?? '50') || 50, 100);
-      const actionStr = request.query?.action as string | undefined;
+      const actionFilter = queryAction;
 
       const skip = (page - 1) * limit;
 
       // Validate and convert action string to enum
-      const action = actionStr ? parseModAction(actionStr.toUpperCase()) : undefined;
+      const modAction = actionFilter ? parseModAction(actionFilter.toUpperCase()) : undefined;
 
       // Build where clause
       const where: {
@@ -58,7 +80,7 @@ export class ModerationUserCasesRoute extends Route {
         targetId: userId,
       };
 
-      if (action) where.action = action;
+      if (modAction) where.action = modAction;
 
       // Get total count
       const total = await this.container.prisma.modCase.count({ where });
@@ -124,6 +146,144 @@ export class ModerationUserCasesRoute extends Route {
       return response.status(500).json({
         error: 'Internal server error',
       });
+    }
+  }
+
+  /**
+   * Fetch avatar URL and username from Discord cache/API.
+   * Returns quickly from cache when possible, falls back to API fetch.
+   */
+  private async fetchAvatarInfo(
+    guildId: string,
+    userId: string
+  ): Promise<{ avatarUrl: string | null; username: string | null }> {
+    try {
+      // Check member cache first (guild-specific avatar)
+      const guild = this.container.client.guilds.cache.get(guildId);
+      const cachedMember = guild?.members.cache.get(userId);
+      if (cachedMember) {
+        return {
+          avatarUrl: cachedMember.displayAvatarURL({ size: 128 }),
+          username: cachedMember.user.username,
+        };
+      }
+
+      // Check user cache
+      const cachedUser = this.container.client.users.cache.get(userId);
+      if (cachedUser) {
+        return {
+          avatarUrl: cachedUser.displayAvatarURL({ size: 128 }),
+          username: cachedUser.username,
+        };
+      }
+
+      // Fetch from Discord API
+      const user = await this.container.client.users.fetch(userId);
+      return {
+        avatarUrl: user.displayAvatarURL({ size: 128 }),
+        username: user.username,
+      };
+    } catch (err) {
+      this.container.logger.warn(`[UserRoute] fetchAvatarInfo failed for ${userId}:`, err);
+      return { avatarUrl: null, username: null };
+    }
+  }
+
+  private async handleServerStatus(guildId: string, userId: string, response: Route.Response) {
+    try {
+      this.container.logger.info(
+        `[ServerStatus] Handling server-status for user=${userId} guild=${guildId}`
+      );
+
+      const discordGuild = this.container.client.guilds.cache.get(guildId);
+      if (!discordGuild) {
+        this.container.logger.warn(`[ServerStatus] Guild ${guildId} not found in cache`);
+        return response.status(404).json({ error: 'Guild not found' });
+      }
+
+      // Check ban status first (this is an API call but necessary for accuracy)
+      let isBanned = false;
+      try {
+        const ban = await discordGuild.bans.fetch(userId);
+        isBanned = !!ban;
+      } catch {
+        // Not banned (404) or can't fetch (missing permissions)
+        isBanned = false;
+      }
+
+      // Try to fetch user info for avatar (works even if not in server)
+      let avatarUrl: string | null = null;
+      let username: string | null = null;
+      try {
+        const user = await this.container.client.users.fetch(userId);
+        avatarUrl = user.displayAvatarURL({ size: 128 }) || null;
+        username = user.username;
+        this.container.logger.info(
+          `[ServerStatus] Fetched user ${userId}: avatar=${avatarUrl}, username=${username}`
+        );
+      } catch (err) {
+        this.container.logger.warn(`[ServerStatus] Failed to fetch user ${userId}:`, err);
+      }
+
+      // If banned, we know the status definitively
+      if (isBanned) {
+        return response.json({
+          status: 'banned' as const,
+          isBanned: true,
+          isInServer: false,
+          memberSince: null,
+          roles: [],
+          avatarUrl,
+          username,
+        });
+      }
+
+      // Check membership - first check cache
+      let member = discordGuild.members.cache.get(userId);
+
+      // If not in cache, fetch from API (profile page needs accurate data)
+      // This will also populate the cache for future requests
+      if (!member) {
+        try {
+          member = await discordGuild.members.fetch(userId);
+        } catch {
+          // Member not in server (404) or can't fetch
+          member = undefined;
+        }
+      }
+
+      if (member) {
+        // Use member's avatar if available (guild-specific), fallback to user avatar
+        const memberAvatar = member.displayAvatarURL({ size: 128 }) || null;
+        this.container.logger.info(`[ServerStatus] Found member ${userId}: avatar=${memberAvatar}`);
+        return response.json({
+          status: 'in_server' as const,
+          isBanned: false,
+          isInServer: true,
+          memberSince: member.joinedAt?.toISOString() ?? null,
+          roles: member.roles.cache
+            .filter((r) => r.id !== guildId)
+            .sort((a, b) => b.position - a.position)
+            .map((r) => r.name)
+            .slice(0, 10),
+          avatarUrl: memberAvatar ?? avatarUrl,
+          username: member.user.username ?? username,
+        });
+      }
+
+      // Not banned and not in server = left
+      return response.json({
+        status: 'left' as const,
+        isBanned: false,
+        isInServer: false,
+        memberSince: null,
+        roles: [],
+        avatarUrl,
+        username,
+      });
+    } catch (error) {
+      this.container.logger.error('Error fetching user server status:', error);
+      return response.status(500).json({ error: 'Internal server error' });
     }
   }
 }

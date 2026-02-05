@@ -112,6 +112,10 @@ export interface ModCase {
   createdAt: string;
   updatedAt: string;
   expiresAt: string | null;
+  // NH-10: Case Assignment
+  assignedToId: string | null;
+  assignedToTag: string | null;
+  assignedAt: string | null;
 }
 
 export interface EvidenceSummary {
@@ -178,3 +182,156 @@ export const EVIDENCE_STATUS_META: Record<EvidenceStatus, { label: string; class
   FLAGGED: { label: 'Flagged', className: 'badge-flagged' },
   REJECTED: { label: 'Rejected', className: 'badge-rejected' },
 };
+
+// ─── NH-6: User Profile Types ───
+
+export interface UserModProfile {
+  userId: string;
+  guildId: string;
+  targetTag: string | null;
+  cases: {
+    total: number;
+    byAction: Partial<Record<ModAction, number>>;
+    byStatus: Partial<Record<CaseStatus, number>>;
+    recent: Array<{
+      id: string;
+      caseNumber: number;
+      action: ModAction;
+      reason: string | null;
+      moderatorTag: string;
+      status: CaseStatus;
+      createdAt: string;
+    }>;
+  };
+  evidence: {
+    total: number;
+    byType: Partial<Record<EvidenceType, number>>;
+  };
+  notes: {
+    total: number;
+    recent: Array<{
+      id: string;
+      note: string;
+      createdById: string;
+      tags: string[];
+      createdAt: string;
+    }>;
+  };
+  flags: Array<{
+    id: string;
+    flag: string;
+    reason: string | null;
+    createdAt: string;
+    expiresAt: string | null;
+    active: boolean;
+  }>;
+  firstSeen: string | null;
+  lastAction: string | null;
+  avatarUrl: string | null;
+  username: string | null;
+}
+
+// ─── NH-9: Access Log Types ───
+
+export type AccessAction = 'VIEW' | 'DOWNLOAD' | 'EXPORT';
+
+export interface EvidenceAccessLogEntry {
+  id: string;
+  evidenceId: string;
+  guildId: string;
+  userId: string;
+  userTag: string;
+  action: AccessAction;
+  ipHash: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+// ─── NH-11: Analytics Types ───
+
+export interface EvidenceAnalytics {
+  volumeOverTime: Array<{ date: string; count: number }>;
+  byType: Record<string, number>;
+  byStatus: Record<string, number>;
+  storageUsage: { totalBytes: number; count: number };
+  topUploaders: Array<{ userId: string; userTag: string; count: number }>;
+  flaggedRate: number;
+  period: string;
+  cachedAt: number;
+}
+
+export interface CaseAnalytics {
+  volumeOverTime: Array<{ date: string; count: number }>;
+  byAction: Record<string, number>;
+  byStatus: Record<string, number>;
+  assignmentRate: number;
+}
+
+// ─── NH-4: Video Timestamp Types ───
+
+export interface VideoTimestamp {
+  id: string;
+  time: number; // seconds
+  note: string;
+  addedBy: string;
+  addedByTag: string;
+  createdAt: string;
+}
+
+// ─── XP Stats Types ───
+
+export interface UserXPStats {
+  userId: string;
+  guildId: string;
+  xp: number;
+  level: number;
+  nextLevelXp: number;
+  currentLevelXp: number;
+  progress: number;
+  xpIntoLevel: number;
+  messageCount: number;
+  lastAwardAt: string | null;
+  rank: number | null;
+}
+
+export interface UserVoiceXPStats {
+  userId: string;
+  guildId: string;
+  xp: number;
+  level: number;
+  totalMinutes: number;
+  rank: number | null;
+}
+
+// ─── Rewards Types ───
+
+export interface UserRewardClaim {
+  id: string;
+  rewardId: string;
+  levelAtClaim: number;
+  xpAtClaim: number;
+  status: string;
+  claimedAt: string;
+  expiresAt: string | null;
+  reward: {
+    id: string;
+    name: string;
+    description: string | null;
+    type: string;
+  };
+}
+
+// ─── Server Status Types ───
+
+export type ServerStatusType = 'in_server' | 'left' | 'banned' | 'unknown';
+
+export interface UserServerStatus {
+  status: ServerStatusType;
+  isBanned: boolean;
+  isInServer: boolean;
+  memberSince: string | null;
+  roles: string[];
+  avatarUrl: string | null;
+  username: string | null;
+}

@@ -20,6 +20,12 @@
  * - ModEventLogger - Advanced event logging
  * - AppealsService - TODO: Ban/mute appeal handling
  * - CaseTemplateService - Predefined action templates
+ *
+ * ## Evidence Enhancement Services
+ * - AccessLogService - Chain of custody logging (NH-9)
+ * - WatermarkService - Download watermarking (NH-8)
+ * - AnalyticsService - Evidence analytics (NH-11)
+ * - UserProfileService - User moderation profiles (NH-6)
  */
 
 // Core Services
@@ -38,3 +44,9 @@ export * from './UserFlagService.js';
 export * from './BulkActionService.js';
 export * from './ModerationQueueService.js';
 export * from './CaseTemplateService.js';
+
+// Evidence Enhancement Services
+export * from './AccessLogService.js';
+export * from './WatermarkService.js';
+export * from './AnalyticsService.js';
+export * from './UserProfileService.js';

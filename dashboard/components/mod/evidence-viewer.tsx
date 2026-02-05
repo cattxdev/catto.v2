@@ -2,13 +2,15 @@
 
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
-import type { Evidence, EvidenceAmendment } from '@/lib/mod-types';
+import type { Evidence, EvidenceAmendment, VideoTimestamp } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
 import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconFile } from '@/lib/mod-icons';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
 import { AudioPlayer } from './audio-player';
+import { VideoPlayer } from './video-player';
+import { EvidenceAccessLog } from './evidence-access-log';
 import { OGCard } from './og-card';
 import { TagSelector } from './tag-selector';
 import { useEscapeClose } from '@/hooks/use-escape-close';
@@ -26,7 +28,7 @@ interface EvidenceViewerProps {
   onNext?: () => void;
 }
 
-type ViewerTab = 'details' | 'history' | 'amend';
+type ViewerTab = 'details' | 'history' | 'access-log' | 'amend';
 
 export function EvidenceViewer({
   guildId,
@@ -171,13 +173,13 @@ export function EvidenceViewer({
             <div className="flex h-[200px] items-center justify-center text-red-400">{error}</div>
           )}
 
-          {!loading && !error && renderContent(evidence, viewUrl)}
+          {!loading && !error && renderContent(evidence, viewUrl, guildId)}
         </div>
 
         {/* Tabbed bottom section */}
         <div className="mt-4 border-t border-[var(--mod-border)]">
           <div className="flex border-b border-[var(--mod-border)]">
-            {(['details', 'history', 'amend'] as ViewerTab[]).map((tab) => (
+            {(['details', 'history', 'access-log', 'amend'] as ViewerTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -187,7 +189,7 @@ export function EvidenceViewer({
                     : 'text-[var(--mod-text-dim)] hover:text-[var(--mod-text-muted)]'
                 }`}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'access-log' ? 'Access Log' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
@@ -246,6 +248,11 @@ export function EvidenceViewer({
                   <AmendmentTimeline amendments={amendments} />
                 )}
               </div>
+            )}
+
+            {/* Access Log tab */}
+            {activeTab === 'access-log' && (
+              <EvidenceAccessLog guildId={guildId} evidenceId={evidenceId} />
             )}
 
             {/* Amend tab */}
@@ -321,7 +328,7 @@ export function EvidenceViewer({
   );
 }
 
-function renderContent(evidence: Evidence, viewUrl: string | null) {
+function renderContent(evidence: Evidence, viewUrl: string | null, guildId: string) {
   const { type } = evidence;
 
   // URL types
@@ -377,12 +384,14 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
 
   // Video
   if (type === 'VIDEO') {
+    const timestamps = ((evidence.metadata as Record<string, unknown> | null)?.timestamps ?? []) as VideoTimestamp[];
     return (
-      <div className="flex justify-center">
-        <video src={viewUrl} controls className="max-h-[60vh]">
-          Your browser does not support video playback.
-        </video>
-      </div>
+      <VideoPlayer
+        src={viewUrl}
+        guildId={guildId}
+        evidenceId={evidence.id}
+        timestamps={timestamps}
+      />
     );
   }
 

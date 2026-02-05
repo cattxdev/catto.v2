@@ -1,7 +1,8 @@
 'use client';
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import useSWR from 'swr';
 import { getGuildEvidence } from '@/lib/services/mod.service';
 import type { Evidence } from '@/lib/mod-types';
@@ -30,6 +31,12 @@ export default function GuildEvidencePage() {
   const caseParam = searchParams.get('case') ?? '';
   const pageParam = parseInt(searchParams.get('page') ?? '1') || 1;
 
+  // Local state for immediate input feedback
+  const [localCase, setLocalCase] = useState(caseParam);
+
+  // Sync local state when URL params change externally
+  useEffect(() => { setLocalCase(caseParam); }, [caseParam]);
+
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
       const next = new URLSearchParams(searchParams.toString());
@@ -48,6 +55,16 @@ export default function GuildEvidencePage() {
     },
     [searchParams, router]
   );
+
+  // Debounced URL update for case input
+  const debouncedUpdateCase = useDebouncedCallback((value: string) => {
+    updateParams({ case: value || undefined });
+  }, 300);
+
+  const handleCaseChange = useCallback((value: string) => {
+    setLocalCase(value);
+    debouncedUpdateCase(value);
+  }, [debouncedUpdateCase]);
 
   const { data: evidenceData, isLoading: loading, mutate } = useSWR(
     ['guild-evidence', guildId, typeParam, caseParam, pageParam],
@@ -100,10 +117,10 @@ export default function GuildEvidencePage() {
           <input
             type="text"
             inputMode="numeric"
-            value={caseParam}
+            value={localCase}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, '');
-              updateParams({ case: val || undefined });
+              handleCaseChange(val);
             }}
             placeholder="..."
             className="w-20 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2 py-1 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"

@@ -51,6 +51,8 @@ export class ModerationConfigRoute extends Route {
           modLogChannelId: null,
           muteRoleId: null,
           autoModEnabled: false,
+          watermarkDownloads: true,
+          watermarkText: null,
           createdAt: null,
           updatedAt: null,
         });
@@ -107,19 +109,29 @@ export class ModerationConfigRoute extends Route {
       }
 
       // Upsert config
+      // Note: Prisma schema defines defaults (watermarkDownloads: true, autoModEnabled: false)
+      // so we only need to pass fields that were explicitly provided
       const updatedConfig = await this.container.prisma.modConfig.upsert({
         where: { guildId },
         update: {
           ...(config.modLogChannelId !== undefined && { modLogChannelId: config.modLogChannelId }),
           ...(config.muteRoleId !== undefined && { muteRoleId: config.muteRoleId }),
           ...(config.autoModEnabled !== undefined && { autoModEnabled: config.autoModEnabled }),
+          ...(config.watermarkDownloads !== undefined && {
+            watermarkDownloads: config.watermarkDownloads,
+          }),
+          ...(config.watermarkText !== undefined && { watermarkText: config.watermarkText }),
           updatedAt: new Date(),
         },
         create: {
           guildId,
-          modLogChannelId: config.modLogChannelId ?? null,
-          muteRoleId: config.muteRoleId ?? null,
-          autoModEnabled: config.autoModEnabled ?? false,
+          ...(config.modLogChannelId !== undefined && { modLogChannelId: config.modLogChannelId }),
+          ...(config.muteRoleId !== undefined && { muteRoleId: config.muteRoleId }),
+          ...(config.autoModEnabled !== undefined && { autoModEnabled: config.autoModEnabled }),
+          ...(config.watermarkDownloads !== undefined && {
+            watermarkDownloads: config.watermarkDownloads,
+          }),
+          ...(config.watermarkText !== undefined && { watermarkText: config.watermarkText }),
         },
       });
 

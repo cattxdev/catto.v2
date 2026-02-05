@@ -7,6 +7,10 @@ import type {
   DashboardPermissions,
   PresignedUpload,
   CaseNote,
+  UserModProfile,
+  EvidenceAccessLogEntry,
+  EvidenceAnalytics,
+  CaseAnalytics,
 } from '@/lib/mod-types';
 import { emitSessionExpired } from '@/lib/auth-events';
 
@@ -141,8 +145,10 @@ export async function getEvidenceDownloadUrl(
   evidenceId: string
 ): Promise<string | null> {
   try {
+    // Use watermarked-download endpoint - it checks guild config and applies
+    // watermark if enabled, otherwise falls back to regular download
     const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
-      params: { action: 'download-url' },
+      params: { action: 'watermarked-download' },
     });
     return res.data.url;
   } catch {
@@ -273,4 +279,236 @@ export async function computeSHA256(file: File): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── NH-5: Evidence Search ───
+
+export async function searchEvidence(
+  guildId: string,
+  search: string,
+  params?: { page?: number; limit?: number }
+): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
+  const res = await api().get(`/guilds/${guildId}/moderation/evidence`, {
+    params: { search, ...params },
+  });
+  return res.data;
+}
+
+// ─── NH-6: User Profile ───
+
+export async function getUserProfile(
+  guildId: string,
+  userId: string
+): Promise<UserModProfile | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/moderation/users/${userId}`, {
+      params: { full: 'true' },
+    });
+    return res.data;
+  } catch (err) {
+    console.error('[mod.service] getUserProfile failed:', err);
+    return null;
+  }
+}
+
+export interface ModeratedUser {
+  userId: string;
+  targetTag: string;
+  totalCases: number;
+  activeFlagsCount: number;
+  notesCount: number;
+  firstCaseDate: string | null;
+  lastCaseDate: string | null;
+  caseBreakdown: Record<string, number>;
+  // Cache-only status for list view performance
+  serverStatus: 'in_server' | 'unknown';
+  // Avatar URL from Discord cache (null if user not in bot's cache)
+  avatarUrl: string | null;
+}
+
+export interface ModeratedUsersResponse {
+  users: ModeratedUser[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: {
+    totalCases: number;
+    uniqueUsers: number;
+    activeFlags: number;
+  };
+}
+
+export async function getModeratedUsers(
+  guildId: string,
+  params?: { page?: number; limit?: number; search?: string; sort?: string }
+): Promise<ModeratedUsersResponse> {
+  const res = await api().get(`/guilds/${guildId}/moderation/users`, { params });
+  return res.data;
+}
+
+// ─── NH-9: Access Log ───
+
+export async function getEvidenceAccessLog(
+  guildId: string,
+  evidenceId: string,
+  params?: { page?: number; limit?: number }
+): Promise<{ logs: EvidenceAccessLogEntry[]; total: number; page: number; totalPages: number }> {
+  const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
+    params: { action: 'access-log', ...params },
+  });
+  return res.data;
+}
+
+// ─── NH-8: Watermarked Download ───
+
+export async function getWatermarkedDownloadUrl(
+  guildId: string,
+  evidenceId: string
+): Promise<{ url: string; watermarked: boolean } | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
+      params: { action: 'watermarked-download' },
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ─── NH-11: Analytics ───
+
+export async function getEvidenceAnalytics(
+  guildId: string,
+  period: '7d' | '30d' | '90d' = '30d'
+): Promise<EvidenceAnalytics | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/moderation/analytics`, {
+      params: { period },
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCaseAnalytics(
+  guildId: string,
+  period: '7d' | '30d' | '90d' = '30d'
+): Promise<CaseAnalytics | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/moderation/analytics`, {
+      params: { period, type: 'cases' },
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ─── NH-4: Video Timestamps ───
+
+export async function addVideoTimestamp(
+  guildId: string,
+  evidenceId: string,
+  time: number,
+  note: string
+): Promise<Evidence | null> {
+  try {
+    const res = await api().post(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
+      action: 'add-timestamp',
+      time,
+      note,
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function removeVideoTimestamp(
+  guildId: string,
+  evidenceId: string,
+  timestampId: string
+): Promise<Evidence | null> {
+  try {
+    const res = await api().post(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
+      action: 'remove-timestamp',
+      timestampId,
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ─── XP Stats ───
+
+export type { UserXPStats } from '@/lib/mod-types';
+import type { UserXPStats } from '@/lib/mod-types';
+
+export async function getUserXPStats(
+  guildId: string,
+  userId: string
+): Promise<UserXPStats | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/xp/users/${userId}`);
+    return res.data.stats ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type { UserVoiceXPStats } from '@/lib/mod-types';
+import type { UserVoiceXPStats } from '@/lib/mod-types';
+
+export async function getUserVoiceXPStats(
+  guildId: string,
+  userId: string
+): Promise<UserVoiceXPStats | null> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/voice-xp/users/${userId}`);
+    return res.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Rewards ───
+
+export type { UserRewardClaim } from '@/lib/mod-types';
+import type { UserRewardClaim } from '@/lib/mod-types';
+
+export async function getUserRewards(
+  guildId: string,
+  userId: string
+): Promise<UserRewardClaim[]> {
+  try {
+    const res = await api().get(`/guilds/${guildId}/rewards/users/${userId}`);
+    return res.data.claims ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Server Status ───
+
+export type { UserServerStatus } from '@/lib/mod-types';
+import type { UserServerStatus } from '@/lib/mod-types';
+
+export async function getUserServerStatus(
+  guildId: string,
+  userId: string
+): Promise<UserServerStatus | null> {
+  try {
+    console.log('[mod.service] getUserServerStatus calling API for', userId);
+    const res = await api().get(`/guilds/${guildId}/moderation/users/${userId}`, {
+      params: { action: 'server-status' },
+    });
+    console.log('[mod.service] getUserServerStatus response:', res.status, res.data?.avatarUrl);
+    return res.data;
+  } catch (err) {
+    console.error('[mod.service] getUserServerStatus failed:', err);
+    return null;
+  }
 }

@@ -144,22 +144,26 @@ model Log {
 
 // Moderation Case Tracking
 model ModCase {
-  id          String     @id @default(cuid())
-  caseNumber  Int        // Auto-incrementing per guild
-  guildId     String
-  action      ModAction
-  targetId    String
-  targetTag   String
-  moderatorId String
-  moderatorTag String
-  reason      String?
-  duration    Int?       // Duration in seconds for timeouts/tempbans
-  status      CaseStatus @default(OPEN)
-  evidence    Json?      // Message links, attachments, etc.
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  expiresAt   DateTime?
-  
+  id            String     @id @default(cuid())
+  caseNumber    Int        // Auto-incrementing per guild
+  guildId       String
+  action        ModAction
+  targetId      String
+  targetTag     String
+  moderatorId   String
+  moderatorTag  String
+  reason        String?
+  duration      Int?       // Duration in seconds for timeouts/tempbans
+  status        CaseStatus @default(OPEN)
+  evidence      Json?      // Message links, attachments, etc.
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  expiresAt     DateTime?
+  // NH-10: Case Assignment
+  assignedToId  String?
+  assignedToTag String?
+  assignedAt    DateTime?
+
   guild         Guild      @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
   evidenceItems Evidence[]
   notes         CaseNote[]
@@ -171,23 +175,27 @@ model ModCase {
   @@index([action])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
   @@map("mod_cases")
 }
 
 // Moderation Configuration per Guild
 model ModConfig {
-  id              String   @id @default(cuid())
-  guildId         String   @unique
-  modLogChannelId String?  // Channel for moderation logs
-  muteRoleId      String?  // Role for muting users (legacy, use mutedTextRole)
-  mutedTextRole   String?  // Role to apply for text mutes
-  mutedVoiceRole  String?  // Role to apply for voice mutes (alternative to server mute)
-  muteSettings    Json     @default("{}") // { allowInThreads: false, exemptChannels: [] }
-  autoModEnabled  Boolean  @default(false)
-  warningEscalation Json   @default("{}") // { enabled: true, thresholds: { 3: 'timeout', 5: 'mute', 10: 'tempban' } }
-  metadata        Json?    // Guild-level config like { customEvidenceTags: string[] }
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  guildId            String   @unique
+  modLogChannelId    String?  // Channel for moderation logs
+  muteRoleId         String?  // Role for muting users (legacy, use mutedTextRole)
+  mutedTextRole      String?  // Role to apply for text mutes
+  mutedVoiceRole     String?  // Role to apply for voice mutes (alternative to server mute)
+  muteSettings       Json     @default("{}") // { allowInThreads: false, exemptChannels: [] }
+  autoModEnabled     Boolean  @default(false)
+  warningEscalation  Json     @default("{}") // { enabled: true, thresholds: { 3: 'timeout', 5: 'mute', 10: 'tempban' } }
+  metadata           Json?    // Guild-level config like { customEvidenceTags: string[] }
+  // NH-8: Watermark Config
+  watermarkDownloads Boolean  @default(true)
+  watermarkText      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   guild Guild @relation(fields: [guildId], references: [guildId], onDelete: Cascade)
 
@@ -465,6 +473,7 @@ model Evidence {
   case       ModCase          @relation(fields: [caseId], references: [id], onDelete: Cascade)
   snapshot   MessageSnapshot? @relation(fields: [snapshotId], references: [id])
   amendments EvidenceAmendment[]
+  accessLogs EvidenceAccessLog[]
 
   @@index([guildId])
   @@index([caseId])
@@ -495,6 +504,27 @@ model EvidenceAmendment {
   @@index([amendedById])
   @@index([createdAt])
   @@map("evidence_amendments")
+}
+
+// NH-9: Evidence access logging for chain of custody
+model EvidenceAccessLog {
+  id         String   @id @default(cuid())
+  evidenceId String
+  guildId    String
+  userId     String
+  userTag    String
+  action     String   // "VIEW", "DOWNLOAD", "EXPORT"
+  ipHash     String?  // SHA-256 of IP for audit without PII storage
+  userAgent  String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@index([evidenceId])
+  @@index([guildId])
+  @@index([createdAt])
+  @@map("evidence_access_logs")
 }
 
 // Captured message state for evidence preservation

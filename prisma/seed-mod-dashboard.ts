@@ -37,27 +37,27 @@ const prisma = new PrismaClient({ adapter });
 
 // ── Constants ──
 
-const GUILD_ID = '1462093013655228491';
+const GUILD_ID = '932630671581675562';
 const MODERATOR_ID = '216746923070062593';
-const MODERATOR_TAG = 'mateo';
+const MODERATOR_TAG = 'matheo';
 
 // A second moderator for variety
-const MOD2_ID = '100000000000000001';
-const MOD2_TAG = 'assistant_mod';
+const MOD2_ID = '505402639140519938';
+const MOD2_TAG = 'joshiny';
 
 const TARGET_USERS = [
-  { id: '200000000000000001', tag: 'rulebreaker_1' },
-  { id: '200000000000000002', tag: 'spammer42' },
-  { id: '200000000000000003', tag: 'toxic_user' },
-  { id: '200000000000000004', tag: 'scammer_99' },
-  { id: '200000000000000005', tag: 'raider_x' },
-  { id: '200000000000000006', tag: 'new_offender' },
-  { id: '200000000000000007', tag: 'repeat_warn' },
-  { id: '200000000000000008', tag: 'troll_master' },
-  { id: '200000000000000009', tag: 'alt_account' },
-  { id: '200000000000000010', tag: 'ad_bot' },
-  { id: '200000000000000011', tag: 'copypasta_king' },
-  { id: '200000000000000012', tag: 'nsfw_poster' },
+  { id: '720315700320927796', tag: '_whostao_' },
+  { id: '293504726505357312', tag: 'ellian.' },
+  { id: '1413916652873060423', tag: 'toxic_user' },
+  { id: '871173928003985458', tag: 'paul10104' },
+  { id: '1401268429490749500', tag: '_snnay_' },
+  { id: '144637413015289856', tag: 'ecx2f' },
+  { id: '531626979376627728', tag: 's2shizuku' },
+  { id: '820530029640286229', tag: 'michivellee' },
+  { id: '1367515678155870218', tag: 'kai_06.9374' },
+  { id: '1358650521505890435', tag: 'lily_satoru' },
+  { id: '991015778167980133', tag: 'afkjust' },
+  { id: '1304193671603818528', tag: '1a.bell' },
 ];
 
 const ACTIONS: ModAction[] = [
@@ -66,6 +66,8 @@ const ACTIONS: ModAction[] = [
   'BAN', 'BAN',
   'KICK', 'KICK',
   'MUTE_TEXT',
+  'MUTE_VOICE',
+  'MUTE_BOTH',
   'SOFTBAN',
   'TEMPBAN',
   'UNBAN',

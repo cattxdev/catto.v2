@@ -78,13 +78,15 @@ export class ModerationCaseRoute extends Route {
     try {
       const body = await parseRequestBody(request);
 
-      if (!body || typeof body !== 'object' || !('reason' in body)) {
+      if (!body || typeof body !== 'object') {
         return response.status(400).json({
-          error: 'Reason is required',
+          error: 'Request body is required',
         });
       }
 
-      const { reason } = body as { reason: string };
+      const { reason } = body as {
+        reason?: string;
+      };
 
       // Find the case
       const modCase = await this.container.prisma.modCase.findFirst({
@@ -100,7 +102,12 @@ export class ModerationCaseRoute extends Route {
         });
       }
 
-      // Update the case
+      if (!reason) {
+        return response.status(400).json({
+          error: 'Reason is required',
+        });
+      }
+
       const updatedCase = await this.container.prisma.modCase.update({
         where: { id: modCase.id },
         data: {
