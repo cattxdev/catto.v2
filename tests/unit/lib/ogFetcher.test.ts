@@ -46,31 +46,41 @@ describe('ogFetcher', () => {
       expect(axios.get).not.toHaveBeenCalled();
     });
 
-    it('should reject 127.0.0.1 addresses via DNS resolution', async () => {
-      // When the hostname IS an IP, DNS resolve returns empty arrays (via .catch(() => []))
-      // The code only checks isPrivateIP after trying DNS resolution
-      // For direct IP hostnames, DNS returns [], so we need DNS to return the IP itself
-      vi.mocked(dns.resolve4).mockResolvedValue(['127.0.0.1']);
-
+    it('should reject 127.0.0.1 addresses directly (without DNS)', async () => {
+      // Direct IP addresses are checked before DNS resolution
       const result = await fetchOGData('http://127.0.0.1/secret');
 
       expect(result).toBeNull();
+      // DNS should not even be called for direct private IPs
       expect(axios.get).not.toHaveBeenCalled();
     });
 
-    it('should catch private IPs when DNS fails by checking hostname directly', async () => {
-      // When DNS fails completely (throws), the code falls back to checking isPrivateIP(hostname)
-      // Note: The current implementation uses .catch(() => []) which doesn't trigger this path
-      // This test documents that direct IP URLs may not be fully protected when DNS returns []
+    it('should reject direct private IP addresses', async () => {
+      // Test various private IP formats directly in the URL
+      const privateIPs = [
+        'http://10.0.0.1/admin',
+        'http://172.16.0.1/internal',
+        'http://192.168.1.1/router',
+        'http://169.254.169.254/metadata', // AWS metadata
+      ];
+
+      for (const url of privateIPs) {
+        const result = await fetchOGData(url);
+        expect(result).toBeNull();
+      }
+      expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it('should allow public IP addresses when DNS returns empty', async () => {
+      // Public IPs should be allowed even when DNS returns empty
       vi.mocked(dns.resolve4).mockResolvedValue([]);
       vi.mocked(dns.resolve6).mockResolvedValue([]);
-      // When no DNS results but hostname is a public-looking IP, it proceeds
-      // This is a known limitation - the check relies on DNS returning the IPs
       vi.mocked(axios.get).mockResolvedValue({ data: '<html><head><title>Test</title></head></html>' });
 
-      const result = await fetchOGData('http://203.0.113.1/page');
+      // 203.0.113.x is TEST-NET-3, which is actually in the reserved range
+      // Use a clearly public IP instead
+      const result = await fetchOGData('http://8.8.8.8/page');
 
-      // A public IP that DNS doesn't resolve should still work
       expect(result?.title).toBe('Test');
     });
 

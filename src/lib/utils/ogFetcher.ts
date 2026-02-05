@@ -90,20 +90,20 @@ async function validateUrl(urlString: string): Promise<boolean> {
       return false;
     }
 
-    // Resolve hostname to IP and check if it's private
-    try {
-      const addresses = await dns.resolve4(hostname).catch(() => []);
-      const addresses6 = await dns.resolve6(hostname).catch(() => []);
-      const allAddresses = [...addresses, ...addresses6];
+    // Check if hostname is a direct IP address (before DNS resolution)
+    // This catches cases like http://127.0.0.1 or http://10.0.0.1
+    if (isPrivateIP(hostname)) {
+      return false;
+    }
 
-      for (const ip of allAddresses) {
-        if (isPrivateIP(ip)) {
-          return false;
-        }
-      }
-    } catch {
-      // If DNS resolution fails, it might be an IP address directly
-      if (isPrivateIP(hostname)) {
+    // Resolve hostname to IP and check if resolved IPs are private
+    // This catches cases where a domain resolves to a private IP
+    const addresses = await dns.resolve4(hostname).catch(() => []);
+    const addresses6 = await dns.resolve6(hostname).catch(() => []);
+    const allAddresses = [...addresses, ...addresses6];
+
+    for (const ip of allAddresses) {
+      if (isPrivateIP(ip)) {
         return false;
       }
     }
