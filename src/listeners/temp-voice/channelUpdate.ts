@@ -1,0 +1,105 @@
+/**
+ * Channel Update Listener for Name Moderation
+ * Monitors temp voice channels for name changes and applies moderation
+ */
+
+import { Listener } from '@sapphire/framework';
+import type { VoiceChannel, DMChannel, NonThreadGuildBasedChannel } from 'discord.js';
+import { Events, ChannelType } from 'discord.js';
+import { container } from '@sapphire/framework';
+import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service.js';
+import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
+import { PermissionsService } from '../../modules/temp-voice/services/permissions.service.js';
+import { NameModerationService } from '../../modules/temp-voice/services/name-moderation.service.js';
+
+export class ChannelUpdateListener extends Listener {
+  private configService!: TempVoiceConfigService;
+  private channelService!: TempChannelService;
+  private moderationService!: NameModerationService;
+
+  public constructor(context: Listener.LoaderContext, options: Listener.Options) {
+    super(context, {
+      ...options,
+      event: Events.ChannelUpdate,
+    });
+  }
+
+  public async run(
+    oldChannel: DMChannel | NonThreadGuildBasedChannel,
+    newChannel: DMChannel | NonThreadGuildBasedChannel
+  ): Promise<void> {
+    // Initialize services (lazy initialization)
+    if (!this.configService) {
+      this.configService = new TempVoiceConfigService(container.prisma, container.client);
+      this.channelService = new TempChannelService(container.prisma, new PermissionsService());
+      this.moderationService = new NameModerationService(container.prisma);
+    }
+
+    try {
+      // Only process voice channels
+      if (newChannel.type !== ChannelType.GuildVoice) {
+        return;
+      }
+
+      // Only process guild channels
+      if (newChannel.isDMBased()) {
+        return;
+      }
+
+      const voiceChannel = newChannel as VoiceChannel;
+      const oldVoiceChannel = oldChannel as VoiceChannel;
+
+      // Check if name changed
+      if (oldVoiceChannel.name === voiceChannel.name) {
+        return;
+      }
+
+      // Check if this is a temp voice channel
+      const tempChannel = await this.channelService.getByChannelId(voiceChannel.id);
+      if (!tempChannel) {
+        return;
+      }
+
+      // Get guild configuration
+      const config = await this.configService.getOrNull(voiceChannel.guild.id);
+      if (!config) {
+        return;
+      }
+
+      // Check if moderation is enabled
+      if (!config.moderationEnabled) {
+        return;
+      }
+
+      // Get the user who made the change from audit logs (if available)
+      // For now, we'll use the channel owner as fallback
+      const userId = tempChannel.ownerId;
+
+      // Moderate the name change
+      const result = await this.moderationService.moderateChannelName(
+        voiceChannel,
+        oldVoiceChannel.name,
+        voiceChannel.name,
+        config,
+        userId
+      );
+
+      if (result && !result.validation.isAllowed) {
+        this.container.logger.info(
+          `[Name Moderation] Channel ${voiceChannel.id} moderated: ${oldVoiceChannel.name} -> ${result.finalName}`,
+          {
+            guildId: voiceChannel.guild.id,
+            channelId: voiceChannel.id,
+            action: result.actionTaken,
+            reasonCodes: result.validation.reasonCodes,
+          }
+        );
+      }
+    } catch (error) {
+      this.container.logger.error(
+        `[Name Moderation] Error handling channel update for ${newChannel.id}:`,
+        error
+      );
+    }
+  }
+}

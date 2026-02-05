@@ -3,7 +3,7 @@
  */
 
 import type { OwnerLeaveStrategy } from '../constants.js';
-import type { TempVoiceNamingScheme } from '@prisma/client';
+import type { TempVoiceNamingScheme, TempVoiceModerationAction } from '@prisma/client';
 
 /**
  * Guild-level configuration for temp voice module
@@ -48,6 +48,14 @@ export interface TempVoiceConfig {
 
   // Permissions
   adminRoleIds: string[];
+
+  // Name Moderation (optional, disabled by default)
+  moderationEnabled: boolean;
+  moderationAction: TempVoiceModerationAction;
+  strictMode: boolean;
+  allowListEnabled: boolean;
+  customPatterns: string[];
+  allowedKeywords: string[];
 
   createdAt: Date;
   updatedAt: Date;

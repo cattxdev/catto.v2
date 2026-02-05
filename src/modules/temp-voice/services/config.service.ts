@@ -234,6 +234,10 @@ export class TempVoiceConfigService {
         ? (data.joinToCreateChannels as string[])
         : [],
       adminRoleIds: Array.isArray(data.adminRoleIds) ? (data.adminRoleIds as string[]) : [],
+      customPatterns: Array.isArray(data.customPatterns) ? (data.customPatterns as string[]) : [],
+      allowedKeywords: Array.isArray(data.allowedKeywords)
+        ? (data.allowedKeywords as string[])
+        : [],
       ownerLeaveStrategy: data.ownerLeaveStrategy as OwnerLeaveStrategy,
     };
   }
