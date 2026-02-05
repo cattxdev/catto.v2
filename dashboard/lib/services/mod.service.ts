@@ -8,14 +8,29 @@ import type {
   PresignedUpload,
   CaseNote,
 } from '@/lib/mod-types';
+import { emitSessionExpired } from '@/lib/auth-events';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
+// Shared axios instance with session expiration handling
+const apiInstance = axios.create({
+  baseURL: `${BOT_API_URL}/api`,
+  withCredentials: true,
+});
+
+// Intercept 401 responses to emit session expired event
+apiInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      emitSessionExpired();
+    }
+    return Promise.reject(error);
+  }
+);
+
 function api() {
-  return axios.create({
-    baseURL: `${BOT_API_URL}/api`,
-    withCredentials: true,
-  });
+  return apiInstance;
 }
 
 // ─── Dashboard Access ───
@@ -77,7 +92,10 @@ export async function getEvidenceForCase(
   return res.data;
 }
 
-export async function getEvidenceDetail(guildId: string, evidenceId: string): Promise<Evidence | null> {
+export async function getEvidenceDetail(
+  guildId: string,
+  evidenceId: string
+): Promise<Evidence | null> {
   try {
     const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`);
     return res.data;
@@ -86,7 +104,10 @@ export async function getEvidenceDetail(guildId: string, evidenceId: string): Pr
   }
 }
 
-export async function getEvidenceViewUrl(guildId: string, evidenceId: string): Promise<string | null> {
+export async function getEvidenceViewUrl(
+  guildId: string,
+  evidenceId: string
+): Promise<string | null> {
   try {
     const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
       params: { action: 'view-url' },
@@ -107,7 +128,10 @@ export async function getEvidenceHistory(
   return res.data.history;
 }
 
-export async function getEvidenceDownloadUrl(guildId: string, evidenceId: string): Promise<string | null> {
+export async function getEvidenceDownloadUrl(
+  guildId: string,
+  evidenceId: string
+): Promise<string | null> {
   try {
     const res = await api().get(`/guilds/${guildId}/moderation/evidence/${evidenceId}`, {
       params: { action: 'download-url' },
@@ -207,7 +231,9 @@ export async function getCaseNotes(
   caseNumber: number,
   params?: { page?: number; limit?: number }
 ): Promise<{ notes: CaseNote[]; total: number }> {
-  const res = await api().get(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, { params });
+  const res = await api().get(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, {
+    params,
+  });
   return res.data;
 }
 
@@ -216,7 +242,9 @@ export async function addCaseNote(
   caseNumber: number,
   content: string
 ): Promise<CaseNote> {
-  const res = await api().post(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, { content });
+  const res = await api().post(`/guilds/${guildId}/moderation/cases/${caseNumber}/notes`, {
+    content,
+  });
   return res.data;
 }
 
