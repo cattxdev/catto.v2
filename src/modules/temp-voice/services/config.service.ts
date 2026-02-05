@@ -24,12 +24,12 @@ export class TempVoiceConfigService {
    * Creates default config if it doesn't exist
    */
   async get(guildId: string): Promise<TempVoiceConfig> {
-    let config = await this.prisma.tempVoiceConfig.findUnique({
+    const config = await this.prisma.tempVoiceConfig.findUnique({
       where: { guildId },
     });
 
     if (!config) {
-      config = await this.create(guildId, DEFAULT_TEMP_VOICE_CONFIG);
+      return this.create(guildId, DEFAULT_TEMP_VOICE_CONFIG);
     }
 
     return this.mapToModel(config);

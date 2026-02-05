@@ -827,6 +827,14 @@ model TempVoiceConfig {
   // Permissions
   adminRoleIds          Json     @default("[]")        // string[] - roles that can manage any temp channel
   
+  // Name Moderation settings (optional, disabled by default)
+  moderationEnabled     Boolean                     @default(false)  // Disabled by default - admins must opt-in
+  moderationAction      TempVoiceModerationAction   @default(AUTO_RENAME)
+  strictMode            Boolean                     @default(false)  // Enable aggressive heuristics
+  allowListEnabled      Boolean                     @default(false)  // Whitelist mode
+  customPatterns        Json                        @default("[]")   // string[] - Guild-specific regex patterns
+  allowedKeywords       Json                        @default("[]")   // string[] - Guild allowlist
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -908,6 +916,119 @@ model TempVoiceUserPreference {
   @@index([guildId])
   @@index([userId])
   @@map("temp_voice_user_preferences")
+}
+
+// ============================================================================
+// TEMP VOICE NAME MODERATION
+// ============================================================================
+
+// Moderation action enforcement strategies
+enum TempVoiceModerationAction {
+  AUTO_RENAME  // Automatically rename to safe name
+  BLOCK        // Revert to previous name
+  WARN_ONLY    // Log and notify but allow
+}
+
+// Keyword approval status
+enum KeywordApprovalStatus {
+  PENDING   // Awaiting manual review
+  APPROVED  // Added to blocklist
+  DENIED    // Not added to blocklist
+  IGNORED   // Dismissed without action
+}
+
+// Moderation log entries
+model TempVoiceModerationLog {
+  id                String   @id @default(cuid())
+  guildId           String
+  channelId         String
+  userId            String
+  
+  // Event details
+  originalName      String
+  normalizedName    String
+  finalName         String?   // Name after moderation action
+  
+  // Detection details
+  isAllowed         Boolean
+  reasonCodes       Json      @default("[]")    // string[] of reason codes
+  matchedPatterns   Json      @default("[]")    // PatternMatch[] objects
+  heuristicScore    Float?                      // Optional heuristic score
+  
+  // Action taken
+  actionTaken       String    // AUTO_RENAMED, BLOCKED, WARNED, ALLOWED
+  strategyUsed      String?   // For auto-rename: SAFE_TEMPLATE, CREATIVE_COMBO, etc.
+  
+  // Metadata
+  processingTimeMs  Int?
+  metadata          Json      @default("{}")
+  
+  createdAt         DateTime  @default(now())
+  
+  @@index([guildId, createdAt])
+  @@index([channelId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("temp_voice_moderation_logs")
+}
+
+// Pending keywords from Discovery revocations or manual reports
+model TempVoiceKeywordQueue {
+  id                String                  @id @default(cuid())
+  guildId           String
+  
+  // Keyword details
+  keyword           String
+  normalizedKeyword String
+  source            String                  // DISCOVERY_REVOCATION, MANUAL_REPORT, AUTO_DETECTED
+  contextSnippet    String?                 // Original full name that triggered it
+  
+  // Context
+  channelId         String?
+  userId            String?
+  
+  // Review status
+  status            KeywordApprovalStatus   @default(PENDING)
+  reviewedBy        String?                 // User ID of reviewer
+  reviewedAt        DateTime?
+  reviewNote        String?
+  
+  // Metadata
+  occurrences       Int                     @default(1)  // How many times detected
+  lastSeenAt        DateTime                @default(now())
+  
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  
+  @@unique([guildId, normalizedKeyword])
+  @@index([guildId, status])
+  @@index([status, createdAt])
+  @@map("temp_voice_keyword_queue")
+}
+
+// Global moderation patterns (admin-managed)
+model TempVoiceModerationPattern {
+  id              String    @id @default(cuid())
+  
+  // Pattern details
+  pattern         String    // Regex pattern
+  patternType     String    // PROFANITY, HATE_SPEECH, SPAM, OBFUSCATION, etc.
+  description     String?
+  severity        Int       @default(5)   // 1-10 scale
+  
+  // Configuration
+  enabled         Boolean   @default(true)
+  caseInsensitive Boolean   @default(true)
+  
+  // Usage tracking
+  matchCount      Int       @default(0)
+  lastMatchedAt   DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([enabled, patternType])
+  @@map("temp_voice_moderation_patterns")
 }
 
 // ============================================================================
