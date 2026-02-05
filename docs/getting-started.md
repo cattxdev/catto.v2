@@ -86,6 +86,7 @@ The script will:
 - Start PostgreSQL and Redis containers
 - Start the watermark microservice (if built)
 - Update `.env` with ephemeral `DATABASE_URL` and `REDIS_*` values (dev-only)
+- Start the watermark microservice (if built)
 - Apply migrations and seed the database
 - Start the bot in watch mode
 

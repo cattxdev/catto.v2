@@ -2,13 +2,22 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
 import { execSync, spawn, type ChildProcess } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { join, resolve } from 'path';
-import { Buffer } from 'buffer';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { Buffer } from 'node:buffer';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const WATERMARK_SERVICE_PORT = 3847;
 
 const envPath = resolve(process.cwd(), '.env');
-const ENV_KEYS_TO_MANAGE = ['DATABASE_URL', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD'] as const;
+const ENV_KEYS_TO_MANAGE = [
+  'DATABASE_URL',
+  'REDIS_HOST',
+  'REDIS_PORT',
+  'REDIS_PASSWORD',
+  'WATERMARK_SERVICE_URL',
+] as const;
 let previousEnvValues: Record<string, string | undefined> | null = null;
 
 const splitEnvValue = (rawValue: string) => {
@@ -255,6 +264,7 @@ async function startDevEnvironment() {
       REDIS_HOST: redisHost,
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
+      ...(watermarkServiceUrl && { WATERMARK_SERVICE_URL: watermarkServiceUrl }),
     });
 
     // Setup database
