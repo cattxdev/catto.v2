@@ -101,8 +101,15 @@ export class ReadyListener extends Listener {
     this.container.logger.info('Initializing logging service...');
 
     // Handle graceful shutdown
-    const gracefulShutdown = async () => {
-      this.container.logger.info('Shutting down gracefully...');
+    let isShuttingDown = false;
+    const gracefulShutdown = async (signal: string) => {
+      if (isShuttingDown) {
+        this.container.logger.warn('Shutdown already in progress, ignoring signal');
+        return;
+      }
+      isShuttingDown = true;
+
+      this.container.logger.info(`Received ${signal}, shutting down gracefully...`);
 
       // Shutdown moderation scheduler
       try {
@@ -127,11 +134,72 @@ export class ReadyListener extends Listener {
         this.container.logger.error('Error shutting down scheduler:', error);
       }
 
-      await loggingService.destroy();
+      // Shutdown logging service
+      try {
+        await loggingService.destroy();
+        this.container.logger.info('Logging service shut down');
+      } catch (error) {
+        this.container.logger.error('Error shutting down logging service:', error);
+      }
+
+      // Disconnect Redis
+      try {
+        if (
+          this.container.redis.status === 'ready' ||
+          this.container.redis.status === 'connecting'
+        ) {
+          await this.container.redis.quit();
+          this.container.logger.info('Redis connection closed');
+        }
+      } catch (error) {
+        this.container.logger.error('Error closing Redis connection:', error);
+        // Force disconnect if quit fails
+        try {
+          this.container.redis.disconnect();
+        } catch {
+          // Ignore
+        }
+      }
+
+      // Disconnect Prisma
+      try {
+        await this.container.prisma.$disconnect();
+        this.container.logger.info('Prisma connection closed');
+      } catch (error) {
+        this.container.logger.error('Error closing Prisma connection:', error);
+      }
+
+      // Stop API server
+      try {
+        const server = this.container.server as Server;
+        if (server) {
+          await new Promise<void>((resolve) => {
+            server.server?.close(() => {
+              this.container.logger.info('API server stopped');
+              resolve();
+            });
+            // Force close after 5 seconds
+            setTimeout(() => resolve(), 5000);
+          });
+        }
+      } catch (error) {
+        this.container.logger.error('Error stopping API server:', error);
+      }
+
+      // Destroy Discord client
+      try {
+        client.destroy();
+        this.container.logger.info('Discord client destroyed');
+      } catch (error) {
+        this.container.logger.error('Error destroying Discord client:', error);
+      }
+
+      this.container.logger.info('Shutdown complete');
+      process.exit(0);
     };
 
-    process.on('SIGINT', gracefulShutdown);
-    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
     setTimeout(() => {
       try {
