@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { IconSearch } from '@/lib/mod-icons';
@@ -83,9 +83,15 @@ const ACTION_LABELS: Record<string, string> = {
 export function ServerPicker({ session }: ServerPickerProps) {
   const { guilds, user } = session;
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
-  const [recentIds] = useState<string[]>(getRecentGuilds);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [recentIds, setRecentIds] = useState<string[]>([]);
   const modGuilds = useMemo(() => guilds.filter(hasMod), [guilds]);
+
+  // Hydrate localStorage values after mount to avoid SSR mismatch
+  useEffect(() => {
+    setViewMode(getStoredViewMode());
+    setRecentIds(getRecentGuilds());
+  }, []);
 
   // Stabilize modGuilds reference to avoid refetching on parent re-renders
   const modGuildsRef = useRef(modGuilds);
