@@ -116,10 +116,19 @@ export class BotClient extends SapphireClient {
       password: CONFIG.REDIS_PASSWORD,
       db: CONFIG.REDIS_DB,
       retryStrategy: (times: number) => {
+        // Stop retrying if we're in a disconnected/end state (during shutdown)
+        if (
+          container.redis &&
+          (container.redis.status === 'end' || container.redis.status === 'close')
+        ) {
+          return null;
+        }
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 3,
     });
 
     // Connect to Redis
@@ -147,11 +156,17 @@ export class BotClient extends SapphireClient {
     });
 
     container.redis.on('error', (error) => {
-      console.error('Redis error:', error);
+      // Only log errors if we're not shutting down
+      if (container.redis.status !== 'end' && container.redis.status !== 'close') {
+        console.error('Redis error:', error);
+      }
     });
 
     container.redis.on('reconnecting', () => {
-      console.log('Reconnecting to Redis...');
+      // Only log reconnection attempts if we're not shutting down
+      if (container.redis.status !== 'end' && container.redis.status !== 'close') {
+        console.log('Reconnecting to Redis...');
+      }
     });
     this.stores.get('interaction-handlers').registerPath(join(this.rootData.root, 'interactions'));
   }
