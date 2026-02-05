@@ -93,6 +93,11 @@ export class StorageService {
    * header is set by the browser/HTTP client automatically on the actual PUT
    * request - it cannot be enforced via the presigned URL itself.
    *
+   * IMPORTANT: B2/S3 presigned PUT URLs cannot enforce file size limits server-side.
+   * The maxSizeBytes parameter is accepted for API consistency and documentation
+   * purposes, but actual size enforcement must happen at the application layer
+   * (e.g., via WeightGate before generating the URL, or post-upload verification).
+   *
    * B2 limits: max 5 GB per single-part upload, expiry up to 1 week.
    */
   async generateUploadUrl(

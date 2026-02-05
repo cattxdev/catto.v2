@@ -75,7 +75,7 @@ export class CaptureEvidenceCommand extends Command {
       {
         id: 'delete_messages',
         label: 'Delete messages after capture? (yes/no)',
-        placeholder: 'yes',
+        placeholder: 'yes (default)',
         required: false,
         maxLength: 3,
       },

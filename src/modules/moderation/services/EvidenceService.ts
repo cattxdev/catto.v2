@@ -9,6 +9,7 @@ import { container } from '@sapphire/framework';
 import type { Evidence, EvidenceAmendment, MessageSnapshot } from '@prisma/client';
 import type { Guild, TextChannel, Message } from 'discord.js';
 import { Buffer } from 'node:buffer';
+import { randomUUID } from 'node:crypto';
 import axios from 'axios';
 import { storageService, StorageService } from '#lib/storage/StorageService.js';
 import { signingService, SigningService } from '#lib/storage/SigningService.js';
@@ -315,6 +316,10 @@ export class EvidenceService {
     const snapshotEntries: MessageSnapshotEntry[] = [];
     const mediaStorageKeys: string[] = [];
 
+    // Generate a stable ID prefix for media storage keys
+    // This ensures all attachments for this snapshot share a consistent path
+    const mediaPrefix = randomUUID();
+
     for (const msg of sortedMessages) {
       const attachments: SerializedAttachment[] = [];
 
@@ -332,10 +337,9 @@ export class EvidenceService {
             const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
             if (response.status === 200) {
               const buffer = Buffer.from(response.data);
-              const snapshotId = `pre_${Date.now()}`;
               const key = StorageService.buildSnapshotMediaKey(
                 params.guildId,
-                snapshotId,
+                mediaPrefix,
                 attachment.name ?? `attachment_${attachment.id}`
               );
               await storageService.uploadBuffer(
@@ -390,19 +394,7 @@ export class EvidenceService {
     const snapshotJson = JSON.stringify(snapshotEntries);
     const contentHash = SigningService.sha256(Buffer.from(snapshotJson));
 
-    // HMAC signature only if we have a case
-    let hmacSignature = '';
-    if (modCase && signingService.isConfigured) {
-      hmacSignature = signingService.sign(contentHash, {
-        evidenceId: `snapshot_${Date.now()}`,
-        guildId: params.guildId,
-        caseId: modCase.id,
-        uploadedById: params.capturedById,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Create MessageSnapshot
+    // Create MessageSnapshot first (HMAC signature added after evidence creation)
     const snapshot = await container.prisma.messageSnapshot.create({
       data: {
         guildId: params.guildId,
@@ -415,13 +407,14 @@ export class EvidenceService {
         snapshotData: snapshotEntries as unknown as import('@prisma/client').Prisma.InputJsonValue,
         mediaStorageKeys: mediaStorageKeys.length > 0 ? mediaStorageKeys : undefined,
         contentHash,
-        hmacSignature,
+        hmacSignature: '', // Will be updated after evidence creation if applicable
       },
     });
 
     // Create Evidence record only if we have a case
     let evidence: Evidence | undefined;
     if (modCase) {
+      // Create the evidence record first to get the real ID
       evidence = await container.prisma.evidence.create({
         data: {
           guildId: params.guildId,
@@ -433,10 +426,33 @@ export class EvidenceService {
           status: 'VERIFIED',
           snapshotId: snapshot.id,
           contentHash,
-          hmacSignature,
+          hmacSignature: '', // Placeholder, will be updated below
           description: `Message snapshot: ${sortedMessages.length} message(s) from #${textChannel.name}`,
         },
       });
+
+      // Now compute HMAC with the real evidence ID and update
+      if (signingService.isConfigured) {
+        const hmacSignature = signingService.sign(contentHash, {
+          evidenceId: evidence.id,
+          guildId: params.guildId,
+          caseId: modCase.id,
+          uploadedById: params.capturedById,
+          timestamp: evidence.createdAt.toISOString(),
+        });
+
+        // Update both evidence and snapshot with the correct signature
+        [evidence] = await Promise.all([
+          container.prisma.evidence.update({
+            where: { id: evidence.id },
+            data: { hmacSignature },
+          }),
+          container.prisma.messageSnapshot.update({
+            where: { id: snapshot.id },
+            data: { hmacSignature },
+          }),
+        ]);
+      }
     }
 
     // Delete original messages if requested

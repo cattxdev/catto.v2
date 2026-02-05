@@ -256,16 +256,30 @@ export interface ResourceAccessResult extends CommandAccessResult {
  * Check resource-level access with optional context (e.g., case ownership).
  * Delegates to checkCommandAccess for the core permission check,
  * then layers on resource-specific context.
+ *
+ * NOTE: Currently, resourceContext is accepted but not used for access decisions.
+ * This means users with a permission like `mod.evidence.view` can access ANY
+ * evidence in the guild, not just evidence from cases they own or are assigned to.
+ * Resource-level scoping (e.g., "view only your own cases") requires additional
+ * RESOURCE-type grants in the database, which is a planned future enhancement.
  */
 export async function checkResourceAccess(
   member: GuildMember,
   resourceKey: string,
-  _resourceContext?: {
+  resourceContext?: {
     caseId?: string;
     ownerId?: string;
   }
 ): Promise<ResourceAccessResult> {
   const baseResult = await checkCommandAccess(member, resourceKey);
+
+  // Resource context is available for future fine-grained access control.
+  // For now, we only log when context is provided but not enforced.
+  if (resourceContext?.ownerId && resourceContext.ownerId !== member.id) {
+    container.logger.debug(
+      `[checkResourceAccess] Context provided but not enforced: user=${member.id}, owner=${resourceContext.ownerId}, resource=${resourceKey}`
+    );
+  }
 
   return {
     ...baseResult,

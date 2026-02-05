@@ -23,9 +23,17 @@ export class SigningService {
 
   constructor() {
     this.hmacSecret = CONFIG.EVIDENCE_HMAC_SECRET ?? '';
+
+    // Warn if storage appears configured but signing is not
+    if (!this.isConfigured && CONFIG.B2_ENDPOINT && CONFIG.B2_KEY_ID) {
+      console.warn(
+        '[SigningService] WARNING: B2 storage is configured but EVIDENCE_HMAC_SECRET is missing or too short (min 32 chars). ' +
+          'Evidence uploads will not have integrity signatures. Set EVIDENCE_HMAC_SECRET in production.'
+      );
+    }
   }
 
-  /** Check if signing is configured (HMAC secret set). */
+  /** Check if signing is configured (HMAC secret is at least 32 characters). */
   get isConfigured(): boolean {
     return this.hmacSecret.length >= 32;
   }

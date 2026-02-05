@@ -63,11 +63,11 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
         update({ progress: 30 });
 
         // Step 2: Upload to presigned URL
+        // Note: Content-Length is computed automatically by the browser from the body
         const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': file.type || 'application/octet-stream',
-            'Content-Length': file.size.toString(),
           },
           body: file,
         });

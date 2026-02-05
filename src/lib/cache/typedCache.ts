@@ -18,7 +18,9 @@ if (!ENCRYPTION_KEY && process.env.NODE_ENV === 'production') {
     'SESSION_ENCRYPTION_KEY environment variable is required in production. Generate one with: openssl rand -hex 32'
   );
 }
-const RESOLVED_ENCRYPTION_KEY = ENCRYPTION_KEY || 'default-dev-key-do-not-use-in-production';
+// Use a short fallback that will fail key derivation if accidentally used in production.
+// This ensures NODE_ENV misconfiguration doesn't silently allow weak encryption.
+const RESOLVED_ENCRYPTION_KEY = ENCRYPTION_KEY || 'dev-only';
 const ALGORITHM = 'aes-256-gcm';
 
 function encryptToken(token: string): string {

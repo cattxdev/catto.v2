@@ -117,6 +117,10 @@ DASHBOARD_URL=https://your-dashboard-domain.com
 
 All B2 variables are optional. If not set, the evidence system operates without file storage (URL evidence still works).
 
+::: warning
+If B2 storage is configured but `EVIDENCE_HMAC_SECRET` is missing or shorter than 32 characters, the bot will log a warning at startup. Evidence uploads will work but **without integrity signatures**, which defeats tamper-evidence guarantees. Always configure HMAC signing in production.
+:::
+
 ## B2 S3-Compatible API Notes
 
 | Detail | Value |
@@ -192,15 +196,33 @@ Verification: `SigningService.verify()` recomputes the HMAC and uses constant-ti
 
 ## Message Snapshots
 
-The "Capture Evidence" context menu command captures message state:
+The "Capture Evidence" context menu command captures message state as tamper-evident snapshots.
+
+### Capture Modal
+
+Right-click a message → Apps → **Capture Evidence** opens a modal with three fields:
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Case Number | Attach to an existing case. Leave empty to capture now and link later via a mod action. | Empty |
+| Capture Range | How many messages to capture. Empty = just this message, a number (1-100) = this + next N messages, or paste a message link for an end point. | This message only |
+| Delete Messages | Whether to delete the original messages after capture. Type "no" to preserve them. | Yes (deletes) |
+
+::: tip
+The capture flow is designed to replace Discord's "Delete Message" action — capture evidence first, then the messages are automatically removed. Type "no" only if you need to preserve the originals.
+:::
+
+### Capture Flow
 
 1. Fetches messages in range from Discord
 2. Serializes each message (content, author, attachments, embeds, reactions, stickers)
-3. Downloads all attachments and uploads to B2
+3. Downloads all attachments and uploads to B2 (using a UUID prefix for the storage path)
 4. Computes SHA-256 of serialized JSON
-5. Signs with HMAC
-6. Stores `MessageSnapshot` record + creates `Evidence` entry
-7. Optionally deletes original messages
+5. Creates `MessageSnapshot` record in database
+6. If a case number was provided, creates `Evidence` record linked to the case
+7. If no case number, shows a select menu to take a mod action (warn, kick, ban, etc.) — the action creates the case and links the snapshot automatically
+8. Computes HMAC signature using the real evidence ID and updates records
+9. Deletes original messages (unless "no" was entered)
 
 Snapshot data includes: author tag/avatar, message content, embeds, attachment metadata, sticker info, reactions, timestamps, and edit status.
 
@@ -268,8 +290,10 @@ Files are organized in B2 as:
 
 ```
 guilds/{guildId}/cases/{caseNumber}/evidence/{evidenceId}/{filename}
-guilds/{guildId}/snapshots/{snapshotId}/media/{filename}
+guilds/{guildId}/snapshots/{mediaPrefix}/media/{filename}
 ```
+
+For snapshot media, `mediaPrefix` is a UUID generated at capture time to ensure all attachments for a single snapshot share a consistent storage path. This prefix is stored in the snapshot's `mediaStorageKeys` array for retrieval.
 
 ## Dependencies
 

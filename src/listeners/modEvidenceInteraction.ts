@@ -214,7 +214,7 @@ export class ModEvidenceInteractionListener extends Listener {
       }
     }
 
-    const deleteAfterCapture = !deleteInput || deleteInput.toLowerCase() === 'yes';
+    const deleteAfterCapture = !deleteInput || deleteInput.toLowerCase() !== 'no';
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {

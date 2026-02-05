@@ -113,11 +113,9 @@ export class EvidenceRoute extends Route {
         case 'bulk-amend':
           return this.handleBulkAmend(gate, body, response);
         default:
-          return response
-            .status(400)
-            .json({
-              error: 'Unknown action. Use: initiate, confirm, url, preview-og, or bulk-amend',
-            });
+          return response.status(400).json({
+            error: 'Unknown action. Use: initiate, confirm, url, preview-og, or bulk-amend',
+          });
       }
     } catch (error) {
       this.container.logger.error('Error in evidence POST:', error);

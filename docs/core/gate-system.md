@@ -180,6 +180,12 @@ if (!await gate.requireResourceAuth('mod.evidence.view', { caseId })) return;
 // Authorized, continue
 ```
 
+::: warning Current Limitation
+The `resourceContext` parameter (`caseId`, `ownerId`) is accepted but **not currently enforced**. This means users with `mod.evidence.view` can access any evidence in the guild, not just evidence from cases they own or are assigned to.
+
+Resource-level scoping (e.g., "view only your own cases") requires additional `RESOURCE`-type permission grants in the database, which is a planned future enhancement. For now, all resource checks delegate to command-level permissions only.
+:::
+
 ## Error Codes
 
 ```typescript
