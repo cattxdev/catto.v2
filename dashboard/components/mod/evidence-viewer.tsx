@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import type { Evidence, EvidenceAmendment } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
-import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconLink, IconBrandDiscord, IconFile, IconVolume } from '@/lib/mod-icons';
+import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconLink, IconBrandDiscord, IconFile } from '@/lib/mod-icons';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
 import { AudioPlayer } from './audio-player';
