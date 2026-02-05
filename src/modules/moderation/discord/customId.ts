@@ -363,6 +363,165 @@ export function isHistoryPaginationCustomId(customId: string): boolean {
   return customId.startsWith(`${HISTORY_PREFIX}:${CUSTOM_ID_VERSION}:`);
 }
 
+// ==================== Evidence Capture Modal Custom ID ====================
+
+/**
+ * Schema for evidence capture modal custom_id
+ * Format: evidence_capture:v1:{messageId}:{channelId}
+ */
+export const EvidenceCaptureModalCustomIdSchema = z.object({
+  prefix: z.literal('evidence_capture'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  messageId: snowflakeSchema,
+  channelId: snowflakeSchema,
+});
+
+export type EvidenceCaptureModalCustomId = z.infer<typeof EvidenceCaptureModalCustomIdSchema>;
+
+/**
+ * Encode an evidence capture modal custom_id
+ */
+export function encodeEvidenceCaptureModalCustomId(messageId: string, channelId: string): string {
+  return `evidence_capture:${CUSTOM_ID_VERSION}:${messageId}:${channelId}`;
+}
+
+/**
+ * Decode and validate an evidence capture modal custom_id
+ */
+export function decodeEvidenceCaptureModalCustomId(
+  customId: string
+): EvidenceCaptureModalCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [prefix, version, messageId, channelId] = parts;
+
+  const result = EvidenceCaptureModalCustomIdSchema.safeParse({
+    prefix,
+    version,
+    messageId,
+    channelId,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
+// ==================== Evidence Pending Action Select Menu Custom ID ====================
+
+/**
+ * Schema for evidence pending action select menu custom_id
+ * Used when evidence is captured without a case — case will be created with mod action.
+ * Format: evidence_pending:v1:{targetId}:{snapshotId}
+ */
+export const EvidencePendingActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_pending'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  targetId: snowflakeSchema,
+  snapshotId: z.string().min(1),
+});
+
+export type EvidencePendingActionCustomId = z.infer<typeof EvidencePendingActionCustomIdSchema>;
+
+/**
+ * Encode an evidence pending action select menu custom_id
+ */
+export function encodeEvidencePendingActionCustomId(targetId: string, snapshotId: string): string {
+  return `evidence_pending:${CUSTOM_ID_VERSION}:${targetId}:${snapshotId}`;
+}
+
+/**
+ * Decode and validate an evidence pending action select menu custom_id
+ */
+export function decodeEvidencePendingActionCustomId(
+  customId: string
+): EvidencePendingActionCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const [prefix, version, targetId, snapshotId] = parts;
+
+  const result = EvidencePendingActionCustomIdSchema.safeParse({
+    prefix,
+    version,
+    targetId,
+    snapshotId,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
+/**
+ * Schema for evidence pending mod action modal custom_id
+ * Used when a moderator picks a follow-up action after evidence capture without a case.
+ * Creates a new case and links the snapshot as evidence.
+ * Format: evidence_pending_mod:v1:{action}:{targetId}:{snapshotId}
+ */
+export const EvidencePendingModActionCustomIdSchema = z.object({
+  prefix: z.literal('evidence_pending_mod'),
+  version: z.literal(CUSTOM_ID_VERSION),
+  action: z.enum(['warn', 'kick', 'ban', 'softban', 'timeout', 'tempban']),
+  targetId: snowflakeSchema,
+  snapshotId: z.string().min(1),
+});
+
+export type EvidencePendingModActionCustomId = z.infer<
+  typeof EvidencePendingModActionCustomIdSchema
+>;
+
+/**
+ * Encode an evidence pending mod action modal custom_id
+ */
+export function encodeEvidencePendingModActionCustomId(
+  action: 'warn' | 'kick' | 'ban' | 'softban' | 'timeout' | 'tempban',
+  targetId: string,
+  snapshotId: string
+): string {
+  return `evidence_pending_mod:${CUSTOM_ID_VERSION}:${action}:${targetId}:${snapshotId}`;
+}
+
+/**
+ * Decode and validate an evidence pending mod action modal custom_id
+ */
+export function decodeEvidencePendingModActionCustomId(
+  customId: string
+): EvidencePendingModActionCustomId | null {
+  const parts = customId.split(':');
+
+  if (parts.length !== 5) {
+    return null;
+  }
+
+  const [prefix, version, action, targetId, snapshotId] = parts;
+
+  const result = EvidencePendingModActionCustomIdSchema.safeParse({
+    prefix,
+    version,
+    action,
+    targetId,
+    snapshotId,
+  });
+
+  if (!result.success) {
+    return null;
+  }
+
+  return result.data;
+}
+
 // ==================== Helper to check all mod interaction types ====================
 
 /**
@@ -375,6 +534,9 @@ export function isModInteractionCustomId(customId: string): boolean {
     customId.startsWith('moddur:') ||
     customId.startsWith('modreason:') ||
     customId.startsWith('modmute:') ||
-    customId.startsWith(`${HISTORY_PREFIX}:`)
+    customId.startsWith(`${HISTORY_PREFIX}:`) ||
+    customId.startsWith('evidence_capture:') ||
+    customId.startsWith('evidence_pending:') ||
+    customId.startsWith('evidence_pending_mod:')
   );
 }

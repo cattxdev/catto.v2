@@ -49,6 +49,14 @@ Fill in the required values:
 | `API_PREFIX` | API route prefix | No |
 | `API_ORIGIN` | OAuth2 origin URL | No |
 | `API_REDIRECT` | OAuth2 redirect URL | No |
+| `B2_ENDPOINT` | Backblaze B2 S3 endpoint (e.g. `https://s3.us-west-004.backblazeb2.com`) | No |
+| `B2_REGION` | B2 region (e.g. `us-west-004`) | No |
+| `B2_KEY_ID` | B2 application key ID (not master key) | No |
+| `B2_APP_KEY` | B2 application key secret | No |
+| `B2_BUCKET_NAME` | B2 bucket name | No |
+| `B2_BUCKET_ID` | B2 bucket ID | No |
+| `EVIDENCE_HMAC_SECRET` | Secret for evidence HMAC signing (min 32 chars) | No |
+| `DASHBOARD_URL` | Moderator dashboard URL (default: `http://localhost:3000`) | No |
 
 ## Running the Bot
 
@@ -120,8 +128,14 @@ catto/
 │   ├── routes/               # REST API endpoints
 │   ├── modules/              # Business logic modules
 │   ├── lib/                  # Utilities and helpers
+│   │   ├── storage/          # B2 storage and signing services
+│   │   └── validation/       # Gate, permissions, rate limiting
 │   ├── preconditions/        # Permission checks
 │   └── interactions/         # Button/modal handlers
+├── dashboard/                # Next.js moderator dashboard
+│   ├── app/mod/              # Mod dashboard pages
+│   ├── components/mod/       # Evidence gallery, viewer, upload
+│   └── lib/                  # Services and types
 ├── prisma/
 │   ├── schema.prisma         # Database schema
 │   └── seed.ts               # Database seeder
@@ -132,6 +146,7 @@ catto/
 
 ## Next Steps
 
+- [Dashboard Setup](dashboard.md) — Run the moderator dashboard and configure OAuth login
 - Read the [Architecture](architecture.md) overview
 - Learn about [Coding Rules](RULES.md)
 - Explore the [Internal APIs](api/index.md)

@@ -34,6 +34,7 @@ export default defineConfig({
           items: [
             { text: 'Home', link: '/' },
             { text: 'Getting Started', link: '/getting-started' },
+            { text: 'Dashboard Setup', link: '/dashboard' },
             { text: 'Architecture', link: '/architecture' },
             { text: 'Coding Rules', link: '/RULES' },
           ],
@@ -56,7 +57,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/core/index' },
             { text: 'BotClient', link: '/core/bot-client' },
-            { text: 'Permission Gate', link: '/core/permission-gate' },
+            { text: 'Gate System', link: '/core/gate-system' },
             { text: 'Discord Components', link: '/core/discord-components' },
             { text: 'Logging', link: '/core/logging' },
           ],
@@ -84,6 +85,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/modules/index' },
             { text: 'Moderation', link: '/modules/moderation' },
+            { text: 'Evidence', link: '/modules/evidence' },
             { text: 'XP System', link: '/modules/xp-system' },
             { text: 'Reputation', link: '/modules/reputation' },
             { text: 'Rewards', link: '/modules/rewards' },

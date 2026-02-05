@@ -24,6 +24,8 @@ import { handlePanel } from './_panel.js';
 import { handleContext } from './_context.js';
 import { handleNoteAdd, handleNoteList, handleNoteDelete } from './_note.js';
 import { handleCaseEdit, handleCaseLink, handleCaseClose } from './_caseManagement.js';
+import { handleEvidenceAdd } from './_evidenceAdd.js';
+import { handleEvidenceList } from './_evidenceList.js';
 
 import {
   handleMuteText,
@@ -116,6 +118,15 @@ import { handleSetup } from './_setup.js';
         { name: 'close', chatInputRun: 'chatInputCaseClose' },
       ],
     },
+    // Evidence subcommand group
+    {
+      name: 'evidence',
+      type: 'group',
+      entries: [
+        { name: 'add', chatInputRun: 'chatInputEvidenceAdd' },
+        { name: 'list', chatInputRun: 'chatInputEvidenceList' },
+      ],
+    },
 
     // Mute subcommand group
     {
@@ -174,6 +185,7 @@ export class ModCommand extends Subcommand {
         .addSubcommandGroup(this.buildNoteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildCaseModSubcommandGroup.bind(this))
 
+        .addSubcommandGroup(this.buildEvidenceSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildMuteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildUnmuteSubcommandGroup.bind(this))
     );
@@ -508,6 +520,28 @@ export class ModCommand extends Subcommand {
       );
   }
 
+  private buildEvidenceSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
+    return group
+      .setName('evidence')
+      .setDescription('Evidence management commands')
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('add')
+          .setDescription('Add evidence to a case (opens dashboard)')
+          .addIntegerOption((option) =>
+            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName('list')
+          .setDescription('List evidence for a case')
+          .addIntegerOption((option) =>
+            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+          )
+      );
+  }
+
   private buildMutesSubcommand(subcommand: SlashCommandSubcommandBuilder) {
     return subcommand
       .setName('mutes')
@@ -723,6 +757,15 @@ export class ModCommand extends Subcommand {
 
   public async chatInputCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
     return handleCaseClose(interaction);
+  }
+
+  // Evidence subcommand handlers
+  public async chatInputEvidenceAdd(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleEvidenceAdd(interaction);
+  }
+
+  public async chatInputEvidenceList(interaction: Subcommand.ChatInputCommandInteraction) {
+    return handleEvidenceList(interaction);
   }
 
   // Mute subcommand handlers

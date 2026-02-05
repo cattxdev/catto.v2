@@ -252,7 +252,81 @@ model Log {
 }
 ```
 
+### Evidence Models
+
+The evidence system adds three models for tamper-evident evidence storage:
+
+```prisma
+model Evidence {
+  id               String          @id @default(cuid())
+  guildId          String
+  caseId           String
+  caseNumber       Int             // Denormalized for fast lookups
+  uploadedById     String
+  uploadedByTag    String
+  type             EvidenceType    // IMAGE, VIDEO, AUDIO, DOCUMENT, URL, DISCORD_URL, MESSAGE_SNAPSHOT
+  status           EvidenceStatus  // PENDING, PROCESSING, VERIFIED, FLAGGED, REJECTED
+
+  // Storage (B2)
+  storageKey       String?
+  storageBucket    String?
+  originalFilename String?
+  mimeType         String?
+  sizeBytes        Int?
+
+  // Integrity
+  contentHash      String?         // SHA-256
+  hmacSignature    String?         // HMAC-SHA256
+
+  // URL evidence
+  url              String?
+
+  // Snapshot reference
+  snapshotId       String?
+
+  description      String?
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+```
+
+```prisma
+model EvidenceAmendment {
+  id            String    @id @default(cuid())
+  evidenceId    String
+  amendedById   String
+  amendedByTag  String
+  action        String    // NOTE_ADDED, DESCRIPTION_UPDATED, FLAGGED, UNFLAGGED
+  previousValue String?
+  newValue      String?
+  reason        String?
+  createdAt     DateTime  @default(now())
+}
+```
+
+```prisma
+model MessageSnapshot {
+  id              String    @id @default(cuid())
+  guildId         String
+  channelId       String
+  capturedById    String
+  capturedByTag   String
+  firstMessageId  String
+  lastMessageId   String?
+  messageCount    Int       @default(1)
+  snapshotData    Json      // Serialized message content
+  mediaStorageKeys Json?    // B2 keys for captured attachments
+  contentHash     String    // SHA-256
+  hmacSignature   String    // HMAC-SHA256
+  createdAt       DateTime  @default(now())
+}
+```
+
+See the [Evidence System](../modules/evidence.md) documentation for full details on how these models are used.
+
 ## Related
 
 - [Redis/Cache API](redis.md) - For caching database results
 - [Architecture](../architecture.md) - Overall system design
+- [Evidence System](../modules/evidence.md) - Evidence storage and integrity

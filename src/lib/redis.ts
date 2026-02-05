@@ -14,6 +14,11 @@ export const CacheKeys = {
   SESSION: (sessionId: string) => `session:${sessionId}`,
 } as const;
 
+/** Redis pub/sub channels for real-time moderation events */
+export const ModEventChannels = {
+  MOD_EVENTS: (guildId: string) => `mod:events:${guildId}`,
+} as const;
+
 /**
  * Set a value in Redis with optional expiration
  */

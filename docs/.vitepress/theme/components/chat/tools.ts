@@ -29,6 +29,7 @@ export const CODEBASE_MAP = {
   // Documentation structure
   docs: {
     '/getting-started': 'Setup guide: install, env vars, running locally',
+    '/dashboard': 'Dashboard setup: OAuth login, env vars, troubleshooting',
     '/architecture': 'System design: layers, patterns, data flow',
     '/RULES': 'Coding conventions and style guide',
     '/api/database': 'Prisma ORM usage, models, queries',
@@ -37,7 +38,7 @@ export const CODEBASE_MAP = {
     '/api/i18n': 'Internationalization system',
     '/api/rest-routes': 'HTTP API endpoints with OAuth2',
     '/core/bot-client': 'BotClient class extending SapphireClient',
-    '/core/permission-gate': 'Gate RBAC permission system',
+    '/core/gate-system': 'Gate authorization, rate limiting, and resource guards',
     '/core/discord-components': 'FluentContainer, embeds, buttons',
     '/core/logging': 'Logging utilities',
     '/commands/creating-commands': 'How to create slash commands',

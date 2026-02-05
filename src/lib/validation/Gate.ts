@@ -36,7 +36,11 @@ import {
   type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
 } from 'discord.js';
-import { checkCommandAccess } from './permissionResolver.js';
+import {
+  checkCommandAccess,
+  checkResourceAccess,
+  type ResourceAccessResult,
+} from './permissionResolver.js';
 import { getCommand, fallbackDiscordPermissionForCommand } from './permissionRegistry.js';
 import { errorMessage, type FluentContainer } from '../discord/containers/index.js';
 import { reply, editReply } from '../discord/core/reply.js';
@@ -68,6 +72,12 @@ export const GateErrorCode = {
   BOT_TARGET: 'BOT_TARGET',
   HIGHER_ROLE: 'HIGHER_ROLE',
   BOT_CANNOT_ACT: 'BOT_CANNOT_ACT',
+
+  // Resource-level
+  RATE_LIMITED: 'RATE_LIMITED',
+  WEIGHT_EXCEEDED: 'WEIGHT_EXCEEDED',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+  INSUFFICIENT_SCOPE: 'INSUFFICIENT_SCOPE',
 } as const;
 
 // eslint-disable-next-line no-redeclare -- TypeScript pattern: const + type with same name
@@ -217,6 +227,62 @@ export class Gate {
    */
   async requireAuth(commandKey: string): Promise<boolean> {
     const result = await this.checkAuth(commandKey);
+    if (isFail(result)) {
+      await this.deny(result);
+      return false;
+    }
+    return true;
+  }
+
+  // ===========================================================================
+  // Resource-Level Authorization
+  // ===========================================================================
+
+  /**
+   * Check resource-level authorization.
+   * Extends command-level auth with resource context metadata.
+   */
+  async checkResourceAuth(
+    commandKey: string,
+    context?: { caseId?: string; ownerId?: string }
+  ): Promise<GateResult> {
+    const accessResult: ResourceAccessResult = await checkResourceAccess(
+      this.member,
+      commandKey,
+      context
+    );
+
+    if (accessResult.allowed) {
+      return pass();
+    }
+
+    if (accessResult.reason === 'explicit_deny' || accessResult.reason === 'category_deny') {
+      return fail(
+        GateErrorCode.EXPLICIT_DENY,
+        'Access Denied',
+        accessResult.metadata?.disabledReason ??
+          'You have been explicitly denied access to this resource.'
+      );
+    }
+
+    return fail(
+      GateErrorCode.INSUFFICIENT_SCOPE,
+      'Insufficient Scope',
+      accessResult.metadata?.disabledReason ?? `You don't have permission to access this resource.`
+    );
+  }
+
+  /**
+   * Require resource-level authorization.
+   * Automatically sends error response on failure.
+   *
+   * @returns true if authorized, false if denied (error already sent)
+   */
+  async requireResourceAuth(
+    commandKey: string,
+    context?: { caseId?: string; ownerId?: string }
+  ): Promise<boolean> {
+    const result = await this.checkResourceAuth(commandKey, context);
     if (isFail(result)) {
       await this.deny(result);
       return false;

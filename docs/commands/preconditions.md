@@ -293,4 +293,4 @@ export class ChatInputCommandDeniedListener extends Listener {
 ## Related
 
 - [Creating Commands](creating-commands.md) - Command creation guide
-- [Permission Gate](../core/permission-gate.md) - Advanced authorization
+- [Gate System](../core/gate-system.md) - Advanced authorization

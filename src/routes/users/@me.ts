@@ -1,5 +1,12 @@
 import { Route, type ApiRequest, type ApiResponse, HttpCodes } from '@sapphire/plugin-api';
 import axios from 'axios';
+import { createHash } from 'node:crypto';
+import { getOrSetJson, CacheKey } from '#lib/cache/typedCache.js';
+import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
+import { z } from 'zod';
+
+const discordUserSchema = z.object({ id: z.string() }).passthrough();
+const discordGuildsSchema = z.array(z.object({ id: z.string() }).passthrough());
 
 /**
  * Get current authenticated user information
@@ -15,14 +22,9 @@ export class UserMeRoute extends Route {
   }
 
   public async run(request: ApiRequest, response: ApiResponse) {
-    // Get the auth token from cookie
-    const authCookieName = 'DASHBOARD_AUTH';
-    const authToken = request.headers.cookie
-      ?.split('; ')
-      .find((c) => c.startsWith(`${authCookieName}=`))
-      ?.split('=')[1];
+    const value = extractSessionId(request);
 
-    if (!authToken) {
+    if (!value) {
       return response.status(HttpCodes.Unauthorized).json({
         error: 'Unauthorized',
         message: 'You must be logged in to access this resource',
@@ -30,35 +32,70 @@ export class UserMeRoute extends Route {
     }
 
     try {
-      // Fetch user data from Discord API
-      const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      let accessToken: string;
 
-      if (userResponse.status !== 200) {
-        return response.status(HttpCodes.InternalServerError).json({
-          error: 'Failed to fetch user data from Discord',
-        });
+      // New path: session ID → resolve accessToken from Redis
+      if (isSessionId(value)) {
+        const session = await resolveSession(value);
+        if (!session) {
+          return response.status(HttpCodes.Unauthorized).json({
+            error: 'SessionExpired',
+            message: 'Your session has expired. Please log in again.',
+          });
+        }
+        accessToken = session.accessToken;
+      } else {
+        // Legacy path: raw Discord token
+        accessToken = value;
       }
 
-      const userData = userResponse.data;
+      const tokenHash = createHash('sha256').update(accessToken).digest('hex').slice(0, 16);
 
-      // Optionally fetch guilds
-      let guilds = [];
+      // Fetch user data from Discord API (cached for 60s by token hash)
+      let userData: Record<string, unknown>;
       try {
-        const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
+        userData = await getOrSetJson(
+          CacheKey.discordUser(tokenHash),
+          discordUserSchema,
+          async () => {
+            const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (userResponse.status !== 200) throw new Error('Discord API returned non-200');
+            return userResponse.data;
           },
+          60
+        );
+      } catch {
+        // Redis unavailable — fall back to direct call
+        const userResponse = await axios.get('https://discord.com/api/v10/users/@me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
         });
-
-        if (guildsResponse.status === 200) {
-          guilds = guildsResponse.data;
+        if (userResponse.status !== 200) {
+          return response.status(HttpCodes.InternalServerError).json({
+            error: 'Failed to fetch user data from Discord',
+          });
         }
+        userData = userResponse.data;
+      }
+
+      // Optionally fetch guilds (cached for 60s by token hash)
+      let guilds: Array<Record<string, unknown>> = [];
+      try {
+        guilds = await getOrSetJson(
+          CacheKey.discordGuilds(tokenHash),
+          discordGuildsSchema,
+          async () => {
+            const guildsResponse = await axios.get('https://discord.com/api/v10/users/@me/guilds', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (guildsResponse.status !== 200) throw new Error('Discord API returned non-200');
+            return guildsResponse.data;
+          },
+          60
+        );
       } catch (error) {
-        // Guilds are optional, don't fail if we can't fetch them
+        // Guilds are optional, don't fail if we can't fetch them (Redis or Discord failure)
         this.container.logger.warn('Failed to fetch user guilds:', error);
       }
 
@@ -77,23 +114,14 @@ export class UserMeRoute extends Route {
           premium_type: userData.premium_type,
           public_flags: userData.public_flags,
         },
-        guilds: guilds.map(
-          (guild: {
-            id: string;
-            name: string;
-            icon: string | null;
-            owner: boolean;
-            permissions: string;
-            features: string[];
-          }) => ({
-            id: guild.id,
-            name: guild.name,
-            icon: guild.icon,
-            owner: guild.owner,
-            permissions: guild.permissions,
-            features: guild.features,
-          })
-        ),
+        guilds: guilds.map((guild) => ({
+          id: guild.id,
+          name: guild.name,
+          icon: guild.icon,
+          owner: guild.owner,
+          permissions: guild.permissions,
+          features: guild.features,
+        })),
       });
     } catch (error) {
       this.container.logger.error('Error fetching user data:', error);

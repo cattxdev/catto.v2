@@ -12,9 +12,11 @@ Comprehensive moderation system with case tracking, scheduling, and user managem
 - **Timeout** - Discord's native timeout
 - **Mute** - Text, voice, or both (role-based)
 - **Case System** - Track all mod actions
+- **Evidence System** - File uploads, URL evidence, message snapshots with HMAC signing
 - **User Notes** - Moderator notes per user
 - **User Flags** - Mark users (suspicious, trusted, etc.)
 - **Scheduled Actions** - Auto-unban, auto-unmute
+- **Moderator Dashboard** - Web UI for case/evidence management
 
 ## Structure
 
@@ -27,6 +29,7 @@ src/modules/moderation/
 │   ├── TempbanScheduler.ts     # Scheduled unbans
 │   ├── CaseService.ts          # Case CRUD
 │   ├── CaseTemplateService.ts  # Action templates
+│   ├── EvidenceService.ts      # Evidence upload, snapshots, amendments
 │   ├── NotesService.ts         # User notes
 │   ├── WarningService.ts       # Warning escalation
 │   ├── UserFlagService.ts      # User flags
@@ -38,7 +41,8 @@ src/modules/moderation/
 │   ├── components.ts           # Buttons, selects
 │   └── modals.ts               # Input modals
 ├── domain/
-│   └── types.ts                # Type definitions
+│   ├── types.ts                # Type definitions
+│   └── evidence-types.ts       # Evidence type definitions
 └── index.ts                    # Exports
 ```
 
@@ -322,9 +326,31 @@ The main moderation command is `/mod` with subcommands:
 | `notes add` | Add a note |
 | `notes view` | View notes |
 | `panel` | Open mod panel |
+| `evidence add` | Get dashboard link to add evidence |
+| `evidence list` | View evidence summary for a case |
+
+### Context Menu Commands
+
+| Command | Description |
+|---------|-------------|
+| `Capture Evidence` | Capture a message (or range) as a snapshot and attach to a case |
+
+## Evidence System
+
+The evidence system provides tamper-evident storage for moderation evidence. See the dedicated [Evidence](evidence.md) documentation for full details.
+
+### Quick Overview
+
+- **File uploads** go through Backblaze B2 via presigned URLs (direct client-to-storage)
+- **URL evidence** supports both regular URLs and Discord message links
+- **Message snapshots** capture message content, attachments, and metadata
+- **Integrity** is ensured via SHA-256 content hashing and HMAC-SHA256 signing
+- **Amendments** provide an append-only history log (no edits/deletes)
+- **Moderator dashboard** at `/mod/{guildId}/cases/{caseNumber}/evidence`
 
 ## Related
 
-- [Permission Gate](../core/permission-gate.md) - Authorization
+- [Evidence System](evidence.md) - Evidence storage, B2, signing, dashboard
+- [Gate System](../core/gate-system.md) - Authorization
 - [Logging](../core/logging.md) - Audit logging
 - [Commands](../commands/creating-commands.md) - Command system

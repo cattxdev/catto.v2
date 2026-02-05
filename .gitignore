@@ -11,6 +11,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnp.*
 .cache
+.temp*
 
 /src/generated/prisma
 TEMP_VOICE_MODULE_DESIGN.md

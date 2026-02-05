@@ -45,7 +45,7 @@ const PermissionGrantSchema = z.object({
   guildId: z.string(),
   subjectType: z.enum(['USER', 'ROLE']),
   subjectId: z.string(),
-  resourceType: z.enum(['COMMAND', 'CATEGORY']),
+  resourceType: z.enum(['COMMAND', 'CATEGORY', 'RESOURCE']),
   resourceKey: z.string(),
   effect: z.enum(['ALLOW', 'DENY']),
   createdById: z.string().nullable(),
@@ -239,6 +239,63 @@ export async function checkCommandAccess(
   }
 
   return { allowed: true, reason: 'public' };
+}
+
+/**
+ * Resource-level access result with additional metadata for dashboard UI
+ */
+export interface ResourceAccessResult extends CommandAccessResult {
+  metadata?: {
+    disabledReason?: string;
+    requiredPermission?: string;
+    grantSource?: string;
+  };
+}
+
+/**
+ * Check resource-level access with optional context (e.g., case ownership).
+ * Delegates to checkCommandAccess for the core permission check,
+ * then layers on resource-specific context.
+ *
+ * NOTE: Currently, resourceContext is accepted but not used for access decisions.
+ * This means users with a permission like `mod.evidence.view` can access ANY
+ * evidence in the guild, not just evidence from cases they own or are assigned to.
+ * Resource-level scoping (e.g., "view only your own cases") requires additional
+ * RESOURCE-type grants in the database, which is a planned future enhancement.
+ */
+export async function checkResourceAccess(
+  member: GuildMember,
+  resourceKey: string,
+  resourceContext?: {
+    caseId?: string;
+    ownerId?: string;
+  }
+): Promise<ResourceAccessResult> {
+  const baseResult = await checkCommandAccess(member, resourceKey);
+
+  // Resource context is available for future fine-grained access control.
+  // For now, we only log when context is provided but not enforced.
+  if (resourceContext?.ownerId && resourceContext.ownerId !== member.id) {
+    container.logger.debug(
+      `[checkResourceAccess] Context provided but not enforced: user=${member.id}, owner=${resourceContext.ownerId}, resource=${resourceKey}`
+    );
+  }
+
+  return {
+    ...baseResult,
+    metadata: baseResult.allowed
+      ? undefined
+      : {
+          disabledReason:
+            baseResult.reason === 'explicit_deny' || baseResult.reason === 'category_deny'
+              ? 'You have been explicitly denied access to this resource.'
+              : 'You do not have the required permission.',
+          requiredPermission: resourceKey,
+          grantSource: baseResult.source
+            ? `${baseResult.source.type}:${baseResult.source.id}`
+            : undefined,
+        },
+  };
 }
 
 export async function checkModPanelActionAccess(

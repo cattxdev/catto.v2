@@ -127,7 +127,8 @@ export async function handleMuteText(interaction: Subcommand.ChatInputCommandInt
           '_muteText > handleMuteText > buildModActionSuccess(101): result.caseNumber'
         ),
         options.reason ?? 'No reason provided',
-        durationText
+        durationText,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {
@@ -243,7 +244,8 @@ export async function handleMuteVoice(interaction: Subcommand.ChatInputCommandIn
           '_muteVoice > handleMuteVoice > buildModActionSuccess(196): result.caseNumber'
         ),
         options.reason ?? 'No reason provided',
-        durationText
+        durationText,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {
@@ -365,7 +367,8 @@ export async function handleMuteBoth(interaction: Subcommand.ChatInputCommandInt
           '_muteBoth > handleMuteBoth > buildModActionSuccess(300): result.caseNumber'
         ),
         options.reason ?? 'No reason provided',
-        durationText
+        durationText,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {
@@ -451,7 +454,9 @@ export async function handleUnmuteText(interaction: Subcommand.ChatInputCommandI
           result.caseNumber,
           '_unmuteText > handleUnmuteText > buildModActionSuccess(376): result.caseNumber'
         ),
-        options.reason ?? 'No reason provided'
+        options.reason ?? 'No reason provided',
+        undefined,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {
@@ -537,7 +542,9 @@ export async function handleUnmuteVoice(interaction: Subcommand.ChatInputCommand
           result.caseNumber,
           '_unmuteVoice > handleUnmuteVoice > buildModActionSuccess(451): result.caseNumber'
         ),
-        options.reason ?? 'No reason provided'
+        options.reason ?? 'No reason provided',
+        undefined,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {
@@ -617,7 +624,9 @@ export async function handleUnmuteBoth(interaction: Subcommand.ChatInputCommandI
           result.caseNumber,
           '_unmuteBoth > handleUnmuteBoth > buildModActionSuccess(523): result.caseNumber'
         ),
-        options.reason ?? 'No reason provided'
+        options.reason ?? 'No reason provided',
+        undefined,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {

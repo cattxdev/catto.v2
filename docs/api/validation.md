@@ -244,5 +244,5 @@ export class BanCommand extends Command {
 
 ## Related
 
-- [Gate System](../core/permission-gate.md) - Validation with permissions
+- [Gate System](../core/gate-system.md) - Validation with permissions
 - [Commands](../commands/creating-commands.md) - Command input handling

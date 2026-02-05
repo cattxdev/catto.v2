@@ -1,0 +1,113 @@
+import { Route } from '@sapphire/plugin-api';
+import { ApiGate } from '#lib/validation/ApiGate.js';
+import { ModEventChannels } from '#lib/redis.js';
+
+/**
+ * SSE endpoint for real-time moderation events.
+ *
+ * GET /api/guilds/{guildId}/moderation/events
+ *
+ * Streams events like evidence:created, case:updated, etc.
+ * Uses Redis pub/sub to receive events published by backend services.
+ */
+export class ModEventsRoute extends Route {
+  public constructor(context: Route.LoaderContext, options: Route.Options) {
+    super(context, {
+      ...options,
+      route: 'guilds/[guildId]/moderation/events',
+      methods: ['GET'],
+    });
+  }
+
+  public async run(request: Route.Request, response: Route.Response) {
+    const { guildId } = request.params;
+    if (!guildId) {
+      return response.status(400).json({ error: 'Guild ID is required' });
+    }
+
+    const gate = await ApiGate.fromRequest(request, guildId);
+    if (!gate) {
+      return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+    }
+
+    const auth = await gate.checkAuth('mod.cases.view');
+    if (!auth.ok) {
+      return response.status(403).json({ error: 'Forbidden', code: auth.code });
+    }
+
+    // Access raw Node.js response for SSE streaming
+    const raw = (response as any).raw ?? response;
+    if (!raw.writeHead) {
+      return response.status(500).json({ error: 'SSE not supported in this environment' });
+    }
+
+    // Set SSE headers
+    raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    // Write initial comment to establish connection
+    raw.write(': connected\n\n');
+
+    // Create a dedicated Redis subscriber
+    let subscriber: ReturnType<typeof this.container.redis.duplicate> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let closed = false;
+
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (subscriber) {
+        subscriber.unsubscribe().catch(() => {});
+        subscriber.quit().catch(() => {});
+        subscriber = null;
+      }
+    };
+
+    try {
+      subscriber = this.container.redis.duplicate();
+      const channel = ModEventChannels.MOD_EVENTS(guildId);
+
+      await subscriber.subscribe(channel);
+
+      subscriber.on('message', (_ch: string, message: string) => {
+        if (closed) return;
+        try {
+          raw.write(`data: ${message}\n\n`);
+        } catch {
+          cleanup();
+        }
+      });
+
+      // 30s heartbeat
+      heartbeatTimer = setInterval(() => {
+        if (closed) return;
+        try {
+          raw.write(': heartbeat\n\n');
+        } catch {
+          cleanup();
+        }
+      }, 30_000);
+
+      // Cleanup on client disconnect
+      const req = (request as any).raw ?? request;
+      if (req.on) {
+        req.on('close', cleanup);
+        req.on('error', cleanup);
+      }
+    } catch (error) {
+      cleanup();
+      this.container.logger.error('Error in SSE route:', error);
+      // If headers already sent, just close
+      if (raw.headersSent) {
+        raw.end();
+      } else {
+        return response.status(500).json({ error: 'Failed to establish SSE connection' });
+      }
+    }
+  }
+}

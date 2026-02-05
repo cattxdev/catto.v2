@@ -122,6 +122,14 @@
     text-wrap: balance;
   }
 
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Glassmorphism utilities */
   .glass {
     @apply bg-card/50 backdrop-blur-xl border border-border/50;

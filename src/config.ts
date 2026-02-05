@@ -37,6 +37,39 @@ const envSchema = z.object({
     .optional()
     .default('0')
     .transform((val) => parseInt(val, 10)),
+
+  // Backblaze B2 Storage
+  B2_ENDPOINT: z
+    .string()
+    .optional()
+    .transform((val) => {
+      if (!val) return val;
+      if (!/^https?:\/\//i.test(val)) return `https://${val}`;
+      return val;
+    }),
+  B2_REGION: z.string().optional().default('us-west-004'),
+  B2_KEY_ID: z.string().optional(),
+  B2_APP_KEY: z.string().optional(),
+  B2_BUCKET_NAME: z.string().optional(),
+  B2_BUCKET_ID: z.string().optional(),
+
+  // Evidence HMAC signing
+  EVIDENCE_HMAC_SECRET: z.string().min(32).optional(),
+
+  // Dashboard URL for evidence links
+  DASHBOARD_URL: z.string().optional().default('http://localhost:3000'),
+
+  // Evidence limits
+  MAX_EVIDENCE_UPLOAD_BYTES: z
+    .string()
+    .optional()
+    .default(String(2 * 1024 * 1024 * 1024)) // 2GB default
+    .transform((val) => parseInt(val, 10)),
+  MAX_SNAPSHOT_MESSAGES: z
+    .string()
+    .optional()
+    .default('100')
+    .transform((val) => parseInt(val, 10)),
 });
 
 // Validate and parse environment variables

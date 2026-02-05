@@ -146,6 +146,38 @@ registerCustomIdParser({
   parse: () => 'mod.history',
 });
 
+// Register evidence capture modal parser
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_capture:'),
+  parse: () => 'mod.evidence.capture',
+});
+
+// Register evidence pending action select menu parser
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_pending:'),
+  parse: () => 'mod.evidence.capture',
+});
+
+// Register evidence pending mod action modal parser
+registerCustomIdParser({
+  matches: (customId) => customId.startsWith('evidence_pending_mod:'),
+  parse: (customId) => {
+    // Format: evidence_pending_mod:v1:{action}:{targetId}:{snapshotId}
+    const parts = customId.split(':');
+    if (parts.length < 3) return null;
+    const action = parts[2];
+    const actionMap: Record<string, string> = {
+      warn: 'mod.warn',
+      kick: 'mod.kick',
+      ban: 'mod.ban',
+      softban: 'mod.softban',
+      timeout: 'mod.timeout',
+      tempban: 'mod.tempban',
+    };
+    return action ? (actionMap[action] ?? null) : null;
+  },
+});
+
 // Core Resolution Functions
 
 /**
@@ -159,11 +191,17 @@ export function resolveCommandKey(interaction: ChatInputCommandInteraction): str
 }
 
 /**
+ * Context menu command name to resource key mapping.
+ */
+const CONTEXT_MENU_KEY_MAP: Record<string, string> = {
+  'Capture Evidence': 'mod.evidence.capture',
+};
+
+/**
  * Resolve the resource key from a context menu command interaction.
  */
 export function resolveContextMenuKey(interaction: ContextMenuCommandInteraction): string {
-  // Context menus use the command name directly as the key
-  return interaction.commandName;
+  return CONTEXT_MENU_KEY_MAP[interaction.commandName] ?? interaction.commandName;
 }
 
 /**

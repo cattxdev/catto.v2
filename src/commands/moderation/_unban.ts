@@ -81,7 +81,9 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
           result.caseNumber,
           '_unban > handleUnban > buildModActionSuccess(82): result.caseNumber'
         ),
-        options.reason ?? 'No reason provided'
+        options.reason ?? 'No reason provided',
+        undefined,
+        { guildId: options.guild.id }
       )
     );
   } catch (error) {

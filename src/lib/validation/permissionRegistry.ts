@@ -45,6 +45,12 @@ const CATEGORIES: Record<string, CategoryDefinition> = {
     description: 'Voice channel moderation commands',
     parentCategory: 'moderation',
   },
+  'moderation.evidence': {
+    key: 'moderation.evidence',
+    displayName: 'Evidence Management',
+    description: 'Evidence upload, viewing, and management',
+    parentCategory: 'moderation',
+  },
   admin: {
     key: 'admin',
     displayName: 'Administration',
@@ -226,6 +232,30 @@ const COMMANDS: Record<string, CommandDefinition> = {
     categories: ['moderation', 'moderation.voice'],
     fallbackDiscordPermission: PermissionFlagsBits.ModerateMembers,
   },
+  'mod.evidence.add': {
+    key: 'mod.evidence.add',
+    displayName: 'Add Evidence',
+    categories: ['moderation', 'moderation.evidence'],
+    fallbackDiscordPermission: PermissionFlagsBits.ModerateMembers,
+  },
+  'mod.evidence.list': {
+    key: 'mod.evidence.list',
+    displayName: 'List Evidence',
+    categories: ['moderation', 'moderation.evidence'],
+    fallbackDiscordPermission: PermissionFlagsBits.ModerateMembers,
+  },
+  'mod.evidence.view': {
+    key: 'mod.evidence.view',
+    displayName: 'View Evidence',
+    categories: ['moderation', 'moderation.evidence'],
+    fallbackDiscordPermission: PermissionFlagsBits.ModerateMembers,
+  },
+  'mod.evidence.capture': {
+    key: 'mod.evidence.capture',
+    displayName: 'Capture Evidence',
+    categories: ['moderation', 'moderation.evidence'],
+    fallbackDiscordPermission: PermissionFlagsBits.ModerateMembers,
+  },
   'mod.setup': {
     key: 'mod.setup',
     displayName: 'Mod Setup',
@@ -274,6 +304,8 @@ const COMMAND_SHORTCUTS: Record<string, string> = {
   context: 'mod.context',
   mutes: 'mod.mutes',
   note: 'mod.note.add',
+  evidence: 'mod.evidence.add',
+  capture: 'mod.evidence.capture',
   setup: 'mod.setup',
 };
 

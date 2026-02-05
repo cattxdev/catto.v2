@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { ModAction } from '@prisma/client';
+import { CaseStatus, type Prisma } from '@prisma/client';
 import { parseModAction } from '#lib/validation/modAction.js';
 
 export class ModerationCasesRoute extends Route {
@@ -39,34 +39,52 @@ export class ModerationCasesRoute extends Route {
       const actionStr = request.query?.action as string | undefined;
       const targetId = request.query?.targetId as string | undefined;
       const moderatorId = request.query?.moderatorId as string | undefined;
+      const statusStr = request.query?.status as string | undefined;
+      const sort = (request.query?.sort as string) ?? 'createdAt';
+      const order = (request.query?.order as string) ?? 'desc';
+      const search = request.query?.search as string | undefined;
 
       const skip = (page - 1) * limit;
 
       // Validate and convert action string to enum
       const action = actionStr ? parseModAction(actionStr.toUpperCase()) : undefined;
 
-      // Build where clause
-      const where: {
-        guildId: string;
-        action?: ModAction;
-        targetId?: string;
-        moderatorId?: string;
-      } = { guildId };
+      // Validate status
+      const status =
+        statusStr && statusStr.toUpperCase() in CaseStatus
+          ? (statusStr.toUpperCase() as CaseStatus)
+          : undefined;
+
+      // Validate sort field
+      const allowedSortFields = ['createdAt', 'caseNumber', 'updatedAt'];
+      const sortField = allowedSortFields.includes(sort) ? sort : 'createdAt';
+      const sortOrder = order === 'asc' ? ('asc' as const) : ('desc' as const);
+
+      // Build where clause with proper typing
+      const where: Prisma.ModCaseWhereInput = { guildId };
 
       if (action) where.action = action;
       if (targetId) where.targetId = targetId;
       if (moderatorId) where.moderatorId = moderatorId;
+      if (status) where.status = status;
+      if (search) {
+        where.OR = [
+          { targetTag: { contains: search, mode: 'insensitive' } },
+          { targetId: { contains: search } },
+          { moderatorTag: { contains: search, mode: 'insensitive' } },
+        ];
+      }
 
-      // Get total count
-      const total = await this.container.prisma.modCase.count({ where });
-
-      // Get cases
-      const cases = await this.container.prisma.modCase.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      });
+      // Get total count and cases in parallel
+      const [total, cases] = await Promise.all([
+        this.container.prisma.modCase.count({ where }),
+        this.container.prisma.modCase.findMany({
+          where,
+          orderBy: { [sortField]: sortOrder },
+          skip,
+          take: limit,
+        }),
+      ]);
 
       return response.json({
         total,

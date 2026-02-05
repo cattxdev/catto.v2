@@ -7,7 +7,7 @@ This section documents the core systems that power the bot.
 | System | Location | Purpose |
 |--------|----------|---------|
 | [BotClient](bot-client.md) | `src/structures/BotClient.ts` | Main client with Prisma/Redis |
-| [Permission Gate](permission-gate.md) | `src/lib/validation/Gate.ts` | Custom RBAC system |
+| [Gate System](gate-system.md) | `src/lib/validation/Gate.ts` | Authorization, rate limits, resource guards |
 | [Discord Components](discord-components.md) | `src/lib/discord/` | UI components and builders |
 | [Logging](logging.md) | `src/lib/logging.ts` | Audit logging with BullMQ |
 

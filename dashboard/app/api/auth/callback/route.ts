@@ -3,19 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const token = searchParams.get('token');
+  const sessionId = searchParams.get('sessionId');
 
-  console.log('Auth callback received, token:', token ? 'present' : 'missing');
-
-  if (!token) {
-    // No token, redirect to home
-    console.log('No token, redirecting to home');
+  // Legacy raw-token param — force re-login
+  if (!sessionId) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Set the cookie
   const cookieStore = await cookies();
-  cookieStore.set('DASHBOARD_AUTH', token, {
+
+  // Set the auth cookie (value is now the opaque session ID)
+  cookieStore.set('DASHBOARD_AUTH', sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -23,8 +21,14 @@ export async function GET(request: NextRequest) {
     path: '/',
   });
 
-  console.log('Cookie set, redirecting to /guilds');
+  // Check if there's a redirect destination (e.g. set by /mod/login)
+  const redirectCookie = cookieStore.get('mod_auth_redirect');
+  const destination = redirectCookie?.value || '/guilds';
 
-  // Redirect to guilds page
-  return NextResponse.redirect(new URL('/guilds', request.url));
+  // Clear the redirect cookie
+  if (redirectCookie) {
+    cookieStore.delete('mod_auth_redirect');
+  }
+
+  return NextResponse.redirect(new URL(destination, request.url));
 }

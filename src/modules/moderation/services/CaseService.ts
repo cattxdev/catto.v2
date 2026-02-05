@@ -2,6 +2,7 @@ import { container } from '@sapphire/framework';
 import { CaseStatus, Prisma } from '@prisma/client';
 import type { GuildId, CaseNumber, ModCaseUpdateInput, CaseEvidence } from '../domain/types.js';
 import { asCaseNumber } from '../domain/types.js';
+import { publish, ModEventChannels } from '#lib/redis.js';
 
 /**
  * Service result type for case operations
@@ -54,6 +55,13 @@ export class CaseService {
         where: { guildId_caseNumber: { guildId, caseNumber } },
         data: { reason },
       });
+
+      await publish(ModEventChannels.MOD_EVENTS(guildId), {
+        type: 'case:updated',
+        guildId,
+        caseNumber,
+        data: { field: 'reason' },
+      }).catch(() => {});
 
       return { success: true, caseNumber: asCaseNumber(caseNumber) };
     } catch (error) {
@@ -125,6 +133,13 @@ export class CaseService {
         data: { status },
       });
 
+      await publish(ModEventChannels.MOD_EVENTS(guildId), {
+        type: 'case:closed',
+        guildId,
+        caseNumber,
+        data: { status },
+      }).catch(() => {});
+
       return { success: true, caseNumber: asCaseNumber(caseNumber) };
     } catch (error) {
       container.logger.error('Failed to close case:', error);
@@ -160,6 +175,13 @@ export class CaseService {
         where: { guildId_caseNumber: { guildId, caseNumber } },
         data: { status: CaseStatus.OPEN },
       });
+
+      await publish(ModEventChannels.MOD_EVENTS(guildId), {
+        type: 'case:updated',
+        guildId,
+        caseNumber,
+        data: { status: 'OPEN' },
+      }).catch(() => {});
 
       return { success: true, caseNumber: asCaseNumber(caseNumber) };
     } catch (error) {
@@ -261,6 +283,12 @@ export class CaseService {
           }),
         },
       });
+
+      await publish(ModEventChannels.MOD_EVENTS(guildId), {
+        type: 'case:updated',
+        guildId,
+        caseNumber,
+      }).catch(() => {});
 
       return { success: true, caseNumber: asCaseNumber(caseNumber) };
     } catch (error) {

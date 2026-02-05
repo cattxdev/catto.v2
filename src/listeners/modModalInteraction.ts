@@ -1,6 +1,5 @@
 import { Listener, container } from '@sapphire/framework';
 import { Events, type Interaction, MessageFlags, type ModalSubmitInteraction } from 'discord.js';
-import { ModAction } from '@prisma/client';
 import {
   decodeReasonModalCustomId,
   decodeDurationModalCustomId,
@@ -11,406 +10,224 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '#root/modules/moderation/discord/panelBuilder.js';
-import { moderationService } from '#root/modules/moderation/services/ModerationService.js';
+import { getActionDisplay } from '#root/modules/moderation/discord/modlog.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
-import { muteService } from '#root/modules/moderation/services/MuteService.js';
-import { asGuildId, asUserId, asDuration } from '#root/modules/moderation/domain/types.js';
 import {
-  logModAction,
-  notifyUser,
-  formatDuration,
-} from '#root/modules/moderation/discord/embeds/presets.js';
+  buildModerationContext,
+  executeWarn,
+  executeKick,
+  executeBan,
+  executeSoftban,
+  executeTimeout,
+  executeTempban,
+  executeMute,
+} from '#root/modules/moderation/handlers/index.js';
+import {
+  asGuildId,
+  asUserId,
+  ACTION_TO_MOD_ACTION,
+  MUTE_ACTION_TO_MOD_ACTION,
+} from '#root/modules/moderation/domain/types.js';
+import type { ModActionResult } from '#root/modules/moderation/domain/types.js';
+import { formatDuration } from '#root/modules/moderation/discord/embeds/presets.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { isFail, type Gate } from '#lib/validation/Gate.js';
 import { getGate } from '#lib/validation/gateContext.js';
 import { resolveModalKey } from '#lib/validation/resourceKey.js';
+import { ephemeralError } from '#lib/discord/index.js';
 
 export class ModModalInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
-    super(context, {
-      ...options,
-      event: Events.InteractionCreate,
-    });
+    super(context, { ...options, event: Events.InteractionCreate });
   }
 
   public async run(interaction: Interaction) {
-    if (!interaction.isModalSubmit()) return;
-    if (!interaction.guildId) return;
+    if (!interaction.isModalSubmit() || !interaction.guildId) return;
 
-    const customId = interaction.customId;
-
-    // Check which type of modal this is
-    if (customId.startsWith('modreason:')) {
-      await this.handleReasonModal(interaction);
-    } else if (customId.startsWith('moddur:')) {
-      await this.handleDurationModal(interaction);
-    } else if (customId.startsWith('modnote:')) {
-      await this.handleNoteModal(interaction);
-    } else if (customId.startsWith('modmute:')) {
-      await this.handleMuteModal(interaction);
-    }
+    const id = interaction.customId;
+    if (id.startsWith('modreason:')) await this.handleReasonModal(interaction);
+    else if (id.startsWith('moddur:')) await this.handleDurationModal(interaction);
+    else if (id.startsWith('modnote:')) await this.handleNoteModal(interaction);
+    else if (id.startsWith('modmute:')) await this.handleMuteModal(interaction);
   }
 
-  /**
-   * Get Gate from context and validate authorization for the modal action.
-   * Returns null and sends error if validation fails.
-   */
-  private async requireGateWithAuth(interaction: ModalSubmitInteraction): Promise<Gate | null> {
+  /** Gate + auth check for modal interactions */
+  private async requireGate(interaction: ModalSubmitInteraction): Promise<Gate | null> {
     const gate = getGate(interaction);
     if (!gate) {
-      await interaction.reply({
-        content: '❌ This can only be used in a server.',
-        flags: MessageFlags.Ephemeral,
-      });
+      await interaction.reply(ephemeralError('This can only be used in a server.'));
       return null;
     }
-
-    // Resolve resource key from modal custom ID
-    const resourceKey = resolveModalKey(interaction);
-    if (!resourceKey) {
-      await interaction.reply({
-        content: '❌ Invalid modal data.',
-        flags: MessageFlags.Ephemeral,
-      });
+    const key = resolveModalKey(interaction);
+    if (!key) {
+      await interaction.reply(ephemeralError('Invalid modal data.'));
       return null;
     }
-
-    // Check authorization
-    if (!(await gate.requireAuth(resourceKey))) {
-      return null; // Error already sent by requireAuth
-    }
-
+    if (!(await gate.requireAuth(key))) return null;
     return gate;
   }
 
+  /** Send a V2 error response to a deferred interaction */
+  private async editError(interaction: ModalSubmitInteraction, message: string): Promise<void> {
+    await interaction.editReply({
+      components: [buildModActionError(message).build()],
+      flags: MessageFlags.IsComponentsV2,
+    });
+  }
+
+  // ─── Reason Modal (warn, kick, ban, softban) ───
+
   private async handleReasonModal(interaction: ModalSubmitInteraction): Promise<void> {
     const parsed = decodeReasonModalCustomId(interaction.customId);
-    if (!parsed) {
-      await interaction.reply({
-        content: '❌ Invalid modal data.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    if (!parsed) return void (await interaction.reply(ephemeralError('Invalid modal data.')));
 
-    // Use shared Gate context with auth check
-    const gate = await this.requireGateWithAuth(interaction);
+    const gate = await this.requireGate(interaction);
     if (!gate) return;
 
     const reason = interaction.fields.getTextInputValue('reason');
-    const targetId = parsed.targetId;
-    const action = parsed.action;
-
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const target = await interaction.client.users.fetch(targetId).catch(() => null);
+      const ctxResult = await buildModerationContext({
+        guild: gate.guild,
+        targetId: parsed.targetId,
+        moderator: interaction.user,
+        moderatorMember: gate.member,
+        reason,
+      });
+      if (!ctxResult.success) return void (await this.editError(interaction, ctxResult.error));
 
-      if (!target) {
-        const errorContainer = buildModActionError('User not found.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
+      const ctx = ctxResult.context;
+      if (ctx.targetMember) {
+        const h = gate.checkHierarchy(ctx.targetMember);
+        if (isFail(h)) return void (await this.editError(interaction, h.message));
       }
 
-      // Determine if member is required for this action
-      const requiresMember = action === 'kick' || action === 'warn';
-      const targetMember = await gate.resolveMember(targetId);
-
-      if (requiresMember && !targetMember) {
-        const errorContainer = buildModActionError('User is not in this server.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-
-      // Check hierarchy if we have a member
-      if (targetMember) {
-        const hierarchyResult = gate.checkHierarchy(targetMember);
-        if (isFail(hierarchyResult)) {
-          const errorContainer = buildModActionError(hierarchyResult.message);
-          await interaction.editReply({
-            components: [errorContainer.build()],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
-      }
-
-      // Execute the action
-      let result;
-      let modAction: ModAction;
-
-      switch (action) {
+      let result: ModActionResult;
+      switch (parsed.action) {
         case 'warn':
-          modAction = ModAction.WARN;
-          result = await moderationService.warn(gate.guild, target, interaction.user, reason);
+          result = await executeWarn(ctx);
           break;
         case 'kick':
-          modAction = ModAction.KICK;
-          result = await moderationService.kick(
-            gate.guild,
-            ensureNonNull(targetMember, 'handleReasonModal > targetMember for kick'),
-            interaction.user,
-            reason
-          );
+          result = await executeKick(ctx);
           break;
         case 'ban':
-          modAction = ModAction.BAN;
-          // Notify before ban
-          await notifyUser(target, ModAction.BAN, gate.guild, reason);
-          result = await moderationService.ban(gate.guild, target, interaction.user, reason, false);
+          result = await executeBan(ctx);
           break;
         case 'softban':
-          modAction = ModAction.SOFTBAN;
-          // Notify before softban
-          if (targetMember) {
-            await notifyUser(target, ModAction.SOFTBAN, gate.guild, reason);
-          }
-          result = await moderationService.softban(gate.guild, target, interaction.user, reason);
+          result = await executeSoftban(ctx);
           break;
-        default: {
-          const errorContainer = buildModActionError('Unknown action.');
-          await interaction.editReply({
-            components: [errorContainer.build()],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+        default:
+          return void (await this.editError(interaction, 'Unknown action.'));
       }
 
-      if (!result.success) {
-        const errorContainer = buildModActionError(result.error ?? 'Action failed.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+      if (!result.success)
+        return void (await this.editError(interaction, result.error ?? 'Action failed.'));
 
-      // Log to mod channel
-      await logModAction(
-        gate.guild,
-        modAction,
-        target,
-        interaction.user,
-        reason,
-        ensureNonNull(result.caseNumber, 'handleReasonModal > result.caseNumber for log')
-      );
-
-      // Show success
-      const successContainer = buildModActionSuccess(
-        action.toUpperCase(),
-        target,
-        ensureNonNull(result.caseNumber, 'handleReasonModal > result.caseNumber for success'),
-        reason
-      );
+      const caseNumber = ensureNonNull(result.caseNumber, 'reason modal > caseNumber');
+      const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
+      const success = buildModActionSuccess(label, ctx.target, caseNumber, reason, undefined, {
+        guildId: gate.guild.id,
+      });
       await interaction.editReply({
-        components: [successContainer.build()],
+        components: [success.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
-      container.logger.error('[ModModalInteraction] Error in reason modal:', error);
-      const errorContainer = buildModActionError('An unexpected error occurred.');
-      await interaction
-        .editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        })
-        .catch(() => {});
+      container.logger.error('[ModModal] Error in reason modal:', error);
+      await this.editError(interaction, 'An unexpected error occurred.').catch(() => {});
     }
   }
 
+  // ─── Duration Modal (timeout, tempban) ───
+
   private async handleDurationModal(interaction: ModalSubmitInteraction): Promise<void> {
     const parsed = decodeDurationModalCustomId(interaction.customId);
-    if (!parsed) {
-      await interaction.reply({
-        content: '❌ Invalid modal data.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    if (!parsed) return void (await interaction.reply(ephemeralError('Invalid modal data.')));
 
-    // Use shared Gate context with auth check
-    const gate = await this.requireGateWithAuth(interaction);
+    const gate = await this.requireGate(interaction);
     if (!gate) return;
 
     const durationStr = interaction.fields.getTextInputValue('duration');
     const reason = interaction.fields.getTextInputValue('reason');
-    const targetId = parsed.targetId;
-    const action = parsed.action;
 
-    // Validate duration
-    const validation = safeParse(durationStringSchema, durationStr);
-    if (!validation.success) {
-      await interaction.reply({
-        content: '❌ Invalid duration format. Use formats like: 10m, 1h, 1d',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
+    if (!safeParse(durationStringSchema, durationStr).success) {
+      return void (await interaction.reply(
+        ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 1d')
+      ));
     }
-
-    const durationSeconds = parseDurationToSeconds(durationStr);
-    if (!durationSeconds) {
-      await interaction.reply({
-        content: '❌ Invalid duration.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    const duration = parseDurationToSeconds(durationStr);
+    if (!duration) return void (await interaction.reply(ephemeralError('Invalid duration.')));
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const target = await interaction.client.users.fetch(targetId).catch(() => null);
+      const ctxResult = await buildModerationContext({
+        guild: gate.guild,
+        targetId: parsed.targetId,
+        moderator: interaction.user,
+        moderatorMember: gate.member,
+        reason,
+        duration,
+      });
+      if (!ctxResult.success) return void (await this.editError(interaction, ctxResult.error));
 
-      if (!target) {
-        const errorContainer = buildModActionError('User not found.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
+      const ctx = ctxResult.context;
+      if (ctx.targetMember) {
+        const h = gate.checkHierarchy(ctx.targetMember);
+        if (isFail(h)) return void (await this.editError(interaction, h.message));
       }
 
-      // Resolve target member
-      const targetMember = await gate.resolveMember(targetId);
-
-      // For timeout, user must be in server
-      if (action === 'timeout' && !targetMember) {
-        const errorContainer = buildModActionError('User is not in this server.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-
-      // Check hierarchy if we have a member
-      if (targetMember) {
-        const hierarchyResult = gate.checkHierarchy(targetMember);
-        if (isFail(hierarchyResult)) {
-          const errorContainer = buildModActionError(hierarchyResult.message);
-          await interaction.editReply({
-            components: [errorContainer.build()],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
-      }
-
-      // Execute the action
-      let result;
-      let modAction: ModAction;
-
-      switch (action) {
+      let result: ModActionResult;
+      switch (parsed.action) {
         case 'timeout':
-          modAction = ModAction.TIMEOUT;
-          // Notify before timeout
-          if (targetMember) {
-            await notifyUser(target, ModAction.TIMEOUT, gate.guild, reason, durationSeconds);
-          }
-          result = await moderationService.timeout(
-            gate.guild,
-            ensureNonNull(targetMember, 'handleDurationModal > targetMember for timeout'),
-            interaction.user,
-            reason,
-            durationSeconds
-          );
+          result = await executeTimeout(ctx);
           break;
         case 'tempban':
-          modAction = ModAction.TEMPBAN;
-          // Notify before tempban
-          if (targetMember) {
-            await notifyUser(target, ModAction.TEMPBAN, gate.guild, reason, durationSeconds);
-          }
-          result = await moderationService.tempban(
-            gate.guild,
-            target,
-            interaction.user,
-            reason,
-            durationSeconds
-          );
+          result = await executeTempban(ctx);
           break;
-        default: {
-          const errorContainer = buildModActionError('Unknown action.');
-          await interaction.editReply({
-            components: [errorContainer.build()],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+        default:
+          return void (await this.editError(interaction, 'Unknown action.'));
       }
 
-      if (!result.success) {
-        const errorContainer = buildModActionError(result.error ?? 'Action failed.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+      if (!result.success)
+        return void (await this.editError(interaction, result.error ?? 'Action failed.'));
 
-      // Log to mod channel
-      await logModAction(
-        gate.guild,
-        modAction,
-        target,
-        interaction.user,
+      const caseNumber = ensureNonNull(result.caseNumber, 'duration modal > caseNumber');
+      const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
+      const success = buildModActionSuccess(
+        label,
+        ctx.target,
+        caseNumber,
         reason,
-        ensureNonNull(result.caseNumber, 'handleDurationModal > result.caseNumber for log'),
-        durationSeconds
-      );
-
-      // Show success
-      const durationText = formatDuration(durationSeconds);
-      const successContainer = buildModActionSuccess(
-        action.toUpperCase(),
-        target,
-        ensureNonNull(result.caseNumber, 'handleDurationModal > result.caseNumber for success'),
-        reason,
-        durationText
+        formatDuration(duration),
+        { guildId: gate.guild.id }
       );
       await interaction.editReply({
-        components: [successContainer.build()],
+        components: [success.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
-      container.logger.error('[ModModalInteraction] Error in duration modal:', error);
-      const errorContainer = buildModActionError('An unexpected error occurred.');
-      await interaction
-        .editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        })
-        .catch(() => {});
+      container.logger.error('[ModModal] Error in duration modal:', error);
+      await this.editError(interaction, 'An unexpected error occurred.').catch(() => {});
     }
   }
 
+  // ─── Note Modal ───
+
   private async handleNoteModal(interaction: ModalSubmitInteraction): Promise<void> {
     const parsed = decodeNoteModalCustomId(interaction.customId);
-    if (!parsed) {
-      await interaction.reply({
-        content: '❌ Invalid modal data.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    if (!parsed) return void (await interaction.reply(ephemeralError('Invalid modal data.')));
 
-    // Use shared Gate context with auth check
-    const gate = await this.requireGateWithAuth(interaction);
+    const gate = await this.requireGate(interaction);
     if (!gate) return;
 
     const note = interaction.fields.getTextInputValue('note');
     const tagsStr = interaction.fields.getTextInputValue('tags');
-    const targetId = parsed.targetId;
-
     const tags = tagsStr
       ? tagsStr
           .split(',')
@@ -421,25 +238,19 @@ export class ModModalInteractionListener extends Listener {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const target = await interaction.client.users.fetch(targetId).catch(() => null);
-
-      if (!target) {
-        await interaction.editReply({ content: '❌ User not found.' });
-        return;
-      }
+      const target = await interaction.client.users.fetch(parsed.targetId).catch(() => null);
+      if (!target) return void (await interaction.editReply({ content: '❌ User not found.' }));
 
       const result = await notesService.addNote({
         guildId: asGuildId(gate.guild.id),
-        userId: asUserId(targetId),
+        userId: asUserId(parsed.targetId),
         createdById: asUserId(interaction.user.id),
         note,
         tags,
       });
 
-      if (!result.success) {
-        await interaction.editReply({ content: `❌ ${result.error}` });
-        return;
-      }
+      if (!result.success)
+        return void (await interaction.editReply({ content: `❌ ${result.error}` }));
 
       const tagsDisplay =
         tags.length > 0 ? `\n**Tags:** ${tags.map((t) => `\`${t}\``).join(', ')}` : '';
@@ -447,179 +258,70 @@ export class ModModalInteractionListener extends Listener {
         content: `Note added for **${target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``,
       });
     } catch (error) {
-      container.logger.error('[ModModalInteraction] Error in note modal:', error);
-      await interaction
-        .editReply({
-          content: 'An unexpected error occurred.',
-        })
-        .catch(() => {});
+      container.logger.error('[ModModal] Error in note modal:', error);
+      await interaction.editReply({ content: 'An unexpected error occurred.' }).catch(() => {});
     }
   }
 
+  // ─── Mute Modal ───
+
   private async handleMuteModal(interaction: ModalSubmitInteraction): Promise<void> {
     const parsed = decodeMuteModalCustomId(interaction.customId);
-    if (!parsed) {
-      await interaction.reply({
-        content: 'Invalid modal data.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
+    if (!parsed) return void (await interaction.reply(ephemeralError('Invalid modal data.')));
 
-    // Use shared Gate context with auth check
-    const gate = await this.requireGateWithAuth(interaction);
+    const gate = await this.requireGate(interaction);
     if (!gate) return;
 
     const durationStr = interaction.fields.getTextInputValue('duration');
     const reason = interaction.fields.getTextInputValue('reason');
-    const targetId = parsed.targetId;
-    const muteType = parsed.action;
 
-    // Validate duration if provided
-    let durationSeconds: number | undefined;
-    if (durationStr && durationStr.trim().length > 0) {
-      const validation = safeParse(durationStringSchema, durationStr);
-      if (!validation.success) {
-        await interaction.reply({
-          content: 'Invalid duration format. Use formats like: 10m, 1h, 1d',
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
+    let duration;
+    if (durationStr?.trim()) {
+      if (!safeParse(durationStringSchema, durationStr).success) {
+        return void (await interaction.reply(
+          ephemeralError('Invalid duration format. Use formats like: 10m, 1h, 1d')
+        ));
       }
-      durationSeconds = parseDurationToSeconds(durationStr) ?? undefined;
+      duration = parseDurationToSeconds(durationStr) ?? undefined;
     }
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
-      const target = await interaction.client.users.fetch(targetId).catch(() => null);
-
-      if (!target) {
-        const errorContainer = buildModActionError('User not found.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-
-      // Resolve target member (required for mutes)
-      const targetMember = await gate.resolveMember(targetId);
-      if (!targetMember) {
-        const errorContainer = buildModActionError('User is not in this server.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-
-      // Check hierarchy
-      const hierarchyResult = gate.checkHierarchy(targetMember);
-      if (isFail(hierarchyResult)) {
-        const errorContainer = buildModActionError(hierarchyResult.message);
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
-
-      // Execute the mute action
-      let result;
-      let modAction: ModAction;
-
-      const muteInput = {
-        guildId: asGuildId(gate.guild.id),
-        userId: asUserId(targetId),
-        createdById: asUserId(interaction.user.id),
+      const ctxResult = await buildModerationContext({
+        guild: gate.guild,
+        targetId: parsed.targetId,
+        moderator: interaction.user,
+        moderatorMember: gate.member,
         reason,
-        duration: durationSeconds ? asDuration(durationSeconds) : undefined,
-      };
+        duration,
+      });
+      if (!ctxResult.success) return void (await this.editError(interaction, ctxResult.error));
 
-      switch (muteType) {
-        case 'text':
-          modAction = ModAction.MUTE_TEXT;
-          result = await muteService.muteText(
-            gate.guild,
-            targetMember,
-            asUserId(interaction.user.id),
-            interaction.user.tag,
-            muteInput
-          );
-          break;
-        case 'voice':
-          modAction = ModAction.MUTE_VOICE;
-          result = await muteService.muteVoice(
-            gate.guild,
-            targetMember,
-            asUserId(interaction.user.id),
-            interaction.user.tag,
-            muteInput
-          );
-          break;
-        case 'both':
-          modAction = ModAction.MUTE_BOTH;
-          result = await muteService.muteBoth(
-            gate.guild,
-            targetMember,
-            asUserId(interaction.user.id),
-            interaction.user.tag,
-            muteInput
-          );
-          break;
-        default: {
-          const errorContainer = buildModActionError('Unknown mute type.');
-          await interaction.editReply({
-            components: [errorContainer.build()],
-            flags: MessageFlags.IsComponentsV2,
-          });
-          return;
-        }
+      const ctx = ctxResult.context;
+      if (ctx.targetMember) {
+        const h = gate.checkHierarchy(ctx.targetMember);
+        if (isFail(h)) return void (await this.editError(interaction, h.message));
       }
 
-      if (!result.success) {
-        const errorContainer = buildModActionError(result.error ?? 'Mute action failed.');
-        await interaction.editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        });
-        return;
-      }
+      const result = await executeMute(ctx, parsed.action);
+      if (!result.success)
+        return void (await this.editError(interaction, result.error ?? 'Mute action failed.'));
 
-      // Log to mod channel
-      await logModAction(
-        gate.guild,
-        modAction,
-        target,
-        interaction.user,
-        reason,
-        ensureNonNull(result.caseNumber, 'handleMuteModal > result.caseNumber for log'),
-        durationSeconds
-      );
-
-      // Show success
-      const durationText = durationSeconds ? formatDuration(durationSeconds) : undefined;
-      const successContainer = buildModActionSuccess(
-        `MUTE ${muteType.toUpperCase()}`,
-        target,
-        ensureNonNull(result.caseNumber, 'handleMuteModal > result.caseNumber for success'),
-        reason,
-        durationText
-      );
+      const caseNumber = ensureNonNull(result.caseNumber, 'mute modal > caseNumber');
+      const durationText = duration ? formatDuration(duration) : undefined;
+      const modAction = MUTE_ACTION_TO_MOD_ACTION[parsed.action]!;
+      const label = getActionDisplay(modAction).label;
+      const success = buildModActionSuccess(label, ctx.target, caseNumber, reason, durationText, {
+        guildId: gate.guild.id,
+      });
       await interaction.editReply({
-        components: [successContainer.build()],
+        components: [success.build()],
         flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
-      container.logger.error('[ModModalInteraction] Error in mute modal:', error);
-      const errorContainer = buildModActionError('An unexpected error occurred.');
-      await interaction
-        .editReply({
-          components: [errorContainer.build()],
-          flags: MessageFlags.IsComponentsV2,
-        })
-        .catch(() => {});
+      container.logger.error('[ModModal] Error in mute modal:', error);
+      await this.editError(interaction, 'An unexpected error occurred.').catch(() => {});
     }
   }
 }

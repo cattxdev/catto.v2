@@ -1,11 +1,88 @@
 import { container } from '@sapphire/framework';
 import { z } from 'zod';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 function assertRedisAvailable(): void {
   const redis = (container as unknown as { redis?: unknown }).redis;
   if (!redis) {
     throw new Error('Redis is not configured (container.redis is missing).');
   }
+}
+
+// ─── Token Encryption ───
+// Encrypts sensitive tokens for storage in Redis
+const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY;
+if (!ENCRYPTION_KEY && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'SESSION_ENCRYPTION_KEY environment variable is required in production. Generate one with: openssl rand -hex 32'
+  );
+}
+// Use a short fallback that will fail key derivation if accidentally used in production.
+// This ensures NODE_ENV misconfiguration doesn't silently allow weak encryption.
+const RESOLVED_ENCRYPTION_KEY = ENCRYPTION_KEY || 'dev-only';
+const ALGORITHM = 'aes-256-gcm';
+
+function encryptToken(token: string): string {
+  const salt = randomBytes(16);
+  const iv = randomBytes(16);
+  const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+
+  let encrypted = cipher.update(token, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+
+  // Format: salt:iv:authTag:encrypted
+  return `${salt.toString('hex')}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+/** Track legacy format usage for migration monitoring */
+let legacyFormatWarningLogged = false;
+
+function decryptToken(encrypted: string): string {
+  const parts = encrypted.split(':');
+
+  // 4 parts = current format (salt:iv:authTag:encrypted)
+  // 3 parts = legacy format (iv:authTag:encrypted) with hardcoded salt
+  if (parts.length !== 4 && parts.length !== 3) {
+    throw new Error('Invalid encrypted token format');
+  }
+
+  let salt: Buffer;
+  let iv: Buffer;
+  let authTag: Buffer;
+  let ciphertext: string;
+
+  if (parts.length === 4) {
+    salt = Buffer.from(parts[0]!, 'hex');
+    iv = Buffer.from(parts[1]!, 'hex');
+    authTag = Buffer.from(parts[2]!, 'hex');
+    ciphertext = parts[3]!;
+  } else {
+    // DEPRECATED: Legacy format with hardcoded salt - insecure, schedule for removal
+    // This format allows rainbow table attacks and should be migrated
+    if (!legacyFormatWarningLogged) {
+      container.logger.warn(
+        '[typedCache] DEPRECATED: Detected legacy token encryption format with hardcoded salt. ' +
+          'This is insecure and will be removed in a future version. ' +
+          'Users with legacy sessions should re-authenticate to migrate to the secure format.'
+      );
+      legacyFormatWarningLogged = true;
+    }
+    salt = Buffer.from('salt');
+    iv = Buffer.from(parts[0]!, 'hex');
+    authTag = Buffer.from(parts[1]!, 'hex');
+    ciphertext = parts[2]!;
+  }
+
+  const key = scryptSync(RESOLVED_ENCRYPTION_KEY, salt, 32);
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+
+  let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
 }
 
 /**
@@ -160,4 +237,46 @@ export const CacheKey = {
     `voiceMuteAll:ignore:${guildId}:${channelId}`,
   voiceMuteAllAffected: (guildId: string, channelId: string) =>
     `voiceMuteAll:affected:${guildId}:${channelId}`,
+  // Discord OAuth token cache keys (keyed by truncated SHA-256 hash of token)
+  discordUser: (tokenHash: string) => `discord:user:${tokenHash}`,
+  discordGuilds: (tokenHash: string) => `discord:guilds:${tokenHash}`,
+  // Server-side session keys
+  session: (sessionId: string) => `session:${sessionId}`,
+  // Evidence cache keys
+  evidence: (evidenceId: string) => `evidence:${evidenceId}`,
+  caseEvidence: (guildId: string, caseNumber: number) => `evidence:case:${guildId}:${caseNumber}`,
+  guildEvidence: (guildId: string) => `evidence:guild:${guildId}`,
 } as const;
+
+/** Zod schema for server-side session data stored in Redis (tokens are encrypted) */
+export const SessionDataSchema = z.object({
+  accessToken: z.string(), // Encrypted
+  refreshToken: z.string().optional(), // Encrypted
+  userId: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+});
+
+export type SessionData = z.infer<typeof SessionDataSchema>;
+
+/**
+ * Encrypt tokens in session data before storage
+ */
+export function encryptSessionData(data: SessionData): SessionData {
+  return {
+    ...data,
+    accessToken: encryptToken(data.accessToken),
+    refreshToken: data.refreshToken ? encryptToken(data.refreshToken) : undefined,
+  };
+}
+
+/**
+ * Decrypt tokens in session data after retrieval
+ */
+export function decryptSessionData(data: SessionData): SessionData {
+  return {
+    ...data,
+    accessToken: decryptToken(data.accessToken),
+    refreshToken: data.refreshToken ? decryptToken(data.refreshToken) : undefined,
+  };
+}
