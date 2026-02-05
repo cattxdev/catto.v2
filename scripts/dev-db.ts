@@ -1,6 +1,13 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
 import { execSync, spawn, type ChildProcess } from 'child_process';
+import { existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const WATERMARK_SERVICE_PORT = 3847;
 
 async function startDevEnvironment() {
   if (process.env.NODE_ENV === 'production') {
@@ -13,6 +20,7 @@ async function startDevEnvironment() {
   let postgresContainer: StartedPostgreSqlContainer | null = null;
   let redisContainer: StartedRedisContainer | null = null;
   let devProcess: ChildProcess | null = null;
+  let watermarkProcess: ChildProcess | null = null;
   let isCleaningUp = false;
 
   const cleanup = async () => {
@@ -23,6 +31,10 @@ async function startDevEnvironment() {
 
     if (devProcess && !devProcess.killed) {
       devProcess.kill('SIGTERM');
+    }
+
+    if (watermarkProcess && !watermarkProcess.killed) {
+      watermarkProcess.kill('SIGTERM');
     }
 
     await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
@@ -59,7 +71,49 @@ async function startDevEnvironment() {
     const redisPort = redis.getMappedPort(6379).toString();
 
     console.log(`PostgreSQL: ${dbUrl}`);
-    console.log(`Redis: ${redisHost}:${redisPort}\n`);
+    console.log(`Redis: ${redisHost}:${redisPort}`);
+
+    // Start watermark service if available
+    const watermarkBinary = join(__dirname, '..', 'services', 'watermark-rs', 'target', 'release', 'watermark-service');
+    let watermarkServiceUrl = '';
+
+    if (existsSync(watermarkBinary)) {
+      console.log('Starting watermark service...');
+      watermarkProcess = spawn(watermarkBinary, [], {
+        env: {
+          ...process.env,
+          WATERMARK_SERVICE_PORT: WATERMARK_SERVICE_PORT.toString(),
+          RUST_LOG: 'info',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      watermarkProcess.stdout?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.log(`[watermark] ${line}`);
+      });
+
+      watermarkProcess.stderr?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.error(`[watermark] ${line}`);
+      });
+
+      watermarkProcess.on('error', (err) => {
+        console.warn(`Watermark service failed to start: ${err.message}`);
+        console.warn('Falling back to Sharp-based watermarking');
+      });
+
+      // Wait a moment for the service to start
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      watermarkServiceUrl = `http://localhost:${WATERMARK_SERVICE_PORT}`;
+      console.log(`Watermark service: ${watermarkServiceUrl}`);
+    } else {
+      console.log('Watermark service binary not found (run: cd services/watermark-rs && cargo build --release)');
+      console.log('Using Sharp-based watermarking fallback');
+    }
+
+    console.log('');
 
     const env = {
       ...process.env,
@@ -67,6 +121,7 @@ async function startDevEnvironment() {
       REDIS_HOST: redisHost,
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
+      ...(watermarkServiceUrl && { WATERMARK_SERVICE_URL: watermarkServiceUrl }),
     };
 
     // Setup database

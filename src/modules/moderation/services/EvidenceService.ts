@@ -590,6 +590,50 @@ export class EvidenceService {
   }
 
   /**
+   * NH-5: Full-text search for evidence.
+   * Uses PostgreSQL tsvector for efficient text search.
+   */
+  async searchEvidence(
+    guildId: string,
+    searchQuery: string,
+    options: { page?: number; limit?: number } = {}
+  ): Promise<{ evidence: Evidence[]; total: number; page: number; totalPages: number }> {
+    if (!searchQuery || searchQuery.length < 2) {
+      return { evidence: [], total: 0, page: 1, totalPages: 1 };
+    }
+
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options.limit ?? 50));
+    const skip = (page - 1) * limit;
+
+    // Use raw query for full-text search with ranking
+    const evidence = await container.prisma.$queryRaw<Evidence[]>`
+      SELECT e.*, row_to_json(s.*) as snapshot
+      FROM evidence e
+      LEFT JOIN message_snapshots s ON e."snapshotId" = s.id
+      WHERE e."guildId" = ${guildId}
+        AND e.search_vector @@ plainto_tsquery('english', ${searchQuery})
+      ORDER BY ts_rank(e.search_vector, plainto_tsquery('english', ${searchQuery})) DESC
+      LIMIT ${limit} OFFSET ${skip}
+    `;
+
+    const countResult = await container.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*) as count
+      FROM evidence
+      WHERE "guildId" = ${guildId}
+        AND search_vector @@ plainto_tsquery('english', ${searchQuery})
+    `;
+    const total = Number(countResult[0]?.count ?? 0);
+
+    return {
+      evidence,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
    * Get a single evidence item by ID.
    */
   async getEvidenceById(evidenceId: string): Promise<Evidence | null> {
@@ -730,6 +774,132 @@ export class EvidenceService {
     }).catch(() => {});
 
     return amendment;
+  }
+
+  // ─── Video Timestamps (NH-4) ───
+
+  /**
+   * Add a timestamp annotation to video evidence.
+   * Timestamps are stored in the metadata.timestamps array.
+   */
+  async addTimestamp(
+    evidenceId: string,
+    timestamp: {
+      time: number; // seconds
+      note: string;
+      addedById: string;
+      addedByTag: string;
+    }
+  ): Promise<Evidence> {
+    const evidence = await container.prisma.evidence.findUnique({
+      where: { id: evidenceId },
+    });
+    if (!evidence) throw new Error('Evidence not found');
+
+    if (evidence.type !== 'VIDEO') {
+      throw new Error('Timestamps can only be added to video evidence');
+    }
+
+    // Get existing timestamps or initialize
+    const metadata = (evidence.metadata as Record<string, unknown>) ?? {};
+    const timestamps =
+      (metadata.timestamps as Array<{
+        id: string;
+        time: number;
+        note: string;
+        addedBy: string;
+        addedByTag: string;
+        createdAt: string;
+      }>) ?? [];
+
+    // Add new timestamp
+    const newTimestamp = {
+      id: randomUUID(),
+      time: timestamp.time,
+      note: timestamp.note,
+      addedBy: timestamp.addedById,
+      addedByTag: timestamp.addedByTag,
+      createdAt: new Date().toISOString(),
+    };
+    timestamps.push(newTimestamp);
+
+    // Sort by time
+    timestamps.sort((a, b) => a.time - b.time);
+
+    // Update evidence
+    const updated = await container.prisma.evidence.update({
+      where: { id: evidenceId },
+      data: {
+        metadata: { ...metadata, timestamps } as import('@prisma/client').Prisma.InputJsonValue,
+      },
+    });
+
+    // Create amendment record
+    await container.prisma.evidenceAmendment.create({
+      data: {
+        evidenceId,
+        amendedById: timestamp.addedById,
+        amendedByTag: timestamp.addedByTag,
+        action: 'TIMESTAMP_ADDED',
+        newValue: JSON.stringify(newTimestamp),
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Remove a timestamp from video evidence.
+   */
+  async removeTimestamp(
+    evidenceId: string,
+    timestampId: string,
+    removedById: string,
+    removedByTag: string
+  ): Promise<Evidence> {
+    const evidence = await container.prisma.evidence.findUnique({
+      where: { id: evidenceId },
+    });
+    if (!evidence) throw new Error('Evidence not found');
+
+    const metadata = (evidence.metadata as Record<string, unknown>) ?? {};
+    const timestamps =
+      (metadata.timestamps as Array<{
+        id: string;
+        time: number;
+        note: string;
+        addedBy: string;
+        addedByTag: string;
+        createdAt: string;
+      }>) ?? [];
+
+    const removedTimestamp = timestamps.find((t) => t.id === timestampId);
+    if (!removedTimestamp) throw new Error('Timestamp not found');
+
+    const filtered = timestamps.filter((t) => t.id !== timestampId);
+
+    const updated = await container.prisma.evidence.update({
+      where: { id: evidenceId },
+      data: {
+        metadata: {
+          ...metadata,
+          timestamps: filtered,
+        } as import('@prisma/client').Prisma.InputJsonValue,
+      },
+    });
+
+    // Create amendment record
+    await container.prisma.evidenceAmendment.create({
+      data: {
+        evidenceId,
+        amendedById: removedById,
+        amendedByTag: removedByTag,
+        action: 'TIMESTAMP_REMOVED',
+        previousValue: JSON.stringify(removedTimestamp),
+      },
+    });
+
+    return updated;
   }
 
   // ─── View URLs ───

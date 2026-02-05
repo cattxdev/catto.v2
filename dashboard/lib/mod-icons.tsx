@@ -40,6 +40,25 @@ import {
   IconBrush,
   IconPlayerPlay,
   IconPlayerPause,
+  IconLayoutGrid,
+  IconList,
+  IconArrowsExchange,
+  IconChartBar,
+  IconUser,
+  IconCalendar,
+  IconUserPlus,
+  IconUserMinus,
+  IconShare,
+  IconColumns,
+  IconLayoutRows,
+  IconLock,
+  IconUsers,
+  IconTrophy,
+  IconMicrophone,
+  IconBan,
+  IconMessage,
+  IconStarFilled,
+  IconLogout,
   type Icon,
 } from '@tabler/icons-react';
 import type { EvidenceType } from '@/lib/mod-types';
@@ -63,6 +82,11 @@ export const AMENDMENT_ACTION_ICONS: Record<string, Icon> = {
   UNFLAGGED: IconFlagOff,
   STATUS_CHANGED: IconRefresh,
 };
+
+// Aliases for convenience
+const IconGrid = IconLayoutGrid;
+const IconCompare = IconArrowsExchange;
+const IconRows = IconLayoutRows;
 
 export {
   IconPhoto,
@@ -106,4 +130,27 @@ export {
   IconBrush,
   IconPlayerPlay,
   IconPlayerPause,
+  IconLayoutGrid,
+  IconList,
+  IconArrowsExchange,
+  IconChartBar,
+  IconUser,
+  IconCalendar,
+  IconUserPlus,
+  IconUserMinus,
+  IconShare,
+  IconColumns,
+  IconLayoutRows,
+  IconLock,
+  IconUsers,
+  IconTrophy,
+  IconMicrophone,
+  IconBan,
+  IconMessage,
+  IconStarFilled,
+  IconLogout,
+  // Aliases
+  IconGrid,
+  IconCompare,
+  IconRows,
 };

@@ -26,6 +26,20 @@ services:
     networks:
       - catto-network
 
+  watermark:
+    build:
+      context: ./services/watermark-rs
+      dockerfile: Dockerfile
+    container_name: catto-watermark
+    restart: unless-stopped
+    environment:
+      WATERMARK_SERVICE_PORT: 3847
+      RUST_LOG: info
+    ports:
+      - '${WATERMARK_SERVICE_PORT:-3847}:3847'
+    networks:
+      - catto-network
+
   bot:
     build:
       context: .
@@ -39,9 +53,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      WATERMARK_SERVICE_URL: http://watermark:3847
     depends_on:
       - postgres
       - redis
+      - watermark
     networks:
       - catto-network
 

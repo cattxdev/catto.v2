@@ -2,6 +2,8 @@ import { Route } from '@sapphire/plugin-api';
 import { ApiGate } from '#lib/validation/ApiGate.js';
 import { RateLimitGate } from '#lib/validation/RateLimitGate.js';
 import { evidenceService } from '#modules/moderation/services/EvidenceService.js';
+import { accessLogService } from '#modules/moderation/services/AccessLogService.js';
+import { watermarkService } from '#modules/moderation/services/WatermarkService.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 
 export class EvidenceDetailRoute extends Route {
@@ -45,9 +47,13 @@ export class EvidenceDetailRoute extends Route {
       if (request.method === 'GET') {
         switch (subAction) {
           case 'view-url':
-            return this.handleViewUrl(gate, evidenceId, response);
+            return this.handleViewUrl(gate, evidenceId, guildId, request, response);
           case 'download-url':
-            return this.handleDownloadUrl(gate, evidenceId, response);
+            return this.handleDownloadUrl(gate, evidenceId, guildId, request, response);
+          case 'watermarked-download':
+            return this.handleWatermarkedDownload(gate, evidenceId, guildId, request, response);
+          case 'access-log':
+            return this.handleAccessLog(evidenceId, request, response);
           case 'history':
             return this.handleHistory(evidenceId, response);
           default:
@@ -56,7 +62,17 @@ export class EvidenceDetailRoute extends Route {
       }
 
       if (request.method === 'POST') {
-        return this.handleAmend(gate, evidenceId, request, response);
+        const body = ((await parseRequestBody(request)) ?? {}) as Record<string, unknown>;
+        const postAction = body?.action as string;
+
+        switch (postAction) {
+          case 'add-timestamp':
+            return this.handleAddTimestamp(gate, evidenceId, body, response);
+          case 'remove-timestamp':
+            return this.handleRemoveTimestamp(gate, evidenceId, body, response);
+          default:
+            return this.handleAmend(gate, evidenceId, body, response);
+        }
       }
 
       return response.status(405).json({ error: 'Method not allowed' });
@@ -81,7 +97,13 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=view-url
    * Get a presigned view URL for an evidence file.
    */
-  private async handleViewUrl(gate: ApiGate, evidenceId: string, response: Route.Response) {
+  private async handleViewUrl(
+    gate: ApiGate,
+    evidenceId: string,
+    guildId: string,
+    request: Route.Request,
+    response: Route.Response
+  ) {
     try {
       const evidence = await evidenceService.getEvidenceById(evidenceId);
       if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
@@ -93,6 +115,16 @@ export class EvidenceDetailRoute extends Route {
       if (!caseAuth.ok) {
         return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
       }
+
+      // Log access (NH-9)
+      await accessLogService.logAccess(
+        evidenceId,
+        guildId,
+        gate.userId,
+        gate.member.user.tag,
+        'VIEW',
+        request
+      );
 
       const url = await evidenceService.generateViewUrl(evidenceId);
       return response.json({ url });
@@ -106,7 +138,13 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=download-url
    * Get a presigned download URL for an evidence file.
    */
-  private async handleDownloadUrl(gate: ApiGate, evidenceId: string, response: Route.Response) {
+  private async handleDownloadUrl(
+    gate: ApiGate,
+    evidenceId: string,
+    guildId: string,
+    request: Route.Request,
+    response: Route.Response
+  ) {
     try {
       const evidence = await evidenceService.getEvidenceById(evidenceId);
       if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
@@ -119,12 +157,102 @@ export class EvidenceDetailRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
       }
 
+      // Log access (NH-9)
+      await accessLogService.logAccess(
+        evidenceId,
+        guildId,
+        gate.userId,
+        gate.member.user.tag,
+        'DOWNLOAD',
+        request
+      );
+
       const url = await evidenceService.generateDownloadUrl(evidenceId);
       return response.json({ url });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate download URL';
       return response.status(400).json({ error: message });
     }
+  }
+
+  /**
+   * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=watermarked-download
+   * Get a watermarked download URL (NH-8).
+   */
+  private async handleWatermarkedDownload(
+    gate: ApiGate,
+    evidenceId: string,
+    guildId: string,
+    request: Route.Request,
+    response: Route.Response
+  ) {
+    try {
+      const evidence = await evidenceService.getEvidenceById(evidenceId);
+      if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+
+      // Verify user has access to this specific case
+      const caseAuth = await gate.checkResourceAuth('mod.evidence.view', {
+        caseId: evidence.caseId,
+      });
+      if (!caseAuth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
+      }
+
+      // Check if watermarking is enabled for this guild (default: true)
+      const config = await this.container.prisma.modConfig.findUnique({
+        where: { guildId },
+      });
+      const watermarkEnabled = config?.watermarkDownloads ?? true;
+
+      if (!watermarkEnabled) {
+        // Fall back to regular download
+        await accessLogService.logAccess(
+          evidenceId,
+          guildId,
+          gate.userId,
+          gate.member.user.tag,
+          'DOWNLOAD',
+          request
+        );
+        const url = await evidenceService.generateDownloadUrl(evidenceId);
+        return response.json({ url, watermarked: false });
+      }
+
+      // Log access
+      await accessLogService.logAccess(
+        evidenceId,
+        guildId,
+        gate.userId,
+        gate.member.user.tag,
+        'DOWNLOAD',
+        request,
+        { watermarked: true }
+      );
+
+      // Get watermarked URL
+      const watermarkText = config?.watermarkText ?? gate.member.user.tag;
+      const result = await watermarkService.getWatermarkedUrl(evidenceId, guildId, watermarkText);
+      return response.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate watermarked URL';
+      return response.status(400).json({ error: message });
+    }
+  }
+
+  /**
+   * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=access-log
+   * Get access log for evidence (NH-9).
+   */
+  private async handleAccessLog(
+    evidenceId: string,
+    request: Route.Request,
+    response: Route.Response
+  ) {
+    const page = parseInt((request.query?.page as string) ?? '1');
+    const limit = parseInt((request.query?.limit as string) ?? '50');
+
+    const result = await accessLogService.getAccessLog(evidenceId, { page, limit });
+    return response.json(result);
   }
 
   /**
@@ -138,18 +266,17 @@ export class EvidenceDetailRoute extends Route {
 
   /**
    * POST /guilds/{guildId}/moderation/evidence/{evidenceId}
-   * Add an amendment to the evidence item.
+   * Add an amendment to the evidence item (default action).
    */
   private async handleAmend(
     gate: ApiGate,
     evidenceId: string,
-    request: Route.Request,
+    body: Record<string, unknown>,
     response: Route.Response
   ) {
     const addAuth = await gate.checkAuth('mod.evidence.add');
     if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
 
-    const body = ((await parseRequestBody(request)) ?? {}) as Record<string, unknown>;
     const { action, newValue, reason } = body as {
       action: string;
       newValue?: string;
@@ -172,5 +299,66 @@ export class EvidenceDetailRoute extends Route {
     });
 
     return response.json(amendment);
+  }
+
+  /**
+   * POST /guilds/{guildId}/moderation/evidence/{evidenceId} with action=add-timestamp
+   * Add a timestamp annotation to video evidence (NH-4).
+   */
+  private async handleAddTimestamp(
+    gate: ApiGate,
+    evidenceId: string,
+    body: Record<string, unknown>,
+    response: Route.Response
+  ) {
+    const addAuth = await gate.checkAuth('mod.evidence.add');
+    if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
+
+    const { time, note } = body as { time: number; note: string };
+
+    if (typeof time !== 'number' || time < 0) {
+      return response.status(400).json({ error: 'time is required and must be >= 0' });
+    }
+    if (!note || typeof note !== 'string') {
+      return response.status(400).json({ error: 'note is required' });
+    }
+
+    const evidence = await evidenceService.addTimestamp(evidenceId, {
+      time,
+      note,
+      addedById: gate.userId,
+      addedByTag: gate.member.user.tag,
+    });
+
+    return response.json(evidence);
+  }
+
+  /**
+   * POST /guilds/{guildId}/moderation/evidence/{evidenceId} with action=remove-timestamp
+   * Remove a timestamp annotation from video evidence (NH-4).
+   */
+  private async handleRemoveTimestamp(
+    gate: ApiGate,
+    evidenceId: string,
+    body: Record<string, unknown>,
+    response: Route.Response
+  ) {
+    const addAuth = await gate.checkAuth('mod.evidence.add');
+    if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
+
+    const { timestampId } = body as { timestampId: string };
+
+    if (!timestampId) {
+      return response.status(400).json({ error: 'timestampId is required' });
+    }
+
+    const evidence = await evidenceService.removeTimestamp(
+      evidenceId,
+      timestampId,
+      gate.userId,
+      gate.member.user.tag
+    );
+
+    return response.json(evidence);
   }
 }

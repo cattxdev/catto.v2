@@ -7,6 +7,7 @@ This guide will help you set up and run Catto v2.x locally for development.
 - [Node.js](https://nodejs.org/) v20 or higher
 - [pnpm](https://pnpm.io/) v10+
 - [Docker](https://www.docker.com/) and Docker Compose (recommended)
+- [Rust](https://rustup.rs/) (optional, for watermark microservice)
 
 ## Installation
 
@@ -23,7 +24,19 @@ cd catto
 pnpm install
 ```
 
-### 3. Configure Environment
+### 3. Build Watermark Service (Optional)
+
+For faster evidence image processing, build the Rust watermark microservice:
+
+```bash
+cd services/watermark-rs
+cargo build --release
+cd ../..
+```
+
+If not built, the bot will use Sharp-based watermarking as a fallback.
+
+### 4. Configure Environment
 
 Copy the example environment file:
 
@@ -57,6 +70,7 @@ Fill in the required values:
 | `B2_BUCKET_ID` | B2 bucket ID | No |
 | `EVIDENCE_HMAC_SECRET` | Secret for evidence HMAC signing (min 32 chars) | No |
 | `DASHBOARD_URL` | Moderator dashboard URL (default: `http://localhost:3000`) | No |
+| `WATERMARK_SERVICE_URL` | Watermark microservice URL (default: `http://localhost:3847`) | No |
 
 ## Running the Bot
 
@@ -70,6 +84,7 @@ pnpm dev:env
 
 The script will:
 - Start PostgreSQL and Redis containers
+- Start the watermark microservice (if built)
 - Apply migrations and seed the database
 - Start the bot in watch mode
 
@@ -136,6 +151,8 @@ catto/
 │   ├── app/mod/              # Mod dashboard pages
 │   ├── components/mod/       # Evidence gallery, viewer, upload
 │   └── lib/                  # Services and types
+├── services/
+│   └── watermark-rs/         # Rust watermark microservice
 ├── prisma/
 │   ├── schema.prisma         # Database schema
 │   └── seed.ts               # Database seeder

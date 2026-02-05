@@ -21,6 +21,8 @@ import {
   IconMessageReport,
   IconMenu2,
   IconX,
+  IconChartBar,
+  IconUsers,
 } from '@/lib/mod-icons';
 import type { Icon } from '@tabler/icons-react';
 
@@ -37,6 +39,8 @@ const MODERATION_NAV: NavItem[] = [
   { id: 'overview', label: 'Overview', href: '', icon: IconLayoutDashboard, shortcut: 'G O' },
   { id: 'cases', label: 'Cases', href: '/cases', icon: IconGavel, shortcut: 'G C' },
   { id: 'evidence', label: 'All Evidence', href: '/evidence', icon: IconFolder, shortcut: 'G E' },
+  { id: 'users', label: 'Users', href: '/users', icon: IconUsers, shortcut: 'G U' },
+  { id: 'analytics', label: 'Analytics', href: '/analytics', icon: IconChartBar, shortcut: 'G A' },
   { id: 'audit', label: 'Audit Log', href: '/audit', icon: IconClipboardList, disabled: true },
   { id: 'reports', label: 'Reports', href: '/reports', icon: IconMessageReport, disabled: true },
 ];
@@ -236,6 +240,16 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
           case 'E':
             e.preventDefault();
             router.push(`/mod/${guildId}/evidence`);
+            break;
+          case 'u':
+          case 'U':
+            e.preventDefault();
+            router.push(`/mod/${guildId}/users`);
+            break;
+          case 'a':
+          case 'A':
+            e.preventDefault();
+            router.push(`/mod/${guildId}/analytics`);
             break;
           case 's':
           case 'S':

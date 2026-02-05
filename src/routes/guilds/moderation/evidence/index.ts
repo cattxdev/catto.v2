@@ -59,9 +59,17 @@ export class EvidenceRoute extends Route {
         return response.json({ evidence, summary });
       }
 
-      // Otherwise, return guild-wide paginated evidence
+      // NH-5: Full-text search
+      const search = (request.query?.search as string) || undefined;
       const page = parseInt((request.query?.page as string) ?? '1');
       const limit = parseInt((request.query?.limit as string) ?? '50');
+
+      if (search && search.length >= 2) {
+        const result = await evidenceService.searchEvidence(guildId, search, { page, limit });
+        return response.json(result);
+      }
+
+      // Otherwise, return guild-wide paginated evidence
       const type = (request.query?.type as string) || undefined;
       const status = (request.query?.status as string) || undefined;
       const filterCaseNumber = parseInt((request.query?.case as string) ?? '0') || undefined;

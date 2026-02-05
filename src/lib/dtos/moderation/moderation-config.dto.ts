@@ -26,4 +26,14 @@ export class UpdateModConfigDto {
   @IsOptional()
   @Type(() => Boolean)
   autoModEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  watermarkDownloads?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @ValidateIf((o) => o.watermarkText !== null)
+  watermarkText?: string | null;
 }

@@ -16,6 +16,7 @@ This document describes the system architecture of Catto v2.x and how components
 | Dashboard | Next.js 15 | Moderator web UI |
 | Validation | Zod | Schema validation |
 | i18n | i18next | Internationalization |
+| Microservices | Rust (axum) | High-performance image processing |
 
 ## System Overview
 
@@ -66,6 +67,12 @@ This document describes the system architecture of Catto v2.x and how components
 │  Backblaze B2 │                        │   Dashboard   │
 │  (Evidence)   │                        │  (Next.js)    │
 └───────────────┘                        └───────────────┘
+        ▲
+        │
+┌───────────────┐
+│   Watermark   │
+│   (Rust)      │
+└───────────────┘
 ```
 
 ## Request Flow
@@ -327,6 +334,31 @@ BullMQ handles scheduled tasks:
 | `TempbanScheduler` | Scheduled unbans |
 | `MuteScheduler` | Scheduled unmutes |
 | `LoggingService` | Async log writing |
+
+## Microservices
+
+### Watermark Service (Rust)
+
+Located in `services/watermark-rs/`, this is a high-performance image watermarking microservice written in Rust. It handles applying watermarks to evidence images before download.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check |
+| `/watermark` | POST | Apply watermark to image |
+
+**Features:**
+- 10-50x faster than Node.js Sharp-based watermarking
+- ~100MB less memory usage (no browser process)
+- Supports PNG, JPEG, and WebP formats
+- Automatic fallback to Sharp if service is unavailable
+
+**Building:**
+```bash
+cd services/watermark-rs
+cargo build --release
+```
+
+The service is automatically started by `pnpm dev:env` if the binary exists.
 
 ## Related Documentation
 
