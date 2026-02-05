@@ -4,6 +4,7 @@ import { RateLimitGate } from '#lib/validation/RateLimitGate.js';
 import { evidenceService } from '#modules/moderation/services/EvidenceService.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 import { fetchOGData } from '#lib/utils/ogFetcher.js';
+import { CONFIG } from '#config.js';
 
 export class EvidenceRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -160,7 +161,11 @@ export class EvidenceRoute extends Route {
     }
 
     // Check weight limit
-    const weight = await gate.checkWeight('evidence.upload', sizeBytes, 2 * 1024 * 1024 * 1024); // 2GB default max
+    const weight = await gate.checkWeight(
+      'evidence.upload',
+      sizeBytes,
+      CONFIG.MAX_EVIDENCE_UPLOAD_BYTES
+    );
     if (!weight.ok)
       return response
         .status(413)
@@ -298,6 +303,11 @@ export class EvidenceRoute extends Route {
 
     if (!evidenceIds || !Array.isArray(evidenceIds) || evidenceIds.length === 0) {
       return response.status(400).json({ error: 'evidenceIds array is required' });
+    }
+    if (evidenceIds.length > 25) {
+      return response.status(400).json({
+        error: 'Too many evidence IDs. Maximum 25 items per bulk operation.',
+      });
     }
     if (!amendAction) {
       return response.status(400).json({ error: 'amendAction is required' });

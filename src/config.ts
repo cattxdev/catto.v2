@@ -58,6 +58,18 @@ const envSchema = z.object({
 
   // Dashboard URL for evidence links
   DASHBOARD_URL: z.string().optional().default('http://localhost:3000'),
+
+  // Evidence limits
+  MAX_EVIDENCE_UPLOAD_BYTES: z
+    .string()
+    .optional()
+    .default(String(2 * 1024 * 1024 * 1024)) // 2GB default
+    .transform((val) => parseInt(val, 10)),
+  MAX_SNAPSHOT_MESSAGES: z
+    .string()
+    .optional()
+    .default('100')
+    .transform((val) => parseInt(val, 10)),
 });
 
 // Validate and parse environment variables

@@ -1,5 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
-import { CaseStatus } from '@prisma/client';
+import { CaseStatus, type Prisma } from '@prisma/client';
 import { parseModAction } from '#lib/validation/modAction.js';
 
 export class ModerationCasesRoute extends Route {
@@ -60,8 +60,8 @@ export class ModerationCasesRoute extends Route {
       const sortField = allowedSortFields.includes(sort) ? sort : 'createdAt';
       const sortOrder = order === 'asc' ? ('asc' as const) : ('desc' as const);
 
-      // Build where clause
-      const where: Record<string, unknown> = { guildId };
+      // Build where clause with proper typing
+      const where: Prisma.ModCaseWhereInput = { guildId };
 
       if (action) where.action = action;
       if (targetId) where.targetId = targetId;

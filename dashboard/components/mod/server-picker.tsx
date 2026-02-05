@@ -207,16 +207,10 @@ export function ServerPicker({ session }: ServerPickerProps) {
         {/* Header */}
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <h1
-              className="text-3xl font-bold tracking-tight text-[var(--mono-white)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
+            <h1 className="font-mono text-3xl font-bold tracking-tight text-[var(--mono-white)]">
               Moderation Dashboard
             </h1>
-            <p
-              className="mt-1 text-sm text-[var(--mod-text-muted)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
+            <p className="font-mono mt-1 text-sm text-[var(--mod-text-muted)]">
               {modGuilds.length} server{modGuilds.length !== 1 ? 's' : ''} with mod access
             </p>
           </div>
@@ -225,10 +219,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
 
         {/* Your activity section */}
         <div className="mb-10 mt-6">
-          <p
-            className="mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
+          <p className="font-mono mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
             YOUR ACTIVITY
           </p>
 
@@ -249,10 +240,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
               <div className="grid gap-4 lg:grid-cols-2">
                 {/* Activity timeline */}
                 <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4">
-                  <h3
-                    className="mb-3 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  >
+                  <h3 className="font-mono mb-3 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
                     YOUR ACTIONS (30 DAYS)
                   </h3>
                   {userStats.activityTimeline.some((d) => d.count > 0) ? (
@@ -287,10 +275,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
 
                 {/* Action breakdown + top servers */}
                 <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4">
-                  <h3
-                    className="mb-3 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  >
+                  <h3 className="font-mono mb-3 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
                     ACTION BREAKDOWN
                   </h3>
                   {userStats.actionBreakdown.length > 0 ? (
@@ -300,10 +285,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
                         const pct = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
                         return (
                           <div key={item.action} className="flex items-center gap-2">
-                            <span
-                              className="w-16 shrink-0 text-right text-[11px] text-[var(--mod-text-muted)]"
-                              style={{ fontFamily: 'var(--font-mono)' }}
-                            >
+                            <span className="font-mono w-16 shrink-0 text-right text-[11px] text-[var(--mod-text-muted)]">
                               {item.action}
                             </span>
                             <div className="h-3 flex-1 bg-[var(--mono-800)]">
@@ -312,10 +294,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <span
-                              className="w-6 shrink-0 text-right text-[11px] text-[var(--mod-text-dim)]"
-                              style={{ fontFamily: 'var(--font-mono)' }}
-                            >
+                            <span className="font-mono w-6 shrink-0 text-right text-[11px] text-[var(--mod-text-dim)]">
                               {item.count}
                             </span>
                           </div>
@@ -331,10 +310,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
                   {/* Top servers */}
                   {userStats.topGuilds.length > 0 && (
                     <>
-                      <h3
-                        className="mb-2 mt-4 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-                        style={{ fontFamily: 'var(--font-mono)' }}
-                      >
+                      <h3 className="font-mono mb-2 mt-4 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
                         MOST ACTIVE IN
                       </h3>
                       <div className="space-y-1">
@@ -346,10 +322,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
                             <span className="truncate text-[var(--mod-text-muted)]">
                               {g.guildName}
                             </span>
-                            <span
-                              className="shrink-0 text-[var(--mod-text-dim)]"
-                              style={{ fontFamily: 'var(--font-mono)' }}
-                            >
+                            <span className="font-mono shrink-0 text-[var(--mod-text-dim)]">
                               {g.count} action{g.count !== 1 ? 's' : ''}
                             </span>
                           </div>
@@ -379,8 +352,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search servers..."
-              className="w-full border border-[var(--mod-border)] bg-[var(--mod-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
+              className="font-mono w-full border border-[var(--mod-border)] bg-[var(--mod-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
             />
           </div>
           <button
@@ -395,10 +367,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
         {/* Recently visited */}
         {recentGuilds.length > 0 && !search.trim() && (
           <div className="mb-8">
-            <p
-              className="mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
+            <p className="font-mono mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
               RECENTLY VISITED
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -415,10 +384,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
         )}
 
         {/* All servers */}
-        <p
-          className="mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
+        <p className="font-mono mb-3 text-xs uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
           SERVERS
         </p>
 
@@ -448,7 +414,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
 
         {filtered.length === 0 && (
           <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-8 text-center">
-            <p className="text-[var(--mod-text-muted)]" style={{ fontFamily: 'var(--font-mono)' }}>
+            <p className="font-mono text-[var(--mod-text-muted)]">
               {search.trim()
                 ? 'No servers match your search.'
                 : 'No servers with moderation access found.'}
@@ -510,16 +476,10 @@ function GuildCard({
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] px-4 py-3">
-      <p
-        className="text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]"
-        style={{ fontFamily: 'var(--font-mono)' }}
-      >
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
         {label}
       </p>
-      <p
-        className="mt-1 text-xl font-bold text-[var(--mono-white)]"
-        style={{ fontFamily: 'var(--font-mono)' }}
-      >
+      <p className="font-mono mt-1 text-xl font-bold text-[var(--mono-white)]">
         {value}
       </p>
     </div>
@@ -529,10 +489,7 @@ function MiniStat({ label, value }: { label: string; value: number }) {
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="border border-[var(--mono-700)] bg-[var(--mono-900)] px-3 py-2"
-      style={{ fontFamily: 'var(--font-mono)' }}
-    >
+    <div className="font-mono border border-[var(--mono-700)] bg-[var(--mono-900)] px-3 py-2">
       <p className="text-xs text-[var(--mono-white)]">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-xs text-[var(--mono-300)]">

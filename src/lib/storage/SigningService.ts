@@ -8,6 +8,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import { Buffer } from 'node:buffer';
+import { container } from '@sapphire/framework';
 import { CONFIG } from '#config.js';
 
 export interface SigningMetadata {
@@ -26,10 +27,13 @@ export class SigningService {
 
     // Warn if storage appears configured but signing is not
     if (!this.isConfigured && CONFIG.B2_ENDPOINT && CONFIG.B2_KEY_ID) {
-      console.warn(
-        '[SigningService] WARNING: B2 storage is configured but EVIDENCE_HMAC_SECRET is missing or too short (min 32 chars). ' +
-          'Evidence uploads will not have integrity signatures. Set EVIDENCE_HMAC_SECRET in production.'
-      );
+      // Use setTimeout to ensure container.logger is available after initialization
+      setTimeout(() => {
+        container.logger.warn(
+          '[SigningService] B2 storage is configured but EVIDENCE_HMAC_SECRET is missing or too short (min 32 chars). ' +
+            'Evidence uploads will not have integrity signatures. Set EVIDENCE_HMAC_SECRET in production.'
+        );
+      }, 0);
     }
   }
 

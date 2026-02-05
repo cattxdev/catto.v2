@@ -6,7 +6,6 @@ import {
   type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
 } from 'discord.js';
-import { ModAction } from '@prisma/client';
 import {
   decodeEvidenceCaptureModalCustomId,
   decodeEvidencePendingActionCustomId,
@@ -34,7 +33,11 @@ import {
 } from '#root/modules/moderation/handlers/index.js';
 import { formatDuration } from '#root/modules/moderation/discord/embeds/presets.js';
 import type { ModActionResult } from '#root/modules/moderation/domain/types.js';
-import { asDuration, asGuildId } from '#root/modules/moderation/domain/types.js';
+import {
+  asDuration,
+  asGuildId,
+  ACTION_TO_MOD_ACTION,
+} from '#root/modules/moderation/domain/types.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
 import { safeParse, durationStringSchema } from '#lib/validation/zod.js';
 import { isFail, type Gate } from '#lib/validation/Gate.js';
@@ -49,15 +52,6 @@ import {
   paragraphModal,
   EMOJI,
 } from '#lib/discord/index.js';
-
-const ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
-  warn: ModAction.WARN,
-  kick: ModAction.KICK,
-  ban: ModAction.BAN,
-  softban: ModAction.SOFTBAN,
-  timeout: ModAction.TIMEOUT,
-  tempban: ModAction.TEMPBAN,
-};
 
 export class ModEvidenceInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

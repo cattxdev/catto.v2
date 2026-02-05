@@ -5,6 +5,28 @@ import type { Snowflake } from 'discord.js';
 export { ModAction, CaseStatus, AppealStatus, MuteType };
 
 /**
+ * Mapping from lowercase action strings to ModAction enum values.
+ * Used by interaction listeners to convert user-selected actions.
+ */
+export const ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
+  warn: ModAction.WARN,
+  kick: ModAction.KICK,
+  ban: ModAction.BAN,
+  softban: ModAction.SOFTBAN,
+  timeout: ModAction.TIMEOUT,
+  tempban: ModAction.TEMPBAN,
+};
+
+/**
+ * Mapping from mute action strings to ModAction enum values.
+ */
+export const MUTE_ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
+  text: ModAction.MUTE_TEXT,
+  voice: ModAction.MUTE_VOICE,
+  both: ModAction.MUTE_BOTH,
+};
+
+/**
  * Branded type for Discord Snowflake IDs
  * This provides compile-time safety without runtime cost
  */

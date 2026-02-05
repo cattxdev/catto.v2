@@ -155,6 +155,7 @@ export function EvidenceUpload({ guildId, caseNumber, onUploadComplete }: Eviden
           ref={fileInputRef}
           type="file"
           multiple
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.json,.log,.csv"
           className="hidden"
           onChange={(e) => {
             if (e.target.files?.length) handleFiles(e.target.files);

@@ -41,11 +41,23 @@ export class CaseNoteService {
     return { notes, total };
   }
 
-  async deleteNote(noteId: string, _requesterId: string): Promise<void> {
+  async deleteNote(
+    noteId: string,
+    requesterId: string,
+    options?: { isAdmin?: boolean }
+  ): Promise<void> {
     const note = await container.prisma.caseNote.findUnique({
       where: { id: noteId },
     });
     if (!note) throw new Error('Note not found');
+
+    // Verify requester is the author or has admin permissions
+    const isAuthor = note.authorId === requesterId;
+    const canDelete = isAuthor || options?.isAdmin === true;
+
+    if (!canDelete) {
+      throw new Error('You can only delete your own notes');
+    }
 
     await container.prisma.caseNote.delete({
       where: { id: noteId },

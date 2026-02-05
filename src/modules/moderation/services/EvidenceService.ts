@@ -297,11 +297,19 @@ export class EvidenceService {
       collected = new Map([[msg.id, msg]]);
     }
 
-    const sortedMessages = [...collected.values()].sort(
+    let sortedMessages = [...collected.values()].sort(
       (a, b) => a.createdTimestamp - b.createdTimestamp
     );
 
     if (sortedMessages.length === 0) throw new Error('No messages found in the specified range');
+
+    // Cap the number of messages to prevent memory issues with large snapshots
+    if (sortedMessages.length > CONFIG.MAX_SNAPSHOT_MESSAGES) {
+      container.logger.warn(
+        `[EvidenceService] Snapshot capped from ${sortedMessages.length} to ${CONFIG.MAX_SNAPSHOT_MESSAGES} messages`
+      );
+      sortedMessages = sortedMessages.slice(0, CONFIG.MAX_SNAPSHOT_MESSAGES);
+    }
 
     // Look up case if caseNumber provided
     let modCase = null;
@@ -334,7 +342,10 @@ export class EvidenceService {
 
         if (storageService.isConfigured) {
           try {
-            const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
+            const response = await axios.get(attachment.url, {
+              responseType: 'arraybuffer',
+              timeout: 30000, // 30 second timeout to prevent hanging on slow/malicious URLs
+            });
             if (response.status === 200) {
               const buffer = Buffer.from(response.data);
               const key = StorageService.buildSnapshotMediaKey(
@@ -679,12 +690,29 @@ export class EvidenceService {
     } else if (params.action === 'TAGS_UPDATED' && params.newValue) {
       try {
         const tags = JSON.parse(params.newValue) as string[];
+
+        // Validate tags
+        const MAX_TAG_COUNT = 20;
+        const MAX_TAG_LENGTH = 50;
+        const TAG_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+        if (!Array.isArray(tags)) {
+          throw new Error('Tags must be an array');
+        }
+        if (tags.length > MAX_TAG_COUNT) {
+          throw new Error(`Maximum ${MAX_TAG_COUNT} tags allowed`);
+        }
+
+        const validatedTags = tags
+          .map((t) => String(t).trim().toLowerCase())
+          .filter((t) => t.length > 0 && t.length <= MAX_TAG_LENGTH && TAG_PATTERN.test(t));
+
         await container.prisma.evidence.update({
           where: { id: params.evidenceId },
-          data: { tags },
+          data: { tags: validatedTags },
         });
       } catch {
-        // Invalid JSON for tags, skip
+        // Invalid JSON or validation failed, skip
       }
     }
 

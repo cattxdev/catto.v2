@@ -1,6 +1,5 @@
 import { Listener, container } from '@sapphire/framework';
 import { Events, type Interaction, MessageFlags, type ModalSubmitInteraction } from 'discord.js';
-import { ModAction } from '@prisma/client';
 import {
   decodeReasonModalCustomId,
   decodeDurationModalCustomId,
@@ -23,7 +22,12 @@ import {
   executeTempban,
   executeMute,
 } from '#root/modules/moderation/handlers/index.js';
-import { asGuildId, asUserId } from '#root/modules/moderation/domain/types.js';
+import {
+  asGuildId,
+  asUserId,
+  ACTION_TO_MOD_ACTION,
+  MUTE_ACTION_TO_MOD_ACTION,
+} from '#root/modules/moderation/domain/types.js';
 import type { ModActionResult } from '#root/modules/moderation/domain/types.js';
 import { formatDuration } from '#root/modules/moderation/discord/embeds/presets.js';
 import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
@@ -33,21 +37,6 @@ import { isFail, type Gate } from '#lib/validation/Gate.js';
 import { getGate } from '#lib/validation/gateContext.js';
 import { resolveModalKey } from '#lib/validation/resourceKey.js';
 import { ephemeralError } from '#lib/discord/index.js';
-
-const ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
-  warn: ModAction.WARN,
-  kick: ModAction.KICK,
-  ban: ModAction.BAN,
-  softban: ModAction.SOFTBAN,
-  timeout: ModAction.TIMEOUT,
-  tempban: ModAction.TEMPBAN,
-};
-
-const MUTE_ACTION_TO_MOD_ACTION: Record<string, ModAction> = {
-  text: ModAction.MUTE_TEXT,
-  voice: ModAction.MUTE_VOICE,
-  both: ModAction.MUTE_BOTH,
-};
 
 export class ModModalInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

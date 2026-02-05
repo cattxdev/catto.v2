@@ -37,6 +37,9 @@ function encryptToken(token: string): string {
   return `${salt.toString('hex')}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 }
 
+/** Track legacy format usage for migration monitoring */
+let legacyFormatWarningLogged = false;
+
 function decryptToken(encrypted: string): string {
   const parts = encrypted.split(':');
 
@@ -57,7 +60,16 @@ function decryptToken(encrypted: string): string {
     authTag = Buffer.from(parts[2]!, 'hex');
     ciphertext = parts[3]!;
   } else {
-    // Legacy format: hardcoded salt
+    // DEPRECATED: Legacy format with hardcoded salt - insecure, schedule for removal
+    // This format allows rainbow table attacks and should be migrated
+    if (!legacyFormatWarningLogged) {
+      container.logger.warn(
+        '[typedCache] DEPRECATED: Detected legacy token encryption format with hardcoded salt. ' +
+          'This is insecure and will be removed in a future version. ' +
+          'Users with legacy sessions should re-authenticate to migrate to the secure format.'
+      );
+      legacyFormatWarningLogged = true;
+    }
     salt = Buffer.from('salt');
     iv = Buffer.from(parts[0]!, 'hex');
     authTag = Buffer.from(parts[1]!, 'hex');
@@ -230,6 +242,10 @@ export const CacheKey = {
   discordGuilds: (tokenHash: string) => `discord:guilds:${tokenHash}`,
   // Server-side session keys
   session: (sessionId: string) => `session:${sessionId}`,
+  // Evidence cache keys
+  evidence: (evidenceId: string) => `evidence:${evidenceId}`,
+  caseEvidence: (guildId: string, caseNumber: number) => `evidence:case:${guildId}:${caseNumber}`,
+  guildEvidence: (guildId: string) => `evidence:guild:${guildId}`,
 } as const;
 
 /** Zod schema for server-side session data stored in Redis (tokens are encrypted) */
