@@ -7,14 +7,7 @@ import { IconSearch } from '@/lib/mod-icons';
 import { IconLayoutGrid, IconLayoutList } from '@tabler/icons-react';
 import { AccountSwitcher } from './account-switcher';
 import { cacheGuildInfo } from '@/hooks/use-guild-info';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Guild {
   id: string;
@@ -72,17 +65,26 @@ function hasMod(guild: Guild): boolean {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  BAN: 'Ban', UNBAN: 'Unban', KICK: 'Kick', TIMEOUT: 'Timeout',
-  WARN: 'Warning', SOFTBAN: 'Softban', TEMPBAN: 'Tempban',
-  MUTE_TEXT: 'Mute (Text)', MUTE_VOICE: 'Mute (Voice)', MUTE_BOTH: 'Mute',
-  UNMUTE_TEXT: 'Unmute (Text)', UNMUTE_VOICE: 'Unmute (Voice)', UNMUTE_BOTH: 'Unmute',
+  BAN: 'Ban',
+  UNBAN: 'Unban',
+  KICK: 'Kick',
+  TIMEOUT: 'Timeout',
+  WARN: 'Warning',
+  SOFTBAN: 'Softban',
+  TEMPBAN: 'Tempban',
+  MUTE_TEXT: 'Mute (Text)',
+  MUTE_VOICE: 'Mute (Voice)',
+  MUTE_BOTH: 'Mute',
+  UNMUTE_TEXT: 'Unmute (Text)',
+  UNMUTE_VOICE: 'Unmute (Voice)',
+  UNMUTE_BOTH: 'Unmute',
 };
 
 export function ServerPicker({ session }: ServerPickerProps) {
   const { guilds, user } = session;
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode);
-  const [recentIds, setRecentIds] = useState<string[]>(getRecentGuilds);
+  const [recentIds] = useState<string[]>(getRecentGuilds);
   const modGuilds = useMemo(() => guilds.filter(hasMod), [guilds]);
 
   // Stabilize modGuilds reference to avoid refetching on parent re-renders
@@ -98,12 +100,15 @@ export function ServerPicker({ session }: ServerPickerProps) {
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      let allCases: { action: string; createdAt: string; guildId: string; moderatorId: string }[] = [];
+      let allCases: { action: string; createdAt: string; guildId: string; moderatorId: string }[] =
+        [];
 
       const guildSlice = currentModGuilds.slice(0, 5);
       const results = await Promise.allSettled(
         guildSlice.map((g) =>
-          fetch(`${BOT_API_URL}/api/guilds/${g.id}/moderation/cases?limit=200`, { credentials: 'include' })
+          fetch(`${BOT_API_URL}/api/guilds/${g.id}/moderation/cases?limit=200`, {
+            credentials: 'include',
+          })
             .then((r) => r.json())
             .then((data) => (data.cases || []).map((c: any) => ({ ...c, guildId: g.id })))
         )
@@ -164,7 +169,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
         topGuilds,
       } as UserModStats;
     },
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: false }
   );
 
   const toggleView = () => {
@@ -252,7 +257,10 @@ export function ServerPicker({ session }: ServerPickerProps) {
                   </h3>
                   {userStats.activityTimeline.some((d) => d.count > 0) ? (
                     <ResponsiveContainer width="100%" height={140}>
-                      <BarChart data={userStats.activityTimeline} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <BarChart
+                        data={userStats.activityTimeline}
+                        margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                      >
                         <XAxis
                           dataKey="label"
                           tick={{ fill: '#666666', fontSize: 9, fontFamily: 'var(--font-mono)' }}
@@ -331,9 +339,17 @@ export function ServerPicker({ session }: ServerPickerProps) {
                       </h3>
                       <div className="space-y-1">
                         {userStats.topGuilds.map((g) => (
-                          <div key={g.guildId} className="flex items-center justify-between text-xs">
-                            <span className="truncate text-[var(--mod-text-muted)]">{g.guildName}</span>
-                            <span className="shrink-0 text-[var(--mod-text-dim)]" style={{ fontFamily: 'var(--font-mono)' }}>
+                          <div
+                            key={g.guildId}
+                            className="flex items-center justify-between text-xs"
+                          >
+                            <span className="truncate text-[var(--mod-text-muted)]">
+                              {g.guildName}
+                            </span>
+                            <span
+                              className="shrink-0 text-[var(--mod-text-dim)]"
+                              style={{ fontFamily: 'var(--font-mono)' }}
+                            >
                               {g.count} action{g.count !== 1 ? 's' : ''}
                             </span>
                           </div>
@@ -354,7 +370,10 @@ export function ServerPicker({ session }: ServerPickerProps) {
         {/* Search + View toggle */}
         <div className="mb-6 flex items-center gap-3">
           <div className="relative flex-1">
-            <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mod-text-dim)]" />
+            <IconSearch
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mod-text-dim)]"
+            />
             <input
               type="text"
               value={search}
@@ -430,7 +449,9 @@ export function ServerPicker({ session }: ServerPickerProps) {
         {filtered.length === 0 && (
           <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-8 text-center">
             <p className="text-[var(--mod-text-muted)]" style={{ fontFamily: 'var(--font-mono)' }}>
-              {search.trim() ? 'No servers match your search.' : 'No servers with moderation access found.'}
+              {search.trim()
+                ? 'No servers match your search.'
+                : 'No servers with moderation access found.'}
             </p>
           </div>
         )}
@@ -452,9 +473,10 @@ function GuildCard({
     ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
     : null;
 
-  const baseClass = layout === 'grid'
-    ? 'flex items-center gap-3 border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4'
-    : 'flex items-center gap-3 border border-[var(--mod-border)] bg-[var(--mod-surface)] px-4 py-3';
+  const baseClass =
+    layout === 'grid'
+      ? 'flex items-center gap-3 border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4'
+      : 'flex items-center gap-3 border border-[var(--mod-border)] bg-[var(--mod-surface)] px-4 py-3';
 
   return (
     <Link
@@ -463,7 +485,11 @@ function GuildCard({
       className={`${baseClass} transition-[background-color,border-color] duration-75 hover:border-[var(--mod-border-hover)] hover:bg-[var(--mod-surface-hover)]`}
     >
       {iconUrl ? (
-        <img src={iconUrl} alt="" className={layout === 'grid' ? 'h-10 w-10 shrink-0' : 'h-8 w-8 shrink-0'} />
+        <img
+          src={iconUrl}
+          alt=""
+          className={layout === 'grid' ? 'h-10 w-10 shrink-0' : 'h-8 w-8 shrink-0'}
+        />
       ) : (
         <div
           className={`flex shrink-0 items-center justify-center bg-[var(--mono-700)] text-sm font-medium text-[var(--mono-white)] ${

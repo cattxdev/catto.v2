@@ -127,6 +127,20 @@ export class BotClient extends SapphireClient {
       console.error('Failed to connect to Redis:', error);
     });
 
+    // OAuth redirect URI validation reminder
+    // TODO: This should be part of #2 (safety checks on startup)
+    if (CONFIG.API_REDIRECT) {
+      console.log(
+        `[OAuth] API_REDIRECT is set to: ${CONFIG.API_REDIRECT}\n` +
+          '        Ensure this exactly matches the redirect URI registered in Discord Developer Portal.'
+      );
+    } else {
+      console.warn(
+        '[OAuth] WARNING: API_REDIRECT is not set. OAuth login will fail.\n' +
+          '        Set API_REDIRECT to match the redirect URI registered in Discord Developer Portal.'
+      );
+    }
+
     // Redis event listeners
     container.redis.on('connect', () => {
       console.log('Connected to Redis');

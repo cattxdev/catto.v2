@@ -40,6 +40,9 @@ export function extractSessionId(request: Route.Request): string | null {
   return null;
 }
 
+// Clock skew tolerance (30 seconds) to handle minor time differences between servers
+const CLOCK_SKEW_TOLERANCE_MS = 30_000;
+
 /**
  * Look up a session in Redis by its ID.
  * Returns the session data if found and not expired, or null otherwise.
@@ -48,8 +51,10 @@ export async function resolveSession(sessionId: string): Promise<SessionData | n
   const data = await getJson(CacheKey.session(sessionId), SessionDataSchema);
   if (!data) return null;
 
-  // Check expiry
-  if (new Date(data.expiresAt) <= new Date()) {
+  // Check expiry with clock skew tolerance
+  const expiresAt = new Date(data.expiresAt).getTime();
+  const now = Date.now();
+  if (expiresAt + CLOCK_SKEW_TOLERANCE_MS <= now) {
     return null;
   }
 

@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import type { Evidence, EvidenceAmendment } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
-import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconLink, IconBrandDiscord, IconFile } from '@/lib/mod-icons';
+import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconFile } from '@/lib/mod-icons';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
 import { AudioPlayer } from './audio-player';
@@ -28,14 +28,27 @@ interface EvidenceViewerProps {
 
 type ViewerTab = 'details' | 'history' | 'amend';
 
-export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onClose, onDownload, onPrev, onNext }: EvidenceViewerProps) {
+export function EvidenceViewer({
+  guildId,
+  evidenceId,
+  caseNumber,
+  evidence,
+  onClose,
+  onDownload,
+  onPrev,
+  onNext,
+}: EvidenceViewerProps) {
   // Derive sync values from props (no useEffect needed for URL/snapshot types)
   const syncViewUrl = useMemo(() => {
     if (evidence.type === 'URL' || evidence.type === 'DISCORD_URL') return evidence.url;
     return null;
   }, [evidence]);
 
-  const needsAsyncLoad = !!(evidence.storageKey && evidence.type !== 'URL' && evidence.type !== 'DISCORD_URL');
+  const needsAsyncLoad = !!(
+    evidence.storageKey &&
+    evidence.type !== 'URL' &&
+    evidence.type !== 'DISCORD_URL'
+  );
 
   const [activeTab, setActiveTab] = useState<ViewerTab>('details');
 
@@ -47,21 +60,29 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
   const [amendSubmitting, setAmendSubmitting] = useState(false);
 
   // Async URL fetch (presigned URLs for file-backed evidence)
-  const { data: asyncViewUrl, error: urlError, isLoading: asyncLoading } = useSWR(
-    needsAsyncLoad ? ['evidence-view-url', guildId, evidenceId] : null,
-    () => getEvidenceViewUrl(guildId, evidenceId),
+  const {
+    data: asyncViewUrl,
+    error: urlError,
+    isLoading: asyncLoading,
+  } = useSWR(needsAsyncLoad ? ['evidence-view-url', guildId, evidenceId] : null, () =>
+    getEvidenceViewUrl(guildId, evidenceId)
   );
 
   const viewUrl = syncViewUrl ?? asyncViewUrl ?? null;
   const loading = needsAsyncLoad ? asyncLoading : false;
   const error = urlError
     ? 'Failed to load evidence.'
-    : (needsAsyncLoad && !asyncLoading && !asyncViewUrl ? 'Could not generate view URL.' : null);
+    : needsAsyncLoad && !asyncLoading && !asyncViewUrl
+      ? 'Could not generate view URL.'
+      : null;
 
   // History (only fetches when history tab is active)
-  const { data: amendments = [], isLoading: historyLoading, mutate: mutateHistory } = useSWR(
-    activeTab === 'history' ? ['evidence-history', guildId, evidenceId] : null,
-    () => getEvidenceHistory(guildId, evidenceId),
+  const {
+    data: amendments = [],
+    isLoading: historyLoading,
+    mutate: mutateHistory,
+  } = useSWR(activeTab === 'history' ? ['evidence-history', guildId, evidenceId] : null, () =>
+    getEvidenceHistory(guildId, evidenceId)
   );
 
   useEscapeClose(onClose);
@@ -76,9 +97,10 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
   const handleAmendSubmit = async () => {
     setAmendSubmitting(true);
     try {
-      const newValue = amendAction === 'TAGS_UPDATED'
-        ? JSON.stringify(amendTags)
-        : (amendNewValue.trim() || undefined);
+      const newValue =
+        amendAction === 'TAGS_UPDATED'
+          ? JSON.stringify(amendTags)
+          : amendNewValue.trim() || undefined;
       await amendEvidence(guildId, evidenceId, {
         action: amendAction,
         newValue,
@@ -99,7 +121,10 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
   const TypeIcon = EVIDENCE_TYPE_ICONS[evidence.type];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      onClick={onClose}
+    >
       <div
         className="relative mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto border border-[var(--mod-border)] bg-[var(--mono-900)] p-6"
         onClick={(e) => e.stopPropagation()}
@@ -110,7 +135,9 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
             <TypeIcon size={20} className={typeMeta.className} />
             <h2 className="text-lg font-semibold text-[var(--mono-white)]">{typeMeta.label}</h2>
             {evidence.originalFilename && (
-              <span className="text-sm text-[var(--mod-text-dim)]">— {evidence.originalFilename}</span>
+              <span className="text-sm text-[var(--mod-text-dim)]">
+                — {evidence.originalFilename}
+              </span>
             )}
           </div>
           <div className="flex items-center gap-1">
@@ -141,9 +168,7 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
           )}
 
           {error && (
-            <div className="flex h-[200px] items-center justify-center text-red-400">
-              {error}
-            </div>
+            <div className="flex h-[200px] items-center justify-center text-red-400">{error}</div>
           )}
 
           {!loading && !error && renderContent(evidence, viewUrl)}
@@ -176,7 +201,9 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
                   <span>{new Date(evidence.createdAt).toLocaleString()}</span>
                   {evidence.sizeBytes && <span>{(evidence.sizeBytes / 1024).toFixed(1)} KB</span>}
                   {evidence.contentHash && (
-                    <span className="font-mono">SHA-256: {evidence.contentHash.slice(0, 16)}...</span>
+                    <span className="font-mono">
+                      SHA-256: {evidence.contentHash.slice(0, 16)}...
+                    </span>
                   )}
                   {evidence.status === 'VERIFIED' && (
                     <span className="text-green-400">Signed & Verified</span>
@@ -190,10 +217,15 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
                 {/* Tags */}
                 {evidence.tags && evidence.tags.length > 0 && (
                   <div className="mt-3">
-                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Tags</label>
+                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                      Tags
+                    </label>
                     <div className="flex flex-wrap gap-1">
                       {evidence.tags.map((tag) => (
-                        <span key={tag} className="border border-[var(--mod-border)] px-2 py-0.5 text-xs text-[var(--mod-text-muted)]">
+                        <span
+                          key={tag}
+                          className="border border-[var(--mod-border)] px-2 py-0.5 text-xs text-[var(--mod-text-muted)]"
+                        >
                           {tag}
                         </span>
                       ))}
@@ -207,7 +239,9 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
             {activeTab === 'history' && (
               <div>
                 {historyLoading ? (
-                  <div className="py-4 text-center text-sm text-[var(--mod-text-dim)]">Loading history...</div>
+                  <div className="py-4 text-center text-sm text-[var(--mod-text-dim)]">
+                    Loading history...
+                  </div>
                 ) : (
                   <AmendmentTimeline amendments={amendments} />
                 )}
@@ -218,7 +252,9 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
             {activeTab === 'amend' && (
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Action</label>
+                  <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                    Action
+                  </label>
                   <select
                     value={amendAction}
                     onChange={(e) => setAmendAction(e.target.value)}
@@ -234,7 +270,9 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
 
                 {amendAction === 'DESCRIPTION_UPDATED' && (
                   <div>
-                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">New Value</label>
+                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                      New Value
+                    </label>
                     <input
                       type="text"
                       value={amendNewValue}
@@ -247,13 +285,17 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
 
                 {amendAction === 'TAGS_UPDATED' && (
                   <div>
-                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Tags</label>
+                    <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                      Tags
+                    </label>
                     <TagSelector value={amendTags} onChange={setAmendTags} />
                   </div>
                 )}
 
                 <div>
-                  <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Reason</label>
+                  <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                    Reason
+                  </label>
                   <textarea
                     value={amendReason}
                     onChange={(e) => setAmendReason(e.target.value)}
@@ -275,7 +317,6 @@ export function EvidenceViewer({ guildId, evidenceId, caseNumber, evidence, onCl
           </div>
         </div>
       </div>
-
     </div>
   );
 }
@@ -285,10 +326,11 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
 
   // URL types
   if (type === 'URL' || type === 'DISCORD_URL') {
-    const UrlIcon = type === 'DISCORD_URL' ? IconBrandDiscord : IconLink;
-    const og = (evidence.metadata as Record<string, unknown> | null)?.og as { title?: string; description?: string; image?: string; siteName?: string } | undefined;
+    const og = (evidence.metadata as Record<string, unknown> | null)?.og as
+      | { title?: string; description?: string; image?: string; siteName?: string }
+      | undefined;
     return (
-      <div className="flex flex-col items-center gap-4 py-8"> 
+      <div className="flex flex-col items-center gap-4 py-8">
         {og && <OGCard og={og} url={evidence.url ?? '#'} />}
         <a
           href={evidence.url ?? '#'}
@@ -337,11 +379,7 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
   if (type === 'VIDEO') {
     return (
       <div className="flex justify-center">
-        <video
-          src={viewUrl}
-          controls
-          className="max-h-[60vh]"
-        >
+        <video src={viewUrl} controls className="max-h-[60vh]">
           Your browser does not support video playback.
         </video>
       </div>
@@ -361,7 +399,9 @@ function renderContent(evidence: Evidence, viewUrl: string | null) {
   return (
     <div className="flex flex-col items-center gap-4 py-8">
       <IconFile size={40} className="text-[var(--mono-400)]" />
-      <p className="text-sm text-[var(--mod-text-muted)]">{evidence.originalFilename ?? 'Document'}</p>
+      <p className="text-sm text-[var(--mod-text-muted)]">
+        {evidence.originalFilename ?? 'Document'}
+      </p>
       <a
         href={viewUrl}
         target="_blank"
