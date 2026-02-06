@@ -5,7 +5,7 @@
 
 import { Listener } from '@sapphire/framework';
 import type { VoiceChannel, DMChannel, NonThreadGuildBasedChannel } from 'discord.js';
-import { Events, ChannelType } from 'discord.js';
+import { Events, ChannelType, AuditLogEvent } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service.js';
 import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
@@ -71,9 +71,33 @@ export class ChannelUpdateListener extends Listener {
         return;
       }
 
-      // Get the user who made the change from audit logs (if available)
-      // For now, we'll use the channel owner as fallback
-      const userId = tempChannel.ownerId;
+      // Get the user who made the change from audit logs
+      let userId = tempChannel.ownerId; // Default fallback
+
+      try {
+        // Fetch recent audit logs for channel updates
+        const auditLogs = await voiceChannel.guild.fetchAuditLogs({
+          type: AuditLogEvent.ChannelUpdate,
+          limit: 5,
+        });
+
+        // Find the most recent entry for this channel (within last 5 seconds)
+        const now = Date.now();
+        const recentEntry = auditLogs.entries.find((entry) => {
+          const isThisChannel = entry.target?.id === voiceChannel.id;
+          const isRecent = now - entry.createdTimestamp < 5000; // 5 seconds
+          return isThisChannel && isRecent;
+        });
+
+        if (recentEntry?.executor) {
+          userId = recentEntry.executor.id;
+        }
+      } catch (error) {
+        // Audit log fetch failed (likely missing permissions) - use owner fallback
+        this.container.logger.debug(
+          `[Name Moderation] Could not fetch audit logs for guild ${voiceChannel.guild.id}, using owner as fallback ${error}`
+        );
+      }
 
       // Moderate the name change
       const result = await this.moderationService.moderateChannelName(
