@@ -102,6 +102,8 @@ pnpm install
 pnpm dev:env
 ```
 
+This updates `.env` with the ephemeral `DATABASE_URL` and `REDIS_*` values for local development.
+
 ### Manual Setup
 
 ```bash
@@ -161,7 +163,7 @@ See [docs/RULES.md](docs/RULES.md) for complete guidelines.
 | Command | Purpose |
 |---------|---------|
 | `pnpm dev` | Start dev server |
-| `pnpm dev:env` | Start with ephemeral DB |
+| `pnpm dev:env` | Start with ephemeral DB + update `.env` |
 | `pnpm build` | Compile TypeScript |
 | `pnpm lint` | Run ESLint |
 | `pnpm lint:fix` | Fix ESLint issues |
