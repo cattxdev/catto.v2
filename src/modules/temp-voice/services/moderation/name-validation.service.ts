@@ -3,6 +3,7 @@
  * Validates channel names against patterns and heuristics
  */
 
+import { RE2 } from 're2-wasm';
 import {
   ReasonCode,
   type ValidationResult,
@@ -28,6 +29,10 @@ import {
 export class NameValidationService {
   private normalizationService: NameNormalizationService;
   private basePatterns: Record<PatternCategory, RegExp[]>;
+  private problematicPatterns: Set<string> = new Set();
+  private readonly MAX_TEXT_LENGTH = 1000;
+  // Cache RE2 instances to avoid WASM memory exhaustion
+  private re2Cache: Map<string, RE2> = new Map();
 
   constructor() {
     this.normalizationService = new NameNormalizationService();
@@ -286,16 +291,68 @@ export class NameValidationService {
   }
 
   /**
-   * Test regex pattern with timeout to prevent ReDoS
+   * Get or create a cached RE2 instance for a given pattern
+   * This reduces memory pressure from RE2-WASM's fixed 16MB limit
+   */
+  private getOrCreateRE2(source: string, flags: string): RE2 | null {
+    const cacheKey = `${source}|||${flags}`;
+
+    // Check cache first
+    if (this.re2Cache.has(cacheKey)) {
+      return this.re2Cache.get(cacheKey)!;
+    }
+
+    // Check if this pattern previously failed
+    if (this.problematicPatterns.has(cacheKey)) {
+      return null;
+    }
+
+    try {
+      // Ensure unicode flag is present (RE2-WASM requirement)
+      const finalFlags = flags.includes('u') ? flags : flags + 'u';
+      const re2Pattern = new RE2(source, finalFlags);
+
+      // Cache for reuse
+      this.re2Cache.set(cacheKey, re2Pattern);
+      return re2Pattern;
+    } catch {
+      // Mark as problematic to avoid retrying
+      this.problematicPatterns.add(cacheKey);
+      return null;
+    }
+  }
+
+  /**
+   * Test regex pattern with RE2 (WebAssembly) for safe execution
+   * RE2 guarantees linear time execution and prevents ReDoS attacks
+   * by not supporting backtracking-based features like backreferences.
+   * Using the WASM port which works across all platforms without native compilation.
    */
   private testPatternWithTimeout(pattern: RegExp, text: string): RegExpExecArray | null {
-    // Create a fresh RegExp to avoid state issues
-    const regex = new RegExp(pattern.source, pattern.flags);
+    try {
+      // Limit text length as an additional safety measure
+      const testText =
+        text.length > this.MAX_TEXT_LENGTH ? text.substring(0, this.MAX_TEXT_LENGTH) : text;
 
-    // For now, just execute the pattern
-    // A proper timeout would require Worker threads or AbortController
-    // For production, consider using a library like `re2` for safe regex
-    return regex.exec(text);
+      // Get cached or create new RE2 instance
+      const re2Pattern = this.getOrCreateRE2(pattern.source, pattern.flags);
+      if (!re2Pattern) {
+        return null;
+      }
+
+      const result = re2Pattern.exec(testText);
+
+      // RE2 returns an array with match results or null
+      // Convert to RegExpExecArray format for consistency
+      if (result && Array.isArray(result)) {
+        return result as RegExpExecArray;
+      }
+
+      return null;
+    } catch {
+      // Unexpected error during execution - return null to skip this pattern
+      return null;
+    }
   }
 
   /**
