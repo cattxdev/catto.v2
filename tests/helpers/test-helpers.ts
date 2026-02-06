@@ -12,6 +12,7 @@ export function createMockRequest(options: {
   params?: Record<string, string>;
   body?: unknown;
   url?: string;
+  query?: Record<string, string>;
 }): Route.Request {
   return {
     method: options.method || 'GET',
@@ -19,6 +20,7 @@ export function createMockRequest(options: {
     body: options.body,
     url: options.url || 'http://localhost/test',
     headers: {},
+    query: options.query || {},
   } as unknown as Route.Request;
 }
 

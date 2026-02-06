@@ -272,9 +272,9 @@ export class NameValidationService {
               });
             }
           }
-        } catch (error) {
-          // Invalid regex or timeout - skip
-          console.warn(`Custom pattern error: ${patternString}`, error);
+        } catch {
+          // Invalid regex or timeout - skip silently
+          // Custom patterns are user-provided and may be invalid
         }
       }
     }
