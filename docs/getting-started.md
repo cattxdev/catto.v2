@@ -8,6 +8,7 @@ This guide will help you set up and run Catto v2.x locally for development.
 - [pnpm](https://pnpm.io/) v10+
 - [Docker](https://www.docker.com/) and Docker Compose (recommended)
 - [Rust](https://rustup.rs/) (optional, for watermark microservice)
+- [Chromium/Chrome](#puppeteer-setup) — downloaded automatically by Puppeteer for image generation
 
 ## Installation
 
@@ -105,13 +106,52 @@ pnpm prisma:migrate
 pnpm dev
 ```
 
+## Puppeteer Setup
+
+Catto uses [Puppeteer](https://pptr.dev/) to render HTML templates into images (rank cards, leaderboards, bonk memes, etc.). Puppeteer downloads a compatible Chromium binary automatically during `pnpm install`.
+
+### Verifying the Installation
+
+After installing dependencies, confirm Chromium was downloaded:
+
+```bash
+ls ~/.cache/puppeteer/chrome/
+```
+
+You should see a directory like `mac_arm-137.0.7151.55` (the version may differ). If the directory is empty or missing, re-trigger the download:
+
+```bash
+npx puppeteer browsers install chrome
+```
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `Error: Could not find Chrome` | Run `npx puppeteer browsers install chrome` |
+| Sandbox errors on Linux | Puppeteer launches with `--no-sandbox` already; ensure the user has access to `/dev/shm` or add `--disable-dev-shm-usage` |
+| Docker / CI environments | Use the `puppeteer` Docker images or install system dependencies: `apt-get install -y chromium-browser` and set `PUPPETEER_SKIP_DOWNLOAD=true` + `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser` |
+| Slow first image generation | The first call launches a headless browser. Subsequent calls reuse the instance and are much faster |
+
+### How It Works
+
+The `ImageGeneratorService` and `BonkImageService` in `src/lib/services/` use Puppeteer to:
+
+1. Load an HTML template from `src/lib/templates/`
+2. Inject dynamic data (avatars, stats, text) into the template
+3. Render the page in a headless Chromium browser
+4. Take a screenshot of the resulting DOM element
+5. Return the screenshot as a PNG `Buffer` attached to the Discord message
+
+Static assets (bonk meme source images) live in `src/lib/assets/` and are copied to `dist/` during the build via `pnpm copy:assets`.
+
 ## Available Scripts
 
 | Script | Description |
 |--------|-------------|
 | `pnpm dev` | Start bot in watch mode |
 | `pnpm dev:env` | Start with ephemeral database + update `.env` |
-| `pnpm build` | Compile TypeScript |
+| `pnpm build` | Compile TypeScript + copy templates and assets |
 | `pnpm start` | Run compiled bot |
 | `pnpm lint` | Run ESLint |
 | `pnpm lint:fix` | Fix ESLint issues |
@@ -146,6 +186,9 @@ catto/
 │   ├── routes/               # REST API endpoints
 │   ├── modules/              # Business logic modules
 │   ├── lib/                  # Utilities and helpers
+│   │   ├── assets/           # Static assets (bonk images, etc.)
+│   │   ├── services/         # Image generation (Puppeteer)
+│   │   ├── templates/        # HTML templates for image rendering
 │   │   ├── storage/          # B2 storage and signing services
 │   │   └── validation/       # Gate, permissions, rate limiting
 │   ├── preconditions/        # Permission checks
