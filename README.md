@@ -46,6 +46,10 @@ For a seamless development experience, you can use the ephemeral environment com
 1. Start the ephemeral environment (this will also start the bot; no separate `pnpm dev` is needed):
    ```bash
    pnpm dev:env
+   ```
+
+   This updates `.env` with the ephemeral `DATABASE_URL` and `REDIS_*` values (dev-only).
+
 If you prefer a persistent database, you can still use Docker Compose:
 ```bash
 docker-compose up -d

@@ -85,6 +85,7 @@ pnpm dev:env
 The script will:
 - Start PostgreSQL and Redis containers
 - Start the watermark microservice (if built)
+- Update `.env` with ephemeral `DATABASE_URL` and `REDIS_*` values (dev-only)
 - Apply migrations and seed the database
 - Start the bot in watch mode
 
@@ -108,7 +109,7 @@ pnpm dev
 | Script | Description |
 |--------|-------------|
 | `pnpm dev` | Start bot in watch mode |
-| `pnpm dev:env` | Start with ephemeral database |
+| `pnpm dev:env` | Start with ephemeral database + update `.env` |
 | `pnpm build` | Compile TypeScript |
 | `pnpm start` | Run compiled bot |
 | `pnpm lint` | Run ESLint |
