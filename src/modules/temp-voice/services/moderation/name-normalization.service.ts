@@ -31,6 +31,67 @@ const LEETSPEAK_MAP: Record<string, string> = {
 };
 
 /**
+ * Language-specific character normalization
+ * Handles accented characters and language-specific substitutions
+ */
+const LANGUAGE_SPECIFIC_MAP: Record<string, string> = {
+  // Lowercase accents (combining multiple language needs)
+  á: 'a',
+  à: 'a',
+  â: 'a',
+  ã: 'a',
+  ä: 'ae', // German preference for ä
+  é: 'e',
+  è: 'e',
+  ê: 'e',
+  ë: 'e',
+  í: 'i',
+  ì: 'i',
+  î: 'i',
+  ï: 'i',
+  ó: 'o',
+  ò: 'o',
+  ô: 'o',
+  õ: 'o',
+  ö: 'oe', // German preference for ö
+  ú: 'u',
+  ù: 'u',
+  û: 'u',
+  ü: 'ue', // German preference for ü
+  ñ: 'n',
+  ç: 'c',
+  ß: 'ss',
+  œ: 'oe',
+  æ: 'ae',
+
+  // Uppercase accents
+  Á: 'a',
+  À: 'a',
+  Â: 'a',
+  Ã: 'a',
+  Ä: 'ae',
+  É: 'e',
+  È: 'e',
+  Ê: 'e',
+  Ë: 'e',
+  Í: 'i',
+  Ì: 'i',
+  Î: 'i',
+  Ï: 'i',
+  Ó: 'o',
+  Ò: 'o',
+  Ô: 'o',
+  Õ: 'o',
+  Ö: 'oe',
+  Ú: 'u',
+  Ù: 'u',
+  Û: 'u',
+  Ü: 'ue',
+  Ñ: 'n',
+  Ç: 'c',
+};
+
+/**
  * Common separators to remove/normalize
  */
 const SEPARATORS = /[\s\-_.•·●○◦∙◘◙※⁂⁎⁑⁕※‣⁃∘‧⋅]/g;
@@ -108,6 +169,11 @@ export class NameNormalizationService {
    */
   decodeLeetspeak(text: string): string {
     let decoded = text.toLowerCase();
+
+    // Replace language-specific characters first
+    for (const [accented, normal] of Object.entries(LANGUAGE_SPECIFIC_MAP)) {
+      decoded = decoded.split(accented.toLowerCase()).join(normal);
+    }
 
     // Replace each leetspeak character with its normal equivalent
     for (const [leet, normal] of Object.entries(LEETSPEAK_MAP)) {

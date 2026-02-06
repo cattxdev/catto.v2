@@ -19,6 +19,12 @@ import {
   COLLISION_SUFFIXES,
   MAX_COLLISION_ATTEMPTS,
 } from '../../constants/moderation-patterns.js';
+import { safeNameRegistry } from '../../constants/safe-names/safe-names-registry.js';
+import {
+  isSupportedLanguage,
+  type SupportedLanguage,
+  DEFAULT_LANGUAGE,
+} from '../../constants/languages.js';
 
 /**
  * Service for generating safe replacement channel names
@@ -30,20 +36,23 @@ export class AutoRenameService {
    * @returns Rename result with suggested name
    */
   async generateSafeName(context: RenameContext): Promise<RenameResult> {
+    // Determine language for safe name generation
+    const language = this.determineLanguage(context);
+
     // Try strategies in order of preference
-    const strategies: Array<() => string | null> = [
-      () => this.tryCreativeCombo(context),
-      () => this.trySafeTemplate(context),
-      () => this.tryThemedName(context),
-      () => this.tryTimeBased(context),
-      () => this.trySequential(context),
+    const strategies: Array<() => Promise<string | null>> = [
+      () => this.tryCreativeCombo(context, language),
+      () => this.trySafeTemplate(context, language),
+      async () => this.tryThemedName(context),
+      async () => this.tryTimeBased(context),
+      async () => this.trySequential(context),
     ];
 
     let suggestedName: string | null = null;
     let strategyUsed: RenameStrategy | null = null;
 
     for (const strategy of strategies) {
-      const candidate = strategy();
+      const candidate = await strategy();
       if (candidate && this.validateDiscordConstraints(candidate)) {
         suggestedName = candidate;
         strategyUsed = this.getStrategyFromName(candidate);
@@ -77,25 +86,58 @@ export class AutoRenameService {
   }
 
   /**
+   * Determine language for safe name generation
+   * @param context - Rename context
+   * @returns Language code
+   */
+  private determineLanguage(context: RenameContext): SupportedLanguage {
+    if (context.language && isSupportedLanguage(context.language)) {
+      return context.language as SupportedLanguage;
+    }
+    return DEFAULT_LANGUAGE;
+  }
+
+  /**
    * Generate name using safe template strategy
    * @param context - Rename context
+   * @param language - Language for name generation
    * @returns Template-based name or null
    */
-  private trySafeTemplate(_context: RenameContext): string | null {
-    // Pick random template
-    const template = this.getRandomElement(SAFE_TEMPLATES);
-    return template;
+  private async trySafeTemplate(
+    _context: RenameContext,
+    language: SupportedLanguage
+  ): Promise<string | null> {
+    try {
+      // Use language-specific safe name from registry
+      const name = await safeNameRegistry.getRandomSafeName(language, true);
+      return name;
+    } catch {
+      // Fallback to original templates
+      const template = this.getRandomElement(SAFE_TEMPLATES);
+      return template;
+    }
   }
 
   /**
    * Generate name using creative combo strategy (Adjective + Noun)
    * @param context - Rename context
+   * @param language - Language for name generation
    * @returns Creative combo name or null
    */
-  private tryCreativeCombo(_context: RenameContext): string | null {
-    const adjective = this.getRandomElement(SAFE_ADJECTIVES);
-    const noun = this.getRandomElement(SAFE_NOUNS);
-    return `${adjective} ${noun}`;
+  private async tryCreativeCombo(
+    _context: RenameContext,
+    language: SupportedLanguage
+  ): Promise<string | null> {
+    try {
+      // Use language-specific adjectives and nouns from registry
+      const name = await safeNameRegistry.getRandomSafeName(language, false);
+      return name;
+    } catch {
+      // Fallback to original approach
+      const adjective = this.getRandomElement(SAFE_ADJECTIVES);
+      const noun = this.getRandomElement(SAFE_NOUNS);
+      return `${adjective} ${noun}`;
+    }
   }
 
   /**

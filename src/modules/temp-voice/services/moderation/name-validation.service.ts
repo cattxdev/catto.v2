@@ -22,6 +22,8 @@ import {
   DISCORD_NAME_CONSTRAINTS,
   STOPWORDS,
 } from '../../constants/moderation-patterns.js';
+import { patternRegistry } from '../../constants/patterns/patterns-registry.js';
+import { isSupportedLanguage, type SupportedLanguage } from '../../constants/languages.js';
 
 /**
  * Service for validating channel names
@@ -237,24 +239,138 @@ export class NameValidationService {
       normalized.withoutZeroWidth,
     ];
 
-    // Check base patterns
-    for (const [category, patterns] of Object.entries(this.basePatterns)) {
-      for (const pattern of patterns) {
+    // Determine which languages to check
+    const languagesToCheck: SupportedLanguage[] = [];
+
+    if (context.primaryLanguage && isSupportedLanguage(context.primaryLanguage)) {
+      languagesToCheck.push(context.primaryLanguage as SupportedLanguage);
+    }
+
+    if (context.additionalLanguages) {
+      for (const lang of context.additionalLanguages) {
+        if (isSupportedLanguage(lang) && !languagesToCheck.includes(lang as SupportedLanguage)) {
+          languagesToCheck.push(lang as SupportedLanguage);
+        }
+      }
+    }
+
+    // If no languages specified, check base patterns only
+    if (languagesToCheck.length === 0) {
+      // Check base patterns (fallback to original behavior)
+      for (const [category, patterns] of Object.entries(this.basePatterns)) {
+        for (const pattern of patterns) {
+          for (const testString of testStrings) {
+            try {
+              const match = this.testPatternWithTimeout(pattern, testString);
+              if (match) {
+                matches.push({
+                  pattern: pattern.source,
+                  patternType: category,
+                  matchedText: match[0],
+                  index: match.index ?? 0,
+                  severity: PATTERN_SEVERITY[category as PatternCategory],
+                });
+              }
+            } catch (error) {
+              // Timeout or error - log and skip this pattern
+              console.warn(`Pattern timeout or error: ${pattern.source}`, error);
+            }
+          }
+        }
+      }
+    } else {
+      // Check multi-language patterns
+      const languagePatterns = await patternRegistry.getMultiLanguagePatterns(languagesToCheck);
+
+      // Check profanity patterns
+      for (const patternStr of languagePatterns.profanity) {
+        const pattern = new RegExp(patternStr, 'gi');
         for (const testString of testStrings) {
           try {
             const match = this.testPatternWithTimeout(pattern, testString);
             if (match) {
               matches.push({
-                pattern: pattern.source,
-                patternType: category,
+                pattern: patternStr,
+                patternType: PatternCategory.PROFANITY,
                 matchedText: match[0],
                 index: match.index ?? 0,
-                severity: PATTERN_SEVERITY[category as PatternCategory],
+                severity: PATTERN_SEVERITY[PatternCategory.PROFANITY],
               });
             }
           } catch (error) {
-            // Timeout or error - log and skip this pattern
-            console.warn(`Pattern timeout or error: ${pattern.source}`, error);
+            console.warn(`Pattern timeout or error: ${patternStr}`, error);
+          }
+        }
+      }
+
+      // Check hate speech patterns
+      for (const patternStr of languagePatterns.hateSpech) {
+        const pattern = new RegExp(patternStr, 'gi');
+        for (const testString of testStrings) {
+          try {
+            const match = this.testPatternWithTimeout(pattern, testString);
+            if (match) {
+              matches.push({
+                pattern: patternStr,
+                patternType: PatternCategory.HATE_SPEECH,
+                matchedText: match[0],
+                index: match.index ?? 0,
+                severity: PATTERN_SEVERITY[PatternCategory.HATE_SPEECH],
+              });
+            }
+          } catch (error) {
+            console.warn(`Pattern timeout or error: ${patternStr}`, error);
+          }
+        }
+      }
+
+      // Check spam patterns
+      for (const patternStr of languagePatterns.spam) {
+        const pattern = new RegExp(patternStr, 'gi');
+        for (const testString of testStrings) {
+          try {
+            const match = this.testPatternWithTimeout(pattern, testString);
+            if (match) {
+              matches.push({
+                pattern: patternStr,
+                patternType: PatternCategory.SPAM,
+                matchedText: match[0],
+                index: match.index ?? 0,
+                severity: PATTERN_SEVERITY[PatternCategory.SPAM],
+              });
+            }
+          } catch (error) {
+            console.warn(`Pattern timeout or error: ${patternStr}`, error);
+          }
+        }
+      }
+
+      // Still check base patterns for obfuscation and invalid chars (language-independent)
+      const languageIndependentCategories = [
+        PatternCategory.OBFUSCATION,
+        PatternCategory.INVALID_CHARS,
+      ];
+
+      for (const category of languageIndependentCategories) {
+        const patterns = this.basePatterns[category];
+        if (patterns) {
+          for (const pattern of patterns) {
+            for (const testString of testStrings) {
+              try {
+                const match = this.testPatternWithTimeout(pattern, testString);
+                if (match) {
+                  matches.push({
+                    pattern: pattern.source,
+                    patternType: category,
+                    matchedText: match[0],
+                    index: match.index ?? 0,
+                    severity: PATTERN_SEVERITY[category],
+                  });
+                }
+              } catch (error) {
+                console.warn(`Pattern timeout or error: ${pattern.source}`, error);
+              }
+            }
           }
         }
       }

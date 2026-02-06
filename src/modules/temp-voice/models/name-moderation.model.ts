@@ -117,6 +117,10 @@ export interface ModerationContext {
   customPatterns: string[];
   /** Guild-specific allowed keywords */
   allowedKeywords: string[];
+  /** Primary language for moderation */
+  primaryLanguage?: string;
+  /** Additional languages to check */
+  additionalLanguages?: string[];
 }
 
 /**
@@ -137,6 +141,8 @@ export interface RenameContext {
   reasonCodes: ReasonCode[];
   /** Existing channel names in the guild (to avoid collisions) */
   existingChannelNames: string[];
+  /** Language for safe name generation */
+  language?: string;
 }
 
 /**
