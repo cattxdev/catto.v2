@@ -7,6 +7,13 @@ import type { Client } from 'discord.js';
 import { CleanupService } from './cleanup.service.js';
 
 export class RecoveryService {
+  private lastReconciliationStats = {
+    totalRecovered: 0,
+    deletedFromDb: 0,
+    scheduledForDeletion: 0,
+    lastRunAt: null as Date | null,
+  };
+
   constructor(
     private prisma: PrismaClient,
     private client: Client,
@@ -76,29 +83,31 @@ export class RecoveryService {
     this.client.logger.info(
       `[TempVoice] Reconciliation complete: ${recovered} recovered, ${deletedFromDb} deleted, ${scheduledForDeletion} scheduled for deletion`
     );
+
+    // Store stats for getRecoveryStats()
+    this.lastReconciliationStats = {
+      totalRecovered: recovered,
+      deletedFromDb,
+      scheduledForDeletion,
+      lastRunAt: new Date(),
+    };
   }
 
   /**
-   * Get statistics about recovery process
+   * Get statistics about the last reconciliation process
+   * Returns stats from the most recent reconcileChannels() run
    */
   async getRecoveryStats(): Promise<{
     totalRecovered: number;
     deletedFromDb: number;
     scheduledForDeletion: number;
+    lastRunAt: Date | null;
   }> {
-    // This would need to track stats during reconciliation
-    // For now, return current state
-    const totalActive = await this.prisma.tempVoiceChannel.count();
-    const scheduledForDeletion = await this.prisma.tempVoiceChannel.count({
-      where: {
-        deletionScheduledAt: { not: null },
-      },
-    });
-
     return {
-      totalRecovered: totalActive - scheduledForDeletion,
-      deletedFromDb: 0, // Would need to track during reconciliation
-      scheduledForDeletion,
+      totalRecovered: this.lastReconciliationStats.totalRecovered,
+      deletedFromDb: this.lastReconciliationStats.deletedFromDb,
+      scheduledForDeletion: this.lastReconciliationStats.scheduledForDeletion,
+      lastRunAt: this.lastReconciliationStats.lastRunAt,
     };
   }
 }
