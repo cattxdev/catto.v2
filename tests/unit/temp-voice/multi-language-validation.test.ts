@@ -2,9 +2,48 @@
  * Unit tests for Multi-Language Name Validation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NameValidationService } from '../../../src/modules/temp-voice/services/moderation/name-validation.service.js';
 import { ReasonCode, type ModerationContext } from '../../../src/modules/temp-voice/models/name-moderation.model.js';
+
+// Mock re2-wasm to avoid WASM OOM issues in tests
+// The re2-wasm library uses WASM with a 16MB memory limit that fails in Vitest
+vi.mock('re2-wasm', () => ({
+  RE2: class MockRE2 {
+    private source: string;
+    private flags: string;
+
+    constructor(source: string, flags: string) {
+      this.source = source;
+      this.flags = flags;
+    }
+
+    exec(text: string): RegExpExecArray | null {
+      if (!text || !this.source) return null;
+      
+      try {
+        // Create a JavaScript RegExp from the RE2 pattern and flags
+        // RE2 patterns are compatible with JavaScript regex for most cases
+        const jsRegex = new RegExp(this.source, this.flags);
+        const match = jsRegex.exec(text);
+        
+        if (match) {
+          // Convert to RegExpExecArray format expected by the service
+          return Object.assign([...match], {
+            index: match.index,
+            input: match.input,
+            groups: match.groups
+          }) as RegExpExecArray;
+        }
+        
+        return null;
+      } catch (error) {
+        // If regex is invalid or incompatible, return null
+        return null;
+      }
+    }
+  }
+}));
 
 describe('NameValidationService - Multi-Language', () => {
   let service: NameValidationService;

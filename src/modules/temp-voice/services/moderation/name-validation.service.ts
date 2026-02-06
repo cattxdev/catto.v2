@@ -415,7 +415,8 @@ export class NameValidationService {
 
     // Check cache first
     if (this.re2Cache.has(cacheKey)) {
-      return this.re2Cache.get(cacheKey)!;
+      const cached = this.re2Cache.get(cacheKey);
+      return cached || null;
     }
 
     // Check if this pattern previously failed
