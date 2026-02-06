@@ -5,6 +5,8 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 
 const envPath = resolve(process.cwd(), '.env');
+const ENV_KEYS_TO_MANAGE = ['DATABASE_URL', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD'] as const;
+let previousEnvValues: Record<string, string | undefined> | null = null;
 
 const splitEnvValue = (rawValue: string) => {
   let inQuotes = false;
@@ -44,6 +46,41 @@ const formatEnvValue = (value: string, existingValue?: string) => {
   return value;
 };
 
+const readEnvValues = (keys: readonly string[]): Record<string, string | undefined> => {
+  if (!existsSync(envPath)) return {};
+  const content = readFileSync(envPath, 'utf8');
+  const result: Record<string, string | undefined> = {};
+
+  for (const line of content.split(/\r?\n/)) {
+    if (!line || line.trim().startsWith('#') || !line.includes('=')) continue;
+    const equalsIndex = line.indexOf('=');
+    const key = line.slice(0, equalsIndex).trim();
+    if (keys.includes(key)) {
+      const { value } = splitEnvValue(line.slice(equalsIndex + 1));
+      result[key] = value;
+    }
+  }
+
+  return result;
+};
+
+const restoreEnvFile = () => {
+  if (!previousEnvValues) return;
+
+  const updates: Record<string, string> = {};
+  for (const key of ENV_KEYS_TO_MANAGE) {
+    if (previousEnvValues[key] !== undefined) {
+      updates[key] = previousEnvValues[key];
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    previousEnvValues = null; // prevent re-entrance from triggering another write
+    updateEnvFile(updates);
+    console.log('Restored previous .env values.');
+  }
+};
+
 const updateEnvFile = (updates: Record<string, string>) => {
   if (process.env.CI || (process.env.NODE_ENV && process.env.NODE_ENV !== 'development')) {
     return;
@@ -81,7 +118,13 @@ const updateEnvFile = (updates: Record<string, string>) => {
   }
 
   const output = updatedLines.join('\n');
-  writeFileSync(envPath, output.endsWith('\n') ? output : `${output}\n`);
+  const nextContent = output.endsWith('\n') ? output : `${output}\n`;
+
+  if (existing === nextContent) {
+    return;
+  }
+
+  writeFileSync(envPath, nextContent);
   console.log('Updated .env with ephemeral connection details.');
 };
 
@@ -109,6 +152,8 @@ async function startDevEnvironment() {
     }
 
     await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
+
+    restoreEnvFile();
 
     console.log('Cleanup complete');
     process.exit(0);
@@ -151,6 +196,8 @@ async function startDevEnvironment() {
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
     };
+
+    previousEnvValues = readEnvValues(ENV_KEYS_TO_MANAGE);
 
     updateEnvFile({
       DATABASE_URL: dbUrl,
