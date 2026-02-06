@@ -835,6 +835,12 @@ model TempVoiceConfig {
   customPatterns        Json                        @default("[]")   // string[] - Guild-specific regex patterns
   allowedKeywords       Json                        @default("[]")   // string[] - Guild allowlist
   
+  // Multi-language settings (Phase 7)
+  primaryLanguage       String                      @default("en")   // Primary language (ISO 639-1)
+  additionalLanguages   Json                        @default("[]")   // string[] - Additional languages to check
+  multiLangMode         Boolean                     @default(false)  // Check all languages vs primary only
+  languageSettings      Json                        @default("{}")   // Language-specific settings
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -955,6 +961,10 @@ model TempVoiceModerationLog {
   matchedPatterns   Json      @default("[]")    // PatternMatch[] objects
   heuristicScore    Float?                      // Optional heuristic score
   
+  // Language detection (Phase 7)
+  detectedLanguage  String?                     // Detected language (ISO 639-1)
+  matchedLanguage   String?                     // Language that matched pattern
+  
   // Action taken
   actionTaken       String    // AUTO_RENAMED, BLOCKED, WARNED, ALLOWED
   strategyUsed      String?   // For auto-rename: SAFE_TEMPLATE, CREATIVE_COMBO, etc.
@@ -969,6 +979,7 @@ model TempVoiceModerationLog {
   @@index([channelId])
   @@index([userId])
   @@index([createdAt])
+  @@index([detectedLanguage])
   @@map("temp_voice_moderation_logs")
 }
 
@@ -1016,6 +1027,10 @@ model TempVoiceModerationPattern {
   description     String?
   severity        Int       @default(5)   // 1-10 scale
   
+  // Language support (Phase 7)
+  language        String    @default("en")  // ISO 639-1 language code
+  regionalVariant String?                   // Regional variant (e.g., 'US', 'GB', 'MX')
+  
   // Configuration
   enabled         Boolean   @default(true)
   caseInsensitive Boolean   @default(true)
@@ -1028,6 +1043,7 @@ model TempVoiceModerationPattern {
   updatedAt       DateTime  @updatedAt
   
   @@index([enabled, patternType])
+  @@index([enabled, language, patternType])
   @@map("temp_voice_moderation_patterns")
 }
 

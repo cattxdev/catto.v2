@@ -78,6 +78,7 @@
     "discord-api-types": "^0.38.37",
     "discord.js": "~14.25.1",
     "dotenv": "^16.4.7",
+    "franc-min": "^6.2.0",
     "ioredis": "^5.9.2",
     "prisma": "^7.2.0",
     "puppeteer": "^24.36.1",
