@@ -1,6 +1,89 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
 import { execSync, spawn, type ChildProcess } from 'child_process';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { resolve } from 'path';
+
+const envPath = resolve(process.cwd(), '.env');
+
+const splitEnvValue = (rawValue: string) => {
+  let inQuotes = false;
+  let quoteChar: '"' | "'" | null = null;
+
+  for (let i = 0; i < rawValue.length; i += 1) {
+    const char = rawValue[i];
+    if ((char === '"' || char === "'") && rawValue[i - 1] !== '\\') {
+      if (!inQuotes) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (quoteChar === char) {
+        inQuotes = false;
+        quoteChar = null;
+      }
+    }
+
+    if (!inQuotes && char === '#') {
+      return {
+        value: rawValue.slice(0, i).trimEnd(),
+        comment: rawValue.slice(i),
+      };
+    }
+  }
+
+  return { value: rawValue.trimEnd(), comment: '' };
+};
+
+const formatEnvValue = (value: string, existingValue?: string) => {
+  const trimmed = existingValue?.trim();
+  if (trimmed?.startsWith('"') && trimmed.endsWith('"')) {
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+  if (trimmed?.startsWith("'") && trimmed.endsWith("'")) {
+    return `'${value.replace(/'/g, "\\'")}'`;
+  }
+  return value;
+};
+
+const updateEnvFile = (updates: Record<string, string>) => {
+  if (process.env.CI || (process.env.NODE_ENV && process.env.NODE_ENV !== 'development')) {
+    return;
+  }
+
+  const existing = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
+  const lines = existing ? existing.split(/\r?\n/) : [];
+  const pending = new Map(Object.entries(updates));
+
+  const updatedLines = lines.map((line) => {
+    if (!line || line.trim().startsWith('#') || !line.includes('=')) {
+      return line;
+    }
+
+    const equalsIndex = line.indexOf('=');
+    const key = line.slice(0, equalsIndex).trim();
+
+    if (!pending.has(key)) {
+      return line;
+    }
+
+    const { value: existingValue, comment } = splitEnvValue(line.slice(equalsIndex + 1));
+    const nextValue = formatEnvValue(pending.get(key)!, existingValue);
+    pending.delete(key);
+
+    return `${key}=${nextValue}${comment}`;
+  });
+
+  for (const [key, value] of pending) {
+    updatedLines.push(`${key}=${value}`);
+  }
+
+  if (!updatedLines.length) {
+    return;
+  }
+
+  const output = updatedLines.join('\n');
+  writeFileSync(envPath, output.endsWith('\n') ? output : `${output}\n`);
+  console.log('Updated .env with ephemeral connection details.');
+};
 
 async function startDevEnvironment() {
   if (process.env.NODE_ENV === 'production') {
@@ -68,6 +151,13 @@ async function startDevEnvironment() {
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
     };
+
+    updateEnvFile({
+      DATABASE_URL: dbUrl,
+      REDIS_HOST: redisHost,
+      REDIS_PORT: redisPort,
+      REDIS_PASSWORD: '',
+    });
 
     // Setup database
     console.log('Pushing schema to database...');
