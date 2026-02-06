@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NameModerationService } from '../../../src/modules/temp-voice/services/name-moderation.service.js';
+import { NameModerationService } from '../../../src/modules/temp-voice/services/moderation/name-moderation.service.js';
 import {
   ModerationAction,
   ReasonCode,

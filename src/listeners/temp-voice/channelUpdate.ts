@@ -10,7 +10,7 @@ import { container } from '@sapphire/framework';
 import { TempChannelService } from '../../modules/temp-voice/services/temp-channel.service.js';
 import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
 import { PermissionsService } from '../../modules/temp-voice/services/permissions.service.js';
-import { NameModerationService } from '../../modules/temp-voice/services/name-moderation.service.js';
+import { NameModerationService } from '../../modules/temp-voice/services/moderation/name-moderation.service.js';
 
 export class ChannelUpdateListener extends Listener {
   private configService!: TempVoiceConfigService;

@@ -96,13 +96,41 @@ export class PatternRegistry {
    */
   private async loadPatterns(language: SupportedLanguage): Promise<LanguagePatterns> {
     try {
-      // Dynamically import the language-specific pattern file
-      const module = await import(`./patterns-${language}.js`);
+      // Use explicit imports for Vite/Vitest compatibility (dynamic import limitations)
+      let module;
+      switch (language) {
+        case 'en':
+          module = await import('./patterns-en.js');
+          break;
+        case 'es':
+          module = await import('./patterns-es.js');
+          break;
+        case 'fr':
+          module = await import('./patterns-fr.js');
+          break;
+        case 'de':
+          module = await import('./patterns-de.js');
+          break;
+        case 'pt':
+          module = await import('./patterns-pt.js');
+          break;
+        case 'it':
+          module = await import('./patterns-it.js');
+          break;
+        default:
+          return {
+            profanity: [],
+            hateSpech: [],
+            spam: [],
+          };
+      }
 
+      const langCode = language.toUpperCase();
+      const moduleRecord = module as Record<string, string[]>;
       return {
-        profanity: module[`PROFANITY_PATTERNS_${language.toUpperCase()}`] || [],
-        hateSpech: module[`HATE_SPEECH_PATTERNS_${language.toUpperCase()}`] || [],
-        spam: module[`SPAM_PATTERNS_${language.toUpperCase()}`] || [],
+        profanity: moduleRecord[`PROFANITY_PATTERNS_${langCode}`] || [],
+        hateSpech: moduleRecord[`HATE_SPEECH_PATTERNS_${langCode}`] || [],
+        spam: moduleRecord[`SPAM_PATTERNS_${langCode}`] || [],
       };
     } catch (error) {
       // If pattern file doesn't exist, return empty patterns

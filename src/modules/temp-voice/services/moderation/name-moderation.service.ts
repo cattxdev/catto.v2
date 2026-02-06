@@ -5,17 +5,17 @@
 
 import type { VoiceChannel } from 'discord.js';
 import type { PrismaClient } from '@prisma/client';
-import type { TempVoiceConfig } from '../models/config.model.js';
+import type { TempVoiceConfig } from '../../models/config.model.js';
 import type {
   ModerationResult,
   ModerationContext,
   ValidationResult,
   RenameContext,
   RenameResult,
-} from '../models/name-moderation.model.js';
-import { ModerationAction } from '../models/name-moderation.model.js';
-import { NameValidationService } from './moderation/name-validation.service.js';
-import { AutoRenameService } from './moderation/auto-rename.service.js';
+} from '../../models/name-moderation.model.js';
+import { ModerationAction } from '../../models/name-moderation.model.js';
+import { NameValidationService } from './name-validation.service.js';
+import { AutoRenameService } from './auto-rename.service.js';
 
 /**
  * Rate limit entry for tracking rename attempts

@@ -145,13 +145,41 @@ export class SafeNameRegistry {
    */
   private async loadSafeNames(language: SupportedLanguage): Promise<LanguageSafeNames> {
     try {
-      // Dynamically import the language-specific safe name file
-      const module = await import(`./safe-names-${language}.js`);
+      // Use explicit imports for Vite/Vitest compatibility (dynamic import limitations)
+      let module;
+      switch (language) {
+        case 'en':
+          module = await import('./safe-names-en.js');
+          break;
+        case 'es':
+          module = await import('./safe-names-es.js');
+          break;
+        case 'fr':
+          module = await import('./safe-names-fr.js');
+          break;
+        case 'de':
+          module = await import('./safe-names-de.js');
+          break;
+        case 'pt':
+          module = await import('./safe-names-pt.js');
+          break;
+        case 'it':
+          module = await import('./safe-names-it.js');
+          break;
+        default:
+          return {
+            adjectives: [],
+            nouns: [],
+            templates: [],
+          };
+      }
 
+      const langCode = language.toUpperCase();
+      const moduleRecord = module as Record<string, string[]>;
       return {
-        adjectives: module[`SAFE_ADJECTIVES_${language.toUpperCase()}`] || [],
-        nouns: module[`SAFE_NOUNS_${language.toUpperCase()}`] || [],
-        templates: module[`SAFE_NAME_TEMPLATES_${language.toUpperCase()}`] || [],
+        adjectives: moduleRecord[`SAFE_ADJECTIVES_${langCode}`] || [],
+        nouns: moduleRecord[`SAFE_NOUNS_${langCode}`] || [],
+        templates: moduleRecord[`SAFE_NAME_TEMPLATES_${langCode}`] || [],
       };
     } catch (error) {
       // If safe name file doesn't exist, return empty arrays
