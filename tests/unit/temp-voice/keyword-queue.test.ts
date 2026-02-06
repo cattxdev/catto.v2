@@ -4,7 +4,28 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { KeywordQueueService, KeywordSource } from '../../../src/modules/temp-voice/services/moderation/keyword-queue.service.js';
-import { KeywordApprovalStatus } from '@prisma/client';
+
+// Mock @prisma/client before any imports
+vi.mock('@prisma/client', () => ({
+  KeywordApprovalStatus: {
+    PENDING: 'PENDING',
+    APPROVED: 'APPROVED',
+    DENIED: 'DENIED',
+    IGNORED: 'IGNORED',
+  },
+  Prisma: {
+    TempVoiceKeywordQueueWhereInput: {},
+  },
+}));
+
+
+// Local enum for testing
+const KeywordApprovalStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  DENIED: 'DENIED',
+  IGNORED: 'IGNORED',
+} as const;
 
 // Mock PrismaClient
 const mockPrisma = {
@@ -27,8 +48,8 @@ describe('KeywordQueueService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Suppress console logs during tests
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => { });
+    vi.spyOn(console, 'error').mockImplementation(() => { });
     service = new KeywordQueueService(mockPrisma);
   });
 
