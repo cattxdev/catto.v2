@@ -238,6 +238,13 @@ export class TempVoiceConfigService {
       allowedKeywords: Array.isArray(data.allowedKeywords)
         ? (data.allowedKeywords as string[])
         : [],
+      additionalLanguages: Array.isArray(data.additionalLanguages)
+        ? (data.additionalLanguages as string[])
+        : [],
+      languageSettings:
+        typeof data.languageSettings === 'object' && data.languageSettings !== null
+          ? (data.languageSettings as Record<string, unknown>)
+          : {},
       ownerLeaveStrategy: data.ownerLeaveStrategy as OwnerLeaveStrategy,
     };
   }

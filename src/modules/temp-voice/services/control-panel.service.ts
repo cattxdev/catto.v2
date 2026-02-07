@@ -210,60 +210,49 @@ export class ControlPanelService {
     const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`tempvoice_lock_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.CHANNELS.STATE.LOCKED))
+        .setEmoji(EMOJI.CHANNELS.STATE.LOCKED)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.UI.INDICATORS.VISIBILITY))
+        .setEmoji(EMOJI.UI.INDICATORS.VISIBILITY)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.UI.ACTIONS.EDIT))
+        .setEmoji(EMOJI.UI.ACTIONS.EDIT)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.USER.ICONS.MULTIPLE_MEMBERS))
+        .setEmoji(EMOJI.USER.ICONS.MULTIPLE_MEMBERS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.UI.ACTIONS.SETTINGS))
+        .setEmoji(EMOJI.UI.ACTIONS.SETTINGS)
         .setStyle(ButtonStyle.Secondary)
     );
 
     const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`tempvoice_permit_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.USER.ACTIONS.INVITE))
+        .setEmoji(EMOJI.USER.ACTIONS.INVITE)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.MODERATION.STATE.SUSPICIOUS))
+        .setEmoji(EMOJI.MODERATION.STATE.SUSPICIOUS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_trust_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.UI.ACTIONS.ADD_GREEN))
+        .setEmoji(EMOJI.UI.ACTIONS.ADD_GREEN)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_claim_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.USER.ROLES.OWNER))
+        .setEmoji(EMOJI.USER.ROLES.OWNER)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
-        .setEmoji(this.parseEmoji(EMOJI.UI.NAV.RIGHT))
+        .setEmoji(EMOJI.UI.NAV.RIGHT)
         .setStyle(ButtonStyle.Secondary)
     );
 
     return [row1, row2];
-  }
-
-  /**
-   * Parse emoji string to extract ID for custom emojis or return Unicode directly
-   */
-  private parseEmoji(emoji: string): string {
-    const customMatch = emoji.match(/<a?:(\w+):(\d+)>/);
-    if (customMatch && customMatch[2]) {
-      return customMatch[2];
-    }
-    return emoji;
   }
 }

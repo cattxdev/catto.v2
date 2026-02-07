@@ -32,7 +32,7 @@ export class ChannelUpdateListener extends Listener {
     if (!this.configService) {
       this.configService = new TempVoiceConfigService(container.prisma, container.client);
       this.channelService = new TempChannelService(container.prisma, new PermissionsService());
-      this.moderationService = new NameModerationService(container.prisma);
+      this.moderationService = new NameModerationService(container.prisma, container.logger);
     }
 
     try {
@@ -54,11 +54,19 @@ export class ChannelUpdateListener extends Listener {
         return;
       }
 
+      this.container.logger.debug(
+        `[Name Moderation] Channel name changed: ${oldVoiceChannel.name} -> ${voiceChannel.name} (Channel ID: ${voiceChannel.id})`
+      );
+
       // Check if this is a temp voice channel
       const tempChannel = await this.channelService.getByChannelId(voiceChannel.id);
       if (!tempChannel) {
         return;
       }
+
+      this.container.logger.debug(
+        `[Name Moderation] Channel ${voiceChannel.id} is a temp voice channel owned by ${tempChannel.ownerId}`
+      );
 
       // Get guild configuration
       const config = await this.configService.getOrNull(voiceChannel.guild.id);
@@ -68,8 +76,15 @@ export class ChannelUpdateListener extends Listener {
 
       // Check if moderation is enabled
       if (!config.moderationEnabled) {
+        this.container.logger.debug(
+          `[Name Moderation] Moderation disabled for guild ${voiceChannel.guild.id}`
+        );
         return;
       }
+
+      this.container.logger.debug(
+        `[Name Moderation] Moderation enabled for guild ${voiceChannel.guild.id}, action: ${config.moderationAction}`
+      );
 
       // Get the user who made the change from audit logs
       let userId = tempChannel.ownerId; // Default fallback

@@ -121,6 +121,8 @@ export interface ModerationContext {
   primaryLanguage?: string;
   /** Additional languages to check */
   additionalLanguages?: string[];
+  /** Whether to check all languages or primary only */
+  multiLangMode?: boolean;
 }
 
 /**

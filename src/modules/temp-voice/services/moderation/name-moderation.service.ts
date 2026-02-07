@@ -39,7 +39,15 @@ export class NameModerationService {
   private readonly MAX_ATTEMPTS_PER_MINUTE = 5;
   private readonly RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 
-  constructor(private prisma: PrismaClient) {
+  constructor(
+    private prisma: PrismaClient,
+    private logger?: {
+      error: (msg: string, ...args: any[]) => void;
+      warn: (msg: string, ...args: any[]) => void;
+      info: (msg: string, ...args: any[]) => void;
+      debug: (msg: string, ...args: any[]) => void;
+    }
+  ) {
     this.validationService = new NameValidationService();
     this.autoRenameService = new AutoRenameService();
     this.rateLimitMap = new Map();
@@ -75,7 +83,7 @@ export class NameModerationService {
 
     // Check rate limit
     if (this.isRateLimited(channel.id)) {
-      console.warn(`Rate limit exceeded for channel ${channel.id}`);
+      this.logger?.warn(`[Name Moderation] Rate limit exceeded for channel ${channel.id}`);
       // Still allow the rename but log the warning
       // In production, you might want to block further attempts
     }
@@ -90,10 +98,21 @@ export class NameModerationService {
       allowListEnabled: config.allowListEnabled,
       customPatterns: config.customPatterns,
       allowedKeywords: config.allowedKeywords,
+      primaryLanguage: config.primaryLanguage,
+      additionalLanguages: config.additionalLanguages as string[],
+      multiLangMode: config.multiLangMode,
     };
+
+    this.logger?.debug(
+      `[Name Moderation] Validating "${newName}" with language: ${config.primaryLanguage}, multiLang: ${config.multiLangMode}`
+    );
 
     // Normalize and validate the name
     const validation = await this.validationService.validate(newName, context);
+
+    this.logger?.debug(
+      `[Name Moderation] Validation result: isAllowed=${validation.isAllowed}, reasonCodes=${JSON.stringify(validation.reasonCodes)}, matchedPatterns=${validation.matchedPatterns?.length || 0}`
+    );
 
     // Determine action
     let actionTaken: ModerationAction;
@@ -189,12 +208,16 @@ export class NameModerationService {
       // Actually rename the channel
       await channel.setName(renameResult.suggestedName);
 
+      this.logger?.info(
+        `[Name Moderation] Auto-renamed channel ${channel.id} from "${problematicName}" to "${renameResult.suggestedName}"`
+      );
+
       return {
         finalName: renameResult.suggestedName,
         renameResult,
       };
     } catch (error) {
-      console.error('Failed to auto-rename channel:', error);
+      this.logger?.error(`[Name Moderation] Failed to auto-rename channel ${channel.id}:`, error);
       return null;
     }
   }
@@ -213,9 +236,13 @@ export class NameModerationService {
       // Revert to previous name
       await channel.setName(previousName);
 
+      this.logger?.info(
+        `[Name Moderation] Blocked channel ${channel.id} rename, reverted to "${previousName}"`
+      );
+
       return previousName;
     } catch (error) {
-      console.error('Failed to block channel rename:', error);
+      this.logger?.error(`[Name Moderation] Failed to block channel ${channel.id} rename:`, error);
       return channel.name; // Return current name if revert failed
     }
   }
@@ -227,9 +254,8 @@ export class NameModerationService {
    */
   private async executeWarn(channel: VoiceChannel, validation: ValidationResult): Promise<void> {
     // Just log a warning
-    console.warn(
-      `[Name Moderation] Warning for channel ${channel.id} (${channel.name}):`,
-      validation.reasonCodes
+    this.logger?.warn(
+      `[Name Moderation] Warning for channel ${channel.id} (${channel.name}): ${JSON.stringify(validation.reasonCodes)}`
     );
 
     // In production, you might want to send a message to a mod channel
@@ -273,7 +299,7 @@ export class NameModerationService {
         },
       });
     } catch (error) {
-      console.error('Failed to log moderation event:', error);
+      this.logger?.error('[Name Moderation] Failed to log moderation event:', error);
       // Don't throw - logging failure shouldn't break moderation
     }
   }

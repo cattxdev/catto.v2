@@ -256,6 +256,7 @@ export class NameValidationService {
 
     // If no languages specified, check base patterns only
     if (languagesToCheck.length === 0) {
+      console.debug('[Name Validation] No languages specified, using base patterns only');
       // Check base patterns (fallback to original behavior)
       for (const [category, patterns] of Object.entries(this.basePatterns)) {
         for (const pattern of patterns) {
@@ -280,7 +281,14 @@ export class NameValidationService {
       }
     } else {
       // Check multi-language patterns
+      console.debug(
+        `[Name Validation] Checking patterns for languages: ${languagesToCheck.join(', ')}`
+      );
       const languagePatterns = await patternRegistry.getMultiLanguagePatterns(languagesToCheck);
+
+      console.debug(
+        `[Name Validation] Loaded ${languagePatterns.profanity.length} profanity patterns, ${languagePatterns.hateSpech.length} hate speech patterns, ${languagePatterns.spam.length} spam patterns`
+      );
 
       // Check profanity patterns
       for (const patternStr of languagePatterns.profanity) {

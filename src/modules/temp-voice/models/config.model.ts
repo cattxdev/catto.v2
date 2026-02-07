@@ -57,6 +57,12 @@ export interface TempVoiceConfig {
   customPatterns: string[];
   allowedKeywords: string[];
 
+  // Multi-language settings
+  primaryLanguage: string;
+  additionalLanguages: string[];
+  multiLangMode: boolean;
+  languageSettings: Record<string, any>;
+
   createdAt: Date;
   updatedAt: Date;
 }
