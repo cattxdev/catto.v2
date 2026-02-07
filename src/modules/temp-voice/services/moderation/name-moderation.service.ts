@@ -33,7 +33,9 @@ interface RateLimitEntry {
 export class NameModerationService {
   private validationService: NameValidationService;
   private autoRenameService: AutoRenameService;
-  private rateLimitMap: Map<string, RateLimitEntry>;
+
+  // Shared across all instances to prevent race conditions
+  private static rateLimitMap: Map<string, RateLimitEntry> = new Map();
 
   // Rate limit configuration
   private readonly MAX_ATTEMPTS_PER_MINUTE = 5;
@@ -50,7 +52,6 @@ export class NameModerationService {
   ) {
     this.validationService = new NameValidationService();
     this.autoRenameService = new AutoRenameService();
-    this.rateLimitMap = new Map();
   }
 
   /**
@@ -311,7 +312,7 @@ export class NameModerationService {
    * @returns True if this is a bot rename
    */
   private isBotRename(channelId: string, newName: string): boolean {
-    const entry = this.rateLimitMap.get(channelId);
+    const entry = NameModerationService.rateLimitMap.get(channelId);
     if (!entry) return false;
 
     return entry.botRenames.has(newName);
@@ -322,8 +323,8 @@ export class NameModerationService {
    * @param channelId - Channel ID
    * @param name - Name that bot set
    */
-  private markAsBotRename(channelId: string, name: string): void {
-    let entry = this.rateLimitMap.get(channelId);
+  public markAsBotRename(channelId: string, name: string): void {
+    let entry = NameModerationService.rateLimitMap.get(channelId);
     if (!entry) {
       entry = {
         channelId,
@@ -331,14 +332,14 @@ export class NameModerationService {
         lastAttempt: Date.now(),
         botRenames: new Set(),
       };
-      this.rateLimitMap.set(channelId, entry);
+      NameModerationService.rateLimitMap.set(channelId, entry);
     }
 
     entry.botRenames.add(name);
 
     // Clean up old bot renames after 5 minutes
     setTimeout(() => {
-      const e = this.rateLimitMap.get(channelId);
+      const e = NameModerationService.rateLimitMap.get(channelId);
       if (e) {
         e.botRenames.delete(name);
       }
@@ -351,7 +352,7 @@ export class NameModerationService {
    * @returns True if rate limited
    */
   private isRateLimited(channelId: string): boolean {
-    const entry = this.rateLimitMap.get(channelId);
+    const entry = NameModerationService.rateLimitMap.get(channelId);
     if (!entry) return false;
 
     const now = Date.now();
@@ -373,7 +374,7 @@ export class NameModerationService {
    * @param channelId - Channel ID
    */
   private updateRateLimit(channelId: string): void {
-    let entry = this.rateLimitMap.get(channelId);
+    let entry = NameModerationService.rateLimitMap.get(channelId);
     if (!entry) {
       entry = {
         channelId,
@@ -381,7 +382,7 @@ export class NameModerationService {
         lastAttempt: Date.now(),
         botRenames: new Set(),
       };
-      this.rateLimitMap.set(channelId, entry);
+      NameModerationService.rateLimitMap.set(channelId, entry);
     }
 
     entry.attempts++;
@@ -393,9 +394,9 @@ export class NameModerationService {
    */
   cleanupRateLimits(): void {
     const now = Date.now();
-    for (const [channelId, entry] of this.rateLimitMap.entries()) {
+    for (const [channelId, entry] of NameModerationService.rateLimitMap.entries()) {
       if (now - entry.lastAttempt > this.RATE_LIMIT_WINDOW_MS) {
-        this.rateLimitMap.delete(channelId);
+        NameModerationService.rateLimitMap.delete(channelId);
       }
     }
   }
