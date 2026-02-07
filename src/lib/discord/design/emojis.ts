@@ -150,7 +150,7 @@ const RAW_EMOJIS = {
       REPLAY: { custom: '<:replay:1462789298293313679>', fallback: '\uD83D\uDD04' },
     },
     ACTIONS: {
-      ADD_GREEN: { custom: '<:add_green:1463366122916020466>', fallback: '\u2795' },
+      ADD_GREEN: { custom: '<:add_green:1469782014218600488>', fallback: '\u2795' },
       ADD_WHITE: { custom: '<:add_white:1463534575299858588>', fallback: '\u2795' },
       EDIT: { custom: '<:edit:1463366117631197298>', fallback: '\u270F\uFE0F' },
       DELETE: { custom: '<:red_trash:1463744840021049442>', fallback: '\uD83D\uDDD1' },

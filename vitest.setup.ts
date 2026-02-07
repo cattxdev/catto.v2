@@ -1,4 +1,3 @@
-// Vitest setup file
 import 'reflect-metadata';
 
 // Set test environment variables to prevent config errors

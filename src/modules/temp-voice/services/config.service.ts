@@ -24,12 +24,12 @@ export class TempVoiceConfigService {
    * Creates default config if it doesn't exist
    */
   async get(guildId: string): Promise<TempVoiceConfig> {
-    let config = await this.prisma.tempVoiceConfig.findUnique({
+    const config = await this.prisma.tempVoiceConfig.findUnique({
       where: { guildId },
     });
 
     if (!config) {
-      config = await this.create(guildId, DEFAULT_TEMP_VOICE_CONFIG);
+      return this.create(guildId, DEFAULT_TEMP_VOICE_CONFIG);
     }
 
     return this.mapToModel(config);
@@ -234,6 +234,17 @@ export class TempVoiceConfigService {
         ? (data.joinToCreateChannels as string[])
         : [],
       adminRoleIds: Array.isArray(data.adminRoleIds) ? (data.adminRoleIds as string[]) : [],
+      customPatterns: Array.isArray(data.customPatterns) ? (data.customPatterns as string[]) : [],
+      allowedKeywords: Array.isArray(data.allowedKeywords)
+        ? (data.allowedKeywords as string[])
+        : [],
+      additionalLanguages: Array.isArray(data.additionalLanguages)
+        ? (data.additionalLanguages as string[])
+        : [],
+      languageSettings:
+        typeof data.languageSettings === 'object' && data.languageSettings !== null
+          ? (data.languageSettings as Record<string, unknown>)
+          : {},
       ownerLeaveStrategy: data.ownerLeaveStrategy as OwnerLeaveStrategy,
     };
   }

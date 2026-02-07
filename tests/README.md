@@ -49,31 +49,6 @@ pnpm test:coverage
 pnpm test src/lib/dtos/xp/update-xp-config.dto.test.ts
 ```
 
-## Test Coverage
-
-### DTO Tests (7 files)
-- ✅ `src/lib/dtos/xp/update-xp-config.dto.test.ts` - 11 test suites, 30+ tests
-- ✅ `src/lib/dtos/voice-xp/update-voice-xp-config.dto.test.ts` (similar structure)
-- ✅ `src/lib/dtos/temp-voice/temp-voice-config.dto.test.ts` - 3 DTOs tested
-- ✅ `src/lib/dtos/logging/logging-config.dto.test.ts` - 3 DTOs tested
-- ✅ `src/lib/dtos/moderation/moderation-config.dto.test.ts` (to be added)
-- ✅ `src/lib/dtos/permissions/permission-grant.dto.test.ts` - 2 DTOs tested
-- ✅ `src/lib/dtos/rewards/create-reward.dto.test.ts` (to be added)
-
-### Route Tests (12 routes)
-- ✅ `src/routes/guilds/xp/config.test.ts` - GET/PUT tests
-- ✅ `src/routes/guilds/voice-xp/config.test.ts` (to be added, same pattern)
-- ✅ `src/routes/guilds/temp-voice/config-post.test.ts` - POST tests
-- ✅ `src/routes/guilds/temp-voice/config-patch.test.ts` (to be added)
-- ✅ `src/routes/guilds/temp-voice/join-channels-post.test.ts` (to be added)
-- ✅ `src/routes/guilds/temp-voice/validate-post.test.ts` (to be added)
-- ✅ `src/routes/guilds/logging/setup.test.ts` - POST tests
-- ✅ `src/routes/guilds/logging/config.test.ts` (to be added)
-- ✅ `src/routes/guilds/logging/ignored-channels.test.ts` (to be added)
-- ✅ `src/routes/guilds/moderation/config.test.ts` (to be added)
-- ✅ `src/routes/guilds/permissions/grants.test.ts` - GET/POST tests
-- ✅ `src/routes/guilds/rewards/index.test.ts` (to be added)
-
 ## Writing New Tests
 
 ### Example DTO Test
@@ -150,7 +125,7 @@ describe('YourRoute', () => {
 
 ## Notes
 
-- All tests use Vitest (not Jest)
+- All tests use Vitest
 - `reflect-metadata` is required for class-validator decorators
 - Mock services using `vi.mock()` to avoid database/Discord API calls
 - Use test helpers for consistency

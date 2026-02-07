@@ -37,6 +37,14 @@ export const DEFAULT_TEMP_VOICE_CONFIG = {
   logChannelId: null,
   adminRoleIds: [] as string[],
   allowCustomization: true,
+
+  // Name Moderation (optional, disabled by default)
+  moderationEnabled: false,
+  moderationAction: 'AUTO_RENAME' as const,
+  strictMode: false,
+  allowListEnabled: false,
+  customPatterns: [] as string[],
+  allowedKeywords: [] as string[],
 } as const;
 
 /**

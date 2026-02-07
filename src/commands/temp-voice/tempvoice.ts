@@ -6,6 +6,7 @@ import { TempChannelService } from '#modules/temp-voice/services/temp-channel.se
 import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
+import { NameModerationService } from '#modules/temp-voice/services/moderation/name-moderation.service.js';
 import { TempVoiceChannel } from '@prisma/client';
 
 @ApplyOptions<Command.Options>({
@@ -19,6 +20,7 @@ export class TempVoiceCommand extends Command {
   private configService!: TempVoiceConfigService;
   private permissionsService!: PermissionsService;
   private controlPanelService!: ControlPanelService;
+  private moderationService!: NameModerationService;
 
   public override registerApplicationCommands(registry: Command.Registry) {
     registry.registerChatInputCommand((builder) =>
@@ -286,14 +288,59 @@ export class TempVoiceCommand extends Command {
     tempChannel: TempVoiceChannel,
     voiceChannel: VoiceChannel
   ) {
+    // Initialize services if needed
+    if (!this.moderationService) {
+      this.moderationService = new NameModerationService(
+        this.container.prisma,
+        this.container.logger
+      );
+    }
+
     const newName = interaction.options.getString('name', true);
+    const guildId = voiceChannel.guildId;
 
     try {
-      await voiceChannel.setName(newName);
-      await this.channelService.update(tempChannel.channelId, { customName: newName });
+      // Get config to check moderation settings
+      const config = await this.configService.get(guildId);
+      const oldName = voiceChannel.name;
+      let finalName = newName;
+
+      // Apply moderation if enabled
+      if (config.moderationEnabled) {
+        const moderationResult = await this.moderationService.moderateChannelName(
+          voiceChannel,
+          oldName,
+          newName,
+          config,
+          interaction.user.id
+        );
+
+        if (moderationResult && !moderationResult.validation.isAllowed) {
+          finalName = moderationResult.finalName;
+
+          // Notify user about moderation
+          if (config.moderationAction === 'AUTO_RENAME') {
+            await this.channelService.update(tempChannel.channelId, { customName: finalName });
+            return interaction.reply({
+              content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
+              ephemeral: true,
+            });
+          } else if (config.moderationAction === 'BLOCK') {
+            return interaction.reply({
+              content: `${EMOJI.STATUS.ERROR} That channel name is not allowed. Please choose a different name.`,
+              ephemeral: true,
+            });
+          }
+        }
+      } else {
+        // No moderation, just set the name
+        await voiceChannel.setName(newName);
+      }
+
+      await this.channelService.update(tempChannel.channelId, { customName: finalName });
 
       return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${newName}**`,
+        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
         ephemeral: true,
       });
     } catch (error) {

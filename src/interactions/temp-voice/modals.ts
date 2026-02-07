@@ -7,6 +7,7 @@ import { TempVoiceConfigService } from '#modules/temp-voice/services/config.serv
 import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
 import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
 import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
+import { NameModerationService } from '#modules/temp-voice/services/moderation/name-moderation.service.js';
 
 export class TempVoiceModalHandler extends InteractionHandler {
   private channelService!: TempChannelService;
@@ -14,6 +15,7 @@ export class TempVoiceModalHandler extends InteractionHandler {
   private permissionsService!: PermissionsService;
   private controlPanelService!: ControlPanelService;
   private userPrefsService!: UserPreferencesService;
+  private moderationService!: NameModerationService;
 
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
     super(ctx, {
@@ -111,6 +113,14 @@ export class TempVoiceModalHandler extends InteractionHandler {
     guild: NonNullable<typeof interaction.guild>,
     guildId: string
   ) {
+    // Initialize services if needed
+    if (!this.moderationService) {
+      this.moderationService = new NameModerationService(
+        this.container.prisma,
+        this.container.logger
+      );
+    }
+
     const newName = interaction.fields.getTextInputValue('channel_name').trim();
 
     if (newName.length < 1 || newName.length > 100) {
@@ -129,26 +139,64 @@ export class TempVoiceModalHandler extends InteractionHandler {
         });
       }
 
-      await voiceChannel.setName(newName);
-      await this.channelService.update(channelId, { customName: newName });
+      // Get config to check moderation settings
+      const config = await this.configService.get(guildId);
+      const oldName = voiceChannel.name;
+      let finalName = newName;
+
+      // Apply moderation if enabled
+      if (config.moderationEnabled) {
+        const moderationResult = await this.moderationService.moderateChannelName(
+          voiceChannel,
+          oldName,
+          newName,
+          config,
+          interaction.user.id
+        );
+
+        if (moderationResult && !moderationResult.validation.isAllowed) {
+          finalName = moderationResult.finalName;
+
+          // Notify user about moderation
+          if (config.moderationAction === 'AUTO_RENAME') {
+            await interaction.reply({
+              content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
+              flags: MessageFlags.Ephemeral,
+            });
+          } else if (config.moderationAction === 'BLOCK') {
+            return interaction.reply({
+              content: `${EMOJI.STATUS.ERROR} That channel name is not allowed. Please choose a different name.`,
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+        }
+      } else {
+        // No moderation, just set the name
+        await voiceChannel.setName(newName);
+      }
+
+      await this.channelService.update(channelId, { customName: finalName });
 
       // Save user preference if customization is allowed
       const tempChannel = await this.channelService.getByChannelId(channelId);
-      if (tempChannel) {
-        const config = await this.configService.get(guildId);
-        if (config.allowCustomization) {
-          await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-            customName: newName,
-          });
-        }
+      if (tempChannel && config.allowCustomization) {
+        await this.userPrefsService.save(guildId, tempChannel.ownerId, {
+          customName: finalName,
+        });
       }
 
       await this.controlPanelService.refresh(channelId);
 
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${newName}**`,
-        flags: MessageFlags.Ephemeral,
-      });
+      // Only send success message if we haven't already replied (moderation case)
+      if (!interaction.replied) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      // If we already replied (moderation AUTO_RENAME case), return undefined
+      return;
     } catch (error) {
       this.container.logger.error('Failed to rename channel:', error);
       return interaction.reply({
