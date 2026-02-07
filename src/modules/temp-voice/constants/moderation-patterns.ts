@@ -35,12 +35,12 @@ export const STRICT_HEURISTIC_CONFIG: HeuristicConfig = {
 export const PROFANITY_PATTERNS: string[] = [
   // Note: These are placeholder patterns
   // Real deployments should use a comprehensive profanity dataset
-  '\\b(f+[\\W_]*u+[\\W_]*c+[\\W_]*k+)\\b',
-  '\\b(s+[\\W_]*h+[\\W_]*i+[\\W_]*t+)\\b',
-  '\\b(b+[\\W_]*i+[\\W_]*t+[\\W_]*c+[\\W_]*h+)\\b',
-  '\\b(d+[\\W_]*a+[\\W_]*m+[\\W_]*n+)\\b',
+  '\\b(f+[\\W_]*u+[\\W_]*c+[\\W_]*k+[edsing]*)\\b',
+  '\\b(s+[\\W_]*h+[\\W_]*i+[\\W_]*t+[sy]?)\\b',
+  '\\b(b+[\\W_]*i+[\\W_]*t+[\\W_]*c+[\\W_]*h+[es]*)\\b',
+  '\\b(d+[\\W_]*a+[\\W_]*m+[\\W_]*n+[edsing]*)\\b',
   '\\b(h+[\\W_]*e+[\\W_]*l+[\\W_]*l+)\\b',
-  '\\b(a+[\\W_]*s+[\\W_]*s+)\\b',
+  '\\b(a+[\\W_]*s+[\\W_]*s+[es]*)\\b',
 ];
 
 /**

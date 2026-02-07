@@ -113,14 +113,6 @@ export class TempVoiceModalHandler extends InteractionHandler {
     guild: NonNullable<typeof interaction.guild>,
     guildId: string
   ) {
-    // Initialize services if needed
-    if (!this.moderationService) {
-      this.moderationService = new NameModerationService(
-        this.container.prisma,
-        this.container.logger
-      );
-    }
-
     const newName = interaction.fields.getTextInputValue('channel_name').trim();
 
     if (newName.length < 1 || newName.length > 100) {
@@ -130,14 +122,28 @@ export class TempVoiceModalHandler extends InteractionHandler {
       });
     }
 
+    // Initialize moderation service (needed even if moderation is disabled for bot rename marking)
+    if (!this.moderationService) {
+      this.moderationService = new NameModerationService(
+        this.container.prisma,
+        this.container.logger
+      );
+    }
+
+    this.container.logger.info(
+      `[Modal Rename] Starting rename for channel ${channelId} to "${newName}"`
+    );
+
     try {
-      const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
+      const voiceChannel = (await guild.channels.fetch(channelId, { force: true })) as VoiceChannel;
       if (!voiceChannel) {
         return interaction.reply({
           content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
           flags: MessageFlags.Ephemeral,
         });
       }
+
+      this.container.logger.info(`[Modal Rename] Current channel name: "${voiceChannel.name}"`);
 
       // Get config to check moderation settings
       const config = await this.configService.get(guildId);
@@ -159,7 +165,20 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
           // Notify user about moderation
           if (config.moderationAction === 'AUTO_RENAME') {
-            await interaction.reply({
+            // Channel already renamed by moderation service, just update DB
+            await this.channelService.update(channelId, { customName: finalName });
+
+            // Save user preference if customization is allowed
+            const tempChannel = await this.channelService.getByChannelId(channelId);
+            if (tempChannel && config.allowCustomization) {
+              await this.userPrefsService.save(guildId, tempChannel.ownerId, {
+                customName: finalName,
+              });
+            }
+
+            await this.controlPanelService.refresh(channelId);
+
+            return interaction.reply({
               content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
               flags: MessageFlags.Ephemeral,
             });
@@ -170,10 +189,19 @@ export class TempVoiceModalHandler extends InteractionHandler {
             });
           }
         }
-      } else {
-        // No moderation, just set the name
-        await voiceChannel.setName(newName);
       }
+
+      // Mark as bot rename to prevent channelUpdate listener from re-processing
+      this.moderationService.markAsBotRename(voiceChannel.id, finalName);
+
+      this.container.logger.info(`[Modal Rename] Renaming channel ${channelId} to "${finalName}"`);
+
+      // Set the Discord channel name
+      await voiceChannel.setName(finalName);
+
+      this.container.logger.info(
+        `[Modal Rename] Channel ${channelId} renamed successfully to "${finalName}"`
+      );
 
       await this.channelService.update(channelId, { customName: finalName });
 
@@ -187,16 +215,10 @@ export class TempVoiceModalHandler extends InteractionHandler {
 
       await this.controlPanelService.refresh(channelId);
 
-      // Only send success message if we haven't already replied (moderation case)
-      if (!interaction.replied) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      // If we already replied (moderation AUTO_RENAME case), return undefined
-      return;
+      return interaction.reply({
+        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
+        flags: MessageFlags.Ephemeral,
+      });
     } catch (error) {
       this.container.logger.error('Failed to rename channel:', error);
       return interaction.reply({

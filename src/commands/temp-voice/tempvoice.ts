@@ -320,6 +320,7 @@ export class TempVoiceCommand extends Command {
 
           // Notify user about moderation
           if (config.moderationAction === 'AUTO_RENAME') {
+            // Channel already renamed by moderation service, just update DB
             await this.channelService.update(tempChannel.channelId, { customName: finalName });
             return interaction.reply({
               content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
@@ -332,11 +333,13 @@ export class TempVoiceCommand extends Command {
             });
           }
         }
-      } else {
-        // No moderation, just set the name
-        await voiceChannel.setName(newName);
       }
 
+      // Mark as bot rename to prevent channelUpdate listener from re-processing
+      this.moderationService.markAsBotRename(voiceChannel.id, finalName);
+
+      // Set the Discord channel name
+      await voiceChannel.setName(finalName);
       await this.channelService.update(tempChannel.channelId, { customName: finalName });
 
       return interaction.reply({

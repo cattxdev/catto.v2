@@ -9,47 +9,46 @@
  */
 export const PROFANITY_PATTERNS_DE: string[] = [
   // Scheiße variations
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*[e3]+[\\W_]*[i1!]+[\\W_]*[sß]+[\\W_]*e+)\\b',
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*e+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*s+[\\W_]*e+)\\b',
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*[e3]+[\\W_]*[i1!]+[\\W_]*[sß]+[\\W_]*e+[rn]?)\\b',
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*e+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*s+[\\W_]*e+[rn]?)\\b',
 
-  // Arsch variations
+  // Arsch variations (Arschlöcher plural)
   '\\b(a+[\\W_]*r+[\\W_]*s+[\\W_]*c+[\\W_]*h+)\\b',
-  '\\b(a+[\\W_]*r+[\\W_]*s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*[o0]+[\\W_]*c+[\\W_]*h+)\\b',
+  '\\b(a+[\\W_]*r+[\\W_]*s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*[o0ö]+[\\W_]*c+[\\W_]*h+[\\W_]*e?[\\W_]*r?)\\b',
 
-  // Fick variations
-  '\\b(f+[\\W_]*[i1!]+[\\W_]*c+[\\W_]*k+)\\b',
-  '\\b(f+[\\W_]*[i1!]+[\\W_]*c+[\\W_]*k+[\\W_]*e+[\\W_]*n+)\\b',
+  // Fick variations (ficken, ficker)
+  '\\b(f+[\\W_]*[i1!]+[\\W_]*c+[\\W_]*k+[en]*)\\b',
 
-  // Schlampe variations
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*a+[\\W_]*m+[\\W_]*p+[\\W_]*e+)\\b',
+  // Schlampe variations (Schlampen plural)
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*a+[\\W_]*m+[\\W_]*p+[\\W_]*e+[ns]?)\\b',
 
-  // Hurensohn variations
-  '\\b(h+[\\W_]*u+[\\W_]*r+[\\W_]*e+[\\W_]*n+[\\W_]*s+[\\W_]*[o0]+[\\W_]*h+[\\W_]*n+)\\b',
+  // Hurensohn variations (Hurensöhne plural)
+  '\\b(h+[\\W_]*u+[\\W_]*r+[\\W_]*e+[\\W_]*n+[\\W_]*s+[\\W_]*[o0öœ]+[\\W_]*h+[\\W_]*n+[\\W_]*e?)\\b',
 
-  // Fotze variations
-  '\\b(f+[\\W_]*[o0]+[\\W_]*t+[\\W_]*z+[\\W_]*e+)\\b',
+  // Fotze variations (Fotzen plural)
+  '\\b(f+[\\W_]*[o0]+[\\W_]*t+[\\W_]*z+[\\W_]*e+[ns]?)\\b',
 
   // Miststück variations
-  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*s+[\\W_]*t+[\\W_]*ü+[\\W_]*c+[\\W_]*k+)\\b',
-  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*s+[\\W_]*t+[\\W_]*u+[\\W_]*e+[\\W_]*c+[\\W_]*k+)\\b',
+  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*s+[\\W_]*t+[\\W_]*ü+[\\W_]*c+[\\W_]*k+[es]?)\\b',
+  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*s+[\\W_]*t+[\\W_]*u+[\\W_]*e+[\\W_]*c+[\\W_]*k+[es]?)\\b',
 
-  // Wichser variations
-  '\\b(w+[\\W_]*[i1!]+[\\W_]*c+[\\W_]*h+[\\W_]*s+[\\W_]*e+[\\W_]*r+)\\b',
+  // Wichser variations (Wichser plural is same)
+  '\\b(w+[\\W_]*[i1!]+[\\W_]*c+[\\W_]*h+[\\W_]*s+[\\W_]*e+[\\W_]*r+[ns]?)\\b',
 
-  // Dummkopf variations
-  '\\b(d+[\\W_]*u+[\\W_]*m+[\\W_]*m+[\\W_]*k+[\\W_]*[o0]+[\\W_]*p+[\\W_]*f+)\\b',
+  // Dummkopf variations (Dummköpfe plural)
+  '\\b(d+[\\W_]*u+[\\W_]*m+[\\W_]*m+[\\W_]*k+[\\W_]*[o0öœ]+[\\W_]*p+[\\W_]*f+[\\W_]*e?)\\b',
 
-  // Schwanz variations
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*w+[\\W_]*a+[\\W_]*n+[\\W_]*z+)\\b',
+  // Schwanz variations (Schwänze plural)
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*w+[\\W_]*[aä]+[\\W_]*n+[\\W_]*z+[\\W_]*e?)\\b',
 
-  // Mistkerl variations
-  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*k+[\\W_]*e+[\\W_]*r+[\\W_]*l+)\\b',
+  // Mistkerl variations (Mistkerle plural)
+  '\\b(m+[\\W_]*[i1!]+[\\W_]*s+[\\W_]*t+[\\W_]*k+[\\W_]*e+[\\W_]*r+[\\W_]*l+[\\W_]*e?)\\b',
 
   // Penner variations
-  '\\b(p+[\\W_]*e+[\\W_]*n+[\\W_]*n+[\\W_]*e+[\\W_]*r+)\\b',
+  '\\b(p+[\\W_]*e+[\\W_]*n+[\\W_]*n+[\\W_]*e+[\\W_]*r+[ns]?)\\b',
 
-  // Hure variations
-  '\\b(h+[\\W_]*u+[\\W_]*r+[\\W_]*e+)\\b',
+  // Hure variations (Huren plural)
+  '\\b(h+[\\W_]*u+[\\W_]*r+[\\W_]*e+[ns]?)\\b',
 ];
 
 /**
@@ -57,34 +56,34 @@ export const PROFANITY_PATTERNS_DE: string[] = [
  * These detect hate speech, slurs, and discriminatory language
  */
 export const HATE_SPEECH_PATTERNS_DE: string[] = [
-  // Nazi-related terms
-  '\\b(n+[\\W_]*a+[\\W_]*z+[\\W_]*[i1!]+)\\b',
+  // Nazi-related terms (Nazis plural)
+  '\\b(n+[\\W_]*a+[\\W_]*z+[\\W_]*[i1!]+s?)\\b',
   '\\b(h+[\\W_]*[i1!]+[\\W_]*t+[\\W_]*l+[\\W_]*e+[\\W_]*r+)\\b',
-  '\\b(j+[\\W_]*u+[\\W_]*d+[\\W_]*e+)\\b',
+  '\\b(j+[\\W_]*u+[\\W_]*d+[\\W_]*e+[ns]?)\\b',
 
   // Hate-related terms
   '\\b(h+[\\W_]*a+[\\W_]*s+[\\W_]*s+)\\b',
 
-  // Racial slurs
-  '\\b(k+[\\W_]*a+[\\W_]*n+[\\W_]*a+[\\W_]*k+[\\W_]*e+)\\b',
+  // Racial slurs (Kanaken plural)
+  '\\b(k+[\\W_]*a+[\\W_]*n+[\\W_]*a+[\\W_]*k+[\\W_]*e+[ns]?)\\b',
 
-  // Homophobic slurs
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*w+[\\W_]*u+[\\W_]*c+[\\W_]*h+[\\W_]*t+[\\W_]*e+[\\W_]*l+)\\b',
-  '\\b(t+[\\W_]*u+[\\W_]*n+[\\W_]*t+[\\W_]*e+)\\b',
+  // Homophobic slurs (Schwuchteln plural)
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*w+[\\W_]*u+[\\W_]*c+[\\W_]*h+[\\W_]*t+[\\W_]*e+[\\W_]*l+[ns]?)\\b',
+  '\\b(t+[\\W_]*u+[\\W_]*n+[\\W_]*t+[\\W_]*e+[ns]?)\\b',
 
-  // Xenophobic terms
-  '\\b(a+[\\W_]*u+[\\W_]*s+[\\W_]*l+[\\W_]*ä+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+)\\b',
-  '\\b(a+[\\W_]*u+[\\W_]*s+[\\W_]*l+[\\W_]*a+[\\W_]*e+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+)\\b',
-  '\\b(z+[\\W_]*[i1!]+[\\W_]*g+[\\W_]*e+[\\W_]*u+[\\W_]*n+[\\W_]*e+[\\W_]*r+)\\b',
+  // Xenophobic terms (Ausländer plural is same)
+  '\\b(a+[\\W_]*u+[\\W_]*s+[\\W_]*l+[\\W_]*ä+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+[ns]?)\\b',
+  '\\b(a+[\\W_]*u+[\\W_]*s+[\\W_]*l+[\\W_]*a+[\\W_]*e+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+[ns]?)\\b',
+  '\\b(z+[\\W_]*[i1!]+[\\W_]*g+[\\W_]*e+[\\W_]*u+[\\W_]*n+[\\W_]*e+[\\W_]*r+[ns]?)\\b',
 
   // Ableist slurs
-  '\\b(b+[\\W_]*e+[\\W_]*h+[\\W_]*[i1!]+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+[\\W_]*t+)\\b',
-  '\\b(k+[\\W_]*r+[\\W_]*ü+[\\W_]*p+[\\W_]*p+[\\W_]*e+[\\W_]*l+)\\b',
-  '\\b(k+[\\W_]*r+[\\W_]*u+[\\W_]*e+[\\W_]*p+[\\W_]*p+[\\W_]*e+[\\W_]*l+)\\b',
+  '\\b(b+[\\W_]*e+[\\W_]*h+[\\W_]*[i1!]+[\\W_]*n+[\\W_]*d+[\\W_]*e+[\\W_]*r+[\\W_]*t+[en]?)\\b',
+  '\\b(k+[\\W_]*r+[\\W_]*ü+[\\W_]*p+[\\W_]*p+[\\W_]*e+[\\W_]*l+[ns]?)\\b',
+  '\\b(k+[\\W_]*r+[\\W_]*u+[\\W_]*e+[\\W_]*p+[\\W_]*p+[\\W_]*e+[\\W_]*l+[ns]?)\\b',
 
-  // Misogynistic terms
-  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*a+[\\W_]*m+[\\W_]*p+[\\W_]*e+)\\b',
-  '\\b(n+[\\W_]*u+[\\W_]*t+[\\W_]*t+[\\W_]*e+)\\b',
+  // Misogynistic terms (Schlampen, Nutten plural)
+  '\\b(s+[\\W_]*c+[\\W_]*h+[\\W_]*l+[\\W_]*a+[\\W_]*m+[\\W_]*p+[\\W_]*e+[ns]?)\\b',
+  '\\b(n+[\\W_]*u+[\\W_]*t+[\\W_]*t+[\\W_]*e+[ns]?)\\b',
 ];
 
 /**

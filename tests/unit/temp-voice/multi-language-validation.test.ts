@@ -317,6 +317,96 @@ describe('NameValidationService - Multi-Language', () => {
     });
   });
 
+  describe('Plural and inflected forms', () => {
+    it('should detect Spanish plural profanity (putas)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'es' };
+      const result = await service.validate('entren las putas', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect Spanish plural profanity (cabrones)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'es' };
+      const result = await service.validate('sala cabrones', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect Spanish plural profanity (pendejos)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'es' };
+      const result = await service.validate('los pendejos', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect English plural profanity (bitches)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'en' };
+      const result = await service.validate('room bitches', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect English inflected profanity (fucking)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'en' };
+      const result = await service.validate('fucking room', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect French plural profanity (putes)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'fr' };
+      const result = await service.validate('salon des putes', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect Portuguese plural profanity (putas)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'pt' };
+      const result = await service.validate('sala putas', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect Italian plural profanity (stronzi)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'it' };
+      const result = await service.validate('sala stronzi', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect German plural profanity (Schlampen)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'de' };
+      const result = await service.validate('raum schlampen', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect Spanish plural hate speech (zorras)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'es' };
+      const result = await service.validate('las zorras', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+
+    it('should detect English plural hate speech (whores)', async () => {
+      const context = { ...defaultContext, primaryLanguage: 'en' };
+      const result = await service.validate('room whores', context);
+      
+      expect(result.isAllowed).toBe(false);
+      expect(result.matchedPatterns!.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('Leetspeak handling across languages', () => {
     it('should detect obfuscated English profanity', async () => {
       const context = { ...defaultContext, primaryLanguage: 'en' };
