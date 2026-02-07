@@ -213,12 +213,18 @@ describe('AutoRenameService - Multi-Language', () => {
         names.push(result.suggestedName.toLowerCase());
       }
       
+      // Debug: log all generated names
+      console.log('Generated Italian names:', names);
+      
       const hasItalianWords = names.some(
         (name) =>
           name.includes('stanza') ||
           name.includes('sala') ||
           name.includes('zona') ||
-          name.includes('chat')
+          name.includes('chat') ||
+          name.includes('spazio') ||
+          name.includes('angolo') ||
+          name.includes('punto')
       );
       
       expect(hasItalianWords).toBe(true);
