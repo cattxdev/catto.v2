@@ -113,6 +113,14 @@ export class TempVoiceModalHandler extends InteractionHandler {
     guild: NonNullable<typeof interaction.guild>,
     guildId: string
   ) {
+    // Initialize services if needed
+    if (!this.moderationService) {
+      this.moderationService = new NameModerationService(
+        this.container.prisma,
+        this.container.logger
+      );
+    }
+
     const newName = interaction.fields.getTextInputValue('channel_name').trim();
 
     if (newName.length < 1 || newName.length > 100) {
