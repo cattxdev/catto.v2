@@ -41,7 +41,9 @@ export function SessionExpiredModal() {
   if (!isExpired) return null;
 
   const handleLogin = () => {
-    // Redirect to OAuth login - the bot will redirect back after auth
+    // Save the current route so we return here after re-auth
+    const currentPath = window.location.pathname + window.location.search;
+    document.cookie = `mod_auth_redirect=${encodeURIComponent(currentPath)}; path=/; max-age=300; SameSite=Lax`;
     window.location.href = `${BOT_API_URL}/api/oauth/login`;
   };
 

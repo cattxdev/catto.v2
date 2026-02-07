@@ -10,7 +10,11 @@ export default function ModLoginPage() {
 
   const handleLogin = () => {
     setLoading(true);
-    document.cookie = `mod_auth_redirect=/mod; path=/; max-age=300; SameSite=Lax`;
+    // Only set the redirect cookie if one isn't already set by the middleware
+    const existing = document.cookie.split('; ').find(c => c.startsWith('mod_auth_redirect='));
+    if (!existing) {
+      document.cookie = `mod_auth_redirect=/mod; path=/; max-age=300; SameSite=Lax`;
+    }
     window.location.href = `${BOT_API_URL}/api/oauth/login`;
   };
 

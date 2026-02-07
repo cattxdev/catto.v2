@@ -5,7 +5,9 @@ import useSWR from 'swr';
 import type { Evidence, EvidenceAmendment, VideoTimestamp } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
 import { getEvidenceViewUrl, getEvidenceHistory, amendEvidence } from '@/lib/services/mod.service';
-import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconFile } from '@/lib/mod-icons';
+import { EVIDENCE_TYPE_ICONS, IconX, IconDownload, IconFile, IconFlag } from '@/lib/mod-icons';
+import { Toggle } from '@/components/ui/toggle';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SnapshotViewer } from './snapshot-viewer';
 import { AmendmentTimeline } from './amendment-timeline';
 import { AudioPlayer } from './audio-player';
@@ -60,6 +62,8 @@ export function EvidenceViewer({
   const [amendNewValue, setAmendNewValue] = useState('');
   const [amendTags, setAmendTags] = useState<string[]>(evidence.tags ?? []);
   const [amendSubmitting, setAmendSubmitting] = useState(false);
+  const [flagged, setFlagged] = useState(evidence.status === 'FLAGGED');
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
 
   // Async URL fetch (presigned URLs for file-backed evidence)
   const {
@@ -95,6 +99,22 @@ export function EvidenceViewer({
     onSwipeRight: onPrev,
     onSwipeDown: onClose,
   });
+
+  const handleToggleFlag = async (pressed: boolean) => {
+    setFlagSubmitting(true);
+    try {
+      await amendEvidence(guildId, evidenceId, {
+        action: pressed ? 'FLAGGED' : 'UNFLAGGED',
+        reason: pressed ? 'Flagged' : 'Unflagged',
+      });
+      setFlagged(pressed);
+      mutateHistory();
+    } catch {
+      // silent
+    } finally {
+      setFlagSubmitting(false);
+    }
+  };
 
   const handleAmendSubmit = async () => {
     setAmendSubmitting(true);
@@ -258,21 +278,33 @@ export function EvidenceViewer({
             {/* Amend tab */}
             {activeTab === 'amend' && (
               <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">
                     Action
                   </label>
-                  <select
-                    value={amendAction}
-                    onChange={(e) => setAmendAction(e.target.value)}
-                    className="w-full border border-[var(--mod-border)] bg-[var(--mono-950)] px-3 py-2 text-sm text-[var(--mono-white)] outline-none"
+                  <Toggle
+                    variant="mod"
+                    size="sm"
+                    pressed={flagged}
+                    onPressedChange={handleToggleFlag}
+                    disabled={flagSubmitting}
+                    aria-label="Toggle flag"
                   >
-                    <option value="NOTE_ADDED">Add Note</option>
-                    <option value="DESCRIPTION_UPDATED">Update Description</option>
-                    <option value="TAGS_UPDATED">Update Tags</option>
-                    <option value="FLAGGED">Flag</option>
-                    <option value="UNFLAGGED">Unflag</option>
-                  </select>
+                    <IconFlag size={14} />
+                    {flagged ? 'Flagged' : 'Flag'}
+                  </Toggle>
+                </div>
+                <div>
+                  <Select value={amendAction} onValueChange={setAmendAction}>
+                    <SelectTrigger variant="mod" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent variant="mod">
+                      <SelectItem value="NOTE_ADDED" variant="mod">Add Note</SelectItem>
+                      <SelectItem value="DESCRIPTION_UPDATED" variant="mod">Update Description</SelectItem>
+                      <SelectItem value="TAGS_UPDATED" variant="mod">Update Tags</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {amendAction === 'DESCRIPTION_UPDATED' && (

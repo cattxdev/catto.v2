@@ -42,6 +42,10 @@ export default function AnalyticsPage() {
 
   const isLoading = evidenceLoading || caseLoading;
 
+  const totalEvidence = Object.values(evidenceAnalytics?.byType ?? {}).reduce((a, b) => a + b, 0);
+  const totalCases = Object.values(caseAnalytics?.byAction ?? {}).reduce((a, b) => a + b, 0);
+  const hasAnyData = totalEvidence > 0 || totalCases > 0;
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -65,17 +69,27 @@ export default function AnalyticsPage() {
 
       {isLoading ? (
         <div className="py-12 text-center text-[var(--mod-text-dim)]">Loading analytics...</div>
+      ) : !hasAnyData ? (
+        <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-12 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-[var(--mod-border)] bg-[var(--mono-900)]">
+            <span className="text-lg text-[var(--mod-text-dim)]">/</span>
+          </div>
+          <h3 className="mb-2 text-sm font-medium text-[var(--mono-white)]">No data yet</h3>
+          <p className="mx-auto max-w-xs text-xs text-[var(--mod-text-dim)]">
+            Analytics will appear here once moderation cases and evidence are created in this server.
+          </p>
+        </div>
       ) : (
         <div className="space-y-6">
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <StatCard
               label="Total Evidence"
-              value={Object.values(evidenceAnalytics?.byType ?? {}).reduce((a, b) => a + b, 0)}
+              value={totalEvidence}
             />
             <StatCard
               label="Total Cases"
-              value={Object.values(caseAnalytics?.byAction ?? {}).reduce((a, b) => a + b, 0)}
+              value={totalCases}
             />
             <StatCard
               label="Storage Used"
@@ -91,7 +105,9 @@ export default function AnalyticsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Evidence volume over time */}
             <ChartCard title="Evidence Volume">
-              {evidenceAnalytics?.volumeOverTime && (
+              {!evidenceAnalytics?.volumeOverTime?.length ? (
+                <p className="py-6 text-center text-xs text-[var(--mod-text-dim)]">No evidence data for this period.</p>
+              ) : (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={evidenceAnalytics.volumeOverTime}>
                     <XAxis
@@ -120,7 +136,9 @@ export default function AnalyticsPage() {
 
             {/* Cases volume over time */}
             <ChartCard title="Case Volume">
-              {caseAnalytics?.volumeOverTime && (
+              {!caseAnalytics?.volumeOverTime?.length ? (
+                <p className="py-6 text-center text-xs text-[var(--mod-text-dim)]">No case data for this period.</p>
+              ) : (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={caseAnalytics.volumeOverTime}>
                     <XAxis
@@ -149,7 +167,9 @@ export default function AnalyticsPage() {
 
             {/* Evidence by type */}
             <ChartCard title="Evidence by Type">
-              {evidenceAnalytics?.byType && (
+              {!evidenceAnalytics?.byType || Object.keys(evidenceAnalytics.byType).length === 0 ? (
+                <p className="py-6 text-center text-xs text-[var(--mod-text-dim)]">No evidence types to display.</p>
+              ) : (
                 <div className="flex items-center gap-4">
                   <ResponsiveContainer width={120} height={120}>
                     <PieChart>
@@ -188,7 +208,9 @@ export default function AnalyticsPage() {
 
             {/* Top uploaders */}
             <ChartCard title="Top Uploaders">
-              {evidenceAnalytics?.topUploaders && (
+              {!evidenceAnalytics?.topUploaders?.length ? (
+                <p className="py-6 text-center text-xs text-[var(--mod-text-dim)]">No uploads recorded yet.</p>
+              ) : (
                 <div className="space-y-2">
                   {evidenceAnalytics.topUploaders.slice(0, 5).map((uploader, idx) => (
                     <div key={uploader.userId} className="flex items-center gap-2 text-xs">

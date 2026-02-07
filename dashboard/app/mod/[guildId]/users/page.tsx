@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { getModeratedUsers, type ModeratedUser } from '@/lib/services/mod.service';
 import { IconSearch, IconUser, IconFlag, IconGavel, IconChevronRight, IconNote, IconX } from '@/lib/mod-icons';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePaginationNav } from '@/hooks/use-pagination-nav';
 
 
 const PAGE_SIZE = 25;
@@ -75,8 +77,13 @@ export default function UsersPage() {
   const totalPages = data?.totalPages ?? 1;
   const stats = data?.stats;
 
+  const paginationSwipe = usePaginationNav({
+    onPrev: pageParam > 1 ? () => updateParams({ page: String(pageParam - 1) }) : undefined,
+    onNext: pageParam < totalPages ? () => updateParams({ page: String(pageParam + 1) }) : undefined,
+  });
+
   return (
-    <div>
+    <div {...paginationSwipe}>
       <h1 className="mb-1 text-2xl font-bold text-[var(--mono-white)]">Users</h1>
       <p className="mb-6 text-sm text-[var(--mod-text-muted)]">
         Moderation history across all users
@@ -127,14 +134,18 @@ export default function UsersPage() {
             className="w-full border border-[var(--mod-border)] bg-[var(--mod-surface)] py-2 pl-9 pr-4 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
           />
         </div>
-        <select
+        <Select
           value={sortParam}
-          onChange={(e) => updateParams({ sort: e.target.value })}
-          className="border border-[var(--mod-border)] bg-[var(--mono-950)] px-3 py-2 text-xs text-[var(--mono-white)] outline-none focus:border-[var(--mono-500)]"
+          onValueChange={(value) => updateParams({ sort: value })}
         >
-          <option value="totalCases">Most Cases</option>
-          <option value="lastCaseDate">Recent Activity</option>
-        </select>
+          <SelectTrigger variant="mod" className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent variant="mod">
+            <SelectItem value="totalCases" variant="mod">Most Cases</SelectItem>
+            <SelectItem value="lastCaseDate" variant="mod">Recent Activity</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (

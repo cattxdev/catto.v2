@@ -245,35 +245,37 @@ export function ServerPicker({ session }: ServerPickerProps) {
               {/* Charts */}
               <div className="grid gap-4 lg:grid-cols-2">
                 {/* Activity timeline */}
-                <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4">
+                <div className="flex flex-col border border-[var(--mod-border)] bg-[var(--mod-surface)] p-4">
                   <h3 className="font-mono mb-3 text-[10px] uppercase tracking-[0.2em] text-[var(--mod-text-dim)]">
                     YOUR ACTIONS (30 DAYS)
                   </h3>
                   {userStats.activityTimeline.some((d) => d.count > 0) ? (
-                    <ResponsiveContainer width="100%" height={140}>
-                      <BarChart
-                        data={userStats.activityTimeline}
-                        margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-                      >
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fill: '#666666', fontSize: 9, fontFamily: 'var(--font-mono)' }}
-                          tickLine={false}
-                          axisLine={{ stroke: '#333333' }}
-                          interval={6}
-                        />
-                        <YAxis
-                          tick={{ fill: '#666666', fontSize: 9, fontFamily: 'var(--font-mono)' }}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={false}
-                        />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="count" fill="#888888" radius={0} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <div className="min-h-[140px] flex-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={userStats.activityTimeline}
+                          margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                        >
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fill: '#666666', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+                            tickLine={false}
+                            axisLine={{ stroke: '#333333' }}
+                            interval={6}
+                          />
+                          <YAxis
+                            tick={{ fill: '#666666', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+                            tickLine={false}
+                            axisLine={false}
+                            allowDecimals={false}
+                          />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Bar dataKey="count" fill="#888888" radius={0} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   ) : (
-                    <div className="flex h-[140px] items-center justify-center text-xs text-[var(--mod-text-dim)]">
+                    <div className="flex min-h-[140px] flex-1 items-center justify-center text-xs text-[var(--mod-text-dim)]">
                       No actions in the last 30 days
                     </div>
                   )}

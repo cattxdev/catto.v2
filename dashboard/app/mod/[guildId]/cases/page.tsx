@@ -10,6 +10,8 @@ import type { ModCase } from '@/lib/mod-types';
 import { IconLock } from '@tabler/icons-react';
 import { useSwipe } from '@/hooks/use-swipe';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePaginationNav } from '@/hooks/use-pagination-nav';
 
 const ACTION_LABELS: Record<string, string> = {
   BAN: 'Ban', UNBAN: 'Unban', KICK: 'Kick', TIMEOUT: 'Timeout',
@@ -108,55 +110,60 @@ export default function CasesPage() {
 
   const hasFilters = actionParam || searchParam;
 
+  const paginationSwipe = usePaginationNav({
+    onPrev: pageParam > 1 ? () => updateParams({ page: String(pageParam - 1) }) : undefined,
+    onNext: pageParam < totalPages ? () => updateParams({ page: String(pageParam + 1) }) : undefined,
+  });
+
   return (
-    <div>
+    <div {...paginationSwipe}>
       <h1 className="mb-1 text-2xl font-bold text-[var(--mono-white)]">Cases</h1>
       <p className="mb-6 text-sm text-[var(--mod-text-muted)]">{total} total cases</p>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-col gap-3">
-        {/* Action filter chips */}
-        <div className="flex flex-wrap gap-1.5">
-          {ACTION_FILTERS.map((f) => {
-            const isActive = actionParam === f.value;
-            return (
-              <button
-                key={f.value}
-                onClick={() => updateParams({ action: f.value || undefined })}
-                className={`border px-2.5 py-1 text-xs transition-[background-color,border-color] duration-75 ${
-                  isActive
-                    ? 'border-[var(--mono-400)] bg-[var(--mono-800)] text-[var(--mono-white)]'
-                    : 'border-[var(--mod-border)] text-[var(--mod-text-muted)] hover:border-[var(--mod-border-hover)] hover:text-[var(--mono-white)]'
-                }`}
-              >
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        {/* Action filter */}
+        <Select
+          value={actionParam || '_all'}
+          onValueChange={(value) => updateParams({ action: value === '_all' ? undefined : value })}
+        >
+          <SelectTrigger variant="mod" className="w-[140px]">
+            <SelectValue placeholder="All Actions" />
+          </SelectTrigger>
+          <SelectContent variant="mod">
+            {ACTION_FILTERS.map((f) => (
+              <SelectItem key={f.value} value={f.value || '_all'} variant="mod">
                 {f.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Sort + Search row */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Sort select */}
-          <select
-            value={sortParam}
-            onChange={(e) => updateParams({ sort: e.target.value })}
-            className="border border-[var(--mod-border)] bg-[var(--mono-950)] px-2 py-1 text-xs text-[var(--mono-white)] outline-none focus:border-[var(--mono-500)]"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              </SelectItem>
             ))}
-          </select>
+          </SelectContent>
+        </Select>
 
-          {/* Search input */}
-          <input
-            type="text"
-            value={localSearch}
-            onChange={handleSearchChange}
-            placeholder="Search by user or ID..."
-            className="w-40 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2 py-1 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
-          />
-        </div>
+        {/* Sort select */}
+        <Select
+          value={sortParam}
+          onValueChange={(value) => updateParams({ sort: value })}
+        >
+          <SelectTrigger variant="mod" className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent variant="mod">
+            {SORT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} variant="mod">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Search input */}
+        <input
+          type="text"
+          value={localSearch}
+          onChange={handleSearchChange}
+          placeholder="Search by user or ID..."
+          className="w-40 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2.5 py-1.5 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
+        />
       </div>
 
       {loading ? (

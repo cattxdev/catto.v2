@@ -12,7 +12,14 @@ export async function middleware(request: NextRequest) {
 
     if (!sessionCookie?.value) {
       const loginUrl = new URL('/mod/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      const res = NextResponse.redirect(loginUrl);
+      // Save the intended destination so login can redirect back
+      res.cookies.set('mod_auth_redirect', pathname, {
+        maxAge: 300,
+        path: '/',
+        sameSite: 'lax',
+      });
+      return res;
     }
 
     // Validate session by calling the bot API
@@ -28,6 +35,12 @@ export async function middleware(request: NextRequest) {
         const loginUrl = new URL('/mod/login', request.url);
         const res = NextResponse.redirect(loginUrl);
         res.cookies.delete('DASHBOARD_AUTH');
+        // Save the intended destination so login can redirect back
+        res.cookies.set('mod_auth_redirect', pathname, {
+          maxAge: 300,
+          path: '/',
+          sameSite: 'lax',
+        });
         return res;
       }
     } catch {

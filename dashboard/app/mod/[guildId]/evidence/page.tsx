@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import { getGuildEvidence } from '@/lib/services/mod.service';
 import type { Evidence } from '@/lib/mod-types';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePaginationNav } from '@/hooks/use-pagination-nav';
 
 const EVIDENCE_TYPES: { value: string; label: string }[] = [
   { value: '', label: 'All Types' },
@@ -82,8 +84,13 @@ export default function GuildEvidencePage() {
   const totalPages = evidenceData?.totalPages ?? 1;
   const handleRefresh = useCallback(() => { mutate(); }, [mutate]);
 
+  const paginationSwipe = usePaginationNav({
+    onPrev: pageParam > 1 ? () => updateParams({ page: String(pageParam - 1) }) : undefined,
+    onNext: pageParam < totalPages ? () => updateParams({ page: String(pageParam + 1) }) : undefined,
+  });
+
   return (
-    <div>
+    <div {...paginationSwipe}>
       <h1 className="mb-1 text-2xl font-bold text-[var(--mono-white)]">All Evidence</h1>
       <p className="mb-6 text-sm text-[var(--mod-text-muted)]">
         {total} evidence item{total !== 1 ? 's' : ''} across all cases
@@ -91,25 +98,22 @@ export default function GuildEvidencePage() {
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        {/* Type filter chips */}
-        <div className="flex flex-wrap gap-1.5">
-          {EVIDENCE_TYPES.map((t) => {
-            const isActive = typeParam === t.value;
-            return (
-              <button
-                key={t.value}
-                onClick={() => updateParams({ type: t.value || undefined })}
-                className={`border px-2.5 py-1 text-xs transition-[background-color,border-color] duration-75 ${
-                  isActive
-                    ? 'border-[var(--mono-400)] bg-[var(--mono-800)] text-[var(--mono-white)]'
-                    : 'border-[var(--mod-border)] text-[var(--mod-text-muted)] hover:border-[var(--mod-border-hover)] hover:text-[var(--mono-white)]'
-                }`}
-              >
+        {/* Type filter */}
+        <Select
+          value={typeParam || '_all'}
+          onValueChange={(value) => updateParams({ type: value === '_all' ? undefined : value })}
+        >
+          <SelectTrigger variant="mod" className="w-[150px]">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent variant="mod">
+            {EVIDENCE_TYPES.map((t) => (
+              <SelectItem key={t.value || '_all'} value={t.value || '_all'} variant="mod">
                 {t.label}
-              </button>
-            );
-          })}
-        </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Case number input */}
         <div className="flex items-center gap-1.5">
@@ -123,7 +127,7 @@ export default function GuildEvidencePage() {
               handleCaseChange(val);
             }}
             placeholder="..."
-            className="w-20 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2 py-1 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
+            className="w-20 border border-[var(--mod-border)] bg-[var(--mono-950)] px-2.5 py-1.5 text-xs text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
           />
         </div>
       </div>

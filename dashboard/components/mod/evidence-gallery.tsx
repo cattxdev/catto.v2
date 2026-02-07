@@ -13,6 +13,8 @@ import { useModShortcuts } from '@/hooks/use-mod-shortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLongPress } from '@/hooks/use-long-press';
 import { useSwipe } from '@/hooks/use-swipe';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Toggle } from '@/components/ui/toggle';
 
 interface EvidenceGalleryProps {
   evidence: Evidence[];
@@ -37,6 +39,9 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
   const hasSelection = selectedIds.size > 0;
   const canCompare = selectedIds.size === 2;
+  const allSelectedFlagged = hasSelection && [...selectedIds].every(
+    (id) => evidence.find((e) => e.id === id)?.status === 'FLAGGED'
+  );
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
@@ -56,13 +61,14 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
     }
   };
 
-  const handleBulkFlag = async () => {
+  const handleBulkFlag = async (flag: boolean) => {
     setBulkSubmitting(true);
     try {
+      const action = flag ? 'FLAGGED' : 'UNFLAGGED';
+      const reason = flag ? 'Bulk flagged' : 'Bulk unflagged';
       for (const id of selectedIds) {
-        await amendEvidence(guildId, id, { action: 'FLAGGED', reason: 'Bulk flagged' });
+        await amendEvidence(guildId, id, { action, reason });
       }
-      setSelectedIds(new Set());
       onEvidenceUpdated?.();
     } catch {
       // silent
@@ -275,11 +281,13 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
                 <InlineAmendForm
                   guildId={guildId}
                   evidenceId={item.id}
+                  isFlagged={item.status === 'FLAGGED'}
                   onClose={() => setAmendingId(null)}
                   onAmended={() => {
                     setAmendingId(null);
                     onEvidenceUpdated?.();
                   }}
+                  onEvidenceUpdated={onEvidenceUpdated}
                 />
               )}
             </GalleryCard>
@@ -289,45 +297,60 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
 
       {/* Bulk action bar - fixed at bottom of viewport */}
       {hasSelection && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-wrap items-center gap-2 border border-[var(--mono-500)] bg-[var(--mono-900)] px-4 py-3 shadow-lg md:gap-3">
-          <span className="text-xs text-[var(--mod-text-muted)]">{selectedIds.size} selected</span>
-          {canCompare && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--mono-500)] bg-[var(--mono-900)] px-4 py-2 shadow-lg md:inset-x-auto md:bottom-4 md:left-1/2 md:w-auto md:-translate-x-1/2 md:border md:px-4">
+          <div className="flex items-center justify-between gap-3 md:hidden">
+            <span className="text-xs font-medium text-[var(--mod-text-muted)]">{selectedIds.size} selected</span>
             <button
-              onClick={() => setShowComparison(true)}
-              className="flex items-center gap-1 border border-[var(--mono-500)] px-3 py-1 text-xs text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)]"
+              onClick={() => setSelectedIds(new Set())}
+              className="p-1 text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
             >
-              <IconCompare size={14} />
-              Compare
+              <IconX size={14} />
             </button>
-          )}
-          <button
-            onClick={handleBulkFlag}
-            disabled={bulkSubmitting}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] disabled:opacity-30"
-          >
-            <IconFlag size={14} />
-            Flag Selected
-          </button>
-          <button
-            onClick={handleBulkDownload}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
-          >
-            <IconDownload size={14} />
-            Download Selected
-          </button>
-          <button
-            onClick={() => setBulkAction('note')}
-            className="flex items-center gap-1 border border-[var(--mod-border)] px-3 py-1 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)]"
-          >
-            <IconNote size={14} />
-            Add Note to Selected
-          </button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="ml-auto text-xs text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
-          >
-            Clear
-          </button>
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5 md:mt-0 md:flex md:items-center md:gap-2">
+            <span className="hidden text-xs text-[var(--mod-text-muted)] md:inline">{selectedIds.size} selected</span>
+            {canCompare && (
+              <button
+                onClick={() => setShowComparison(true)}
+                className="flex items-center justify-center gap-1 border border-[var(--mono-500)] px-2.5 py-1.5 text-xs text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] md:py-1"
+              >
+                <IconCompare size={14} />
+                <span className="hidden sm:inline">Compare</span>
+              </button>
+            )}
+            <Toggle
+              variant="mod"
+              size="sm"
+              pressed={allSelectedFlagged}
+              onPressedChange={(pressed) => handleBulkFlag(pressed)}
+              disabled={bulkSubmitting}
+              className="flex h-auto items-center justify-center gap-1 px-2.5 py-1.5 md:py-1"
+              aria-label="Flag selected"
+            >
+              <IconFlag size={14} />
+              {allSelectedFlagged ? 'Unflag' : 'Flag'}
+            </Toggle>
+            <button
+              onClick={handleBulkDownload}
+              className="flex items-center justify-center gap-1 border border-[var(--mod-border)] px-2.5 py-1.5 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:py-1"
+            >
+              <IconDownload size={14} />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+            <button
+              onClick={() => setBulkAction('note')}
+              className="col-span-2 flex items-center justify-center gap-1 border border-[var(--mod-border)] px-2.5 py-1.5 text-xs text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mod-surface-hover)] md:col-span-1 md:py-1"
+            >
+              <IconNote size={14} />
+              Note
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="hidden text-xs text-[var(--mod-text-dim)] hover:text-[var(--mono-white)] md:ml-auto md:block"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
@@ -459,18 +482,24 @@ function GalleryCard({
 function InlineAmendForm({
   guildId,
   evidenceId,
+  isFlagged,
   onClose,
   onAmended,
+  onEvidenceUpdated,
 }: {
   guildId: string;
   evidenceId: string;
+  isFlagged: boolean;
   onClose: () => void;
   onAmended: () => void;
+  onEvidenceUpdated?: () => void;
 }) {
   const [action, setAction] = useState('NOTE_ADDED');
   const [reason, setReason] = useState('');
   const [newValue, setNewValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [flagged, setFlagged] = useState(isFlagged);
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -488,25 +517,52 @@ function InlineAmendForm({
     }
   };
 
+  const handleToggleFlag = async (pressed: boolean) => {
+    setFlagSubmitting(true);
+    try {
+      await amendEvidence(guildId, evidenceId, {
+        action: pressed ? 'FLAGGED' : 'UNFLAGGED',
+        reason: pressed ? 'Flagged' : 'Unflagged',
+      });
+      setFlagged(pressed);
+      onEvidenceUpdated?.();
+    } catch {
+      // silent
+    } finally {
+      setFlagSubmitting(false);
+    }
+  };
+
   return (
     <div className="mt-3 border border-[var(--mod-border)] bg-[var(--mono-950)] p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-[var(--mono-white)]">Amend Evidence</span>
-        <button onClick={onClose} className="text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]">
-          <IconX size={14} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Toggle
+            variant="mod"
+            size="sm"
+            pressed={flagged}
+            onPressedChange={handleToggleFlag}
+            disabled={flagSubmitting}
+            aria-label="Toggle flag"
+          >
+            <IconFlag size={14} />
+          </Toggle>
+          <button onClick={onClose} className="text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]">
+            <IconX size={14} />
+          </button>
+        </div>
       </div>
       <div className="space-y-2">
-        <select
-          value={action}
-          onChange={(e) => setAction(e.target.value)}
-          className="w-full border border-[var(--mod-border)] bg-[var(--mono-900)] px-2 py-1 text-xs text-[var(--mono-white)] outline-none"
-        >
-          <option value="NOTE_ADDED">Add Note</option>
-          <option value="DESCRIPTION_UPDATED">Update Description</option>
-          <option value="FLAGGED">Flag</option>
-          <option value="UNFLAGGED">Unflag</option>
-        </select>
+        <Select value={action} onValueChange={setAction}>
+          <SelectTrigger variant="mod" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent variant="mod">
+            <SelectItem value="NOTE_ADDED" variant="mod">Add Note</SelectItem>
+            <SelectItem value="DESCRIPTION_UPDATED" variant="mod">Update Description</SelectItem>
+          </SelectContent>
+        </Select>
 
         {action === 'DESCRIPTION_UPDATED' && (
           <input

@@ -30,7 +30,6 @@ import {
   IconMicrophone,
   IconTrophy,
   IconChartBar,
-  IconAlertTriangle,
 } from '@/lib/mod-icons';
 
 // Border colors for recent cases (left quote-style border)
@@ -47,21 +46,17 @@ const ACTION_BORDER_COLORS: Record<string, string> = {
   MUTE_BOTH: 'border-l-violet-400/60',
 };
 
-// Risk weights for calculating risk score
-const ACTION_RISK_WEIGHTS: Record<string, number> = {
-  BAN: 10,
-  TEMPBAN: 8,
-  SOFTBAN: 7,
-  KICK: 5,
-  TIMEOUT: 3,
-  WARN: 2,
-  MUTE_TEXT: 1,
-  MUTE_VOICE: 1,
-  MUTE_BOTH: 1,
-  UNBAN: -2,
-  UNMUTE_TEXT: 0,
-  UNMUTE_VOICE: 0,
-  UNMUTE_BOTH: 0,
+// Severity tiers for grouping actions in the moderation summary
+const ACTION_SEVERITY: Record<string, 'major' | 'moderate' | 'minor'> = {
+  BAN: 'major',
+  TEMPBAN: 'major',
+  SOFTBAN: 'major',
+  KICK: 'moderate',
+  TIMEOUT: 'moderate',
+  WARN: 'minor',
+  MUTE_TEXT: 'minor',
+  MUTE_VOICE: 'minor',
+  MUTE_BOTH: 'minor',
 };
 
 export default function UserProfilePage() {
@@ -110,9 +105,8 @@ export default function UserProfilePage() {
 
   const activeFlags = profile.flags.filter((f) => f.active);
 
-  // Calculate risk score
-  const riskScore = calculateRiskScore(profile.cases.byAction, activeFlags.length, profile.lastAction);
-  const riskLevel = getRiskLevel(riskScore);
+  // Compute moderation summary
+  const modSummary = getModerationSummary(profile.cases.byAction);
 
   return (
     <div>
@@ -158,8 +152,8 @@ export default function UserProfilePage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Risk Score */}
-          <RiskScoreBadge score={riskScore} level={riskLevel} />
+          {/* Moderation Summary */}
+          <ModerationSummaryBadge summary={modSummary} totalCases={profile.cases.total} />
           {/* Active Flags */}
           {activeFlags.length > 0 && (
             <div className="flex gap-2">
@@ -363,56 +357,37 @@ export default function UserProfilePage() {
   );
 }
 
-// Calculate risk score based on actions and flags
-function calculateRiskScore(
-  byAction: Partial<Record<string, number>>,
-  activeFlagsCount: number,
-  lastAction: string | null
-): number {
-  let score = 0;
+// Compute a factual moderation summary (no scoring/profiling)
+function getModerationSummary(byAction: Partial<Record<string, number>>): { major: number; moderate: number; minor: number } {
+  const summary = { major: 0, moderate: 0, minor: 0 };
 
-  // Add weighted score for each action type
   for (const [action, count] of Object.entries(byAction)) {
-    if (count !== undefined) {
-      score += (ACTION_RISK_WEIGHTS[action] ?? 0) * count;
-    }
+    if (count === undefined) continue;
+    const tier = ACTION_SEVERITY[action];
+    if (tier) summary[tier] += count;
   }
 
-  // Add score for active flags
-  score += activeFlagsCount * 5;
-
-  // Recency bonus - if last action was within 30 days, add 20% to score
-  if (lastAction) {
-    const daysSinceLastAction = Math.floor(
-      (Date.now() - new Date(lastAction).getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (daysSinceLastAction < 30) {
-      score = Math.round(score * 1.2);
-    }
-  }
-
-  return Math.max(0, score);
+  return summary;
 }
 
-function getRiskLevel(score: number): 'low' | 'medium' | 'high' | 'critical' {
-  if (score >= 50) return 'critical';
-  if (score >= 25) return 'high';
-  if (score >= 10) return 'medium';
-  return 'low';
-}
+function ModerationSummaryBadge({
+  summary,
+  totalCases,
+}: {
+  summary: { major: number; moderate: number; minor: number };
+  totalCases: number;
+}) {
+  if (totalCases === 0) return null;
 
-function RiskScoreBadge({ score, level }: { score: number; level: 'low' | 'medium' | 'high' | 'critical' }) {
-  const styles = {
-    low: 'border-[var(--mono-600)] text-[var(--mod-text-dim)]',
-    medium: 'border-yellow-500/40 text-yellow-300/70',
-    high: 'border-orange-500/40 text-orange-300/70',
-    critical: 'border-red-500/40 text-red-300/70',
-  };
+  const parts: string[] = [];
+  if (summary.major > 0) parts.push(`${summary.major} major`);
+  if (summary.moderate > 0) parts.push(`${summary.moderate} moderate`);
+  if (summary.minor > 0) parts.push(`${summary.minor} minor`);
 
   return (
-    <div className={`flex items-center gap-1.5 border px-2 py-1 ${styles[level]}`}>
-      <IconAlertTriangle size={12} />
-      <span className="text-xs">Risk: {score}</span>
+    <div className="flex items-center gap-1.5 border border-[var(--mono-600)] px-2 py-1 text-[var(--mod-text-dim)]">
+      <IconGavel size={12} />
+      <span className="text-xs">{parts.join(', ')}</span>
     </div>
   );
 }
