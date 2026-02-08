@@ -15,7 +15,7 @@ import {
   expectStatus,
 } from '../helpers/test-helpers.js';
 
-// ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// ─── Hoisted mocks ─
 
 const {
   mockApiGateFromRequest,
@@ -49,7 +49,7 @@ const {
   }),
 }));
 
-// ─── Module mocks ─────────────────────────────────────────────────────────────
+// ─── Module mocks 
 
 vi.mock('#lib/validation/ApiGate.js', () => ({
   ApiGate: { fromRequest: mockApiGateFromRequest },
@@ -94,7 +94,7 @@ vi.mock('#lib/validation/modAction.js', () => ({
   parseModAction: mockParseModAction,
 }));
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers 
 
 const GUILD_A = 'guild-A';
 const GUILD_B = 'guild-B';
@@ -153,14 +153,14 @@ function makeCase(overrides?: Record<string, unknown>) {
   };
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ──
 
 describe('Case-evidence flow integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  // ─── 1. Case with evidence ──────────────────────────────────────
+  // ─── 1. Case with evidence 
 
   describe('Case with evidence', () => {
     it('creates a case, uploads evidence, and lists evidence scoped to that case', async () => {
@@ -236,7 +236,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 2. Case filter combinations ────────────────────────────────
+  // ─── 2. Case filter combinations 
 
   describe('Case filter combinations', () => {
     it('filters cases by action, status, and targetId together', async () => {
@@ -321,7 +321,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 3. Pagination boundary ──────────────────────────────────────
+  // ─── 3. Pagination boundary 
 
   describe('Pagination boundary', () => {
     it('page 1 and page 2 return correct slices', async () => {
@@ -393,7 +393,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 4. Case number uniqueness per guild ─────────────────────────
+  // ─── 4. Case number uniqueness per guild 
 
   describe('Case number uniqueness per guild', () => {
     it('two guilds with caseNumber=1 return independent results', async () => {
@@ -440,7 +440,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 5. Evidence summary on case listing ─────────────────────────
+  // ─── 5. Evidence summary on case listing 
 
   describe('Evidence summary on case listing', () => {
     it('per-case evidence query returns evidence with summary', async () => {
@@ -477,7 +477,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 6. Sort ordering ──────────────────────────────────────────
+  // ─── 6. Sort ordering ───
 
   describe('Sort ordering', () => {
     it('cases can be sorted by createdAt asc', async () => {
@@ -567,7 +567,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 7. Guild not found ──────────────────────────────────────────
+  // ─── 7. Guild not found ───
 
   describe('Guild not found', () => {
     it('returns 404 when guild is not in bot cache', async () => {
@@ -585,7 +585,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 8. Missing guildId ──────────────────────────────────────────
+  // ─── 8. Missing guildId ───
 
   describe('Missing guildId', () => {
     it('returns 400 when guildId is not provided', async () => {
@@ -602,7 +602,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 9. Invalid action filter ────────────────────────────────────
+  // ─── 9. Invalid action filter ──
 
   describe('Invalid filter values', () => {
     it('invalid action filter is ignored (does not crash)', async () => {
@@ -653,7 +653,7 @@ describe('Case-evidence flow integration', () => {
     });
   });
 
-  // ─── 10. Evidence guild-wide listing with pagination ─────────────
+  // ─── 10. Evidence guild-wide listing with pagination 
 
   describe('Evidence guild-wide listing', () => {
     it('returns paginated evidence for a guild without caseNumber filter', async () => {

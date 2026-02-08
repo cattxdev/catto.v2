@@ -16,7 +16,7 @@ import {
   expectStatus,
 } from '../helpers/test-helpers.js';
 
-// ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// ─── Hoisted mocks ─
 
 const {
   mockApiGateFromRequest,
@@ -61,7 +61,7 @@ const {
   mockValidateDto: vi.fn(),
 }));
 
-// ─── Module mocks ─────────────────────────────────────────────────────────────
+// ─── Module mocks 
 
 vi.mock('#lib/validation/ApiGate.js', () => ({
   ApiGate: { fromRequest: mockApiGateFromRequest },
@@ -121,7 +121,7 @@ vi.mock('#lib/dtos/moderation/moderation-config.dto.js', () => ({
   UpdateModConfigDto: class UpdateModConfigDto {},
 }));
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers 
 
 const GUILD_A = 'guild-A';
 const GUILD_B = 'guild-B';
@@ -176,14 +176,14 @@ function createDualGuildContainer() {
   });
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ──
 
 describe('Cross-guild isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  // ─── 1. Cases route ───────────────────────────────────────────────
+  // ─── 1. Cases route 
 
   describe('Cases route: findMany scoped to guildId', () => {
     it('Guild A request only returns Guild A cases (findMany where includes guildId)', async () => {
@@ -236,7 +236,7 @@ describe('Cross-guild isolation', () => {
     });
   });
 
-  // ─── 2. Evidence route ────────────────────────────────────────────
+  // ─── 2. Evidence route ─────
 
   describe('Evidence route: getEvidenceForGuild scoped to guildId', () => {
     it('Guild A request scopes getEvidenceForGuild to Guild A guildId', async () => {
@@ -269,11 +269,11 @@ describe('Cross-guild isolation', () => {
         expect.anything(),
       );
       // First positional arg must be Guild A, not Guild B
-      expect(mockEvidenceService.getEvidenceForGuild.mock.calls[0][0]).toBe(GUILD_A);
+      expect(mockEvidenceService.getEvidenceForGuild.mock.calls[0]![0]).toBe(GUILD_A);
     });
   });
 
-  // ─── 3. Users route ───────────────────────────────────────────────
+  // ─── 3. Users route 
 
   describe('Users route: $queryRaw and stats scoped to guildId', () => {
     it('Guild A request scopes aggregate and userFlag.count to Guild A', async () => {
@@ -330,7 +330,7 @@ describe('Cross-guild isolation', () => {
       // $queryRaw must have been called and scoped to Guild A
       expect(mockQueryRaw).toHaveBeenCalled();
       // Prisma tagged template literals pass interpolated values as subsequent args
-      const firstCallArgs = mockQueryRaw.mock.calls[0];
+      const firstCallArgs = mockQueryRaw.mock.calls[0]!;
       // The tagged template call args: [strings, ...values] — guildId is the first interpolated value
       expect(firstCallArgs[1]).toBe(GUILD_A);
 
@@ -342,7 +342,7 @@ describe('Cross-guild isolation', () => {
     });
   });
 
-  // ─── 4. Analytics route ───────────────────────────────────────────
+  // ─── 4. Analytics route ────
 
   describe('Analytics route: analytics scoped to guildId', () => {
     it('Guild A request only gets Guild A analytics (evidence)', async () => {
@@ -410,7 +410,7 @@ describe('Cross-guild isolation', () => {
     });
   });
 
-  // ─── 5. Config route ──────────────────────────────────────────────
+  // ─── 5. Config route ─
 
   describe('Config route: reads/writes scoped to guildId', () => {
     it('Guild A GET only reads Guild A config (findUnique where guildId)', async () => {
@@ -513,10 +513,10 @@ describe('Cross-guild isolation', () => {
     });
   });
 
-  // ─── 6. Evidence detail route (access-log guild check) ────────────
+  // ─── 6. Evidence detail route (access-log guild check) 
 
   describe('Evidence detail route: access-log checks evidence.guildId matches request guildId', () => {
-    it('returns 403 when evidence.guildId is Guild B but request guildId is Guild A', async () => {
+    it('returns 404 when evidence.guildId is Guild B but request guildId is Guild A', async () => {
       const gate = createMockGate();
       mockApiGateFromRequest.mockResolvedValue(gate);
 
@@ -547,8 +547,8 @@ describe('Cross-guild isolation', () => {
 
       await route.run(request, response as any);
 
-      expectStatus(response, 403);
-      expect((response.data as any).error).toBe('Evidence does not belong to this guild');
+      expectStatus(response, 404);
+      expect((response.data as any).error).toBe('Evidence not found');
 
       // Access log must NOT be fetched for cross-guild evidence
       expect(mockAccessLogService.getAccessLog).not.toHaveBeenCalled();
@@ -558,7 +558,7 @@ describe('Cross-guild isolation', () => {
   // ─── 7. Evidence detail route: handleGetDetail guild check ──
 
   describe('Evidence detail route: handleGetDetail verifies guildId', () => {
-    it('returns 403 when evidence belongs to Guild B but request is from Guild A', async () => {
+    it('returns 404 when evidence belongs to Guild B but request is from Guild A', async () => {
       const gate = createMockGate();
       mockApiGateFromRequest.mockResolvedValue(gate);
 
@@ -589,12 +589,12 @@ describe('Cross-guild isolation', () => {
 
       await route.run(request, response as any);
 
-      expectStatus(response, 403);
-      expect((response.data as any).error).toBe('Evidence does not belong to this guild');
+      expectStatus(response, 404);
+      expect((response.data as any).error).toBe('Evidence not found');
     });
   });
 
-  // ─── 8. Symmetric test: request as Guild B for Guild A data ─────────
+  // ─── 8. Symmetric test: request as Guild B for Guild A data ─
 
   describe('Symmetric isolation: Guild B cannot access Guild A data', () => {
     it('Guild B request scopes findMany to Guild B, not Guild A', async () => {

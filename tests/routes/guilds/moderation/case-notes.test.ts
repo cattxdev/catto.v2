@@ -5,7 +5,6 @@ import {
   createMockResponse,
   createMockContainer,
   expectStatus,
-  expectError,
 } from '../../../helpers/test-helpers.js';
 
 // Hoisted mocks

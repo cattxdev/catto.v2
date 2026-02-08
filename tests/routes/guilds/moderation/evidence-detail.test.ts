@@ -107,7 +107,7 @@ describe('EvidenceDetailRoute', () => {
     vi.clearAllMocks();
   });
 
-  // ─── Common / Auth ─────────────────────────────────────────────────
+  // ─── Common / Auth ──
 
   describe('common checks', () => {
     it('returns 400 when guildId is missing', async () => {
@@ -215,7 +215,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET default (detail) ──────────────────────────────────────────
+  // ─── GET default (detail) ───
 
   describe('GET default (detail)', () => {
     it('returns evidence detail', async () => {
@@ -255,7 +255,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET view-url ──────────────────────────────────────────────────
+  // ─── GET view-url ───
 
   describe('GET view-url', () => {
     it('generates presigned view URL and logs VIEW access', async () => {
@@ -329,7 +329,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET download-url ──────────────────────────────────────────────
+  // ─── GET download-url ─
 
   describe('GET download-url', () => {
     it('generates presigned download URL and logs DOWNLOAD access', async () => {
@@ -400,7 +400,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET watermarked-download ──────────────────────────────────────
+  // ─── GET watermarked-download 
 
   describe('GET watermarked-download', () => {
     it('returns watermarked URL when config enabled (default)', async () => {
@@ -523,7 +523,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET access-log ────────────────────────────────────────────────
+  // ─── GET access-log ─
 
   describe('GET access-log', () => {
     it('returns paginated access log', async () => {
@@ -556,7 +556,7 @@ describe('EvidenceDetailRoute', () => {
       });
     });
 
-    it('enforces guild isolation (evidence.guildId !== guildId returns 403)', async () => {
+    it('enforces guild isolation (evidence.guildId !== guildId returns 404)', async () => {
       const gate = createMockGate();
       mockApiGateFromRequest.mockResolvedValue(gate);
       // Evidence belongs to a different guild
@@ -572,8 +572,8 @@ describe('EvidenceDetailRoute', () => {
 
       await route.run(request, response as any);
 
-      expectStatus(response, 403);
-      expect((response.data as any).error).toBe('Evidence does not belong to this guild');
+      expectStatus(response, 404);
+      expect((response.data as any).error).toBe('Evidence not found');
     });
 
     it('falls back to view permission when audit perm fails', async () => {
@@ -623,7 +623,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── GET history ───────────────────────────────────────────────────
+  // ─── GET history 
 
   describe('GET history', () => {
     it('returns amendment history', async () => {
@@ -669,7 +669,7 @@ describe('EvidenceDetailRoute', () => {
       expectStatus(response, 404);
     });
 
-    it('returns 403 when evidence belongs to different guild', async () => {
+    it('returns 404 when evidence belongs to different guild', async () => {
       const gate = createMockGate();
       mockApiGateFromRequest.mockResolvedValue(gate);
       mockEvidenceService.getEvidenceById.mockResolvedValue({ id: EVIDENCE_ID, guildId: 'other-guild' });
@@ -683,12 +683,12 @@ describe('EvidenceDetailRoute', () => {
 
       await route.run(request, response as any);
 
-      expectStatus(response, 403);
-      expect((response.data as any).error).toBe('Evidence does not belong to this guild');
+      expectStatus(response, 404);
+      expect((response.data as any).error).toBe('Evidence not found');
     });
   });
 
-  // ─── POST amend (default) ─────────────────────────────────────────
+  // ─── POST amend (default) ──
 
   describe('POST amend (default)', () => {
     it('creates amendment with action/newValue/reason', async () => {
@@ -766,7 +766,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── POST add-timestamp ───────────────────────────────────────────
+  // ─── POST add-timestamp ────
 
   describe('POST add-timestamp', () => {
     it('adds timestamp with time and note', async () => {
@@ -870,7 +870,7 @@ describe('EvidenceDetailRoute', () => {
     });
   });
 
-  // ─── POST remove-timestamp ────────────────────────────────────────
+  // ─── POST remove-timestamp ─
 
   describe('POST remove-timestamp', () => {
     it('removes timestamp by ID', async () => {

@@ -143,7 +143,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
           actionCounts[label] = (actionCounts[label] || 0) + 1;
         }
       }
-      // Merge mute variants as sub-items under a single "Mutes" group
+      // Merge mute variants into a single aggregate "Mutes" count
       const muteTotal = Object.values(muteBreakdown).reduce((a, b) => a + b, 0);
       if (muteTotal > 0) {
         actionCounts['Mutes'] = muteTotal;

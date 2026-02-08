@@ -91,7 +91,7 @@ export class EvidenceDetailRoute extends Route {
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
 
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     return response.json(evidence);
@@ -271,7 +271,7 @@ export class EvidenceDetailRoute extends Route {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const page = Math.max(1, parseInt((request.query?.page as string) ?? '1', 10) || 1);
@@ -293,7 +293,7 @@ export class EvidenceDetailRoute extends Route {
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
 
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const history = await evidenceService.getEvidenceHistory(evidenceId);
@@ -317,7 +317,7 @@ export class EvidenceDetailRoute extends Route {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const { action, newValue, reason } = body as {
@@ -361,7 +361,7 @@ export class EvidenceDetailRoute extends Route {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const { time, note } = body as { time: number; note: string };
@@ -400,7 +400,7 @@ export class EvidenceDetailRoute extends Route {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const { timestampId } = body as { timestampId: string };

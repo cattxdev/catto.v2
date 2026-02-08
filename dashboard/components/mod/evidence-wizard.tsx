@@ -92,6 +92,7 @@ interface WizardState {
   ogLoading: boolean;
   nsfwScanning: boolean;
   nsfwFlags: NsfwFlag[];
+  nsfwScanDone: boolean;
   completed: boolean;
   completedCount: number;
   completedErrors: number;
@@ -139,6 +140,7 @@ const INITIAL_STATE: WizardState = {
   ogLoading: false,
   nsfwScanning: false,
   nsfwFlags: [],
+  nsfwScanDone: false,
   completed: false,
   completedCount: 0,
   completedErrors: 0,
@@ -206,7 +208,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case 'NSFW_SCAN_START':
       return { ...state, nsfwScanning: true, nsfwFlags: [] };
     case 'NSFW_SCAN_DONE':
-      return { ...state, nsfwScanning: false, nsfwFlags: action.flags };
+      return { ...state, nsfwScanning: false, nsfwFlags: action.flags, nsfwScanDone: true };
     case 'NSFW_DISMISS':
       return { ...state, nsfwFlags: state.nsfwFlags.filter((f) => f.fileIndex !== action.fileIndex) };
     case 'RESET':
@@ -454,7 +456,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
 
   const handleUpload = async () => {
     // Run NSFW scan on image files before uploading
-    if (fileMode && state.selectedType === 'IMAGE' && state.nsfwFlags.length === 0) {
+    if (fileMode && state.selectedType === 'IMAGE' && !state.nsfwScanDone) {
       const imageFiles = state.files.filter((e) => isImageFile(e.file));
       if (imageFiles.length > 0) {
         dispatch({ type: 'NSFW_SCAN_START' });

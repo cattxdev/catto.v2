@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// ─── Hoisted mocks ─
 
 const {
   mockGetJson,
@@ -101,12 +101,12 @@ vi.mock('@sapphire/plugin-api', async () => {
   };
 });
 
-// ─── Imports (after mocks) ─────────────────────────────────────────────────────
+// ─── Imports (after mocks) 
 
-import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
+import { extractSessionId, isSessionId } from '#lib/session.js';
 import { AuthenticatedMiddleware } from '#root/middlewares/authenticated.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers 
 
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -136,7 +136,7 @@ function createMockApiResponse() {
   return mock;
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ──
 
 describe('Auth/session flow integration', () => {
   let middleware: AuthenticatedMiddleware;
@@ -150,7 +150,7 @@ describe('Auth/session flow integration', () => {
     vi.restoreAllMocks();
   });
 
-  // ─── 1. Valid session → successful route access ──────────────────
+  // ─── 1. Valid session → successful route access ─────
 
   describe('Valid session → successful route access', () => {
     it('cookie with valid session ID resolves user and allows access', async () => {
@@ -180,7 +180,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 2. Expired session → 401 + SessionExpired ──────────────────
+  // ─── 2. Expired session → 401 + SessionExpired ─────
 
   describe('Expired session → 401 + SessionExpired', () => {
     it('session with past expiresAt is rejected', async () => {
@@ -205,7 +205,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 3. NaN expiresAt → rejected ────────────────────────────────
+  // ─── 3. NaN expiresAt → rejected 
 
   describe('NaN expiresAt → rejected', () => {
     it('session with garbage expiresAt is rejected', async () => {
@@ -229,7 +229,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 4. Clock skew tolerance ─────────────────────────────────────
+  // ─── 4. Clock skew tolerance ───
 
   describe('Clock skew tolerance', () => {
     it('session expired 15s ago (within 30s tolerance) is still allowed', async () => {
@@ -258,7 +258,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 5. Clock skew boundary ──────────────────────────────────────
+  // ─── 5. Clock skew boundary 
 
   describe('Clock skew boundary', () => {
     it('session expired exactly 30s ago is rejected', async () => {
@@ -284,7 +284,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 6. Legacy raw token → SessionExpired ────────────────────────
+  // ─── 6. Legacy raw token → SessionExpired ───
 
   describe('Legacy raw token → SessionExpired', () => {
     it('non-UUID token is rejected with SessionExpired', async () => {
@@ -301,7 +301,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 7. OAuth path bypass ────────────────────────────────────────
+  // ─── 7. OAuth path bypass ─
 
   describe('OAuth path bypass', () => {
     it('request to /api/oauth/callback skips auth entirely', async () => {
@@ -325,7 +325,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 8. OAuth bypass does NOT apply to query string ──────────────
+  // ─── 8. OAuth bypass does NOT apply to query string ─
 
   describe('OAuth bypass does NOT apply to query string', () => {
     it('/api/test?redirect=/oauth/callback enforces auth', async () => {
@@ -341,7 +341,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 9. Missing session → 401 Unauthorized ──────────────────────
+  // ─── 9. Missing session → 401 Unauthorized ─
 
   describe('Missing session → 401 Unauthorized', () => {
     it('no cookie, no Authorization header → 401', async () => {
@@ -356,7 +356,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 10. Session from Authorization header ───────────────────────
+  // ─── 10. Session from Authorization header ──
 
   describe('Session from Authorization header', () => {
     it('Bearer header with valid UUID session resolves correctly', async () => {
@@ -384,7 +384,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── 11. Session not found in Redis → 401 ───────────────────────
+  // ─── 11. Session not found in Redis → 401 ──
 
   describe('Session not found in Redis', () => {
     it('valid UUID format but no session in Redis returns SessionExpired', async () => {
@@ -402,7 +402,7 @@ describe('Auth/session flow integration', () => {
     });
   });
 
-  // ─── Session utility functions ───────────────────────────────────
+  // ─── Session utility functions ─
 
   describe('Session utility functions', () => {
     it('extractSessionId extracts from cookie', () => {

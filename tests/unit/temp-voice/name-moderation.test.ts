@@ -94,6 +94,10 @@ describe('NameModerationService', () => {
       logChannelId: null,
       logWebhook: null,
       adminRoleIds: [],
+      primaryLanguage: 'en',
+      additionalLanguages: [],
+      multiLangMode: false,
+      languageSettings: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };

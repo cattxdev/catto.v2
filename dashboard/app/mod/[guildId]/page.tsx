@@ -96,7 +96,7 @@ export default function GuildModOverview() {
     const counts: Record<string, number> = {};
     for (const c of cases) {
       if (c.action.startsWith('UNMUTE_')) continue;
-      if (c.action.startsWith('MUTE_') || c.action === 'MUTE_BOTH') {
+      if (c.action === 'MUTE' || c.action.startsWith('MUTE_')) {
         counts['Mutes'] = (counts['Mutes'] || 0) + 1;
       } else {
         const label = ACTION_LABELS[c.action] || c.action;

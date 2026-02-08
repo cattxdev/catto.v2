@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Buffer } from 'node:buffer';
 
-// ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// ─── Hoisted mocks ─
 
 const { mockConfig } = vi.hoisted(() => ({
   mockConfig: {
@@ -41,11 +41,11 @@ vi.mock('@sapphire/framework', () => ({
   },
 }));
 
-// ─── Imports (after mocks) ─────────────────────────────────────────────────────
+// ─── Imports (after mocks) 
 
 import { SigningService, type SigningMetadata } from '#lib/storage/SigningService.js';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers 
 
 function createMetadata(overrides?: Partial<SigningMetadata>): SigningMetadata {
   return {
@@ -58,7 +58,7 @@ function createMetadata(overrides?: Partial<SigningMetadata>): SigningMetadata {
   };
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ──
 
 describe('Signing/verification integration', () => {
   let service: SigningService;
@@ -70,7 +70,7 @@ describe('Signing/verification integration', () => {
     service = new SigningService();
   });
 
-  // ─── 1. Sign and verify roundtrip ───────────────────────────────
+  // ─── 1. Sign and verify roundtrip ─────
 
   describe('Sign and verify roundtrip', () => {
     it('signing then verifying with same content hash and metadata passes', () => {
@@ -99,7 +99,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 2. Tampered content hash ───────────────────────────────────
+  // ─── 2. Tampered content hash ─
 
   describe('Tampered content hash', () => {
     it('verification fails when content hash is changed after signing', () => {
@@ -116,7 +116,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 3. Tampered metadata ──────────────────────────────────────
+  // ─── 3. Tampered metadata 
 
   describe('Tampered metadata', () => {
     it('verification fails when evidenceId is changed', () => {
@@ -171,7 +171,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 4. Missing HMAC secret ─────────────────────────────────────
+  // ─── 4. Missing HMAC secret ───
 
   describe('Missing HMAC secret', () => {
     it('isConfigured returns false when secret is empty', () => {
@@ -199,7 +199,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 5. Short HMAC secret ──────────────────────────────────────
+  // ─── 5. Short HMAC secret 
 
   describe('Short HMAC secret', () => {
     it('isConfigured returns false when secret is less than 32 chars', () => {
@@ -217,7 +217,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 6. SHA-256 determinism ─────────────────────────────────────
+  // ─── 6. SHA-256 determinism ───
 
   describe('SHA-256 determinism', () => {
     it('same buffer produces same hash every time', () => {
@@ -249,7 +249,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 7. Constant-time comparison ────────────────────────────────
+  // ─── 7. Constant-time comparison 
 
   describe('Constant-time comparison', () => {
     it('verify rejects signatures with wrong length', () => {
@@ -285,7 +285,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 8. buildMetadata helper ────────────────────────────────────
+  // ─── 8. buildMetadata helper ──
 
   describe('buildMetadata helper', () => {
     it('constructs correct metadata from evidence record', () => {
@@ -309,7 +309,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 9. End-to-end signing flow ─────────────────────────────────
+  // ─── 9. End-to-end signing flow ─
 
   describe('End-to-end signing flow', () => {
     it('simulate full upload confirm: hash content → sign → verify', () => {
@@ -349,7 +349,7 @@ describe('Signing/verification integration', () => {
     });
   });
 
-  // ─── 10. Cross-guild signature reuse prevention ─────────────────
+  // ─── 10. Cross-guild signature reuse prevention ────
 
   describe('Cross-guild signature reuse', () => {
     it('signature from guild A cannot verify for guild B with same content', () => {

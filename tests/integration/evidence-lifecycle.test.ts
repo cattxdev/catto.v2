@@ -13,10 +13,9 @@ import {
   createMockResponse,
   createMockContainer,
   expectStatus,
-  expectError,
 } from '../helpers/test-helpers.js';
 
-// ─── Hoisted mocks ────────────────────────────────────────────────────────────
+// ─── Hoisted mocks ─
 
 const {
   mockApiGateFromRequest,
@@ -54,7 +53,7 @@ const {
   mockFetchOGData: vi.fn(),
 }));
 
-// ─── Module mocks ─────────────────────────────────────────────────────────────
+// ─── Module mocks 
 
 vi.mock('#lib/validation/ApiGate.js', () => ({
   ApiGate: { fromRequest: mockApiGateFromRequest },
@@ -95,7 +94,7 @@ vi.mock('#config.js', () => ({
   },
 }));
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers 
 
 const GUILD_ID = 'guild-123';
 const EVIDENCE_ID = 'ev-abc-def';
@@ -153,14 +152,14 @@ function makeEvidence(overrides?: Record<string, unknown>) {
   };
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ──
 
 describe('Evidence lifecycle integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  // ─── 1. Upload-to-verified flow ──────────────────────────────────
+  // ─── 1. Upload-to-verified flow 
 
   describe('Upload-to-verified flow', () => {
     it('initiateUpload returns evidenceId and uploadUrl, then confirmUpload sets VERIFIED', async () => {
@@ -243,7 +242,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 2. Upload with invalid HMAC ─────────────────────────────────
+  // ─── 2. Upload with invalid HMAC ─
 
   describe('Upload with invalid HMAC', () => {
     it('confirmUpload rejection propagates when signing fails', async () => {
@@ -277,7 +276,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 3. URL evidence flow ────────────────────────────────────────
+  // ─── 3. URL evidence flow ─
 
   describe('URL evidence flow', () => {
     it('adds URL evidence, then detail and view-url work correctly', async () => {
@@ -355,7 +354,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 4. View + Download flow ─────────────────────────────────────
+  // ─── 4. View + Download flow ───
 
   describe('View + Download flow', () => {
     it('view-url returns presigned URL and logs VIEW, download-url logs DOWNLOAD', async () => {
@@ -408,7 +407,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 5. Watermarked download flow ────────────────────────────────
+  // ─── 5. Watermarked download flow 
 
   describe('Watermarked download flow', () => {
     it('returns watermarked URL and logs access with watermarked metadata', async () => {
@@ -455,7 +454,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 6. Watermark disabled fallback ──────────────────────────────
+  // ─── 6. Watermark disabled fallback ────
 
   describe('Watermark disabled fallback', () => {
     it('falls back to regular download URL when watermarkDownloads is false', async () => {
@@ -492,7 +491,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 7. Amendment chain ──────────────────────────────────────────
+  // ─── 7. Amendment chain ───
 
   describe('Amendment chain', () => {
     it('multiple amendments appear in order in history', async () => {
@@ -577,7 +576,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 8. Timestamp lifecycle ──────────────────────────────────────
+  // ─── 8. Timestamp lifecycle 
 
   describe('Timestamp lifecycle', () => {
     it('adds and removes timestamps from video evidence', async () => {
@@ -640,7 +639,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 9. Access log pagination ────────────────────────────────────
+  // ─── 9. Access log pagination ──
 
   describe('Access log pagination', () => {
     it('returns paginated access logs for evidence', async () => {
@@ -687,7 +686,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 10. Evidence not found propagation ──────────────────────────
+  // ─── 10. Evidence not found propagation 
 
   describe('Evidence not found propagation', () => {
     it('returns 404 consistently for all actions on non-existent evidence', async () => {
@@ -697,13 +696,13 @@ describe('Evidence lifecycle integration', () => {
 
       const { route } = createDetailRoute();
 
-      const actions = [
-        { method: 'GET' as const, query: {} },
-        { method: 'GET' as const, query: { action: 'view-url' } },
-        { method: 'GET' as const, query: { action: 'download-url' } },
-        { method: 'GET' as const, query: { action: 'watermarked-download' } },
-        { method: 'GET' as const, query: { action: 'access-log' } },
-        { method: 'GET' as const, query: { action: 'history' } },
+      const actions: { method: 'GET'; query: Record<string, string> }[] = [
+        { method: 'GET', query: {} },
+        { method: 'GET', query: { action: 'view-url' } },
+        { method: 'GET', query: { action: 'download-url' } },
+        { method: 'GET', query: { action: 'watermarked-download' } },
+        { method: 'GET', query: { action: 'access-log' } },
+        { method: 'GET', query: { action: 'history' } },
       ];
 
       for (const { method, query } of actions) {
@@ -737,10 +736,10 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 11. Cross-guild rejection on every action ────────────────────
+  // ─── 11. Cross-guild rejection on every action ─
 
   describe('Cross-guild rejection on every action', () => {
-    it('returns 403 for evidence belonging to another guild across all actions', async () => {
+    it('returns 404 for evidence belonging to another guild across all actions', async () => {
       const gate = createMockGate();
       mockApiGateFromRequest.mockResolvedValue(gate);
 
@@ -751,7 +750,7 @@ describe('Evidence lifecycle integration', () => {
       const { route } = createDetailRoute();
 
       // GET actions that check guildId directly
-      const getActionsWithGuildCheck = [
+      const getActionsWithGuildCheck: Record<string, string>[] = [
         {},
         { action: 'history' },
         { action: 'access-log' },
@@ -765,8 +764,8 @@ describe('Evidence lifecycle integration', () => {
         });
         const response = createMockResponse();
         await route.run(request, response as any);
-        expectStatus(response, 403);
-        expect((response.data as any).error).toBe('Evidence does not belong to this guild');
+        expectStatus(response, 404);
+        expect((response.data as any).error).toBe('Evidence not found');
       }
 
       // POST actions
@@ -784,12 +783,12 @@ describe('Evidence lifecycle integration', () => {
         });
         const response = createMockResponse();
         await route.run(request, response as any);
-        expectStatus(response, 403);
+        expectStatus(response, 404);
       }
     });
   });
 
-  // ─── 12. Permission checks across actions ────────────────────────
+  // ─── 12. Permission checks across actions ───
 
   describe('Permission checks across actions', () => {
     it('user with view-only permission can GET detail/history but POST amend returns 403', async () => {
@@ -845,7 +844,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 13. Missing params ──────────────────────────────────────────
+  // ─── 13. Missing params ───
 
   describe('Missing required params', () => {
     it('returns 400 when guildId is missing from evidence list route', async () => {
@@ -871,7 +870,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 14. Unauthenticated requests ───────────────────────────────
+  // ─── 14. Unauthenticated requests ─────
 
   describe('Unauthenticated requests', () => {
     it('returns 401 when ApiGate returns null', async () => {
@@ -905,7 +904,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 15. Rate limiting ──────────────────────────────────────────
+  // ─── 15. Rate limiting ───
 
   describe('Rate limiting', () => {
     it('returns 429 when rate limit is exceeded on detail route', async () => {
@@ -931,7 +930,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 16. Watermark with custom text ──────────────────────────────
+  // ─── 16. Watermark with custom text ────
 
   describe('Watermark with custom text from config', () => {
     it('uses watermarkText from guild config when available', async () => {
@@ -971,7 +970,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 17. Bulk amend flow ─────────────────────────────────────────
+  // ─── 17. Bulk amend flow ──
 
   describe('Bulk amend flow', () => {
     it('amends multiple evidence items and returns results + errors', async () => {
@@ -1007,7 +1006,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 18. Search evidence ─────────────────────────────────────────
+  // ─── 18. Search evidence ──
 
   describe('Search evidence', () => {
     it('searches evidence by query string', async () => {
@@ -1039,7 +1038,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 19. Evidence list with filters ──────────────────────────────
+  // ─── 19. Evidence list with filters ────
 
   describe('Evidence list with filters', () => {
     it('passes type, status, and tag filters to service', async () => {
@@ -1074,7 +1073,7 @@ describe('Evidence lifecycle integration', () => {
     });
   });
 
-  // ─── 20. Unknown POST action on list route ──────────────────────
+  // ─── 20. Unknown POST action on list route ─
 
   describe('Unknown POST action', () => {
     it('returns 400 for unknown action on evidence list route', async () => {
