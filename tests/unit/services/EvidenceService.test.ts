@@ -113,7 +113,7 @@ vi.mock('#config.js', () => ({
 
 import { EvidenceService } from '#modules/moderation/services/EvidenceService.js';
 import { storageService, StorageService } from '#lib/storage/StorageService.js';
-import { signingService, SigningService } from '#lib/storage/SigningService.js';
+import { signingService } from '#lib/storage/SigningService.js';
 import { WeightGate } from '#lib/validation/WeightGate.js';
 
 // Use hoisted mock for assertions

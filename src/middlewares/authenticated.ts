@@ -1,5 +1,6 @@
 import { ApiRequest, ApiResponse, Middleware, type MiddlewareOptions } from '@sapphire/plugin-api';
 import { extractSessionId, isSessionId, resolveSession } from '#lib/session.js';
+import { URL } from 'node:url';
 
 /**
  * Middleware to ensure a user is authenticated via a server-side session.
@@ -17,9 +18,14 @@ export class AuthenticatedMiddleware extends Middleware {
   }
 
   public override async run(request: ApiRequest, response: ApiResponse): Promise<void> {
-    // Skip authentication for OAuth routes
-    if (request.url?.includes('/oauth/')) {
-      return;
+    // Skip authentication for OAuth routes (check pathname only, not query string)
+    try {
+      const pathname = new URL(request.url ?? '', 'http://localhost').pathname;
+      if (pathname.includes('/oauth/')) {
+        return;
+      }
+    } catch {
+      // If URL parsing fails, do not skip auth
     }
 
     const value = extractSessionId(request);

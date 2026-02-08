@@ -132,9 +132,21 @@ export function ServerPicker({ session }: ServerPickerProps) {
       const last7d = myCases.filter((c) => new Date(c.createdAt) >= sevenDaysAgo);
 
       const actionCounts: Record<string, number> = {};
+      const muteBreakdown: Record<string, number> = {};
       for (const c of myCases) {
-        const label = ACTION_LABELS[c.action] || c.action;
-        actionCounts[label] = (actionCounts[label] || 0) + 1;
+        if (c.action.startsWith('UNMUTE_')) continue;
+        if (c.action.startsWith('MUTE_') || c.action === 'MUTE') {
+          const label = ACTION_LABELS[c.action] || c.action;
+          muteBreakdown[label] = (muteBreakdown[label] || 0) + 1;
+        } else {
+          const label = ACTION_LABELS[c.action] || c.action;
+          actionCounts[label] = (actionCounts[label] || 0) + 1;
+        }
+      }
+      // Merge mute variants into a single aggregate "Mutes" count
+      const muteTotal = Object.values(muteBreakdown).reduce((a, b) => a + b, 0);
+      if (muteTotal > 0) {
+        actionCounts['Mutes'] = muteTotal;
       }
       const actionBreakdown = Object.entries(actionCounts)
         .map(([action, count]) => ({ action, count }))

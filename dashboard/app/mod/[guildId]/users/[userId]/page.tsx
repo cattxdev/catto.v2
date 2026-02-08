@@ -22,7 +22,6 @@ import {
   IconFlag,
   IconUser,
   IconCalendar,
-  IconBan,
   IconLogout,
   IconCheck,
   IconHistory,
@@ -397,13 +396,6 @@ function ServerStatusBadge({ status }: { status: UserServerStatus | null | undef
   if (!status) return null;
 
   switch (status.status) {
-    case 'banned':
-      return (
-        <span className="flex items-center gap-1 border border-red-500/40 px-2 py-0.5 text-[10px] text-red-300/80">
-          <IconBan size={12} />
-          Banned
-        </span>
-      );
     case 'left':
       return (
         <span className="flex items-center gap-1 border border-[var(--mono-600)] px-2 py-0.5 text-[10px] text-[var(--mod-text-dim)]">

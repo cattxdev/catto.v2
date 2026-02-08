@@ -55,9 +55,9 @@ export class EvidenceDetailRoute extends Route {
           case 'access-log':
             return this.handleAccessLog(gate, evidenceId, guildId, request, response);
           case 'history':
-            return this.handleHistory(evidenceId, response);
+            return this.handleHistory(evidenceId, guildId, response);
           default:
-            return this.handleGetDetail(evidenceId, response);
+            return this.handleGetDetail(evidenceId, guildId, response);
         }
       }
 
@@ -67,11 +67,11 @@ export class EvidenceDetailRoute extends Route {
 
         switch (postAction) {
           case 'add-timestamp':
-            return this.handleAddTimestamp(gate, evidenceId, body, response);
+            return this.handleAddTimestamp(gate, evidenceId, guildId, body, response);
           case 'remove-timestamp':
-            return this.handleRemoveTimestamp(gate, evidenceId, body, response);
+            return this.handleRemoveTimestamp(gate, evidenceId, guildId, body, response);
           default:
-            return this.handleAmend(gate, evidenceId, body, response);
+            return this.handleAmend(gate, evidenceId, guildId, body, response);
         }
       }
 
@@ -86,9 +86,13 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}
    * Get single evidence item with all details.
    */
-  private async handleGetDetail(evidenceId: string, response: Route.Response) {
+  private async handleGetDetail(evidenceId: string, guildId: string, response: Route.Response) {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+
+    if (evidence.guildId !== guildId) {
+      return response.status(404).json({ error: 'Evidence not found' });
+    }
 
     return response.json(evidence);
   }
@@ -267,7 +271,7 @@ export class EvidenceDetailRoute extends Route {
     const evidence = await evidenceService.getEvidenceById(evidenceId);
     if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
     if (evidence.guildId !== guildId) {
-      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+      return response.status(404).json({ error: 'Evidence not found' });
     }
 
     const page = Math.max(1, parseInt((request.query?.page as string) ?? '1', 10) || 1);
@@ -284,7 +288,14 @@ export class EvidenceDetailRoute extends Route {
    * GET /guilds/{guildId}/moderation/evidence/{evidenceId}?action=history
    * Get amendment history for an evidence item.
    */
-  private async handleHistory(evidenceId: string, response: Route.Response) {
+  private async handleHistory(evidenceId: string, guildId: string, response: Route.Response) {
+    const evidence = await evidenceService.getEvidenceById(evidenceId);
+    if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+
+    if (evidence.guildId !== guildId) {
+      return response.status(404).json({ error: 'Evidence not found' });
+    }
+
     const history = await evidenceService.getEvidenceHistory(evidenceId);
     return response.json({ history });
   }
@@ -296,11 +307,18 @@ export class EvidenceDetailRoute extends Route {
   private async handleAmend(
     gate: ApiGate,
     evidenceId: string,
+    guildId: string,
     body: Record<string, unknown>,
     response: Route.Response
   ) {
     const addAuth = await gate.checkAuth('mod.evidence.add');
     if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
+
+    const evidence = await evidenceService.getEvidenceById(evidenceId);
+    if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+    if (evidence.guildId !== guildId) {
+      return response.status(404).json({ error: 'Evidence not found' });
+    }
 
     const { action, newValue, reason } = body as {
       action: string;
@@ -333,11 +351,18 @@ export class EvidenceDetailRoute extends Route {
   private async handleAddTimestamp(
     gate: ApiGate,
     evidenceId: string,
+    guildId: string,
     body: Record<string, unknown>,
     response: Route.Response
   ) {
     const addAuth = await gate.checkAuth('mod.evidence.add');
     if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
+
+    const evidence = await evidenceService.getEvidenceById(evidenceId);
+    if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+    if (evidence.guildId !== guildId) {
+      return response.status(404).json({ error: 'Evidence not found' });
+    }
 
     const { time, note } = body as { time: number; note: string };
 
@@ -348,14 +373,14 @@ export class EvidenceDetailRoute extends Route {
       return response.status(400).json({ error: 'note is required' });
     }
 
-    const evidence = await evidenceService.addTimestamp(evidenceId, {
+    const updated = await evidenceService.addTimestamp(evidenceId, {
       time,
       note,
       addedById: gate.userId,
       addedByTag: gate.member.user.tag,
     });
 
-    return response.json(evidence);
+    return response.json(updated);
   }
 
   /**
@@ -365,11 +390,18 @@ export class EvidenceDetailRoute extends Route {
   private async handleRemoveTimestamp(
     gate: ApiGate,
     evidenceId: string,
+    guildId: string,
     body: Record<string, unknown>,
     response: Route.Response
   ) {
     const addAuth = await gate.checkAuth('mod.evidence.add');
     if (!addAuth.ok) return response.status(403).json({ error: 'Forbidden', code: addAuth.code });
+
+    const evidence = await evidenceService.getEvidenceById(evidenceId);
+    if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+    if (evidence.guildId !== guildId) {
+      return response.status(404).json({ error: 'Evidence not found' });
+    }
 
     const { timestampId } = body as { timestampId: string };
 
@@ -377,13 +409,13 @@ export class EvidenceDetailRoute extends Route {
       return response.status(400).json({ error: 'timestampId is required' });
     }
 
-    const evidence = await evidenceService.removeTimestamp(
+    const updated = await evidenceService.removeTimestamp(
       evidenceId,
       timestampId,
       gate.userId,
       gate.member.user.tag
     );
 
-    return response.json(evidence);
+    return response.json(updated);
   }
 }

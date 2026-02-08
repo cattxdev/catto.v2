@@ -195,7 +195,6 @@ describe('SafeNameRegistry', () => {
       const esAdjectives = await registry.getAdjectives('es');
       
       // Different languages should have different words
-      const enSet = new Set(enAdjectives);
       const esSet = new Set(esAdjectives);
       const intersection = enAdjectives.filter((adj) => esSet.has(adj));
       

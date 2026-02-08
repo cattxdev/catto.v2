@@ -376,7 +376,7 @@ describe('ogFetcher', () => {
         },
       });
 
-      const result = await fetchOGData('https://twitter.com/user/status/123456');
+      await fetchOGData('https://twitter.com/user/status/123456');
 
       expect(axios.get).toHaveBeenCalledWith(
         'https://publish.twitter.com/oembed',

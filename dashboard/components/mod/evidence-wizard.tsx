@@ -21,6 +21,8 @@ import {
 } from '@/lib/services/mod.service';
 import { TagSelector } from './tag-selector';
 import { OGCard } from './og-card';
+import { scanImage, isImageFile, type NsfwResult } from '@/lib/nsfw';
+import { NsfwScanner } from './nsfw-scanner';
 
 // ─── Props & Constants ───
 
@@ -70,6 +72,11 @@ interface OGPreview {
   siteName?: string;
 }
 
+interface NsfwFlag {
+  fileIndex: number;
+  result: NsfwResult;
+}
+
 interface WizardState {
   step: WizardStep;
   selectedType: UploadableType | null;
@@ -83,6 +90,12 @@ interface WizardState {
   uploadProgress: UploadProgress[];
   ogPreview: OGPreview | null;
   ogLoading: boolean;
+  nsfwScanning: boolean;
+  nsfwFlags: NsfwFlag[];
+  nsfwScanDone: boolean;
+  completed: boolean;
+  completedCount: number;
+  completedErrors: number;
 }
 
 type WizardAction =
@@ -99,10 +112,13 @@ type WizardAction =
   | { type: 'SET_DRAG_OVER'; dragOver: boolean }
   | { type: 'START_UPLOAD'; progress: UploadProgress[] }
   | { type: 'UPDATE_PROGRESS'; index: number; patch: Partial<UploadProgress> }
-  | { type: 'FINISH_UPLOAD' }
+  | { type: 'FINISH_UPLOAD'; success?: boolean }
   | { type: 'OG_LOADING' }
   | { type: 'OG_LOADED'; og: OGPreview | null }
   | { type: 'RESET' }
+  | { type: 'NSFW_SCAN_START' }
+  | { type: 'NSFW_SCAN_DONE'; flags: NsfwFlag[] }
+  | { type: 'NSFW_DISMISS'; fileIndex: number }
   // Compound actions — update multiple fields atomically
   | { type: 'FAB_UPLOAD' }
   | { type: 'FAB_URL' }
@@ -122,6 +138,12 @@ const INITIAL_STATE: WizardState = {
   uploadProgress: [],
   ogPreview: null,
   ogLoading: false,
+  nsfwScanning: false,
+  nsfwFlags: [],
+  nsfwScanDone: false,
+  completed: false,
+  completedCount: 0,
+  completedErrors: 0,
 };
 
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
@@ -165,12 +187,30 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           p.index === action.index ? { ...p, ...action.patch } : p
         ),
       };
-    case 'FINISH_UPLOAD':
-      return { ...state, uploading: false };
+    case 'FINISH_UPLOAD': {
+      const doneCount = state.uploadProgress.filter((p) => p.status === 'done').length;
+      const errorCount = state.uploadProgress.filter((p) => p.status === 'error').length;
+      const isUrl = state.selectedType === 'URL' || state.selectedType === 'DISCORD_URL';
+      const successCount = isUrl ? (action.success !== false ? 1 : 0) : doneCount;
+      const failCount = isUrl ? (action.success === false ? 1 : 0) : errorCount;
+      return {
+        ...state,
+        uploading: false,
+        completed: successCount > 0,
+        completedCount: successCount,
+        completedErrors: failCount,
+      };
+    }
     case 'OG_LOADING':
       return { ...state, ogLoading: true };
     case 'OG_LOADED':
       return { ...state, ogLoading: false, ogPreview: action.og };
+    case 'NSFW_SCAN_START':
+      return { ...state, nsfwScanning: true, nsfwFlags: [] };
+    case 'NSFW_SCAN_DONE':
+      return { ...state, nsfwScanning: false, nsfwFlags: action.flags, nsfwScanDone: true };
+    case 'NSFW_DISMISS':
+      return { ...state, nsfwFlags: state.nsfwFlags.filter((f) => f.fileIndex !== action.fileIndex) };
     case 'RESET':
       return INITIAL_STATE;
     // Compound: FAB "Upload File" → jump to step 2 as IMAGE
@@ -334,7 +374,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
     }
   }, []);
 
-  const handleUpload = async () => {
+  const runUpload = async () => {
     if (urlMode) {
       dispatch({ type: 'START_UPLOAD', progress: [] });
       try {
@@ -346,9 +386,9 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
           tags: state.tags.length > 0 ? state.tags : undefined,
         });
         onUploadComplete();
-        dispatch({ type: 'RESET' });
+        dispatch({ type: 'FINISH_UPLOAD', success: true });
       } catch {
-        dispatch({ type: 'FINISH_UPLOAD' });
+        dispatch({ type: 'FINISH_UPLOAD', success: false });
       }
       return;
     }
@@ -360,6 +400,8 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
       progress: 0,
     }));
     dispatch({ type: 'START_UPLOAD', progress });
+
+    let anySuccess = false;
 
     for (let i = 0; i < state.files.length; i++) {
       const entry = state.files[i];
@@ -398,6 +440,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
 
         await confirmUpload(guildId, evidenceId, contentHash);
         dispatch({ type: 'UPDATE_PROGRESS', index: i, patch: { status: 'done', progress: 100 } });
+        anySuccess = true;
       } catch (err) {
         dispatch({
           type: 'UPDATE_PROGRESS',
@@ -407,8 +450,34 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
       }
     }
 
-    onUploadComplete();
+    if (anySuccess) onUploadComplete();
     dispatch({ type: 'FINISH_UPLOAD' });
+  };
+
+  const handleUpload = async () => {
+    // Run NSFW scan on image files before uploading
+    if (fileMode && state.selectedType === 'IMAGE' && !state.nsfwScanDone) {
+      const imageFiles = state.files.filter((e) => isImageFile(e.file));
+      if (imageFiles.length > 0) {
+        dispatch({ type: 'NSFW_SCAN_START' });
+        const flags: NsfwFlag[] = [];
+        for (let i = 0; i < state.files.length; i++) {
+          if (!isImageFile(state.files[i].file)) continue;
+          try {
+            const result = await scanImage(state.files[i].file);
+            if (result.isNsfw) {
+              flags.push({ fileIndex: i, result });
+            }
+          } catch {
+            // Scan failure is non-blocking — proceed with upload
+          }
+        }
+        dispatch({ type: 'NSFW_SCAN_DONE', flags });
+        if (flags.length > 0) return; // Show NSFW warnings, don't upload yet
+      }
+    }
+
+    await runUpload();
   };
 
   // ─── Render ───
@@ -416,26 +485,57 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
   return (
     <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)]">
       {/* Step Indicator */}
-      <div className="flex border-b border-[var(--mod-border)]">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={`flex-1 px-4 py-3 text-center text-xs font-medium transition-[background-color] duration-75 ${
-              s === state.step
-                ? 'bg-[var(--mono-800)] text-[var(--mono-white)]'
-                : s < state.step
-                  ? 'text-[var(--mod-text-muted)]'
-                  : 'text-[var(--mod-text-dim)]'
-            }`}
-          >
-            {s}. {s === 1 ? 'Type' : s === 2 ? 'Content' : 'Metadata'}
-          </div>
-        ))}
-      </div>
+      {!state.completed && (
+        <div className="flex border-b border-[var(--mod-border)]">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className={`flex-1 px-4 py-3 text-center text-xs font-medium transition-[background-color] duration-75 ${
+                s === state.step
+                  ? 'bg-[var(--mono-800)] text-[var(--mono-white)]'
+                  : s < state.step
+                    ? 'text-[var(--mod-text-muted)]'
+                    : 'text-[var(--mod-text-dim)]'
+              }`}
+            >
+              {s}. {s === 1 ? 'Type' : s === 2 ? 'Content' : 'Metadata'}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="p-5">
+        {/* Completed screen */}
+        {state.completed && (
+          <div className="flex flex-col items-center py-6">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center border border-green-800 bg-green-950/30">
+              <IconCheck size={24} className="text-green-400" />
+            </div>
+            <h3 className="mb-1 text-lg font-semibold text-[var(--mono-white)]">
+              Evidence Uploaded
+            </h3>
+            <p className="mb-6 text-sm text-[var(--mod-text-muted)]">
+              {state.completedCount} file{state.completedCount !== 1 ? 's' : ''} uploaded successfully
+              {state.completedErrors > 0 && (
+                <span className="text-red-400">
+                  {' '}&middot; {state.completedErrors} failed
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => dispatch({ type: 'RESET' })}
+                className="flex items-center gap-1 border border-[var(--mono-500)] px-4 py-2 text-sm text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)]"
+              >
+                <IconPlus size={16} />
+                Upload More
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step 1: Type Selection */}
-        {state.step === 1 && (
+        {!state.completed && state.step === 1 && (
           <div>
             <p className="mb-4 text-sm text-[var(--mod-text-muted)]">Select the type of evidence to add:</p>
 
@@ -492,7 +592,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
         )}
 
         {/* Step 2: Content */}
-        {state.step === 2 && fileMode && (
+        {!state.completed && state.step === 2 && fileMode && (
           <div>
             <p className="mb-3 text-sm text-[var(--mod-text-muted)]">
               Upload {state.selectedType?.toLowerCase()} file(s):
@@ -554,7 +654,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
           </div>
         )}
 
-        {state.step === 2 && urlMode && (
+        {!state.completed && state.step === 2 && urlMode && (
           <div>
             <p className="mb-3 text-sm text-[var(--mod-text-muted)]">
               Enter the {state.selectedType === 'DISCORD_URL' ? 'Discord message' : ''} URL:
@@ -580,7 +680,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
         )}
 
         {/* Step 3: Metadata */}
-        {state.step === 3 && (
+        {!state.completed && state.step === 3 && (
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-xs uppercase tracking-wider text-[var(--mod-text-dim)]">Description</label>
@@ -634,6 +734,28 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
               </div>
             )}
 
+            {/* NSFW scanning indicator */}
+            {state.nsfwScanning && (
+              <div className="border border-[var(--mod-border)] bg-[var(--mono-950)] p-4 text-center text-sm text-[var(--mod-text-muted)]">
+                Scanning images for NSFW content...
+              </div>
+            )}
+
+            {/* NSFW warnings */}
+            {state.nsfwFlags.length > 0 && (
+              <div className="space-y-3">
+                {state.nsfwFlags.map((flag) => (
+                  <NsfwScanner
+                    key={flag.fileIndex}
+                    result={flag.result}
+                    filename={state.files[flag.fileIndex]?.file.name ?? 'Unknown'}
+                    onConfirmSafe={() => dispatch({ type: 'NSFW_DISMISS', fileIndex: flag.fileIndex })}
+                    onReject={() => dispatch({ type: 'REMOVE_FILE', index: flag.fileIndex })}
+                  />
+                ))}
+              </div>
+            )}
+
             {/* Upload progress */}
             {state.uploading && state.uploadProgress.length > 0 && (
               <div className="space-y-2">
@@ -666,7 +788,7 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
       </div>
 
       {/* Navigation buttons */}
-      <div className="flex items-center justify-between border-t border-[var(--mod-border)] px-5 py-3">
+      {!state.completed && <div className="flex items-center justify-between border-t border-[var(--mod-border)] px-5 py-3">
         <button
           onClick={() => dispatch({ type: 'PREV_STEP' })}
           disabled={state.step === 1 || state.uploading}
@@ -689,15 +811,15 @@ export function EvidenceWizard({ guildId, caseNumber, onUploadComplete }: Eviden
           {state.step === 3 && (
             <button
               onClick={handleUpload}
-              disabled={state.uploading}
+              disabled={state.uploading || state.nsfwScanning || state.nsfwFlags.length > 0}
               className="flex items-center gap-1 border border-[var(--mono-500)] px-4 py-1.5 text-sm text-[var(--mono-white)] transition-[background-color] duration-75 hover:bg-[var(--mono-800)] disabled:opacity-30"
             >
               <IconPlus size={16} />
-              {state.uploading ? 'Uploading...' : 'Upload'}
+              {state.nsfwScanning ? 'Scanning...' : state.uploading ? 'Uploading...' : 'Upload'}
             </button>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

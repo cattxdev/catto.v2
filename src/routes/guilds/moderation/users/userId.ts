@@ -1,6 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ModAction } from '@prisma/client';
-import { DiscordAPIError } from 'discord.js';
+
 import { parseModAction } from '#lib/validation/modAction.js';
 import { userProfileService } from '#modules/moderation/services/UserProfileService.js';
 
@@ -202,99 +202,41 @@ export class ModerationUserCasesRoute extends Route {
         return response.status(404).json({ error: 'Guild not found' });
       }
 
-      // Check ban status first (this is an API call but necessary for accuracy)
-      let isBanned = false;
-      try {
-        const ban = await discordGuild.bans.fetch(userId);
-        isBanned = !!ban;
-      } catch (err) {
-        if (err instanceof DiscordAPIError) {
-          if (err.code === 10026) {
-            // Unknown Ban - user is not banned
-            isBanned = false;
-          } else if (err.code === 50013) {
-            // Missing Permissions
-            this.container.logger.warn(
-              `[ServerStatus] Missing permissions to fetch bans for guild ${guildId}`
-            );
-            return response.status(403).json({ error: 'Bot lacks permission to check ban status' });
-          } else {
-            this.container.logger.error(
-              `[ServerStatus] Unexpected Discord API error fetching ban:`,
-              err
-            );
-            throw err;
-          }
-        } else {
-          this.container.logger.error(`[ServerStatus] Unexpected error fetching ban:`, err);
-          throw err;
-        }
-      }
-
-      // Try to fetch user info for avatar (works even if not in server)
+      // Fetch user info for avatar
       let avatarUrl: string | null = null;
       let username: string | null = null;
       try {
         const user = await this.container.client.users.fetch(userId);
         avatarUrl = user.displayAvatarURL({ size: 128 }) || null;
         username = user.username;
-        this.container.logger.info(
-          `[ServerStatus] Fetched user ${userId}: avatar=${avatarUrl}, username=${username}`
-        );
       } catch (err) {
         this.container.logger.warn(`[ServerStatus] Failed to fetch user ${userId}:`, err);
       }
 
-      // If banned, we know the status definitively
-      if (isBanned) {
-        return response.json({
-          status: 'banned' as const,
-          isBanned: true,
-          isInServer: false,
-          memberSince: null,
-          roles: [],
-          avatarUrl,
-          username,
-        });
-      }
-
-      // Check membership - first check cache
-      let member = discordGuild.members.cache.get(userId);
-
-      // If not in cache, fetch from API (profile page needs accurate data)
-      // This will also populate the cache for future requests
-      if (!member) {
-        try {
-          member = await discordGuild.members.fetch(userId);
-        } catch {
-          // Member not in server (404) or can't fetch
-          member = undefined;
+      // Check membership
+      try {
+        const member = await discordGuild.members.fetch({ user: userId, force: true });
+        if (member) {
+          const memberAvatar = member.displayAvatarURL({ size: 128 }) || null;
+          return response.json({
+            status: 'in_server' as const,
+            isInServer: true,
+            memberSince: member.joinedAt?.toISOString() ?? null,
+            roles: member.roles.cache
+              .filter((r) => r.id !== guildId)
+              .sort((a, b) => b.position - a.position)
+              .map((r) => r.name)
+              .slice(0, 10),
+            avatarUrl: memberAvatar ?? avatarUrl,
+            username: member.user.username ?? username,
+          });
         }
+      } catch {
+        // Member not in server or can't fetch
       }
 
-      if (member) {
-        // Use member's avatar if available (guild-specific), fallback to user avatar
-        const memberAvatar = member.displayAvatarURL({ size: 128 }) || null;
-        this.container.logger.info(`[ServerStatus] Found member ${userId}: avatar=${memberAvatar}`);
-        return response.json({
-          status: 'in_server' as const,
-          isBanned: false,
-          isInServer: true,
-          memberSince: member.joinedAt?.toISOString() ?? null,
-          roles: member.roles.cache
-            .filter((r) => r.id !== guildId)
-            .sort((a, b) => b.position - a.position)
-            .map((r) => r.name)
-            .slice(0, 10),
-          avatarUrl: memberAvatar ?? avatarUrl,
-          username: member.user.username ?? username,
-        });
-      }
-
-      // Not banned and not in server = left
       return response.json({
         status: 'left' as const,
-        isBanned: false,
         isInServer: false,
         memberSince: null,
         roles: [],
