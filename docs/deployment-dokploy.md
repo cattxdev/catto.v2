@@ -17,7 +17,7 @@ GitHub (dev/main branches)
     ↓ (push triggers CI)
 GitHub Actions
     ↓ (builds & pushes Docker image)
-Docker Hub
+GitHub Container Registry (GHCR)
     ↓ (webhook on new image)
 Dokploy
     ↓ (pulls image & deploys with zero downtime)
@@ -33,9 +33,8 @@ Traefik (auto-routing, auto-SSL)
 ## Prerequisites
 
 - ✅ Dokploy installed on your server
-- ✅ Docker Hub account (or GitHub Container Registry)
 - ✅ Domain with DNS configured
-- ✅ GitHub repository access
+- ✅ GitHub repository access (GHCR is automatically available)
 
 ---
 
@@ -67,14 +66,14 @@ docker exec catto-postgres psql -U postgres -l
 docker exec catto-redis redis-cli ping
 ```
 
-### 3. Configure GitHub Secrets
+### 3. GitHub Container Registry
 
-Add to your GitHub repository secrets (**Settings > Secrets and variables > Actions**):
+No setup needed! GHCR is automatically available for your repository.
 
-| Secret | Value |
-|--------|-------|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | Docker Hub access token (generate at hub.docker.com → Settings → Security) |
+- Images publish to: `ghcr.io/your-org/your-repo:tag`
+- Uses built-in `GITHUB_TOKEN` (no secrets to configure)
+- After first build, images appear in **Packages** tab on GitHub
+- By default, packages are private (can be made public in package settings)
 
 ---
 
@@ -98,8 +97,11 @@ Add to your GitHub repository secrets (**Settings > Secrets and variables > Acti
 1. Inside project: **New Resource** → **Docker Image**
 2. Configuration:
    - **Name**: `catto-bot-prod`
-   - **Image**: `yourusername/catto-bot:latest`
-   - **Registry**: Docker Hub (add credentials if private)
+   - **Image**: `ghcr.io/your-org/your-repo:latest` (replace with your org/repo)
+   - **Registry**: GitHub Container Registry
+   - **Registry Credentials** (if package is private):
+     - Username: your GitHub username
+     - Password: Personal Access Token with `read:packages` scope
    - **Auto-deploy**: ✅ Enable
    - **Network**: Select `catto-network` (or configure in Advanced settings)
 
@@ -168,7 +170,7 @@ Repeat steps 5-9 for development:
 
 **Project**: `catto-development`
 **Resource**: `catto-bot-dev`
-**Image**: `yourusername/catto-bot:dev`
+**Image**: `ghcr.io/your-org/your-repo:dev`
 **Domain**: `api-dev.yourdomain.com`
 
 **Environment variable differences:**
@@ -197,7 +199,7 @@ Wait 5-60 minutes for propagation.
 ### Production
 
 1. Push code to `main` branch
-2. GitHub Actions builds and pushes `yourusername/catto-bot:latest` to Docker Hub
+2. GitHub Actions builds and pushes `ghcr.io/your-org/your-repo:latest` to GHCR
 3. Dokploy receives webhook and pulls image
 4. In Dokploy UI: watch deployment logs in real-time
 5. Verify: `curl https://api.yourdomain.com/api/health`
@@ -205,7 +207,7 @@ Wait 5-60 minutes for propagation.
 ### Development
 
 1. Push code to `dev` branch
-2. GitHub Actions builds and pushes `yourusername/catto-bot:dev`
+2. GitHub Actions builds and pushes `ghcr.io/your-org/your-repo:dev` to GHCR
 3. Dokploy auto-deploys
 4. Verify: `curl https://api-dev.yourdomain.com/api/health`
 
@@ -249,9 +251,9 @@ Wait 5-60 minutes for propagation.
         ↓
 3. CI builds Docker image with tag (latest or dev)
         ↓
-4. CI pushes image to Docker Hub
+4. CI pushes image to GitHub Container Registry
         ↓
-5. Dokploy receives webhook from Docker Hub
+5. Dokploy receives webhook from GHCR
         ↓
 6. Dokploy pulls new image
         ↓
@@ -274,9 +276,11 @@ Wait 5-60 minutes for propagation.
 
 **Check:**
 - Deployment logs in Dokploy UI
-- Image exists on Docker Hub: `docker pull yourusername/catto-bot:latest`
+- Image exists on GHCR: Go to GitHub repo → **Packages** tab
+- Or try: `docker pull ghcr.io/your-org/your-repo:latest`
 - Environment variables are correct
 - Docker network: `docker network inspect catto-network`
+- If package is private, verify Dokploy has valid GHCR credentials
 
 ### Health Check Fails
 
@@ -303,10 +307,12 @@ Wait 5-60 minutes for propagation.
 ### Auto-Deploy Not Triggering
 
 **Check:**
-- Image was pushed to Docker Hub successfully (check GitHub Actions logs)
+- Image was pushed to GHCR successfully (check GitHub Actions logs)
+- Image appears in GitHub repo → **Packages** tab
 - Auto-deploy is enabled in Dokploy resource settings
-- Image name matches exactly (including registry and tag)
-- Dokploy webhook is registered (should be automatic for Docker Hub)
+- Image name matches exactly (including `ghcr.io/` prefix and tag)
+- Dokploy webhook is configured for GHCR
+- If package is private, verify Dokploy can authenticate to GHCR
 
 ### Bot Can't Connect to Postgres/Redis
 
