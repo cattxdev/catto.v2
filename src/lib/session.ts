@@ -53,6 +53,9 @@ export async function resolveSession(sessionId: string): Promise<SessionData | n
 
   // Check expiry with clock skew tolerance
   const expiresAt = new Date(data.expiresAt).getTime();
+  if (Number.isNaN(expiresAt)) {
+    return null;
+  }
   const now = Date.now();
   if (expiresAt + CLOCK_SKEW_TOLERANCE_MS <= now) {
     return null;

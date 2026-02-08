@@ -72,6 +72,9 @@ export class ModEventsRoute extends Route {
       subscriber = this.container.redis.duplicate();
       const channel = ModEventChannels.MOD_EVENTS(guildId);
 
+      // Explicitly connect and wait — the parent has lazyConnect: true
+      // and enableOfflineQueue: false, so we must be connected before subscribing.
+      await subscriber.connect();
       await subscriber.subscribe(channel);
 
       subscriber.on('message', (_ch: string, message: string) => {

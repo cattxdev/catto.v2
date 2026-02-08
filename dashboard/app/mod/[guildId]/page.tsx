@@ -48,7 +48,8 @@ export default function GuildModOverview() {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const total = cases.length;
+    // Use the real total from the API (database count), not the limited array length
+    const total = casesData?.total ?? cases.length;
     const open = cases.filter((c) => c.status === 'OPEN').length;
     const recent = cases.filter((c) => new Date(c.createdAt) >= sevenDaysAgo).length;
 
@@ -65,7 +66,7 @@ export default function GuildModOverview() {
       recent,
       topAction: topAction ? ACTION_LABELS[topAction[0]] || topAction[0] : '—',
     };
-  }, [cases]);
+  }, [cases, casesData?.total]);
 
   // Cases over time (last 30 days)
   const timelineData = useMemo(() => {
@@ -94,8 +95,13 @@ export default function GuildModOverview() {
   const actionData = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const c of cases) {
-      const label = ACTION_LABELS[c.action] || c.action;
-      counts[label] = (counts[label] || 0) + 1;
+      if (c.action.startsWith('UNMUTE_')) continue;
+      if (c.action.startsWith('MUTE_') || c.action === 'MUTE_BOTH') {
+        counts['Mutes'] = (counts['Mutes'] || 0) + 1;
+      } else {
+        const label = ACTION_LABELS[c.action] || c.action;
+        counts[label] = (counts[label] || 0) + 1;
+      }
     }
     return Object.entries(counts)
       .map(([action, count]) => ({ action, count }))
