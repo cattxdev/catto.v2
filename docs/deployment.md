@@ -1,4 +1,15 @@
-# Deployment Guide
+# Deployment Guide (Legacy - GitHub Actions CD)
+
+> **⚠️ This guide documents the legacy GitHub Actions CD approach.**
+>
+> **For new deployments, use [Dokploy](./deployment-dokploy.md)** which provides:
+> - Web UI for logs and management
+> - Zero-downtime deployments
+> - Automatic SSL via Traefik
+> - One-click rollbacks
+> - Built-in notifications
+>
+> This guide remains for reference or if you prefer the manual approach.
 
 ## Overview
 
