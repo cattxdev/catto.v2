@@ -42,8 +42,9 @@ COPY prisma.config.ts ./
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
-# Copy built application from builder stage
+# Copy built application and runtime assets from builder stage
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/languages ./languages
 
 # Generate Prisma Client (needed for production)
 RUN pnpm prisma:generate
