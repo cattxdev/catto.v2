@@ -36,6 +36,7 @@ export default defineConfig({
             { text: 'Getting Started', link: '/getting-started' },
             { text: 'Dashboard Setup', link: '/dashboard' },
             { text: 'Architecture', link: '/architecture' },
+            { text: 'Deployment', link: '/deployment' },
             { text: 'Coding Rules', link: '/RULES' },
           ],
         },

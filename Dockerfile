@@ -26,6 +26,9 @@ RUN pnpm build
 # Production stage
 FROM node:20-alpine AS production
 
+ARG DEPLOY_VERSION=dev
+ENV DEPLOY_VERSION=$DEPLOY_VERSION
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 

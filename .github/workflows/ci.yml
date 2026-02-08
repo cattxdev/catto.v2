@@ -6,6 +6,7 @@ on:
       - main
       - dev
   pull_request:
+  workflow_call:
 
 jobs:
   lint-typecheck:
@@ -44,6 +45,9 @@ jobs:
 
       - name: Run TypeScript typecheck
         run: pnpm typecheck
+
+      - name: Lint deploy scripts
+        run: shellcheck scripts/deploy.sh
 
   test:
     name: Test

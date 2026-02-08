@@ -70,6 +70,9 @@ const envSchema = z.object({
     .optional()
     .default('100')
     .transform((val) => parseInt(val, 10)),
+
+  // Deploy metadata
+  DEPLOY_VERSION: z.string().optional().default('dev'),
 });
 
 // Validate and parse environment variables
