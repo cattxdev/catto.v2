@@ -6,19 +6,25 @@ DEPLOY_VERSION="$(git rev-parse --short HEAD)"
 HEALTH_URL="http://localhost:4000/api/health"
 MAX_WAIT=60
 
+# Export for docker compose build arg
+export DEPLOY_VERSION
+
 echo "=== Deploying catto @ ${DEPLOY_VERSION} ==="
 
 # 1. Pull latest code
 git pull --ff-only origin main
 
 # 2. Build images with version tag
-DEPLOY_VERSION="$DEPLOY_VERSION" docker compose $COMPOSE_FILES build \
+# shellcheck disable=SC2086
+docker compose $COMPOSE_FILES build \
   --build-arg "DEPLOY_VERSION=${DEPLOY_VERSION}" bot watermark
 
 # 3. Run database migrations
+# shellcheck disable=SC2086
 docker compose $COMPOSE_FILES run --rm bot sh -c "pnpm prisma migrate deploy"
 
 # 4. Recreate bot (Docker Compose handles stop -> start)
+# shellcheck disable=SC2086
 docker compose $COMPOSE_FILES up -d --no-deps bot
 
 # 5. Wait for health check
@@ -35,14 +41,17 @@ done
 
 if [ "$elapsed" -ge "$MAX_WAIT" ]; then
   echo "ERROR: Bot did not become healthy within ${MAX_WAIT}s"
+  # shellcheck disable=SC2086
   docker compose $COMPOSE_FILES logs --tail=50 bot
   exit 1
 fi
 
 # 6. Recreate watermark service if image changed (stateless, safe to restart)
+# shellcheck disable=SC2086
 docker compose $COMPOSE_FILES up -d --no-deps watermark
 
 # 7. Ensure Caddy is running
+# shellcheck disable=SC2086
 docker compose $COMPOSE_FILES up -d --no-deps caddy
 
 echo "=== Deploy complete: ${DEPLOY_VERSION} ==="
