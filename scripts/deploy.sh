@@ -2,6 +2,7 @@
 set -euo pipefail
 
 COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+CURRENT_BRANCH="$(git branch --show-current)"
 DEPLOY_VERSION="$(git rev-parse --short HEAD)"
 HEALTH_URL="http://localhost:4000/api/health"
 MAX_WAIT=60
@@ -9,10 +10,10 @@ MAX_WAIT=60
 # Export for docker compose build arg
 export DEPLOY_VERSION
 
-echo "=== Deploying catto @ ${DEPLOY_VERSION} ==="
+echo "=== Deploying catto @ ${DEPLOY_VERSION} (${CURRENT_BRANCH}) ==="
 
-# 1. Pull latest code
-git pull --ff-only origin main
+# 1. Pull latest code from current branch
+git pull --ff-only origin "${CURRENT_BRANCH}"
 
 # 2. Build images with version tag
 # shellcheck disable=SC2086

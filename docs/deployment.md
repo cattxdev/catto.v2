@@ -112,7 +112,7 @@ Configure secrets per environment at **Settings > Secrets and variables > Action
 
 ### Same Server Setup (Recommended for Small Teams)
 
-If using the same server for both environments:
+If using the same server for both environments, you must **manually set up both directories once**. After that, the CD pipeline auto-pulls on each deploy.
 
 ```bash
 # Clone dev environment
@@ -131,6 +131,10 @@ cd /opt/catto
 cp .env.example .env
 # Edit .env with production config
 ```
+
+**Important:** The deploy script auto-detects the current branch and pulls from `origin <branch>`, so:
+- `/opt/catto-dev` must be on the `dev` branch
+- `/opt/catto` must be on the `main` branch
 
 Set the same SSH credentials for both environments in GitHub secrets (same `SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`).
 
