@@ -16,7 +16,7 @@ export default async function AuthCallbackPage({
   const cookieStore = await cookies();
   cookieStore.set('SAPPHIRE_AUTH', token, {
     httpOnly: true,
-    secure: false, // Set to true in production with HTTPS
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     maxAge: expires ? parseInt(expires) : 604800, // Default 7 days

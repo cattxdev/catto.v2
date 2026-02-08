@@ -41,26 +41,30 @@ services:
     networks:
       - catto-network
 
-  bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: catto-bot
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-catto}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      WATERMARK_SERVICE_URL: http://watermark:3847
-    depends_on:
-      - postgres
-      - redis
-      - watermark
-    networks:
-      - catto-network
+  # Bot service is deployed via Dokploy (not in this compose file)
+  # Dokploy's bot container connects to this network to access postgres/redis/watermark
+  #
+  # For local development only, uncomment below:
+  # bot:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: catto-bot
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-catto}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  #     WATERMARK_SERVICE_URL: http://watermark:3847
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - watermark
+  #   networks:
+  #     - catto-network
 
 volumes:
   postgres_data:
@@ -68,4 +72,4 @@ volumes:
 
 networks:
   catto-network:
-    driver: bridge
+    external: true  # Created manually with: docker network create catto-network

@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to ${{ github.ref_name == 'main' && 'Production' || 'Development' }}
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set environment variables
+        id: env
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "env_name=production" >> $GITHUB_OUTPUT
+            echo "deploy_path=/opt/catto" >> $GITHUB_OUTPUT
+          else
+            echo "env_name=development" >> $GITHUB_OUTPUT
+            echo "deploy_path=/opt/catto-dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ github.ref_name == 'main' && secrets.SERVER_HOST_PROD || secrets.SERVER_HOST_DEV }}
+          username: ${{ github.ref_name == 'main' && secrets.SERVER_USER_PROD || secrets.SERVER_USER_DEV }}
+          key: ${{ github.ref_name == 'main' && secrets.SSH_PRIVATE_KEY_PROD || secrets.SSH_PRIVATE_KEY_DEV }}
+          port: ${{ github.ref_name == 'main' && secrets.SERVER_PORT_PROD || secrets.SERVER_PORT_DEV }}
+          script: |
+            cd ${{ steps.env.outputs.deploy_path }}
+            bash scripts/deploy.sh

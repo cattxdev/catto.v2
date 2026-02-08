@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect /mod/* routes (exclude /mod/login itself)

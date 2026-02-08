@@ -84,8 +84,8 @@
     "puppeteer": "^24.36.1",
     "re2-wasm": "^1.0.2",
     "reflect-metadata": "^0.2.2",
-    "signale": "^1.4.0",
     "sharp": "^0.34.5",
+    "signale": "^1.4.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -94,7 +94,6 @@
     "@testcontainers/postgresql": "^11.11.0",
     "@testcontainers/redis": "^11.11.0",
     "@types/archiver": "^6.0.3",
-    "@types/ioredis": "^5.0.0",
     "@types/node": "^22.10.5",
     "@types/signale": "^1.4.7",
     "@typescript-eslint/eslint-plugin": "^8.22.1",
