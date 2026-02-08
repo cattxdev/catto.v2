@@ -324,11 +324,10 @@ export interface UserRewardClaim {
 
 // ─── Server Status Types ───
 
-export type ServerStatusType = 'in_server' | 'left' | 'banned' | 'unknown';
+export type ServerStatusType = 'in_server' | 'left' | 'unknown';
 
 export interface UserServerStatus {
   status: ServerStatusType;
-  isBanned: boolean;
   isInServer: boolean;
   memberSince: string | null;
   roles: string[];
