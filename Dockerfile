@@ -44,7 +44,6 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/generated ./src/generated
 
 # Generate Prisma Client (needed for production)
 RUN pnpm prisma:generate
