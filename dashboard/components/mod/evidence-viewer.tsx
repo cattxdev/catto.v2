@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useSWR from 'swr';
 import type { Evidence, EvidenceAmendment, VideoTimestamp } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META } from '@/lib/mod-types';
@@ -65,6 +65,10 @@ export function EvidenceViewer({
   const [flagged, setFlagged] = useState(evidence.status === 'FLAGGED');
   const [flagSubmitting, setFlagSubmitting] = useState(false);
 
+  useEffect(() => {
+    setFlagged(evidence.status === 'FLAGGED');
+  }, [evidence.status]);
+
   // Async URL fetch (presigned URLs for file-backed evidence)
   const {
     data: asyncViewUrl,
@@ -109,8 +113,8 @@ export function EvidenceViewer({
       });
       setFlagged(pressed);
       mutateHistory();
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('Failed to toggle flag:', err);
     } finally {
       setFlagSubmitting(false);
     }

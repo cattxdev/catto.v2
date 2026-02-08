@@ -607,7 +607,10 @@ export class EvidenceService {
     const skip = (page - 1) * limit;
 
     // Use raw query for full-text search with ranking
-    const evidence = await container.prisma.$queryRaw<Evidence[]>`
+    type EvidenceWithSnapshotRaw = Omit<Evidence, 'snapshot'> & {
+      snapshot: Record<string, unknown> | null;
+    };
+    const rawResults = await container.prisma.$queryRaw<EvidenceWithSnapshotRaw[]>`
       SELECT e.*, row_to_json(s.*) as snapshot
       FROM evidence e
       LEFT JOIN message_snapshots s ON e."snapshotId" = s.id
@@ -616,6 +619,7 @@ export class EvidenceService {
       ORDER BY ts_rank(e.search_vector, plainto_tsquery('english', ${searchQuery})) DESC
       LIMIT ${limit} OFFSET ${skip}
     `;
+    const evidence = rawResults as unknown as Evidence[];
 
     const countResult = await container.prisma.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(*) as count
@@ -791,6 +795,21 @@ export class EvidenceService {
       addedByTag: string;
     }
   ): Promise<Evidence> {
+    const MAX_NOTE_LENGTH = 1000;
+
+    if (typeof timestamp.time !== 'number' || isNaN(timestamp.time) || timestamp.time < 0) {
+      throw new Error('Timestamp time must be a non-negative number');
+    }
+
+    const trimmedNote = timestamp.note.trim();
+    if (!trimmedNote) {
+      throw new Error('Timestamp note cannot be empty');
+    }
+    if (trimmedNote.length > MAX_NOTE_LENGTH) {
+      throw new Error(`Timestamp note exceeds maximum length of ${MAX_NOTE_LENGTH} characters`);
+    }
+    timestamp = { ...timestamp, note: trimmedNote };
+
     const evidence = await container.prisma.evidence.findUnique({
       where: { id: evidenceId },
     });
@@ -861,6 +880,10 @@ export class EvidenceService {
       where: { id: evidenceId },
     });
     if (!evidence) throw new Error('Evidence not found');
+
+    if (evidence.type !== 'VIDEO') {
+      throw new Error('Timestamps can only be removed from video evidence');
+    }
 
     const metadata = (evidence.metadata as Record<string, unknown>) ?? {};
     const timestamps =

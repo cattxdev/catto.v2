@@ -53,7 +53,7 @@ export class EvidenceDetailRoute extends Route {
           case 'watermarked-download':
             return this.handleWatermarkedDownload(gate, evidenceId, guildId, request, response);
           case 'access-log':
-            return this.handleAccessLog(evidenceId, request, response);
+            return this.handleAccessLog(gate, evidenceId, guildId, request, response);
           case 'history':
             return this.handleHistory(evidenceId, response);
           default:
@@ -116,7 +116,9 @@ export class EvidenceDetailRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
       }
 
-      // Log access (NH-9)
+      const url = await evidenceService.generateViewUrl(evidenceId);
+
+      // Log access only after successful URL generation (NH-9)
       await accessLogService.logAccess(
         evidenceId,
         guildId,
@@ -126,7 +128,6 @@ export class EvidenceDetailRoute extends Route {
         request
       );
 
-      const url = await evidenceService.generateViewUrl(evidenceId);
       return response.json({ url });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate view URL';
@@ -157,7 +158,9 @@ export class EvidenceDetailRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: caseAuth.code });
       }
 
-      // Log access (NH-9)
+      const url = await evidenceService.generateDownloadUrl(evidenceId);
+
+      // Log access only after successful URL generation (NH-9)
       await accessLogService.logAccess(
         evidenceId,
         guildId,
@@ -167,7 +170,6 @@ export class EvidenceDetailRoute extends Route {
         request
       );
 
-      const url = await evidenceService.generateDownloadUrl(evidenceId);
       return response.json({ url });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate download URL';
@@ -206,6 +208,7 @@ export class EvidenceDetailRoute extends Route {
 
       if (!watermarkEnabled) {
         // Fall back to regular download
+        const url = await evidenceService.generateDownloadUrl(evidenceId);
         await accessLogService.logAccess(
           evidenceId,
           guildId,
@@ -214,11 +217,14 @@ export class EvidenceDetailRoute extends Route {
           'DOWNLOAD',
           request
         );
-        const url = await evidenceService.generateDownloadUrl(evidenceId);
         return response.json({ url, watermarked: false });
       }
 
-      // Log access
+      // Get watermarked URL
+      const watermarkText = config?.watermarkText ?? gate.member.user.tag;
+      const result = await watermarkService.getWatermarkedUrl(evidenceId, guildId, watermarkText);
+
+      // Log access only after successful generation
       await accessLogService.logAccess(
         evidenceId,
         guildId,
@@ -229,9 +235,6 @@ export class EvidenceDetailRoute extends Route {
         { watermarked: true }
       );
 
-      // Get watermarked URL
-      const watermarkText = config?.watermarkText ?? gate.member.user.tag;
-      const result = await watermarkService.getWatermarkedUrl(evidenceId, guildId, watermarkText);
       return response.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate watermarked URL';
@@ -244,12 +247,34 @@ export class EvidenceDetailRoute extends Route {
    * Get access log for evidence (NH-9).
    */
   private async handleAccessLog(
+    gate: ApiGate,
     evidenceId: string,
+    guildId: string,
     request: Route.Request,
     response: Route.Response
   ) {
-    const page = parseInt((request.query?.page as string) ?? '1');
-    const limit = parseInt((request.query?.limit as string) ?? '50');
+    // Require audit permission
+    const auditAuth = await gate.checkAuth('mod.evidence.audit' as never);
+    if (!auditAuth.ok) {
+      // Fall back to view permission if audit doesn't exist
+      const viewAuth = await gate.checkAuth('mod.evidence.view');
+      if (!viewAuth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: viewAuth.code });
+      }
+    }
+
+    // Verify evidence exists and belongs to this guild
+    const evidence = await evidenceService.getEvidenceById(evidenceId);
+    if (!evidence) return response.status(404).json({ error: 'Evidence not found' });
+    if (evidence.guildId !== guildId) {
+      return response.status(403).json({ error: 'Evidence does not belong to this guild' });
+    }
+
+    const page = Math.max(1, parseInt((request.query?.page as string) ?? '1', 10) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt((request.query?.limit as string) ?? '50', 10) || 50)
+    );
 
     const result = await accessLogService.getAccessLog(evidenceId, { page, limit });
     return response.json(result);

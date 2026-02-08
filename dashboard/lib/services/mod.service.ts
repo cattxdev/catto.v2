@@ -501,11 +501,9 @@ export async function getUserServerStatus(
   userId: string
 ): Promise<UserServerStatus | null> {
   try {
-    console.log('[mod.service] getUserServerStatus calling API for', userId);
     const res = await api().get(`/guilds/${guildId}/moderation/users/${userId}`, {
       params: { action: 'server-status' },
     });
-    console.log('[mod.service] getUserServerStatus response:', res.status, res.data?.avatarUrl);
     return res.data;
   } catch (err) {
     console.error('[mod.service] getUserServerStatus failed:', err);

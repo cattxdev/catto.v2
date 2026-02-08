@@ -100,10 +100,10 @@ class AnalyticsServiceClass {
   ): Promise<Array<{ date: string; count: number }>> {
     // Use raw query for date grouping
     const result = await container.prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
-      SELECT DATE("createdAt") as date, COUNT(*) as count
+      SELECT DATE("createdAt" AT TIME ZONE 'UTC') as date, COUNT(*) as count
       FROM "evidence"
       WHERE "guildId" = ${guildId} AND "createdAt" >= ${startDate}
-      GROUP BY DATE("createdAt")
+      GROUP BY DATE("createdAt" AT TIME ZONE 'UTC')
       ORDER BY date ASC
     `;
 
@@ -195,16 +195,30 @@ class AnalyticsServiceClass {
     startDate: Date
   ): Promise<Array<{ userId: string; userTag: string; count: number }>> {
     const result = await container.prisma.evidence.groupBy({
-      by: ['uploadedById', 'uploadedByTag'],
+      by: ['uploadedById'],
       where: { guildId, createdAt: { gte: startDate } },
       _count: { uploadedById: true },
       orderBy: { _count: { uploadedById: 'desc' } },
       take: 10,
     });
 
+    // Resolve latest tag for each user
+    const userIds = result.map((row) => row.uploadedById);
+    const latestTags = await Promise.all(
+      userIds.map(async (userId) => {
+        const latest = await container.prisma.evidence.findFirst({
+          where: { guildId, uploadedById: userId },
+          orderBy: { createdAt: 'desc' },
+          select: { uploadedByTag: true },
+        });
+        return { userId, tag: latest?.uploadedByTag ?? userId };
+      })
+    );
+    const tagMap = new Map(latestTags.map((t) => [t.userId, t.tag]));
+
     return result.map((row) => ({
       userId: row.uploadedById,
-      userTag: row.uploadedByTag,
+      userTag: tagMap.get(row.uploadedById) ?? row.uploadedById,
       count: row._count.uploadedById,
     }));
   }
@@ -221,6 +235,20 @@ class AnalyticsServiceClass {
     byStatus: Record<string, number>;
     assignmentRate: number;
   }> {
+    const cacheKey = `analytics:cases:${guildId}:${period}`;
+
+    // Check cache
+    const cached = await getJson(
+      cacheKey,
+      z.object({
+        volumeOverTime: z.array(z.object({ date: z.string(), count: z.number() })),
+        byAction: z.record(z.string(), z.number()),
+        byStatus: z.record(z.string(), z.number()),
+        assignmentRate: z.number(),
+      })
+    );
+    if (cached) return cached;
+
     // Calculate date range
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
     const startDate = new Date();
@@ -228,10 +256,10 @@ class AnalyticsServiceClass {
 
     const [volumeResult, byAction, byStatus, assignedCount, totalCount] = await Promise.all([
       container.prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
-        SELECT DATE("createdAt") as date, COUNT(*) as count
+        SELECT DATE("createdAt" AT TIME ZONE 'UTC') as date, COUNT(*) as count
         FROM "mod_cases"
         WHERE "guildId" = ${guildId} AND "createdAt" >= ${startDate}
-        GROUP BY DATE("createdAt")
+        GROUP BY DATE("createdAt" AT TIME ZONE 'UTC')
         ORDER BY date ASC
       `,
       container.prisma.modCase.groupBy({
@@ -272,7 +300,7 @@ class AnalyticsServiceClass {
       current.setDate(current.getDate() + 1);
     }
 
-    return {
+    const caseAnalytics = {
       volumeOverTime,
       byAction: byAction.reduce(
         (acc, row) => {
@@ -290,6 +318,21 @@ class AnalyticsServiceClass {
       ),
       assignmentRate: totalCount > 0 ? assignedCount / totalCount : 0,
     };
+
+    // Cache result
+    await setJson(
+      cacheKey,
+      z.object({
+        volumeOverTime: z.array(z.object({ date: z.string(), count: z.number() })),
+        byAction: z.record(z.string(), z.number()),
+        byStatus: z.record(z.string(), z.number()),
+        assignmentRate: z.number(),
+      }),
+      caseAnalytics,
+      ANALYTICS_CACHE_TTL
+    );
+
+    return caseAnalytics;
   }
 }
 

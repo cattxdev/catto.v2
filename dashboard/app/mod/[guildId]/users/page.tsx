@@ -60,7 +60,7 @@ export default function UsersPage() {
     [debouncedUpdateSearch]
   );
 
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, error } = useSWR(
     ['moderated-users', guildId, searchParam, sortParam, pageParam],
     () =>
       getModeratedUsers(guildId, {
@@ -131,6 +131,7 @@ export default function UsersPage() {
             value={localSearch}
             onChange={handleSearchChange}
             placeholder="Search by username or ID..."
+            aria-label="Search users by username or ID"
             className="w-full border border-[var(--mod-border)] bg-[var(--mod-surface)] py-2 pl-9 pr-4 text-sm text-[var(--mono-white)] placeholder-[var(--mod-text-dim)] outline-none focus:border-[var(--mono-500)]"
           />
         </div>
@@ -150,6 +151,10 @@ export default function UsersPage() {
 
       {isLoading ? (
         <div className="py-12 text-center text-[var(--mod-text-dim)]">Loading users...</div>
+      ) : error ? (
+        <div className="border border-red-500/30 bg-[var(--mod-surface)] p-8 text-center text-red-400">
+          Failed to load users. Please try again later.
+        </div>
       ) : users.length === 0 ? (
         <div className="border border-[var(--mod-border)] bg-[var(--mod-surface)] p-8 text-center text-[var(--mod-text-muted)]">
           {searchParam ? 'No users match your search.' : 'No moderated users found.'}

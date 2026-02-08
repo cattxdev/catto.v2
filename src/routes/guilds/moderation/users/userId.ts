@@ -1,5 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { ModAction } from '@prisma/client';
+import { DiscordAPIError } from 'discord.js';
 import { parseModAction } from '#lib/validation/modAction.js';
 import { userProfileService } from '#modules/moderation/services/UserProfileService.js';
 
@@ -206,9 +207,28 @@ export class ModerationUserCasesRoute extends Route {
       try {
         const ban = await discordGuild.bans.fetch(userId);
         isBanned = !!ban;
-      } catch {
-        // Not banned (404) or can't fetch (missing permissions)
-        isBanned = false;
+      } catch (err) {
+        if (err instanceof DiscordAPIError) {
+          if (err.code === 10026) {
+            // Unknown Ban - user is not banned
+            isBanned = false;
+          } else if (err.code === 50013) {
+            // Missing Permissions
+            this.container.logger.warn(
+              `[ServerStatus] Missing permissions to fetch bans for guild ${guildId}`
+            );
+            return response.status(403).json({ error: 'Bot lacks permission to check ban status' });
+          } else {
+            this.container.logger.error(
+              `[ServerStatus] Unexpected Discord API error fetching ban:`,
+              err
+            );
+            throw err;
+          }
+        } else {
+          this.container.logger.error(`[ServerStatus] Unexpected error fetching ban:`, err);
+          throw err;
+        }
       }
 
       // Try to fetch user info for avatar (works even if not in server)

@@ -273,8 +273,11 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
+  const negative = bytes < 0;
+  const abs = Math.abs(bytes);
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.min(Math.floor(Math.log(abs) / Math.log(k)), sizes.length - 1);
+  const value = parseFloat((abs / Math.pow(k, i)).toFixed(1));
+  return `${negative ? '-' : ''}${value} ${sizes[i]}`;
 }

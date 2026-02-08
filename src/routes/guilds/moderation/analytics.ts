@@ -31,10 +31,13 @@ export class AnalyticsRoute extends Route {
           .status(403)
           .json({ error: 'Forbidden', code: auth.code, metadata: auth.metadata });
 
-      const rateLimit = await gate.checkRateLimit(
-        'evidence.view',
-        RateLimitGate.LIMITS['evidence.view']!
-      );
+      const rateLimitConfig = RateLimitGate.LIMITS['evidence.view'];
+      if (!rateLimitConfig) {
+        return response
+          .status(500)
+          .json({ error: 'Missing rate limit configuration for evidence.view' });
+      }
+      const rateLimit = await gate.checkRateLimit('evidence.view', rateLimitConfig);
       if (!rateLimit.ok)
         return response
           .status(429)

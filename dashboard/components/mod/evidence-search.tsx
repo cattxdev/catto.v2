@@ -50,12 +50,13 @@ export function EvidenceSearch({
   );
 
   const handleClear = useCallback(() => {
+    debouncedSearch.cancel();
     if (!isControlled) {
       setInternalValue('');
     }
     onChange?.('');
     onSearch?.('');
-  }, [isControlled, onChange, onSearch]);
+  }, [isControlled, onChange, onSearch, debouncedSearch]);
 
   return (
     <div className={`relative ${className}`}>
@@ -72,7 +73,9 @@ export function EvidenceSearch({
       />
       {value && (
         <button
+          type="button"
           onClick={handleClear}
+          aria-label="Clear search"
           className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
         >
           <IconX size={14} />

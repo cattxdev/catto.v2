@@ -65,7 +65,9 @@ export function VideoPlayer({
     if (isPlaying) {
       video.pause();
     } else {
-      video.play();
+      video.play().catch((err) => {
+        console.error('Failed to play video:', err);
+      });
     }
   }, [isPlaying]);
 
@@ -102,6 +104,8 @@ export function VideoPlayer({
       }
       setNewNote('');
       setShowAddForm(false);
+    } catch (err) {
+      console.error('Failed to add timestamp:', err);
     } finally {
       setAddingTimestamp(false);
     }
@@ -109,13 +113,17 @@ export function VideoPlayer({
 
   const handleRemoveTimestamp = useCallback(async () => {
     if (!selectedTimestamp) return;
-    const updated = await removeVideoTimestamp(guildId, evidenceId, selectedTimestamp.id);
-    if (updated) {
-      const newTimestamps = ((updated.metadata as Record<string, unknown> | null)?.timestamps ?? []) as VideoTimestamp[];
-      setLocalTimestamps(newTimestamps);
-      onTimestampChange?.();
+    try {
+      const updated = await removeVideoTimestamp(guildId, evidenceId, selectedTimestamp.id);
+      if (updated) {
+        const newTimestamps = ((updated.metadata as Record<string, unknown> | null)?.timestamps ?? []) as VideoTimestamp[];
+        setLocalTimestamps(newTimestamps);
+        onTimestampChange?.();
+      }
+      setSelectedTimestamp(null);
+    } catch (err) {
+      console.error('Failed to remove timestamp:', err);
     }
-    setSelectedTimestamp(null);
   }, [guildId, evidenceId, selectedTimestamp, onTimestampChange]);
 
   const formatTime = (seconds: number) => {
@@ -153,6 +161,7 @@ export function VideoPlayer({
                 setSelectedTimestamp(ts);
               }}
               title={`${formatTime(ts.time)}: ${ts.note}`}
+              aria-label={`${formatTime(ts.time)}: ${ts.note}`}
             />
           ))}
         </div>
@@ -163,6 +172,7 @@ export function VideoPlayer({
             <button
               onClick={togglePlay}
               className="rounded p-1 text-white hover:bg-white/20"
+              aria-label={isPlaying ? 'Pause video' : 'Play video'}
             >
               {isPlaying ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
             </button>
@@ -191,6 +201,7 @@ export function VideoPlayer({
             <button
               onClick={() => setShowAddForm(false)}
               className="text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
+              aria-label="Close add form"
             >
               <IconX size={14} />
             </button>
@@ -227,6 +238,7 @@ export function VideoPlayer({
             <button
               onClick={() => setSelectedTimestamp(null)}
               className="text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
+              aria-label="Close timestamp popup"
             >
               <IconX size={14} />
             </button>

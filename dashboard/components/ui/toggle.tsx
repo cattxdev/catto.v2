@@ -15,7 +15,7 @@ const toggleVariants = cva(
         outline:
           "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
         mod:
-          "rounded-none border border-[var(--mod-border)] bg-transparent text-xs text-[var(--mod-text-muted)] ring-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)] data-[state=on]:border-amber-500/40 data-[state=on]:bg-amber-500/10 data-[state=on]:text-amber-400",
+          "rounded-none border border-[var(--mod-border)] bg-transparent text-xs text-[var(--mod-text-muted)] ring-0 ring-offset-0 focus-visible:outline-2 focus-visible:outline-amber-400 hover:bg-[var(--mod-surface-hover)] hover:text-[var(--mono-white)] data-[state=on]:border-amber-500/40 data-[state=on]:bg-amber-500/10 data-[state=on]:text-amber-400",
       },
       size: {
         default: "h-9 px-2 min-w-9",
@@ -30,20 +30,18 @@ const toggleVariants = cva(
   }
 )
 
-function Toggle({
-  className,
-  variant,
-  size,
-  ...props
-}: React.ComponentProps<typeof TogglePrimitive.Root> &
-  VariantProps<typeof toggleVariants>) {
-  return (
-    <TogglePrimitive.Root
-      data-slot="toggle"
-      className={cn(toggleVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
-}
+const Toggle = React.forwardRef<
+  React.ComponentRef<typeof TogglePrimitive.Root>,
+  React.ComponentProps<typeof TogglePrimitive.Root> &
+    VariantProps<typeof toggleVariants>
+>(({ className, variant, size, ...props }, ref) => (
+  <TogglePrimitive.Root
+    ref={ref}
+    data-slot="toggle"
+    className={cn(toggleVariants({ variant, size, className }))}
+    {...props}
+  />
+))
+Toggle.displayName = "Toggle"
 
 export { Toggle, toggleVariants }

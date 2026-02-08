@@ -71,6 +71,7 @@ Fill in the required values:
 | `EVIDENCE_HMAC_SECRET` | Secret for evidence HMAC signing (min 32 chars) | No |
 | `DASHBOARD_URL` | Moderator dashboard URL (default: `http://localhost:3000`) | No |
 | `WATERMARK_SERVICE_URL` | Watermark microservice URL (default: `http://localhost:3847`) | No |
+| `WATERMARK_MAX_UPLOAD_SIZE` | Max watermark upload size (default: `1gb`) | No |
 
 ## Running the Bot
 

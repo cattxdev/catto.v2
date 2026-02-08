@@ -48,8 +48,11 @@ export class ModerationUsersRoute extends Route {
 
   private async handleGet(guildId: string, request: Route.Request, response: Route.Response) {
     try {
-      const page = parseInt((request.query?.page as string) ?? '1') || 1;
-      const limit = Math.min(parseInt((request.query?.limit as string) ?? '25') || 25, 100);
+      const page = Math.max(1, parseInt((request.query?.page as string) ?? '1', 10) || 1);
+      const limit = Math.min(
+        Math.max(1, parseInt((request.query?.limit as string) ?? '25', 10) || 25),
+        100
+      );
       const search = request.query?.search as string | undefined;
       const sort = (request.query?.sort as string) ?? 'totalCases';
 

@@ -52,6 +52,7 @@ export default function CasesPage() {
   const sortParam = searchParams.get('sort') ?? 'createdAt:desc';
   const searchParam = searchParams.get('search') ?? '';
   const pageParam = parseInt(searchParams.get('page') ?? '1') || 1;
+  const targetIdParam = searchParams.get('targetId') ?? '';
 
   // Local state for immediate input feedback
   const [localSearch, setLocalSearch] = useState(searchParam);
@@ -92,7 +93,7 @@ export default function CasesPage() {
 
   const [sortField, sortOrder] = sortParam.split(':');
   const { data: casesData, isLoading: loading } = useSWR(
-    ['cases', guildId, actionParam, sortParam, searchParam, pageParam],
+    ['cases', guildId, actionParam, sortParam, searchParam, pageParam, targetIdParam],
     () => getCases(guildId, {
       page: pageParam,
       limit: PAGE_SIZE,
@@ -100,6 +101,7 @@ export default function CasesPage() {
       order: sortOrder,
       ...(actionParam && { action: actionParam }),
       ...(searchParam && { search: searchParam }),
+      ...(targetIdParam && { targetId: targetIdParam }),
     } as Parameters<typeof getCases>[1]),
     { keepPreviousData: true },
   );
@@ -108,7 +110,7 @@ export default function CasesPage() {
   const total = casesData?.total ?? 0;
   const totalPages = casesData?.totalPages ?? 1;
 
-  const hasFilters = actionParam || searchParam;
+  const hasFilters = actionParam || searchParam || targetIdParam;
 
   const paginationSwipe = usePaginationNav({
     onPrev: pageParam > 1 ? () => updateParams({ page: String(pageParam - 1) }) : undefined,
@@ -119,6 +121,19 @@ export default function CasesPage() {
     <div {...paginationSwipe}>
       <h1 className="mb-1 text-2xl font-bold text-[var(--mono-white)]">Cases</h1>
       <p className="mb-6 text-sm text-[var(--mod-text-muted)]">{total} total cases</p>
+
+      {targetIdParam && (
+        <div className="mb-4 flex items-center gap-2 border border-[var(--mod-border)] bg-[var(--mod-surface)] px-3 py-2 text-xs text-[var(--mod-text-muted)]">
+          <span>Filtering by user: <span className="font-mono text-[var(--mono-white)]">{targetIdParam}</span></span>
+          <button
+            type="button"
+            onClick={() => updateParams({ targetId: undefined })}
+            className="ml-auto text-[var(--mod-text-dim)] hover:text-[var(--mono-white)]"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-3">

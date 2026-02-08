@@ -5,11 +5,11 @@
  * IP addresses are hashed with SHA-256 for privacy.
  */
 
-import { Buffer } from 'node:buffer';
+import { createHmac } from 'node:crypto';
 import { container } from '@sapphire/framework';
-import { SigningService } from '#lib/storage/SigningService.js';
 import type { Route } from '@sapphire/plugin-api';
 import type { EvidenceAccessLog, Prisma } from '@prisma/client';
+import { CONFIG } from '#config.js';
 
 export type AccessAction = 'VIEW' | 'DOWNLOAD' | 'EXPORT';
 
@@ -54,9 +54,12 @@ class AccessLogServiceClass {
         ? String(Array.isArray(forwarded) ? forwarded[0] : forwarded)
             .split(',')[0]
             ?.trim()
-        : undefined;
+        : ((request as unknown as { ip?: string }).ip ??
+          request.socket?.remoteAddress ??
+          undefined);
       if (ip) {
-        ipHash = SigningService.sha256(Buffer.from(ip));
+        const secret = CONFIG.EVIDENCE_HMAC_SECRET ?? 'access-log-default';
+        ipHash = createHmac('sha256', secret).update(ip).digest('hex');
       }
       userAgent = (request.headers?.['user-agent'] as string | undefined) ?? null;
     }

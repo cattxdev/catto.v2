@@ -41,8 +41,8 @@ export function usePaginationNav({ onPrev, onNext, disabled }: UsePaginationNavC
 
   // Swipe: Left = next page, Right = prev page (natural scroll direction)
   const swipeHandlers = useSwipe({
-    onSwipeLeft: onNext,
-    onSwipeRight: onPrev,
+    onSwipeLeft: disabled ? undefined : onNext,
+    onSwipeRight: disabled ? undefined : onPrev,
   });
 
   return swipeHandlers;

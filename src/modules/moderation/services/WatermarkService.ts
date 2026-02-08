@@ -63,7 +63,8 @@ class WatermarkServiceClass {
     }
 
     // Check Redis cache first
-    const cacheKey = `watermark:${evidenceId}:${this.hashText(watermarkText)}`;
+    const textHash = this.hashText(watermarkText);
+    const cacheKey = `watermark:${evidenceId}:${textHash}`;
     const cached = await getJson(cacheKey, watermarkCacheSchema);
 
     if (cached) {
@@ -78,8 +79,8 @@ class WatermarkServiceClass {
       }
     }
 
-    // Generate watermarked version
-    const watermarkedKey = `watermarked/${evidence.storageKey}`;
+    // Generate watermarked version - include text hash so different watermarks don't overwrite
+    const watermarkedKey = `watermarked/${textHash}/${evidence.storageKey}`;
 
     // Download original
     const originalBuffer = await storageService.downloadToBuffer(evidence.storageKey);

@@ -84,7 +84,8 @@ export default function UserProfilePage() {
 
   const { data: serverStatus } = useSWR(
     ['user-server-status', guildId, userId],
-    () => getUserServerStatus(guildId, userId)
+    () => getUserServerStatus(guildId, userId),
+    { revalidateOnMount: true, dedupingInterval: 0 }
   );
 
   if (profileLoading) {

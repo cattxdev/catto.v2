@@ -76,6 +76,7 @@ docker run -p 3847:3847 catto-watermark
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `WATERMARK_SERVICE_PORT` | `3847` | Port to listen on |
+| `WATERMARK_MAX_UPLOAD_SIZE` | `1gb` | Max upload size (supports b/kb/mb/gb) |
 | `RUST_LOG` | `info` | Log level (trace, debug, info, warn, error) |
 
 ## Integration

@@ -127,14 +127,18 @@ function ComparisonPane({ item, url }: { item: Evidence; url: string | null }) {
   if (item.type === 'URL' || item.type === 'DISCORD_URL') {
     return (
       <div className="flex h-full flex-col items-center justify-center p-4">
-        <a
-          href={item.url ?? '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="break-all text-center text-sm text-[var(--mono-300)] underline hover:text-[var(--mono-white)]"
-        >
-          {item.url}
-        </a>
+        {item.url ? (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-center text-sm text-[var(--mono-300)] underline hover:text-[var(--mono-white)]"
+          >
+            {item.url}
+          </a>
+        ) : (
+          <span className="text-sm text-[var(--mod-text-dim)]">No URL provided</span>
+        )}
       </div>
     );
   }

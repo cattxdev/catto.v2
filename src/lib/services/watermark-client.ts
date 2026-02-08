@@ -143,15 +143,24 @@ class WatermarkClient {
 
     const svg = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="text-shadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+            <feOffset in="blur" dx="1" dy="1" result="offsetBlur" />
+            <feMerge>
+              <feMergeNode in="offsetBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         <style>
           .watermark {
             fill: rgba(255, 255, 255, 0.7);
             font-size: ${fontSize}px;
             font-family: sans-serif;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
           }
         </style>
-        <text x="${padding}" y="${height - padding}" class="watermark">
+        <text x="${padding}" y="${height - padding}" class="watermark" filter="url(#text-shadow)">
           ${escapedText} | ${timestamp}
         </text>
       </svg>

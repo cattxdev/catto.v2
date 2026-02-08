@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Evidence } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_META, EVIDENCE_STATUS_META } from '@/lib/mod-types';
 import { EVIDENCE_TYPE_ICONS, IconEye, IconHistory, IconDownload, IconPencil, IconX, IconFlag, IconNote, IconCheck, IconGrid, IconList, IconCompare } from '@/lib/mod-icons';
@@ -116,9 +116,11 @@ export function EvidenceGallery({ evidence, guildId, onEvidenceUpdated }: Eviden
   }
 
   // Get comparison items
-  const comparisonItems = canCompare
-    ? (Array.from(selectedIds).map((id) => evidence.find((e) => e.id === id)).filter(Boolean) as [Evidence, Evidence])
-    : null;
+  const comparisonItems = (() => {
+    if (!canCompare) return null;
+    const found = Array.from(selectedIds).map((id) => evidence.find((e) => e.id === id)).filter(Boolean);
+    return found.length === 2 ? (found as [Evidence, Evidence]) : null;
+  })();
 
   return (
     <>
@@ -500,6 +502,10 @@ function InlineAmendForm({
   const [submitting, setSubmitting] = useState(false);
   const [flagged, setFlagged] = useState(isFlagged);
   const [flagSubmitting, setFlagSubmitting] = useState(false);
+
+  useEffect(() => {
+    setFlagged(isFlagged);
+  }, [isFlagged]);
 
   const handleSubmit = async () => {
     setSubmitting(true);

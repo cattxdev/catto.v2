@@ -23,6 +23,9 @@ use tracing_subscriber::FmtSubscriber;
 /// Default port for the service
 const DEFAULT_PORT: u16 = 3847;
 
+/// Default maximum upload size (1 GB)
+const DEFAULT_MAX_UPLOAD_SIZE: usize = 1024 * 1024 * 1024;
+
 /// Embedded font (Inter - open source, clean modern font)
 const FONT_BYTES: &[u8] = include_bytes!("../assets/Inter.ttf");
 
@@ -39,6 +42,9 @@ enum WatermarkError {
 
     #[error("Font error: {0}")]
     FontError(String),
+
+    #[error("Payload too large (max {0} bytes)")]
+    PayloadTooLarge(usize),
 }
 
 impl IntoResponse for WatermarkError {
@@ -48,6 +54,7 @@ impl IntoResponse for WatermarkError {
             WatermarkError::MultipartError(_) => StatusCode::BAD_REQUEST,
             WatermarkError::ImageError(_) => StatusCode::UNPROCESSABLE_ENTITY,
             WatermarkError::FontError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            WatermarkError::PayloadTooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
         };
 
         let body = Json(ErrorResponse {
@@ -122,6 +129,7 @@ async fn watermark(mut multipart: Multipart) -> Result<Response, WatermarkError>
     let mut image_bytes: Option<Vec<u8>> = None;
     let mut watermark_text: Option<String> = None;
     let mut output_format = OutputFormat::Png;
+    let max_upload_size = max_upload_size();
 
     // Parse multipart form
     while let Some(field) = multipart
@@ -161,6 +169,9 @@ async fn watermark(mut multipart: Multipart) -> Result<Response, WatermarkError>
     }
 
     let image_bytes = image_bytes.ok_or(WatermarkError::MissingField("image"))?;
+    if image_bytes.len() > max_upload_size {
+        return Err(WatermarkError::PayloadTooLarge(max_upload_size));
+    }
     let watermark_text = watermark_text.ok_or(WatermarkError::MissingField("text"))?;
 
     // Process the image
@@ -288,6 +299,38 @@ fn is_leap_year(year: i64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
+fn max_upload_size() -> usize {
+    std::env::var("WATERMARK_MAX_UPLOAD_SIZE")
+        .ok()
+        .and_then(|value| parse_size_bytes(&value))
+        .unwrap_or(DEFAULT_MAX_UPLOAD_SIZE)
+}
+
+fn parse_size_bytes(value: &str) -> Option<usize> {
+    let normalized = value.trim().to_lowercase();
+    let digit_count = normalized
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .count();
+    if digit_count == 0 {
+        return None;
+    }
+
+    let (number_part, unit_part) = normalized.split_at(digit_count);
+    let number: u64 = number_part.parse().ok()?;
+    let multiplier: u64 = match unit_part.trim() {
+        "" | "b" => 1,
+        "k" | "kb" => 1024,
+        "m" | "mb" => 1024 * 1024,
+        "g" | "gb" => 1024 * 1024 * 1024,
+        _ => return None,
+    };
+
+    number
+        .checked_mul(multiplier)
+        .and_then(|bytes| usize::try_from(bytes).ok())
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
@@ -303,9 +346,11 @@ async fn main() {
         .unwrap_or(DEFAULT_PORT);
 
     // Build router
+    let max_upload_size = max_upload_size();
     let app = Router::new()
         .route("/health", get(health))
         .route("/watermark", post(watermark))
+        .layer(axum::extract::DefaultBodyLimit::max(max_upload_size + 1024)) // image + form fields
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http());
 
