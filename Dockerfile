@@ -40,7 +40,7 @@ COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
 # Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
@@ -67,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:4000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Run migrations and start the application
-CMD sh -c "pnpm prisma migrate deploy && node dist/index.js"
+CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/index.js"]
