@@ -2,11 +2,11 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:
-  group: production-deploy
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -14,17 +14,28 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   deploy:
-    name: Deploy to Production
+    name: Deploy to ${{ github.ref_name == 'main' && 'Production' || 'Development' }}
     needs: ci
     runs-on: ubuntu-latest
     steps:
+      - name: Set environment variables
+        id: env
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "env_name=production" >> $GITHUB_OUTPUT
+            echo "deploy_path=/opt/catto" >> $GITHUB_OUTPUT
+          else
+            echo "env_name=development" >> $GITHUB_OUTPUT
+            echo "deploy_path=/opt/catto-dev" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
+          host: ${{ github.ref_name == 'main' && secrets.SERVER_HOST_PROD || secrets.SERVER_HOST_DEV }}
+          username: ${{ github.ref_name == 'main' && secrets.SERVER_USER_PROD || secrets.SERVER_USER_DEV }}
+          key: ${{ github.ref_name == 'main' && secrets.SSH_PRIVATE_KEY_PROD || secrets.SSH_PRIVATE_KEY_DEV }}
+          port: ${{ github.ref_name == 'main' && secrets.SERVER_PORT_PROD || secrets.SERVER_PORT_DEV }}
           script: |
-            cd /opt/catto
+            cd ${{ steps.env.outputs.deploy_path }}
             bash scripts/deploy.sh
