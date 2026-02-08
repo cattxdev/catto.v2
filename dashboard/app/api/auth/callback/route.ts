@@ -23,7 +23,12 @@ export async function GET(request: NextRequest) {
 
   // Check if there's a redirect destination (e.g. set by /mod/login)
   const redirectCookie = cookieStore.get('mod_auth_redirect');
-  const destination = redirectCookie?.value || '/guilds';
+  let destination = '/guilds';
+
+  // Only allow same-origin relative paths
+  if (redirectCookie?.value?.startsWith('/') && !redirectCookie.value.startsWith('//')) {
+    destination = redirectCookie.value;
+  }
 
   // Clear the redirect cookie
   if (redirectCookie) {
