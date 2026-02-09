@@ -75,6 +75,10 @@ export class VoiceMuteAllScheduler {
       container.logger.error(`[VoiceMuteAllScheduler] Expiry job ${job?.id} failed:`, err);
     });
 
+    this.worker.on('error', (err) => {
+      container.logger.error('[VoiceMuteAllScheduler] Worker error:', err);
+    });
+
     this.isInitialized = true;
     container.logger.info('[VoiceMuteAllScheduler] Initialized');
   }

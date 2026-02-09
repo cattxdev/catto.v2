@@ -78,6 +78,10 @@ export class TempbanScheduler {
       container.logger.error(`[TempbanScheduler] Unban job ${job?.id} failed:`, err);
     });
 
+    this.worker.on('error', (err) => {
+      container.logger.error('[TempbanScheduler] Worker error:', err);
+    });
+
     this.isInitialized = true;
     container.logger.info('[TempbanScheduler] Initialized');
 

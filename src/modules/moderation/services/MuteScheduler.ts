@@ -82,6 +82,10 @@ export class MuteScheduler {
       container.logger.error(`[MuteScheduler] Unmute job ${job?.id} failed:`, err);
     });
 
+    this.worker.on('error', (err) => {
+      container.logger.error('[MuteScheduler] Worker error:', err);
+    });
+
     this.isInitialized = true;
     container.logger.info('[MuteScheduler] Initialized');
 
