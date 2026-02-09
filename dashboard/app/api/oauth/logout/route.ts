@@ -21,7 +21,16 @@ export async function POST() {
     }
   }
 
-  cookieStore.delete('DASHBOARD_AUTH');
+  // Delete must specify the same domain used when setting the cookie
+  if (process.env.COOKIE_DOMAIN) {
+    cookieStore.set('DASHBOARD_AUTH', '', {
+      maxAge: 0,
+      path: '/',
+      domain: process.env.COOKIE_DOMAIN,
+    });
+  } else {
+    cookieStore.delete('DASHBOARD_AUTH');
+  }
 
   return NextResponse.json({ success: true });
 }
