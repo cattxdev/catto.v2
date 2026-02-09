@@ -158,6 +158,8 @@ function makeCase(overrides?: Record<string, unknown>) {
 describe('Case-evidence flow integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: authenticated with access (cases route now requires ApiGate)
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
   });
 
   // ─── 1. Case with evidence 
@@ -570,7 +572,9 @@ describe('Case-evidence flow integration', () => {
   // ─── 7. Guild not found ───
 
   describe('Guild not found', () => {
-    it('returns 404 when guild is not in bot cache', async () => {
+    it('returns 401 when ApiGate cannot resolve session for unknown guild', async () => {
+      mockApiGateFromRequest.mockResolvedValue(null);
+
       const { route } = createCasesRoute(['other-guild']);
       const request = createMockRequest({
         method: 'GET',
@@ -580,8 +584,7 @@ describe('Case-evidence flow integration', () => {
 
       await route.run(request, response as any);
 
-      expectStatus(response, 404);
-      expect((response.data as any).error).toContain('Guild not found');
+      expectStatus(response, 401);
     });
   });
 

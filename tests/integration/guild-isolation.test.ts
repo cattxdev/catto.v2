@@ -187,6 +187,8 @@ describe('Cross-guild isolation', () => {
 
   describe('Cases route: findMany scoped to guildId', () => {
     it('Guild A request only returns Guild A cases (findMany where includes guildId)', async () => {
+      mockApiGateFromRequest.mockResolvedValue(createMockGate());
+
       const mockModCaseCount = vi.fn().mockResolvedValue(2);
       const mockModCaseFindMany = vi.fn().mockResolvedValue([
         { id: 'case-1', caseNumber: 1, action: 'WARN', guildId: GUILD_A },
@@ -598,6 +600,8 @@ describe('Cross-guild isolation', () => {
 
   describe('Symmetric isolation: Guild B cannot access Guild A data', () => {
     it('Guild B request scopes findMany to Guild B, not Guild A', async () => {
+      mockApiGateFromRequest.mockResolvedValue(createMockGate());
+
       const mockModCaseCount = vi.fn().mockResolvedValue(0);
       const mockModCaseFindMany = vi.fn().mockResolvedValue([]);
 

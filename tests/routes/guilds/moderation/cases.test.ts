@@ -9,12 +9,33 @@ import {
   expectStatus,
 } from '../../../helpers/test-helpers.js';
 
+const { mockApiGateFromRequest } = vi.hoisted(() => ({
+  mockApiGateFromRequest: vi.fn(),
+}));
+
+vi.mock('#lib/validation/ApiGate.js', () => ({
+  ApiGate: {
+    fromRequest: mockApiGateFromRequest,
+  },
+}));
+
 vi.mock('#lib/validation/modAction.js', () => ({
   parseModAction: vi.fn((action: string) => {
     const valid = ['BAN', 'KICK', 'WARN', 'TIMEOUT', 'MUTE', 'UNMUTE', 'UNBAN'];
     return valid.includes(action) ? action : undefined;
   }),
 }));
+
+function createMockGate(overrides: Partial<{ authOk: boolean }> = {}) {
+  return {
+    userId: 'user-123',
+    isAdmin: false,
+    checkAuth: vi.fn().mockResolvedValue({
+      ok: overrides.authOk ?? true,
+      code: overrides.authOk === false ? 'NO_PERMISSION' : undefined,
+    }),
+  };
+}
 
 describe('ModerationCasesRoute', () => {
   let route: ModerationCasesRoute;
@@ -36,7 +57,12 @@ describe('ModerationCasesRoute', () => {
       get: () => mockContainer,
       configurable: true,
     });
+
+    // Default: authenticated with access
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
+
     vi.clearAllMocks();
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
   });
 
   describe('GET /guilds/:guildId/moderation/cases', () => {
@@ -253,7 +279,9 @@ describe('ModerationCasesRoute', () => {
       );
     });
 
-    it('returns 404 for guild not in bot cache', async () => {
+    it('returns 401 when ApiGate cannot resolve session', async () => {
+      mockApiGateFromRequest.mockResolvedValue(null);
+
       const request = createMockRequest({
         method: 'GET',
         params: { guildId: 'nonexistent-guild' },
@@ -262,7 +290,21 @@ describe('ModerationCasesRoute', () => {
 
       await route.run(request, response as any);
 
-      expectError(response, 404);
+      expectError(response, 401);
+    });
+
+    it('returns 403 when user lacks mod.case permission', async () => {
+      mockApiGateFromRequest.mockResolvedValue(createMockGate({ authOk: false }));
+
+      const request = createMockRequest({
+        method: 'GET',
+        params: { guildId: '123456789' },
+      });
+      const response = createMockResponse();
+
+      await route.run(request, response as any);
+
+      expectError(response, 403);
     });
 
     it('returns 400 when guildId missing', async () => {
