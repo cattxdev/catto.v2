@@ -1,5 +1,6 @@
 import { Route } from '@sapphire/plugin-api';
 import { CaseStatus, type Prisma } from '@prisma/client';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 import { parseModAction } from '#lib/validation/modAction.js';
 
 export class ModerationCasesRoute extends Route {
@@ -20,12 +21,14 @@ export class ModerationCasesRoute extends Route {
       });
     }
 
-    // Verify guild exists in cache
-    const discordGuild = this.container.client.guilds.cache.get(guildId);
-    if (!discordGuild) {
-      return response.status(404).json({
-        error: 'Guild not found or bot is not in the guild',
-      });
+    const gate = await ApiGate.fromRequest(request, guildId);
+    if (!gate) {
+      return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+    }
+
+    const auth = await gate.checkAuth('mod.case');
+    if (!auth.ok) {
+      return response.status(403).json({ error: 'Forbidden', code: auth.code });
     }
 
     return this.handleGet(guildId, request, response);

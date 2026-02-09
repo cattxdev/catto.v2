@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
+import { getModDashboardAccess } from '@/lib/services/mod.service';
 import { AccountSwitcher } from '@/components/mod/account-switcher';
 import { ModBreadcrumb } from '@/components/mod/mod-breadcrumb';
 import { CommandPalette } from '@/components/mod/command-palette';
@@ -146,6 +147,10 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
   const guildId = params.guildId as string;
   const basePath = `/mod/${guildId}`;
   const guildInfo = useGuildInfo(guildId);
+  const { data: access, isLoading: accessLoading } = useSWR(
+    ['dashboard-access', guildId],
+    () => getModDashboardAccess(guildId),
+  );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const gPressedRef = useRef(false);
@@ -268,6 +273,51 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
   }, [guildId, router, closeSidebar]);
 
   const handleShowShortcuts = useCallback(() => setShowShortcuts(true), []);
+
+  // ─── Access gate ───
+  if (accessLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--mod-bg)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-5 w-5 animate-spin border-2 border-[var(--mod-text-dim)] border-t-[var(--mono-white)]" />
+          <p
+            className="text-xs uppercase tracking-widest text-[var(--mod-text-dim)]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            Checking access...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!access?.hasAccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--mod-bg)]">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="text-3xl text-[var(--mod-text-dim)]">
+            <IconShieldCheck size={48} />
+          </div>
+          <h1
+            className="text-sm uppercase tracking-widest text-[var(--mono-white)]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            Access Denied
+          </h1>
+          <p className="max-w-xs text-sm text-[var(--mod-text-muted)]">
+            You don't have permission to view this server's moderation dashboard.
+          </p>
+          <Link
+            href="/mod"
+            className="border border-[var(--mod-border)] bg-[var(--mod-surface)] px-4 py-2 text-xs uppercase tracking-widest text-[var(--mod-text-muted)] transition-[background-color] duration-75 hover:bg-[var(--mono-850)] hover:text-[var(--mono-white)]"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            &larr; Back to servers
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const guildIconUrl = guildInfo?.icon
     ? `https://cdn.discordapp.com/icons/${guildId}/${guildInfo.icon}.png?size=64`

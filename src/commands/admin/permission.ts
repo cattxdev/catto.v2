@@ -160,9 +160,9 @@ export class PermissionCommand extends Subcommand {
         interaction.user.id
       );
 
-      const subjectName = role
-        ? `@${role.name}`
-        : `@${ensureNonNull(user, 'permission.ts > chatInputAdd > user').tag}`;
+      const subjectMention = role
+        ? `<@&${role.id}>`
+        : `<@${ensureNonNull(user, 'permission.ts > chatInputAdd > user').id}>`;
       const resourceDisplay =
         resolved.type === 'CATEGORY'
           ? (getCategory(resolved.key)?.displayName ?? resolved.key)
@@ -171,7 +171,7 @@ export class PermissionCommand extends Subcommand {
       const result = successContainer()
         .h2('Permission Added')
         .text(
-          `**${effect === 'DENY' ? 'Denied' : 'Granted'}** \`${resourceDisplay}\` to ${subjectName}`
+          `**${effect === 'DENY' ? 'Denied' : 'Granted'}** \`${resourceDisplay}\` to ${subjectMention}`
         )
         .footer(`${resolved.type}: ${resolved.key}`);
 
@@ -234,9 +234,9 @@ export class PermissionCommand extends Subcommand {
         return;
       }
 
-      const subjectName = role
-        ? `@${role.name}`
-        : `@${ensureNonNull(user, 'permission.ts > chatInputRemove > user').tag}`;
+      const subjectMention = role
+        ? `<@&${role.id}>`
+        : `<@${ensureNonNull(user, 'permission.ts > chatInputRemove > user').id}>`;
       const resourceDisplay =
         resolved.type === 'CATEGORY'
           ? (getCategory(resolved.key)?.displayName ?? resolved.key)
@@ -244,7 +244,7 @@ export class PermissionCommand extends Subcommand {
 
       const result = successContainer()
         .h2('Permission Removed')
-        .text(`Removed \`${resourceDisplay}\` from ${subjectName}`)
+        .text(`Removed \`${resourceDisplay}\` from ${subjectMention}`)
         .footer(`${resolved.type}: ${resolved.key}`);
 
       await editReply(interaction, result);

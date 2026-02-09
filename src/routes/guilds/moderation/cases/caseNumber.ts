@@ -1,4 +1,5 @@
 import { Route } from '@sapphire/plugin-api';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 import { parseRequestBody } from '#lib/route-utils.js';
 
 export class ModerationCaseRoute extends Route {
@@ -26,19 +27,28 @@ export class ModerationCaseRoute extends Route {
       });
     }
 
-    // Verify guild exists in cache
-    const discordGuild = this.container.client.guilds.cache.get(guildId);
-    if (!discordGuild) {
-      return response.status(404).json({
-        error: 'Guild not found or bot is not in the guild',
-      });
+    const gate = await ApiGate.fromRequest(request, guildId);
+    if (!gate) {
+      return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
     }
 
     if (request.method === 'GET') {
+      const auth = await gate.checkAuth('mod.case');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
+      }
       return this.handleGet(guildId, caseNum, response);
     } else if (request.method === 'PATCH') {
+      const auth = await gate.checkAuth('mod.casemod.edit');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
+      }
       return this.handleUpdate(guildId, caseNum, request, response);
     } else if (request.method === 'DELETE') {
+      const auth = await gate.checkAuth('mod.casemod.edit');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
+      }
       return this.handleDelete(guildId, caseNum, response);
     }
 
