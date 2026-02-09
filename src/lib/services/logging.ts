@@ -2,27 +2,10 @@ import { EmbedBuilder, WebhookClient, Colors } from 'discord.js';
 import { container } from '@sapphire/framework';
 import { Queue, Worker, type Job } from 'bullmq';
 import { CONFIG } from '#config.js';
-import { LOG_CHANNEL_DEFINITIONS } from '#lib/constants/logging.constants.js';
+import { LOG_CHANNEL_DEFINITIONS, LogType } from '#lib/constants/logging.constants.js';
 
-export enum LogType {
-  Messages = 'messages',
-  Voice = 'voice',
-  VoiceState = 'voiceState',
-  Tickets = 'tickets',
-  Transcripts = 'transcripts',
-  Roles = 'roles',
-  Channels = 'channels',
-  Members = 'members',
-  Stage = 'stage',
-  Events = 'events',
-  Polls = 'polls',
-  Emojis = 'emojis',
-  Stickers = 'stickers',
-  Webhooks = 'webhooks',
-  Joins = 'joins',
-  Leaves = 'leaves',
-  Server = 'server',
-}
+// Re-export LogType so all existing imports from this file still work
+export { LogType };
 
 interface LogJobData {
   guildId: string;

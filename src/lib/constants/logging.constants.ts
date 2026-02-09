@@ -1,5 +1,24 @@
 import type { LogChannelDefinition } from '#lib/types/logging.types.js';
-import { LogType } from '#root/lib/services/logging.js';
+
+export enum LogType {
+  Messages = 'messages',
+  Voice = 'voice',
+  VoiceState = 'voiceState',
+  Tickets = 'tickets',
+  Transcripts = 'transcripts',
+  Roles = 'roles',
+  Channels = 'channels',
+  Members = 'members',
+  Stage = 'stage',
+  Events = 'events',
+  Polls = 'polls',
+  Emojis = 'emojis',
+  Stickers = 'stickers',
+  Webhooks = 'webhooks',
+  Joins = 'joins',
+  Leaves = 'leaves',
+  Server = 'server',
+}
 
 export const LOG_CHANNEL_DEFINITIONS: Record<LogType, LogChannelDefinition> = {
   [LogType.Messages]: {
