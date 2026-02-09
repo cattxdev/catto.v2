@@ -72,9 +72,5 @@ USER nodejs
 # Expose API port
 EXPOSE 4000
 
-# Health check: wget sends GET, discards body, checks HTTP status
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-  CMD wget -qO /dev/null http://localhost:4000/api/health || exit 1
-
 # Run migrations and start the application
 CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/index.js"]
