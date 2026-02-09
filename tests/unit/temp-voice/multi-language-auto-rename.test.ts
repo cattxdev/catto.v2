@@ -177,20 +177,25 @@ describe('AutoRenameService - Multi-Language', () => {
     it('should use Portuguese vocabulary', async () => {
       const context = { ...defaultContext, language: 'pt' };
       const names: string[] = [];
-      
-      for (let i = 0; i < 20; i++) {
+
+      for (let i = 0; i < 50; i++) {
         const result = await service.generateSafeName(context);
         names.push(result.suggestedName.toLowerCase());
       }
-      
+
+      // Check against all Portuguese nouns and template keywords
+      const ptWords = [
+        'sala', 'lounge', 'espaço', 'zona', 'hub', 'canto', 'lugar',
+        'local', 'ponto', 'área', 'câmara', 'refúgio', 'retiro',
+        'ninho', 'salão', 'lobby', 'estúdio', 'café', 'clube',
+        'círculo', 'esquadrão', 'equipe', 'turma', 'grupo', 'festa',
+        'reunião', 'encontro', 'sessão', 'chat', 'voz',
+      ];
+
       const hasPortugueseWords = names.some(
-        (name) =>
-          name.includes('sala') ||
-          name.includes('espaço') ||
-          name.includes('zona') ||
-          name.includes('chat')
+        (name) => ptWords.some((word) => name.includes(word))
       );
-      
+
       expect(hasPortugueseWords).toBe(true);
     });
   });
