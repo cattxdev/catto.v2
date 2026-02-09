@@ -62,9 +62,9 @@ USER nodejs
 # Expose API port
 EXPOSE 4000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Health check (wget is available on Alpine, curl is not)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --spider -q http://localhost:4000/api/health || exit 1
 
 # Run migrations and start the application
 CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/index.js"]
