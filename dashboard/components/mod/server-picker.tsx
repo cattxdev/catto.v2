@@ -34,7 +34,6 @@ type ViewMode = 'grid' | 'list';
 
 const STORAGE_KEY_VIEW = 'mod:view-mode';
 const STORAGE_KEY_RECENT = 'mod:recent-guilds';
-const MANAGE_GUILD = BigInt(0x20);
 const BOT_API_URL = process.env.NEXT_PUBLIC_BOT_API_URL || 'http://localhost:4000';
 
 interface UserModStats {
@@ -60,10 +59,6 @@ function getRecentGuilds(): string[] {
   }
 }
 
-function hasMod(guild: Guild): boolean {
-  return (BigInt(guild.permissions) & MANAGE_GUILD) === MANAGE_GUILD || guild.owner;
-}
-
 const ACTION_LABELS: Record<string, string> = {
   BAN: 'Ban',
   UNBAN: 'Unban',
@@ -85,7 +80,6 @@ export function ServerPicker({ session }: ServerPickerProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [recentIds, setRecentIds] = useState<string[]>([]);
-  const modGuilds = useMemo(() => guilds.filter(hasMod), [guilds]);
 
   // Hydrate localStorage values after mount to avoid SSR mismatch
   useEffect(() => {
@@ -93,15 +87,15 @@ export function ServerPicker({ session }: ServerPickerProps) {
     setRecentIds(getRecentGuilds());
   }, []);
 
-  // Stabilize modGuilds reference to avoid refetching on parent re-renders
-  const modGuildsRef = useRef(modGuilds);
-  modGuildsRef.current = modGuilds;
+  // Stabilize guilds reference to avoid refetching on parent re-renders
+  const guildsRef = useRef(guilds);
+  guildsRef.current = guilds;
 
   // Fetch user stats across all mod guilds
   const { data: userStats, isLoading: statsLoading } = useSWR(
-    modGuilds.length > 0 ? ['user-mod-stats', user.id] : null,
+    guilds.length > 0 ? ['user-mod-stats', user.id] : null,
     async () => {
-      const currentModGuilds = modGuildsRef.current;
+      const currentModGuilds = guildsRef.current;
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -197,17 +191,17 @@ export function ServerPicker({ session }: ServerPickerProps) {
   };
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return modGuilds;
+    if (!search.trim()) return guilds;
     const q = search.toLowerCase();
-    return modGuilds.filter((g) => g.name.toLowerCase().includes(q));
-  }, [modGuilds, search]);
+    return guilds.filter((g) => g.name.toLowerCase().includes(q));
+  }, [guilds, search]);
 
   const recentGuilds = useMemo(() => {
     return recentIds
-      .map((id) => modGuilds.find((g) => g.id === id))
+      .map((id) => guilds.find((g) => g.id === id))
       .filter((g): g is Guild => g !== undefined)
       .slice(0, 4);
-  }, [recentIds, modGuilds]);
+  }, [recentIds, guilds]);
 
   const handleGuildClick = (guild: Guild) => {
     // Pre-cache guild info so sidebar loads instantly
@@ -229,7 +223,7 @@ export function ServerPicker({ session }: ServerPickerProps) {
               Moderation Dashboard
             </h1>
             <p className="font-mono mt-1 text-sm text-[var(--mod-text-muted)]">
-              {modGuilds.length} server{modGuilds.length !== 1 ? 's' : ''} with mod access
+              {guilds.length} server{guilds.length !== 1 ? 's' : ''} with mod access
             </p>
           </div>
           <AccountSwitcher variant="inline" />
