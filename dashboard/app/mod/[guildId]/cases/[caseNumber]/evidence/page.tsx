@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { getEvidenceForCase } from '@/lib/services/mod.service';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
 import { EvidenceWizard } from '@/components/mod/evidence-wizard';
+import { SectionGate } from '@/components/mod/section-gate';
 
 export default function EvidencePage() {
   const params = useParams();
@@ -48,10 +49,12 @@ export default function EvidencePage() {
         <EvidenceGallery evidence={evidence} guildId={guildId} />
       )}
 
-      <div className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold text-[var(--mono-white)]">Upload Evidence</h2>
-        <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={refreshData} />
-      </div>
+      <SectionGate section="evidenceAdd" label="evidence uploads">
+        <div className="mt-8">
+          <h2 className="mb-3 text-lg font-semibold text-[var(--mono-white)]">Upload Evidence</h2>
+          <EvidenceWizard guildId={guildId} caseNumber={caseNumber} onUploadComplete={refreshData} />
+        </div>
+      </SectionGate>
     </div>
   );
 }

@@ -35,12 +35,6 @@ export class EvidenceRoute extends Route {
       if (!gate)
         return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
 
-      const auth = await gate.checkAuth('mod.evidence.view');
-      if (!auth.ok)
-        return response
-          .status(403)
-          .json({ error: 'Forbidden', code: auth.code, metadata: auth.metadata });
-
       const rateLimit = await gate.checkRateLimit(
         'evidence.view',
         RateLimitGate.LIMITS['evidence.view']!
@@ -52,12 +46,25 @@ export class EvidenceRoute extends Route {
 
       const caseNumber = parseInt((request.query?.caseNumber as string) ?? '0');
 
-      // If caseNumber is provided and valid, return per-case evidence (existing behavior)
+      // Per-case evidence: allow if user can view cases OR view evidence
       if (caseNumber && caseNumber >= 1) {
+        const caseAuth = await gate.checkAuth('mod.case');
+        const evidenceAuth = caseAuth.ok ? caseAuth : await gate.checkAuth('mod.evidence.view');
+        if (!evidenceAuth.ok)
+          return response
+            .status(403)
+            .json({ error: 'Forbidden', code: evidenceAuth.code, metadata: evidenceAuth.metadata });
         const evidence = await evidenceService.getEvidenceForCase(guildId, caseNumber);
         const summary = await evidenceService.getEvidenceSummary(guildId, caseNumber);
         return response.json({ evidence, summary });
       }
+
+      // Guild-wide evidence browse requires mod.evidence.view
+      const evidenceAuth = await gate.checkAuth('mod.evidence.view');
+      if (!evidenceAuth.ok)
+        return response
+          .status(403)
+          .json({ error: 'Forbidden', code: evidenceAuth.code, metadata: evidenceAuth.metadata });
 
       // NH-5: Full-text search
       const search = (request.query?.search as string) || undefined;

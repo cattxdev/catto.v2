@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import { getGuildEvidence } from '@/lib/services/mod.service';
 import type { Evidence } from '@/lib/mod-types';
 import { EvidenceGallery } from '@/components/mod/evidence-gallery';
+import { SectionGate } from '@/components/mod/section-gate';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePaginationNav } from '@/hooks/use-pagination-nav';
 
@@ -90,6 +91,7 @@ export default function GuildEvidencePage() {
   });
 
   return (
+    <SectionGate section="evidence" label="the evidence browser">
     <div {...paginationSwipe}>
       <h1 className="mb-1 text-2xl font-bold text-[var(--mono-white)]">All Evidence</h1>
       <p className="mb-6 text-sm text-[var(--mod-text-muted)]">
@@ -169,5 +171,6 @@ export default function GuildEvidencePage() {
         </>
       )}
     </div>
+    </SectionGate>
   );
 }
