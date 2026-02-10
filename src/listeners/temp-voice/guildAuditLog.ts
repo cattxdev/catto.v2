@@ -51,13 +51,16 @@ export class GuildAuditLogListener extends Listener {
         oldGuild.features.includes('COMMUNITY') && !newGuild.features.includes('COMMUNITY');
 
       if (lostDiscovery || lostCommunity) {
-        console.log(
+        container.logger.info(
           `[Audit Monitor] Guild ${newGuild.id} lost ${lostDiscovery ? 'Discovery' : 'Community'} status`
         );
         await this.scanRecentChannelUpdates(newGuild);
       }
     } catch (error) {
-      console.error(`[Audit Monitor] Error processing guild update for ${newGuild.id}:`, error);
+      container.logger.error(
+        `[Audit Monitor] Error processing guild update for ${newGuild.id}:`,
+        error
+      );
     }
   }
 
@@ -97,7 +100,7 @@ export class GuildAuditLogListener extends Listener {
         }
       }
     } catch (error) {
-      console.error(`[Audit Monitor] Error scanning audit logs for ${guild.id}:`, error);
+      container.logger.error(`[Audit Monitor] Error scanning audit logs for ${guild.id}:`, error);
     }
   }
 
@@ -124,7 +127,7 @@ export class GuildAuditLogListener extends Listener {
 
     // If name was changed, the old name might have been problematic
     if (oldName && oldName !== newName) {
-      console.log(
+      container.logger.info(
         `[Audit Monitor] Found channel name change in audit log: "${oldName}" -> "${newName}"`
       );
 
@@ -147,11 +150,11 @@ export class GuildAuditLogListener extends Listener {
             userId: entry.executorId ?? undefined,
           });
 
-          console.log(
+          container.logger.info(
             `[Audit Monitor] Added keyword to queue: "${keyword}" (from channel name change)`
           );
         } catch (error) {
-          console.error(`[Audit Monitor] Failed to add keyword "${keyword}":`, error);
+          container.logger.error(`[Audit Monitor] Failed to add keyword "${keyword}":`, error);
         }
       }
     }
@@ -179,7 +182,7 @@ export class GuildAuditLogListener extends Listener {
         includeStopwords: false,
       });
 
-      console.log(
+      container.logger.info(
         `[Audit Monitor] Manual report for channel ${channelId}: "${channelName}" (${keywords.length} keywords)`
       );
 
@@ -195,7 +198,7 @@ export class GuildAuditLogListener extends Listener {
         });
       }
     } catch (error) {
-      console.error(`[Audit Monitor] Error reporting channel ${channelId}:`, error);
+      container.logger.error(`[Audit Monitor] Error reporting channel ${channelId}:`, error);
       throw error;
     }
   }
@@ -217,7 +220,7 @@ export class GuildAuditLogListener extends Listener {
       let flaggedCount = 0;
 
       for (const channel of channels) {
-        const discordChannel = await container.client.channels.fetch(channel.id);
+        const discordChannel = await container.client.channels.fetch(channel.channelId);
         if (!discordChannel || !discordChannel.isVoiceBased()) continue;
 
         const name = discordChannel.name;
@@ -240,7 +243,7 @@ export class GuildAuditLogListener extends Listener {
               keyword,
               source: KeywordSource.AUTO_DETECTED,
               contextSnippet: `Auto-scan: "${name}"`,
-              channelId: channel.id,
+              channelId: channel.channelId,
             });
           }
 
@@ -248,12 +251,12 @@ export class GuildAuditLogListener extends Listener {
         }
       }
 
-      console.log(
+      container.logger.info(
         `[Audit Monitor] Scanned ${channels.length} temp channels, flagged ${flaggedCount}`
       );
       return flaggedCount;
     } catch (error) {
-      console.error(`[Audit Monitor] Error scanning temp channels for ${guildId}:`, error);
+      container.logger.error(`[Audit Monitor] Error scanning temp channels for ${guildId}:`, error);
       throw error;
     }
   }

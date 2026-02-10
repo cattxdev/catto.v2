@@ -77,7 +77,7 @@ export interface CreateTempChannelData {
  * Data for updating a temp voice channel
  */
 export interface UpdateTempChannelData {
-  customName?: string;
+  customName?: string | null;
   customUserLimit?: number;
   customBitrate?: number;
   customRegion?: string;

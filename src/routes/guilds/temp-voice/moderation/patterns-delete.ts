@@ -4,6 +4,7 @@
  */
 
 import { Route } from '@sapphire/plugin-api';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceModerationPatternsDeleteRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -31,6 +32,15 @@ export class TempVoiceModerationPatternsDeleteRoute extends Route {
             message: 'Guild ID and Pattern ID are required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.moderation');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       // Check if pattern exists

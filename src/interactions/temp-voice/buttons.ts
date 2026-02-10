@@ -1,5 +1,5 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import type { ButtonInteraction, GuildMember, Role } from 'discord.js';
+import type { ButtonInteraction, GuildMember } from 'discord.js';
 import {
   MessageFlags,
   ModalBuilder,
@@ -7,22 +7,15 @@ import {
   TextInputStyle,
   ActionRowBuilder,
   UserSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
-import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
-import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
-import { TempVoiceChannel } from '@prisma/client';
+import { decodeCustomId, encodeCustomId } from '#lib/discord/core/index.js';
+import { getTempVoiceServices } from '../../modules/temp-voice/services/service-container.js';
+import type { OperationContext } from '../../modules/temp-voice/services/operations.service.js';
 
 export class TempVoiceButtonHandler extends InteractionHandler {
-  private channelService!: TempChannelService;
-  private configService!: TempVoiceConfigService;
-  private permissionsService!: PermissionsService;
-  private controlPanelService!: ControlPanelService;
-  private userPrefsService!: UserPreferencesService;
-
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
     super(ctx, {
       ...options,
@@ -31,9 +24,12 @@ export class TempVoiceButtonHandler extends InteractionHandler {
   }
 
   public override parse(interaction: ButtonInteraction) {
-    if (!interaction.customId.startsWith('tempvoice_')) return this.none();
+    // New format: tv:action:channelId
+    if (interaction.customId.startsWith('tv:')) return this.some();
+    // Legacy format: tempvoice_action_channelId
+    if (interaction.customId.startsWith('tempvoice_')) return this.some();
 
-    return this.some();
+    return this.none();
   }
 
   public async run(interaction: ButtonInteraction) {
@@ -44,24 +40,7 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       });
     }
 
-    const guildId = interaction.guildId;
-
-    // Initialize services lazily
-    if (!this.channelService) {
-      this.configService = new TempVoiceConfigService(this.container.prisma, this.container.client);
-      this.permissionsService = new PermissionsService();
-      this.channelService = new TempChannelService(this.container.prisma, this.permissionsService);
-      this.controlPanelService = new ControlPanelService(
-        this.container.client,
-        this.channelService
-      );
-      this.userPrefsService = new UserPreferencesService(this.container.prisma);
-    }
-
-    // Parse button customId: tempvoice_<action>_<channelId>
-    const parts = interaction.customId.split('_');
-    const action = parts[1] || '';
-    const channelId = parts[2];
+    const { action, channelId } = this.parseCustomId(interaction.customId);
     if (!channelId) {
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} Invalid button interaction.`,
@@ -69,35 +48,50 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       });
     }
 
-    // Get temp channel
-    const tempChannel = await this.channelService.getByChannelId(channelId);
-    if (!tempChannel) {
+    const { operations } = getTempVoiceServices();
+
+    // Build operation context (fetches tempChannel + config)
+    const ctx = await operations.buildContext(interaction.guild, channelId);
+    if (!ctx) {
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} This temporary voice channel no longer exists.`,
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    // Check permissions
-    const config = await this.configService.get(guildId);
     const member = interaction.member as GuildMember;
-    const canManage = this.permissionsService.canManageChannel(
-      member.user.id,
-      tempChannel.ownerId,
-      config.adminRoleIds || [],
-      member.roles.cache?.map((r: Role) => r.id) || [],
-      member.permissions?.has('Administrator') || false,
-      (tempChannel.trustedUserIds as string[]) || []
-    );
-    if (!canManage) {
+
+    // Category buttons and refresh don't need permission or customization checks
+    if (['settings', 'users', 'ownership'].includes(action)) {
+      const accessError = operations.checkAccess(member, ctx.tempChannel, ctx.config);
+      if (accessError) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} ${accessError}`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+      return this.handleCategory(
+        interaction,
+        action as 'settings' | 'users' | 'ownership',
+        channelId
+      );
+    }
+
+    if (action === 'refresh') {
+      return this.handleRefresh(interaction, ctx);
+    }
+
+    // Permission check for all other actions
+    const accessError = operations.checkAccess(member, ctx.tempChannel, ctx.config);
+    if (accessError) {
       return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} You do not have permission to manage this channel.`,
+        content: `${EMOJI.STATUS.ERROR} ${accessError}`,
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    // Check if customization is allowed (except for refresh and transfer which are always allowed)
-    if (!config.allowCustomization && !['refresh', 'transfer'].includes(action)) {
+    // Check if customization is allowed (except transfer which is always allowed)
+    if (!ctx.config.allowCustomization && action !== 'transfer') {
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} Channel customization is disabled in this server.`,
         flags: MessageFlags.Ephemeral,
@@ -106,32 +100,56 @@ export class TempVoiceButtonHandler extends InteractionHandler {
 
     // Route to appropriate handler
     switch (action) {
+      // Direct operations — delegate to operations service
       case 'lock':
-        return this.handleLockToggle(interaction, tempChannel, channelId);
+        return this.handleOperation(interaction, () => operations.toggleLock(ctx));
       case 'hide':
-        return this.handleHideToggle(interaction, tempChannel, channelId);
-      case 'rename':
-        return this.handleRenameModal(interaction, channelId);
-      case 'limit':
-        return this.handleLimitModal(interaction, channelId);
-      case 'permit':
-        return this.handlePermitModal(interaction);
-      case 'deny':
-        return this.handleDenyModal(interaction);
-      case 'trust':
-        return this.handleTrustModal(interaction);
-      case 'kick':
-        return this.handleClaim(interaction, tempChannel, channelId);
-      case 'claim':
-        return this.handleClaim(interaction, tempChannel, channelId);
-      case 'settings':
-        return this.handleSettingsModal(interaction, tempChannel, channelId);
-      case 'transfer':
-        return this.handleTransferModal(interaction, channelId);
+        return this.handleOperation(interaction, () => operations.toggleHide(ctx));
       case 'reset':
-        return this.handleReset(interaction, tempChannel, channelId);
-      case 'refresh':
-        return this.handleTransferModal(interaction, channelId);
+        return this.handleOperation(interaction, () => operations.reset(ctx));
+      case 'claim':
+        return this.handleOperation(interaction, () =>
+          operations.claim(ctx, member.id, member.voice.channelId)
+        );
+
+      // Modal actions
+      case 'rename':
+        return this.showRenameModal(interaction, channelId);
+      case 'limit':
+        return this.showLimitModal(interaction, channelId);
+      case 'settings_modal':
+        return this.showSettingsModal(interaction, ctx, channelId);
+
+      // User-select actions
+      case 'permit':
+        return this.showUserSelect(
+          interaction,
+          channelId,
+          'permit',
+          'Select user(s) to permit',
+          `${EMOJI.USER.ACTIONS.INVITE} Select the user(s) you want to permit access to this channel:`
+        );
+      case 'deny':
+        return this.showUserSelect(
+          interaction,
+          channelId,
+          'deny',
+          'Select user(s) to deny',
+          `${EMOJI.MODERATION.STATE.SUSPICIOUS} Select the user(s) you want to deny access to this channel:`
+        );
+      case 'trust':
+        return this.showTrustSelect(interaction, channelId, ctx);
+      case 'kick':
+        return this.showUserSelect(
+          interaction,
+          channelId,
+          'kick',
+          'Select user(s) to kick',
+          `${EMOJI.MODERATION.ACTIONS.KICK} Select the user(s) you want to kick from this channel:`
+        );
+      case 'transfer':
+        return this.showTransferSelect(interaction, channelId);
+
       default:
         return interaction.reply({
           content: `${EMOJI.STATUS.ERROR} Unknown action.`,
@@ -140,111 +158,160 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     }
   }
 
-  private async handleLockToggle(
+  // ───── Custom ID Parsing ─────
+
+  private parseCustomId(customId: string): { action: string; channelId: string } {
+    // New format: tv:action:channelId
+    if (customId.startsWith('tv:')) {
+      const parsed = decodeCustomId(customId);
+      return { action: parsed.action, channelId: parsed.params[0] || '' };
+    }
+
+    // Legacy format: tempvoice_action_channelId
+    const parts = customId.split('_');
+    return { action: parts[1] || '', channelId: parts[2] || '' };
+  }
+
+  // ───── Category Sub-Menu Handlers ─────
+
+  private async handleCategory(
     interaction: ButtonInteraction,
-    tempChannel: TempVoiceChannel,
+    category: 'settings' | 'users' | 'ownership',
     channelId: string
   ) {
-    if (!interaction.guild || !interaction.guildId) return;
+    switch (category) {
+      case 'settings':
+        return this.showSettingsSubMenu(interaction, channelId);
+      case 'users':
+        return this.showUsersSubMenu(interaction, channelId);
+      case 'ownership':
+        return this.showOwnershipSubMenu(interaction, channelId);
+    }
+  }
 
-    const guild = interaction.guild;
-    const guildId = interaction.guildId;
+  private async showSettingsSubMenu(interaction: ButtonInteraction, channelId: string) {
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'lock', channelId))
+        .setEmoji(EMOJI.CHANNELS.STATE.LOCKED)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'hide', channelId))
+        .setEmoji(EMOJI.UI.INDICATORS.HIDDEN)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'rename', channelId))
+        .setEmoji(EMOJI.UI.ACTIONS.EDIT)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'limit', channelId))
+        .setEmoji(EMOJI.CHANNELS.STATE.VOICE_LIMITED_WHITE)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'reset', channelId))
+        .setLabel('Reset')
+        .setEmoji(EMOJI.UI.NAV.REPLAY)
+        .setStyle(ButtonStyle.Secondary)
+    );
 
+    return interaction.reply({
+      content: `${EMOJI.UI.ACTIONS.SETTINGS} **Channel Settings**`,
+      components: [row],
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  private async showUsersSubMenu(interaction: ButtonInteraction, channelId: string) {
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'permit', channelId))
+        .setEmoji(EMOJI.USER.ACTIONS.INVITE)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'deny', channelId))
+        .setEmoji(EMOJI.MODERATION.STATE.SUSPICIOUS)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'trust', channelId))
+        .setEmoji(EMOJI.UI.ACTIONS.ADD_GREEN)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'kick', channelId))
+        .setEmoji(EMOJI.MODERATION.ACTIONS.KICK)
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      content: `${EMOJI.USER.ICONS.MULTIPLE_MEMBERS} **User Management**`,
+      components: [row],
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  private async showOwnershipSubMenu(interaction: ButtonInteraction, channelId: string) {
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'claim', channelId))
+        .setLabel('Claim')
+        .setEmoji(EMOJI.USER.ROLES.OWNER)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(encodeCustomId('tv', 'transfer', channelId))
+        .setEmoji(EMOJI.UI.NAV.RIGHT)
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      content: `${EMOJI.USER.ROLES.OWNER} **Ownership**`,
+      components: [row],
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  // ───── Refresh ─────
+
+  private async handleRefresh(interaction: ButtonInteraction, ctx: OperationContext) {
+    const { controlPanel } = getTempVoiceServices();
     try {
-      const voiceChannel = await guild.channels.fetch(channelId);
-      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const newLockState = !tempChannel.isLocked;
-      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
-        Connect: newLockState ? false : null,
-      });
-
-      await this.channelService.update(channelId, { isLocked: newLockState });
-
-      // Save user preference if customization is allowed
-      const config = await this.configService.get(guildId);
-      if (config.allowCustomization) {
-        await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-          preferLocked: newLockState,
-        });
-      }
-
-      await this.controlPanelService.refresh(channelId);
-
+      await controlPanel.refresh(ctx.channelId);
       return interaction.reply({
-        content: newLockState
-          ? `${EMOJI.CHANNELS.STATE.LOCKED} Channel locked.`
-          : `${EMOJI.CHANNELS.STATE.UNLOCKED} Channel unlocked.`,
+        content: `${EMOJI.STATUS.SUCCESS} Control panel refreshed.`,
         flags: MessageFlags.Ephemeral,
       });
-    } catch (error) {
-      this.container.logger.error('Failed to toggle lock:', error);
+    } catch {
       return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to toggle lock.`,
+        content: `${EMOJI.STATUS.ERROR} Failed to refresh control panel.`,
         flags: MessageFlags.Ephemeral,
       });
     }
   }
 
-  private async handleHideToggle(
+  // ───── Generic Operation Handler ─────
+
+  private async handleOperation(
     interaction: ButtonInteraction,
-    tempChannel: TempVoiceChannel,
-    channelId: string
+    operationFn: () => Promise<{ ok: boolean; message: string }>
   ) {
-    if (!interaction.guild || !interaction.guildId) return;
-
-    const guild = interaction.guild;
-    const guildId = interaction.guildId;
-
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
-      const voiceChannel = await guild.channels.fetch(channelId);
-      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const newHiddenState = !tempChannel.isHidden;
-      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
-        ViewChannel: newHiddenState ? false : null,
-      });
-
-      await this.channelService.update(channelId, { isHidden: newHiddenState });
-
-      // Save user preference if customization is allowed
-      const config = await this.configService.get(guildId);
-      if (config.allowCustomization) {
-        await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-          preferHidden: newHiddenState,
-        });
-      }
-
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
-        content: newHiddenState
-          ? `${EMOJI.UI.INDICATORS.HIDDEN} Channel hidden.`
-          : `${EMOJI.UI.INDICATORS.VISIBILITY} Channel visible.`,
-        flags: MessageFlags.Ephemeral,
+      const result = await operationFn();
+      const emoji = result.ok ? EMOJI.STATUS.SUCCESS : EMOJI.STATUS.ERROR;
+      return interaction.editReply({
+        content: `${emoji} ${result.message}`,
       });
     } catch (error) {
-      this.container.logger.error('Failed to toggle visibility:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to toggle visibility.`,
-        flags: MessageFlags.Ephemeral,
+      this.container.logger.error('[TempVoice Button] Operation failed:', error);
+      return interaction.editReply({
+        content: `${EMOJI.STATUS.ERROR} An unexpected error occurred. Please try again.`,
       });
     }
   }
 
-  private async handleRenameModal(interaction: ButtonInteraction, channelId: string) {
+  // ───── Modal Launchers ─────
+
+  private async showRenameModal(interaction: ButtonInteraction, channelId: string) {
     const modal = new ModalBuilder()
-      .setCustomId(`tempvoice_rename_modal_${channelId}`)
+      .setCustomId(encodeCustomId('tv', 'rename_modal', channelId))
       .setTitle('Rename Channel');
 
     const nameInput = new TextInputBuilder()
@@ -261,9 +328,9 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     return interaction.showModal(modal);
   }
 
-  private async handleLimitModal(interaction: ButtonInteraction, channelId: string) {
+  private async showLimitModal(interaction: ButtonInteraction, channelId: string) {
     const modal = new ModalBuilder()
-      .setCustomId(`tempvoice_limit_modal_${channelId}`)
+      .setCustomId(encodeCustomId('tv', 'limit_modal', channelId))
       .setTitle('Set User Limit');
 
     const limitInput = new TextInputBuilder()
@@ -281,54 +348,75 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     return interaction.showModal(modal);
   }
 
-  private async handlePermitModal(interaction: ButtonInteraction) {
-    const channelId = interaction.customId.split('_')[2] || '';
+  private async showSettingsModal(
+    interaction: ButtonInteraction,
+    ctx: OperationContext,
+    channelId: string
+  ) {
+    const modal = new ModalBuilder()
+      .setCustomId(encodeCustomId('tv', 'settings_modal', channelId))
+      .setTitle('Channel Settings');
 
+    const bitrateInput = new TextInputBuilder()
+      .setCustomId('bitrate')
+      .setLabel('Bitrate (kbps)')
+      .setStyle(TextInputStyle.Short)
+      .setMinLength(1)
+      .setMaxLength(3)
+      .setPlaceholder('8-384')
+      .setValue(((ctx.tempChannel.customBitrate || 64000) / 1000).toString())
+      .setRequired(false);
+
+    const regionInput = new TextInputBuilder()
+      .setCustomId('region')
+      .setLabel('Region (auto, us-east, etc.)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('auto')
+      .setValue(ctx.tempChannel.customRegion || 'auto')
+      .setRequired(false);
+
+    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(bitrateInput);
+    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(regionInput);
+    modal.addComponents(row1, row2);
+
+    return interaction.showModal(modal);
+  }
+
+  // ───── User Select Launchers ─────
+
+  private async showUserSelect(
+    interaction: ButtonInteraction,
+    channelId: string,
+    selectAction: string,
+    placeholder: string,
+    content: string
+  ) {
     const userSelect = new UserSelectMenuBuilder()
-      .setCustomId(`tempvoice_permit_select_${channelId}`)
-      .setPlaceholder('Select user(s) to permit')
+      .setCustomId(encodeCustomId('tv', `${selectAction}_select`, channelId))
+      .setPlaceholder(placeholder)
       .setMinValues(1)
       .setMaxValues(10);
 
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
 
     return interaction.reply({
-      content: `${EMOJI.USER.ACTIONS.INVITE} Select the user(s) you want to permit access to this channel:`,
+      content,
       components: [row],
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  private async handleDenyModal(interaction: ButtonInteraction) {
-    const channelId = interaction.customId.split('_')[2] || '';
+  private async showTrustSelect(
+    interaction: ButtonInteraction,
+    channelId: string,
+    ctx: OperationContext
+  ) {
+    const trustedUsers = Array.isArray(ctx.tempChannel.trustedUserIds)
+      ? (ctx.tempChannel.trustedUserIds as string[])
+      : [];
 
     const userSelect = new UserSelectMenuBuilder()
-      .setCustomId(`tempvoice_deny_select_${channelId}`)
-      .setPlaceholder('Select user(s) to deny')
-      .setMinValues(1)
-      .setMaxValues(10);
-
-    const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
-
-    return interaction.reply({
-      content: `${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} Select the user(s) you want to deny access to this channel:`,
-      components: [row],
-      flags: MessageFlags.Ephemeral,
-    });
-  }
-
-  private async handleTrustModal(interaction: ButtonInteraction) {
-    const channelId = interaction.customId.split('_')[2] || '';
-
-    // Get current temp channel to show trusted users
-    const tempChannel = await this.channelService.getByChannelId(channelId);
-    const trustedUsers =
-      tempChannel && Array.isArray(tempChannel.trustedUserIds)
-        ? (tempChannel.trustedUserIds as string[])
-        : [];
-
-    const userSelect = new UserSelectMenuBuilder()
-      .setCustomId(`tempvoice_trust_select_${channelId}`)
+      .setCustomId(encodeCustomId('tv', 'trust_select', channelId))
       .setPlaceholder('Select user(s) to trust/untrust')
       .setMinValues(1)
       .setMaxValues(10);
@@ -349,113 +437,9 @@ export class TempVoiceButtonHandler extends InteractionHandler {
     });
   }
 
-  private async handleClaim(
-    interaction: ButtonInteraction,
-    tempChannel: TempVoiceChannel,
-    channelId: string
-  ) {
-    if (!interaction.guild) return;
-
-    const guild = interaction.guild;
-
-    try {
-      const voiceChannel = await guild.channels.fetch(channelId);
-      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const member = interaction.member as GuildMember;
-
-      // Check if claimer is in the channel
-      if (member.voice.channelId !== channelId) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} You must be in the channel to claim it.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      // Check if owner is still in the channel
-      const owner = voiceChannel.members.get(tempChannel.ownerId);
-      if (owner) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} The channel owner is still present. You cannot claim this channel.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const oldOwnerId = tempChannel.ownerId;
-
-      // Remove old owner's special permissions
-      await voiceChannel.permissionOverwrites.delete(oldOwnerId);
-
-      // Give new owner management permissions
-      await voiceChannel.permissionOverwrites.edit(member.id, {
-        Connect: true,
-        ViewChannel: true,
-        Speak: true,
-        Stream: true,
-        MoveMembers: true,
-        ManageChannels: true,
-      });
-
-      // Update database
-      await this.channelService.update(channelId, { ownerId: member.id });
-
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} You are now the owner of this channel.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to claim channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to claim channel. Please try again.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-  }
-
-  private async handleSettingsModal(
-    interaction: ButtonInteraction,
-    tempChannel: TempVoiceChannel,
-    channelId: string
-  ) {
-    const modal = new ModalBuilder()
-      .setCustomId(`tempvoice_settings_modal_${channelId}`)
-      .setTitle('Channel Settings');
-
-    const bitrateInput = new TextInputBuilder()
-      .setCustomId('bitrate')
-      .setLabel('Bitrate (kbps)')
-      .setStyle(TextInputStyle.Short)
-      .setMinLength(1)
-      .setMaxLength(3)
-      .setPlaceholder('8-384')
-      .setValue(((tempChannel.customBitrate || 64000) / 1000).toString())
-      .setRequired(false);
-
-    const regionInput = new TextInputBuilder()
-      .setCustomId('region')
-      .setLabel('Region (auto, us-east, etc.)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('auto')
-      .setValue(tempChannel.customRegion || 'auto')
-      .setRequired(false);
-
-    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(bitrateInput);
-    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(regionInput);
-    modal.addComponents(row1, row2);
-
-    return interaction.showModal(modal);
-  }
-
-  private async handleTransferModal(interaction: ButtonInteraction, channelId: string) {
+  private async showTransferSelect(interaction: ButtonInteraction, channelId: string) {
     const userSelect = new UserSelectMenuBuilder()
-      .setCustomId(`tempvoice_transfer_select_${channelId}`)
+      .setCustomId(encodeCustomId('tv', 'transfer_select', channelId))
       .setPlaceholder('Select new owner')
       .setMinValues(1)
       .setMaxValues(1);
@@ -467,72 +451,5 @@ export class TempVoiceButtonHandler extends InteractionHandler {
       components: [row],
       flags: MessageFlags.Ephemeral,
     });
-  }
-
-  private async handleReset(
-    interaction: ButtonInteraction,
-    tempChannel: TempVoiceChannel,
-    channelId: string
-  ) {
-    if (!interaction.guild || !interaction.guildId) return;
-
-    const guild = interaction.guild;
-    const guildId = interaction.guildId;
-
-    try {
-      const config = await this.configService.get(guildId);
-      const voiceChannel = await guild.channels.fetch(channelId);
-
-      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      // Reset Discord channel settings
-      await voiceChannel.edit({
-        userLimit: config.defaultUserLimit,
-        bitrate: config.defaultBitrate ?? undefined,
-        rtcRegion: config.defaultRegion || undefined,
-      });
-
-      // Reset permissions
-      await voiceChannel.permissionOverwrites.set(
-        this.permissionsService.buildOverwrites({
-          ownerId: tempChannel.ownerId,
-          guildId,
-          isLocked: config.defaultLocked,
-          isHidden: config.defaultHidden,
-          allowedUserIds: [],
-          deniedUserIds: [],
-          trustedUserIds: [],
-        })
-      );
-
-      // Reset database
-      await this.channelService.update(channelId, {
-        isLocked: config.defaultLocked,
-        isHidden: config.defaultHidden,
-        customUserLimit: config.defaultUserLimit,
-        customBitrate: config.defaultBitrate ?? undefined,
-        customRegion: config.defaultRegion || 'auto',
-        allowedUserIds: [],
-        deniedUserIds: [],
-      });
-
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel reset to default settings.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to reset channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to reset channel.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
   }
 }

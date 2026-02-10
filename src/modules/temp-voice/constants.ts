@@ -8,11 +8,14 @@
 export enum OwnerLeaveStrategy {
   /** Transfer ownership to oldest member in channel */
   TRANSFER = 'TRANSFER',
-  /** Keep original owner, allow them to rejoin and manage */
+  /** Keep original owner with a buffer period; notify remaining members to claim after delay */
   KEEP = 'KEEP',
   /** Delete channel after delay when owner leaves */
   DELETE = 'DELETE',
 }
+
+/** How long to wait before notifying remaining members the channel is claimable (ms) */
+export const OWNER_LEAVE_BUFFER_MS = 600_000; // 10 minutes
 
 /**
  * Default configuration values for temp voice module
@@ -29,7 +32,7 @@ export const DEFAULT_TEMP_VOICE_CONFIG = {
   defaultLocked: false,
   defaultHidden: false,
   deleteDelaySeconds: 5,
-  ownerLeaveStrategy: OwnerLeaveStrategy.TRANSFER,
+  ownerLeaveStrategy: OwnerLeaveStrategy.KEEP,
   cooldownSeconds: 10,
   maxChannelsPerUser: 3,
   controlPanelEnabled: true,
@@ -125,14 +128,18 @@ export const VOICE_REGIONS = [
  * Template variable names that can be used in channel naming
  */
 export const TEMPLATE_VARIABLES = {
-  /** User's display name */
+  /** User's username */
   USERNAME: '{username}',
+  /** User's server display name */
+  DISPLAYNAME: '{displayname}',
   /** User's discriminator (if any) */
   DISCRIMINATOR: '{discriminator}',
   /** Full user tag (username#discriminator or just username) */
   TAG: '{tag}',
   /** Sequential number */
   NUMBER: '{n}',
+  /** Sequential number (alias for {n}) */
+  COUNT: '{count}',
 } as const;
 
 /**

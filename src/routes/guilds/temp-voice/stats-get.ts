@@ -7,6 +7,7 @@ import { Route } from '@sapphire/plugin-api';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
 import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
 import { ChannelType } from 'discord.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceStatsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -33,6 +34,15 @@ export class TempVoiceStatsRoute extends Route {
             message: 'Guild ID is required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.view');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       // Get config

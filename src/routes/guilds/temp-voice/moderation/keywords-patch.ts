@@ -6,10 +6,10 @@
 import { Route } from '@sapphire/plugin-api';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { KeywordQueueService } from '#modules/temp-voice/services/moderation/keyword-queue.service.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 interface KeywordActionBody {
   action: 'approve' | 'deny' | 'ignore';
-  reviewedBy: string;
   reviewNote?: string;
 }
 
@@ -41,6 +41,15 @@ export class TempVoiceModerationKeywordsPatchRoute extends Route {
         });
       }
 
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.moderation');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
+      }
+
       const body = request.body as KeywordActionBody;
 
       if (!body.action || !['approve', 'deny', 'ignore'].includes(body.action)) {
@@ -53,15 +62,7 @@ export class TempVoiceModerationKeywordsPatchRoute extends Route {
         });
       }
 
-      if (!body.reviewedBy) {
-        return response.status(400).json({
-          success: false,
-          error: {
-            code: 'MISSING_REVIEWER',
-            message: 'reviewedBy field is required',
-          },
-        });
-      }
+      const reviewedBy = gate.userId;
 
       const keywordQueueService = new KeywordQueueService(this.container.prisma);
 
@@ -71,19 +72,19 @@ export class TempVoiceModerationKeywordsPatchRoute extends Route {
           case 'approve':
             result = await keywordQueueService.approveKeyword(
               keywordId,
-              body.reviewedBy,
+              reviewedBy,
               body.reviewNote || undefined
             );
             break;
           case 'deny':
             result = await keywordQueueService.denyKeyword(
               keywordId,
-              body.reviewedBy,
+              reviewedBy,
               body.reviewNote || undefined
             );
             break;
           case 'ignore':
-            result = await keywordQueueService.ignoreKeyword(keywordId, body.reviewedBy);
+            result = await keywordQueueService.ignoreKeyword(keywordId, reviewedBy);
             break;
         }
       } catch (error) {
@@ -102,7 +103,7 @@ export class TempVoiceModerationKeywordsPatchRoute extends Route {
           keyword: result.keyword,
           action: body.action,
           patternId: result.patternId,
-          reviewedBy: body.reviewedBy,
+          reviewedBy,
         },
       });
     } catch (error) {

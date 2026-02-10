@@ -6,6 +6,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TempVoiceModerationKeywordsGetRoute } from '../../../../src/routes/guilds/temp-voice/moderation/keywords-get.js';
 import { TempVoiceModerationKeywordsPatchRoute } from '../../../../src/routes/guilds/temp-voice/moderation/keywords-patch.js';
 import { createMockRequest, createMockResponse, createMockContainer, expectSuccess, expectError } from '../../../helpers/test-helpers.js';
+
+const { mockApiGateFromRequest } = vi.hoisted(() => ({
+  mockApiGateFromRequest: vi.fn(),
+}));
+
+vi.mock('#lib/validation/ApiGate.js', () => ({
+  ApiGate: { fromRequest: mockApiGateFromRequest },
+}));
+
+function createMockGate(overrides: Partial<{ authOk: boolean }> = {}) {
+  return {
+    userId: 'user-123',
+    isAdmin: false,
+    checkAuth: vi.fn().mockResolvedValue({
+      ok: overrides.authOk ?? true,
+      code: overrides.authOk === false ? 'NO_PERMISSION' : undefined,
+    }),
+  };
+}
+
 // Create shared mock functions
 const mockGetPendingKeywords = vi.fn();
 const mockGetQueueStats = vi.fn();
@@ -38,8 +58,10 @@ describe('Moderation Keywords Routes', () => {
 
     mockContainer = createMockContainer();
     mockContainer.prisma = mockPrisma;
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
 
     vi.clearAllMocks();
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
   });
 
   describe('GET /guilds/:guildId/temp-voice/moderation/keywords', () => {
@@ -260,21 +282,30 @@ describe('Moderation Keywords Routes', () => {
       expect(data.error.code).toBe('INVALID_ACTION');
     });
 
-    it('should return error for missing reviewedBy', async () => {
+    it('should derive reviewedBy from authenticated session', async () => {
+      mockApproveKeyword.mockResolvedValue({
+        id: 'keyword-1',
+        keyword: 'BadWord',
+        status: 'APPROVED',
+        patternCreated: true,
+        patternId: 'pattern-1',
+      });
+
       const request = createMockRequest({
         method: 'PATCH',
         params: { guildId: 'guild-123', keywordId: 'keyword-1' },
         body: {
           action: 'approve',
+          // No reviewedBy — should be derived from gate.userId
         },
       });
       const response = createMockResponse();
 
       await route.run(request, response as any);
 
-      expectError(response, 400);
+      expectSuccess(response);
       const data = response.data as any;
-      expect(data.error.code).toBe('MISSING_REVIEWER');
+      expect(data.data.reviewedBy).toBe('user-123');
     });
 
     it('should handle service errors gracefully', async () => {

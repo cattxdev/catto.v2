@@ -9,6 +9,7 @@ import {
   KeywordQueueService,
   KeywordSource,
 } from '#modules/temp-voice/services/moderation/keyword-queue.service.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceModerationKeywordsGetRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -35,6 +36,15 @@ export class TempVoiceModerationKeywordsGetRoute extends Route {
             message: 'Guild ID is required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.moderation');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       // Parse query parameters

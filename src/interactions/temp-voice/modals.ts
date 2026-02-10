@@ -1,20 +1,12 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import type { ModalSubmitInteraction, GuildMember, Role } from 'discord.js';
-import { MessageFlags, VoiceChannel } from 'discord.js';
+import type { ModalSubmitInteraction, GuildMember } from 'discord.js';
+import { MessageFlags, type VoiceChannel } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
-import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
-import { UserPreferencesService } from '#modules/temp-voice/services/user-preferences.service.js';
+import { decodeCustomId } from '#lib/discord/core/index.js';
+import { getTempVoiceServices } from '../../modules/temp-voice/services/service-container.js';
 import { NameModerationService } from '#modules/temp-voice/services/moderation/name-moderation.service.js';
 
 export class TempVoiceModalHandler extends InteractionHandler {
-  private channelService!: TempChannelService;
-  private configService!: TempVoiceConfigService;
-  private permissionsService!: PermissionsService;
-  private controlPanelService!: ControlPanelService;
-  private userPrefsService!: UserPreferencesService;
   private moderationService!: NameModerationService;
 
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
@@ -25,95 +17,107 @@ export class TempVoiceModalHandler extends InteractionHandler {
   }
 
   public override parse(interaction: ModalSubmitInteraction) {
-    if (!interaction.customId.startsWith('tempvoice_')) return this.none();
+    // New format: tv:action_modal:channelId
+    if (interaction.customId.startsWith('tv:')) return this.some();
+    // Legacy format: tempvoice_action_modal_channelId
+    if (interaction.customId.startsWith('tempvoice_')) return this.some();
 
-    return this.some();
+    return this.none();
   }
 
   public async run(interaction: ModalSubmitInteraction) {
-    if (!interaction.guild || !interaction.guildId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    const guild = interaction.guild;
-    const guildId = interaction.guildId;
-
-    // Initialize services lazily
-    if (!this.channelService) {
-      this.configService = new TempVoiceConfigService(this.container.prisma, this.container.client);
-      this.permissionsService = new PermissionsService();
-      this.channelService = new TempChannelService(this.container.prisma, this.permissionsService);
-      this.controlPanelService = new ControlPanelService(
-        this.container.client,
-        this.channelService
-      );
-      this.userPrefsService = new UserPreferencesService(this.container.prisma);
-    }
-
-    // Parse modal customId: tempvoice_<action>_modal_<channelId>
-    const parts = interaction.customId.split('_');
-    const action = parts[1];
-    const channelId = parts[3];
-    if (!channelId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Invalid modal interaction.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    // Get temp channel
-    const tempChannel = await this.channelService.getByChannelId(channelId);
-    if (!tempChannel) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} This temporary voice channel no longer exists.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    // Check permissions
-    const config = await this.configService.get(guildId);
-    const member = interaction.member as GuildMember;
-    const canManage = this.permissionsService.canManageChannel(
-      member.user.id,
-      tempChannel.ownerId,
-      config.adminRoleIds || [],
-      member.roles.cache?.map((r: Role) => r.id) || [],
-      member.permissions?.has('Administrator') || false,
-      (tempChannel.trustedUserIds as string[]) || []
-    );
-    if (!canManage) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} You do not have permission to manage this channel.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    // Route to appropriate handler
-    switch (action) {
-      case 'rename':
-        return this.handleRenameSubmit(interaction, channelId, guild, guildId);
-      case 'limit':
-        return this.handleLimitSubmit(interaction, channelId, guild, guildId);
-      case 'settings':
-        return this.handleSettingsSubmit(interaction, channelId, guild, guildId);
-      default:
+    try {
+      if (!interaction.guild || !interaction.guildId) {
         return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Unknown modal action.`,
+          content: `${EMOJI.STATUS.ERROR} This command can only be used in a server.`,
           flags: MessageFlags.Ephemeral,
         });
+      }
+
+      const { action, channelId } = this.parseCustomId(interaction.customId);
+      if (!channelId) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} Invalid modal interaction.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      const { operations } = getTempVoiceServices();
+
+      // Build operation context
+      const ctx = await operations.buildContext(interaction.guild, channelId);
+      if (!ctx) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} This temporary voice channel no longer exists.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      // Permission check
+      const member = interaction.member as GuildMember;
+      const accessError = operations.checkAccess(member, ctx.tempChannel, ctx.config);
+      if (accessError) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} ${accessError}`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      // Route to appropriate handler
+      switch (action) {
+        case 'rename':
+        case 'rename_modal':
+          return this.handleRenameSubmit(interaction, ctx);
+        case 'limit':
+        case 'limit_modal':
+          return this.handleLimitSubmit(interaction, ctx);
+        case 'settings':
+        case 'settings_modal':
+          return this.handleSettingsSubmit(interaction, ctx);
+        default:
+          return interaction.reply({
+            content: `${EMOJI.STATUS.ERROR} Unknown modal action.`,
+            flags: MessageFlags.Ephemeral,
+          });
+      }
+    } catch (error) {
+      this.container.logger.error(
+        `[TempVoice Modal] Unhandled error processing modal ${interaction.customId}:`,
+        error
+      );
+      // Reply only if not already replied/deferred
+      if (!interaction.replied && !interaction.deferred) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} An unexpected error occurred while processing your input. Please try again.`,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+      return;
     }
   }
 
+  // ───── Custom ID Parsing ─────
+
+  private parseCustomId(customId: string): { action: string; channelId: string } {
+    // New format: tv:rename_modal:channelId
+    if (customId.startsWith('tv:')) {
+      const parsed = decodeCustomId(customId);
+      return { action: parsed.action, channelId: parsed.params[0] || '' };
+    }
+
+    // Legacy format: tempvoice_rename_modal_channelId
+    const parts = customId.split('_');
+    // parts: ['tempvoice', action, 'modal', channelId]
+    return { action: parts[1] || '', channelId: parts[3] || '' };
+  }
+
+  // ───── Rename ─────
+
   private async handleRenameSubmit(
     interaction: ModalSubmitInteraction,
-    channelId: string,
-    guild: NonNullable<typeof interaction.guild>,
-    guildId: string
+    ctx: import('../../modules/temp-voice/services/operations.service.js').OperationContext
   ) {
-    // Initialize services if needed
+    // Initialize moderation service lazily
     if (!this.moderationService) {
       this.moderationService = new NameModerationService(
         this.container.prisma,
@@ -130,117 +134,80 @@ export class TempVoiceModalHandler extends InteractionHandler {
       });
     }
 
-    // Initialize moderation service (needed even if moderation is disabled for bot rename marking)
-    if (!this.moderationService) {
-      this.moderationService = new NameModerationService(
-        this.container.prisma,
-        this.container.logger
-      );
-    }
+    // Defer early — rename involves multiple API calls that can be slow or rate-limited
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    this.container.logger.info(
-      `[Modal Rename] Starting rename for channel ${channelId} to "${newName}"`
-    );
+    const { operations } = getTempVoiceServices();
 
     try {
-      const voiceChannel = (await guild.channels.fetch(channelId, { force: true })) as VoiceChannel;
-      if (!voiceChannel) {
-        return interaction.reply({
+      // Fetch the voice channel for moderation checks
+      const voiceChannel = (await ctx.guild.channels.fetch(ctx.channelId, {
+        force: true,
+      })) as VoiceChannel | null;
+      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+        return interaction.editReply({
           content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
         });
       }
 
-      this.container.logger.info(`[Modal Rename] Current channel name: "${voiceChannel.name}"`);
-
-      // Get config to check moderation settings
-      const config = await this.configService.get(guildId);
-      const oldName = voiceChannel.name;
       let finalName = newName;
 
       // Apply moderation if enabled
-      if (config.moderationEnabled) {
+      if (ctx.config.moderationEnabled) {
+        const oldName = voiceChannel.name;
         const moderationResult = await this.moderationService.moderateChannelName(
           voiceChannel,
           oldName,
           newName,
-          config,
+          ctx.config,
           interaction.user.id
         );
 
         if (moderationResult && !moderationResult.validation.isAllowed) {
           finalName = moderationResult.finalName;
 
-          // Notify user about moderation
-          if (config.moderationAction === 'AUTO_RENAME') {
-            // Channel already renamed by moderation service, just update DB
-            await this.channelService.update(channelId, { customName: finalName });
-
-            // Save user preference if customization is allowed
-            const tempChannel = await this.channelService.getByChannelId(channelId);
-            if (tempChannel && config.allowCustomization) {
-              await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-                customName: finalName,
-              });
-            }
-
-            await this.controlPanelService.refresh(channelId);
-
-            return interaction.reply({
+          if (ctx.config.moderationAction === 'AUTO_RENAME') {
+            // Moderation service already renamed the channel; delegate remaining DB/prefs/panel updates
+            await operations.rename(ctx, finalName);
+            return interaction.editReply({
               content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
-              flags: MessageFlags.Ephemeral,
             });
-          } else if (config.moderationAction === 'BLOCK') {
-            return interaction.reply({
+          } else if (ctx.config.moderationAction === 'BLOCK') {
+            return interaction.editReply({
               content: `${EMOJI.STATUS.ERROR} That channel name is not allowed. Please choose a different name.`,
-              flags: MessageFlags.Ephemeral,
             });
           }
         }
       }
 
       // Mark as bot rename to prevent channelUpdate listener from re-processing
-      this.moderationService.markAsBotRename(voiceChannel.id, finalName);
-
-      this.container.logger.info(`[Modal Rename] Renaming channel ${channelId} to "${finalName}"`);
-
-      // Set the Discord channel name
-      await voiceChannel.setName(finalName);
-
-      this.container.logger.info(
-        `[Modal Rename] Channel ${channelId} renamed successfully to "${finalName}"`
-      );
-
-      await this.channelService.update(channelId, { customName: finalName });
-
-      // Save user preference if customization is allowed
-      const tempChannel = await this.channelService.getByChannelId(channelId);
-      if (tempChannel && config.allowCustomization) {
-        await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-          customName: finalName,
-        });
+      if (ctx.config.moderationEnabled) {
+        this.moderationService.markAsBotRename(voiceChannel.id, finalName);
       }
 
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
-        flags: MessageFlags.Ephemeral,
+      // Delegate to operations service
+      const result = await operations.rename(ctx, finalName);
+      const emoji = result.ok ? EMOJI.STATUS.SUCCESS : EMOJI.STATUS.ERROR;
+      return interaction.editReply({
+        content: `${emoji} ${result.message}`,
       });
     } catch (error) {
-      this.container.logger.error('Failed to rename channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to rename channel. Please try again.`,
-        flags: MessageFlags.Ephemeral,
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.container.logger.error(
+        `[TempVoice Modal] Failed to rename channel ${ctx.channelId}:`,
+        error
+      );
+      return interaction.editReply({
+        content: `${EMOJI.STATUS.ERROR} Failed to rename channel: ${errMsg}`,
       });
     }
   }
 
+  // ───── Limit ─────
+
   private async handleLimitSubmit(
     interaction: ModalSubmitInteraction,
-    channelId: string,
-    guild: NonNullable<typeof interaction.guild>,
-    guildId: string
+    ctx: import('../../modules/temp-voice/services/operations.service.js').OperationContext
   ) {
     const limitStr = interaction.fields.getTextInputValue('user_limit').trim();
     const limit = parseInt(limitStr, 10);
@@ -252,49 +219,32 @@ export class TempVoiceModalHandler extends InteractionHandler {
       });
     }
 
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const { operations } = getTempVoiceServices();
+
     try {
-      const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
-      if (!voiceChannel) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      await voiceChannel.setUserLimit(limit);
-      await this.channelService.update(channelId, { customUserLimit: limit });
-
-      // Save user preference if customization is allowed
-      const tempChannel = await this.channelService.getByChannelId(channelId);
-      if (tempChannel) {
-        const config = await this.configService.get(guildId);
-        if (config.allowCustomization) {
-          await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-            customUserLimit: limit,
-          });
-        }
-      }
-
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
-        flags: MessageFlags.Ephemeral,
+      const result = await operations.setLimit(ctx, limit);
+      const emoji = result.ok ? EMOJI.STATUS.SUCCESS : EMOJI.STATUS.ERROR;
+      return interaction.editReply({
+        content: `${emoji} ${result.message}`,
       });
     } catch (error) {
-      this.container.logger.error('Failed to set user limit:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to set user limit. Please try again.`,
-        flags: MessageFlags.Ephemeral,
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.container.logger.error(
+        `[TempVoice Modal] Failed to set user limit for channel ${ctx.channelId}:`,
+        error
+      );
+      return interaction.editReply({
+        content: `${EMOJI.STATUS.ERROR} Failed to set user limit: ${errMsg}`,
       });
     }
   }
 
+  // ───── Settings (Bitrate / Region) ─────
+
   private async handleSettingsSubmit(
     interaction: ModalSubmitInteraction,
-    channelId: string,
-    guild: NonNullable<typeof interaction.guild>,
-    guildId: string
+    ctx: import('../../modules/temp-voice/services/operations.service.js').OperationContext
   ) {
     const bitrateStr = interaction.fields.getTextInputValue('bitrate').trim();
     const region = interaction.fields.getTextInputValue('region').trim() || 'auto';
@@ -307,65 +257,37 @@ export class TempVoiceModalHandler extends InteractionHandler {
       });
     }
 
-    const bitrateInBps = bitrate * 1000;
-
-    // Validate bitrate based on guild boost level
-    const bitrateValidation = this.permissionsService.validateBitrate(
-      bitrateInBps,
-      guild.premiumTier
-    );
-    if (!bitrateValidation.valid) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
-        flags: MessageFlags.Ephemeral,
-      });
-    }
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const { operations } = getTempVoiceServices();
 
     try {
-      const voiceChannel = (await guild.channels.fetch(channelId)) as VoiceChannel;
-      if (!voiceChannel) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
-          flags: MessageFlags.Ephemeral,
+      // Set bitrate first
+      const bitrateResult = await operations.setBitrate(ctx, bitrate);
+      if (!bitrateResult.ok) {
+        return interaction.editReply({
+          content: `${EMOJI.STATUS.ERROR} ${bitrateResult.message}`,
         });
       }
 
-      // Update bitrate
-      await voiceChannel.setBitrate(bitrateInBps);
-
-      // Update region
-      const rtcRegion = region === 'auto' ? null : region;
-      await voiceChannel.setRTCRegion(rtcRegion);
-
-      // Update database
-      await this.channelService.update(channelId, {
-        customBitrate: bitrateInBps,
-        customRegion: region,
-      });
-
-      // Save user preference if customization is allowed
-      const tempChannel = await this.channelService.getByChannelId(channelId);
-      if (tempChannel) {
-        const config = await this.configService.get(guildId);
-        if (config.allowCustomization) {
-          await this.userPrefsService.save(guildId, tempChannel.ownerId, {
-            customBitrate: bitrate,
-            customRegion: region,
-          });
-        }
+      // Then set region
+      const regionResult = await operations.setRegion(ctx, region);
+      if (!regionResult.ok) {
+        return interaction.editReply({
+          content: `${EMOJI.STATUS.ERROR} ${regionResult.message}`,
+        });
       }
 
-      await this.controlPanelService.refresh(channelId);
-
-      return interaction.reply({
+      return interaction.editReply({
         content: `${EMOJI.STATUS.SUCCESS} Settings updated:\n- Bitrate: **${bitrate}kbps**\n- Region: **${region}**`,
-        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
-      this.container.logger.error('Failed to update settings:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to update settings. Please try again.`,
-        flags: MessageFlags.Ephemeral,
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.container.logger.error(
+        `[TempVoice Modal] Failed to update settings for channel ${ctx.channelId}:`,
+        error
+      );
+      return interaction.editReply({
+        content: `${EMOJI.STATUS.ERROR} Failed to update settings: ${errMsg}`,
       });
     }
   }

@@ -35,7 +35,32 @@ export class GuildChannelsRolesRoute extends Route {
         .map((channel) => ({
           id: channel.id,
           name: channel.name,
-          type: 'text',
+          type: 'text' as const,
+          parentId: channel.parentId,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Get voice channels
+      const voiceChannels = guild.channels.cache
+        .filter(
+          (channel) =>
+            channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice
+        )
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          type: channel.type === ChannelType.GuildVoice ? ('voice' as const) : ('stage' as const),
+          parentId: channel.parentId,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // Get categories
+      const categories = guild.channels.cache
+        .filter((channel) => channel.type === ChannelType.GuildCategory)
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          type: 'category' as const,
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -52,7 +77,7 @@ export class GuildChannelsRolesRoute extends Route {
 
       return response.json({
         success: true,
-        channels: textChannels,
+        channels: [...textChannels, ...voiceChannels, ...categories],
         roles,
       });
     } catch (error) {

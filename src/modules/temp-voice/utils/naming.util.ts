@@ -11,6 +11,7 @@ import { TEMPLATE_VARIABLES } from '../constants.js';
  */
 export interface TemplateContext {
   username: string;
+  displayname: string;
   discriminator?: string;
   tag: string;
   n: number;
@@ -28,6 +29,12 @@ export function replaceTemplateVariables(template: string, context: TemplateCont
     context.username
   );
 
+  // Replace {displayname}
+  result = result.replace(
+    new RegExp(TEMPLATE_VARIABLES.DISPLAYNAME.replace(/[{}]/g, '\\$&'), 'g'),
+    context.displayname
+  );
+
   // Replace {discriminator}
   if (context.discriminator) {
     result = result.replace(
@@ -42,10 +49,15 @@ export function replaceTemplateVariables(template: string, context: TemplateCont
     context.tag
   );
 
-  // Replace {n}
+  // Replace {n} and {count}
+  const seqStr = context.n.toString();
   result = result.replace(
     new RegExp(TEMPLATE_VARIABLES.NUMBER.replace(/[{}]/g, '\\$&'), 'g'),
-    context.n.toString()
+    seqStr
+  );
+  result = result.replace(
+    new RegExp(TEMPLATE_VARIABLES.COUNT.replace(/[{}]/g, '\\$&'), 'g'),
+    seqStr
   );
 
   return result;
@@ -66,6 +78,7 @@ export function generateChannelName(
 
   const context: TemplateContext = {
     username,
+    displayname: member.displayName,
     discriminator: member.user.discriminator !== '0' ? member.user.discriminator : undefined,
     tag: member.user.tag,
     n: sequenceNumber,

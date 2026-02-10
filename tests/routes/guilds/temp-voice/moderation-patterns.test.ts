@@ -9,6 +9,25 @@ import { TempVoiceModerationPatternsPostRoute } from '../../../../src/routes/gui
 import { TempVoiceModerationPatternsPatchRoute } from '../../../../src/routes/guilds/temp-voice/moderation/patterns-patch.js';
 import { TempVoiceModerationPatternsDeleteRoute } from '../../../../src/routes/guilds/temp-voice/moderation/patterns-delete.js';
 
+const { mockApiGateFromRequest } = vi.hoisted(() => ({
+  mockApiGateFromRequest: vi.fn(),
+}));
+
+vi.mock('#lib/validation/ApiGate.js', () => ({
+  ApiGate: { fromRequest: mockApiGateFromRequest },
+}));
+
+function createMockGate(overrides: Partial<{ authOk: boolean }> = {}) {
+  return {
+    userId: 'user-123',
+    isAdmin: false,
+    checkAuth: vi.fn().mockResolvedValue({
+      ok: overrides.authOk ?? true,
+      code: overrides.authOk === false ? 'NO_PERMISSION' : undefined,
+    }),
+  };
+}
+
 describe('Moderation Patterns Routes', () => {
   let mockContainer: ReturnType<typeof createMockContainer>;
   let mockPrisma: any;
@@ -31,8 +50,10 @@ describe('Moderation Patterns Routes', () => {
       },
     });
     mockContainer.prisma = mockPrisma;
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
 
     vi.clearAllMocks();
+    mockApiGateFromRequest.mockResolvedValue(createMockGate());
   });
 
   describe('GET /guilds/:guildId/temp-voice/moderation/patterns', () => {

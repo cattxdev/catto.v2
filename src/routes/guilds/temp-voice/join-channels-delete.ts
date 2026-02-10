@@ -5,6 +5,7 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules/temp-voice/services/config-api.service.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceJoinChannelsDeleteRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -32,6 +33,15 @@ export class TempVoiceJoinChannelsDeleteRoute extends Route {
             message: 'Guild ID is required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.config');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       if (!channelId) {

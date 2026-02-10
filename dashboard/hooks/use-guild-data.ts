@@ -41,9 +41,9 @@ export function useGuildData(guildId: string) {
   }, [guildId]);
 
   const voiceChannels = channels.filter(
-    (c) => c.type === 'GUILD_VOICE' || c.type === 'GUILD_STAGE_VOICE'
+    (c) => c.type === 'voice' || c.type === 'stage'
   );
-  const textChannels = channels.filter((c) => c.type === 'GUILD_TEXT');
+  const textChannels = channels.filter((c) => c.type === 'text');
 
   return {
     channels,

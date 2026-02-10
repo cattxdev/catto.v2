@@ -5,16 +5,8 @@
 
 import { Route } from '@sapphire/plugin-api';
 import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
 import { ChannelType } from 'discord.js';
-
-interface TempChannelInfo {
-  channelId: string;
-  guildId: string;
-  ownerId: string;
-  createdAt: Date;
-  lastActiveAt: Date | null;
-}
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceChannelsRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -43,6 +35,15 @@ export class TempVoiceChannelsRoute extends Route {
         });
       }
 
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.view');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
+      }
+
       // Get all active temp channels for this guild
       const tempChannels = await TempChannelService.getGuildTempChannels(guildId);
 
@@ -60,7 +61,7 @@ export class TempVoiceChannelsRoute extends Route {
 
       // Fetch detailed information for each channel
       const channelsWithDetails = await Promise.all(
-        tempChannels.map(async (tc: TempChannelInfo) => {
+        tempChannels.map(async (tc) => {
           const channel = guild.channels.cache.get(tc.channelId);
 
           if (!channel || channel.type !== ChannelType.GuildVoice) {
@@ -80,19 +81,13 @@ export class TempVoiceChannelsRoute extends Route {
             avatar: m.user.displayAvatarURL(),
           }));
 
-          // Get permissions if available
-          let permissions = null;
-          try {
-            const perms = await PermissionsService.getPermissions(tc.channelId);
-            permissions = {
-              locked: perms?.locked ?? false,
-              hidden: perms?.hidden ?? false,
-              allowedUserIds: perms?.allowedUserIds ?? [],
-              deniedUserIds: perms?.deniedUserIds ?? [],
-            };
-          } catch {
-            // Permissions not found or error
-          }
+          const permissions = {
+            locked: tc.isLocked,
+            hidden: tc.isHidden,
+            allowedUserIds: tc.allowedUserIds,
+            deniedUserIds: tc.deniedUserIds,
+            trustedUserIds: tc.trustedUserIds,
+          };
 
           return {
             channelId: tc.channelId,

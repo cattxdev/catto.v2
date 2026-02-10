@@ -6,6 +6,7 @@
 import { Route } from '@sapphire/plugin-api';
 import type { Prisma } from '@prisma/client';
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 interface UpdatePatternBody {
   enabled?: boolean;
@@ -38,6 +39,15 @@ export class TempVoiceModerationPatternsPatchRoute extends Route {
             message: 'Guild ID and Pattern ID are required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.moderation');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       const body = request.body as UpdatePatternBody;

@@ -1,5 +1,7 @@
 import { botApi } from '@/lib/api';
 
+export type OwnerLeaveStrategy = 'TRANSFER' | 'KEEP' | 'DELETE';
+
 export interface TempVoiceConfig {
   guildId: string;
   enabled: boolean;
@@ -9,6 +11,9 @@ export interface TempVoiceConfig {
   userLimit: number | null;
   bitrate: number | null;
   defaultCategoryId: string | null;
+  defaultLocked: boolean;
+  defaultHidden: boolean;
+  ownerLeaveStrategy: OwnerLeaveStrategy;
   autoDeleteEmpty: boolean;
   deleteEmptyAfterMs: number;
   autoDeleteOwnerLeave: boolean;
@@ -16,6 +21,8 @@ export interface TempVoiceConfig {
   allowOwnerTransfer: boolean;
   allowOwnerManagement: boolean;
   maxChannelsPerUser: number;
+  enableNameModeration: boolean;
+  blockedKeywords: string[];
   logChannelId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +36,9 @@ export interface TempVoiceConfigCreate {
   userLimit?: number | null;
   bitrate?: number | null;
   defaultCategoryId?: string | null;
+  defaultLocked?: boolean;
+  defaultHidden?: boolean;
+  ownerLeaveStrategy?: OwnerLeaveStrategy;
   autoDeleteEmpty?: boolean;
   deleteEmptyAfterMs?: number;
   autoDeleteOwnerLeave?: boolean;
@@ -36,6 +46,8 @@ export interface TempVoiceConfigCreate {
   allowOwnerTransfer?: boolean;
   allowOwnerManagement?: boolean;
   maxChannelsPerUser?: number;
+  enableNameModeration?: boolean;
+  blockedKeywords?: string[];
   logChannelId?: string | null;
 }
 

@@ -5,8 +5,6 @@
 import { Listener } from '@sapphire/framework';
 import { Events } from 'discord.js';
 import { container } from '@sapphire/framework';
-import { TempVoiceConfigService } from '../../modules/temp-voice/services/config.service.js';
-import { CleanupService } from '../../modules/temp-voice/services/cleanup.service.js';
 import { RecoveryService } from '../../modules/temp-voice/services/recovery.service.js';
 
 export class TempVoiceReadyListener extends Listener {
@@ -21,18 +19,7 @@ export class TempVoiceReadyListener extends Listener {
 
   public async run(): Promise<void> {
     try {
-      // Initialize services
-      const configService = new TempVoiceConfigService(container.prisma, container.client);
-      const cleanupService = new CleanupService(
-        container.prisma,
-        this.container.client,
-        configService
-      );
-      const recoveryService = new RecoveryService(
-        container.prisma,
-        this.container.client,
-        cleanupService
-      );
+      const recoveryService = new RecoveryService(container.prisma, this.container.client);
 
       // Run recovery
       await recoveryService.reconcileChannels();
