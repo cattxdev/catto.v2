@@ -1,7 +1,8 @@
 'use client';
 
-import XPConfigForm from '@/components/xp-config-form';
+import { TextXPConfigForm } from '@/components/text-xp';
 import { useTextXPConfig } from '@/hooks/use-text-xp-config';
+import { useGuildData } from '@/hooks/use-guild-data';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface TextXPConfigPageProps {
@@ -9,7 +10,11 @@ interface TextXPConfigPageProps {
 }
 
 export default function TextXPConfigPage({ guildId }: TextXPConfigPageProps) {
-  const { config, loading, error } = useTextXPConfig(guildId);
+  const { config, loading: configLoading, error: configError } = useTextXPConfig(guildId);
+  const { textChannels, roles, loading: guildLoading, error: guildError } = useGuildData(guildId);
+
+  const loading = configLoading || guildLoading;
+  const error = configError || guildError;
 
   if (loading) {
     return (
@@ -52,5 +57,12 @@ export default function TextXPConfigPage({ guildId }: TextXPConfigPageProps) {
     );
   }
 
-  return <XPConfigForm guildId={guildId} initialConfig={config} />;
+  return (
+    <TextXPConfigForm 
+      guildId={guildId} 
+      initialConfig={config} 
+      textChannels={textChannels}
+      roles={roles}
+    />
+  );
 }
