@@ -20,6 +20,9 @@
   --primary: var(--mono-white);
   --primary-foreground: var(--mono-black);
 
+  /* Override input background */
+  --input: var(--mono-900);
+
   --mod-bg: var(--mono-950);
   --mod-surface: var(--mono-900);
   --mod-surface-hover: var(--mono-850);
@@ -159,15 +162,23 @@
 [data-theme='mod'] button[class*="bg-destructive"] {
   background-color: var(--mod-error) !important;
   border-radius: 0 !important;
+  color: var(--mono-white) !important;
+  border: none !important;
+}
+
+[data-theme='mod'] button[class*="bg-destructive"]:hover {
+  background-color: #dc2626 !important;
 }
 
 [data-theme='mod'] button[class*="ghost"],
-[data-theme='mod'] button[class*="text-muted-foreground"] {
+[data-theme='mod'] button[class*="text-muted-foreground"]:not([class*="bg-"]) {
   color: var(--mod-text-muted) !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
 }
 
 [data-theme='mod'] button[class*="ghost"]:hover,
-[data-theme='mod'] button[class*="text-muted-foreground"]:hover {
+[data-theme='mod'] button[class*="text-muted-foreground"]:not([class*="bg-"]):hover {
   background-color: var(--mod-surface-hover) !important;
   color: var(--mod-text) !important;
 }
@@ -194,7 +205,10 @@
 
 /* Switch overrides */
 [data-theme='mod'] button[role="switch"] {
-  border-radius: 0 !important;
+  border-radius: 2px !important;
+  width: 2.75rem !important;
+  height: 1.5rem !important;
+  border: 1px solid var(--mod-border) !important;
 }
 
 [data-theme='mod'] button[role="switch"][data-state="unchecked"] {
@@ -202,17 +216,22 @@
 }
 
 [data-theme='mod'] button[role="switch"][data-state="checked"] {
-  background-color: var(--mono-white) !important;
+  background-color: var(--mono-600) !important;
+  border-color: var(--mono-500) !important;
   box-shadow: none !important;
 }
 
-[data-theme='mod'] button[role="switch"] span {
-  border-radius: 0 !important;
-  background-color: var(--mono-300) !important;
+[data-theme='mod'] button[role="switch"] span,
+[data-theme='mod'] button[role="switch"] > span {
+  border-radius: 2px !important;
+  width: 1rem !important;
+  height: 1rem !important;
+  background-color: var(--mono-400) !important;
 }
 
-[data-theme='mod'] button[role="switch"][data-state="checked"] span {
-  background-color: var(--mono-black) !important;
+[data-theme='mod'] button[role="switch"][data-state="checked"] span,
+[data-theme='mod'] button[role="switch"][data-state="checked"] > span {
+  background-color: var(--mono-white) !important;
 }
 
 /* Select/Dropdown overrides */
@@ -222,6 +241,32 @@
   background-color: var(--mod-surface) !important;
   border-color: var(--mod-border) !important;
   border-radius: 0 !important;
+}
+
+/* Native select elements */
+[data-theme='mod'] select,
+[data-theme='mod'] select[class*="bg-input"] {
+  background-color: var(--mod-surface) !important;
+  border: 1px solid var(--mod-border) !important;
+  border-radius: 0 !important;
+  color: var(--mod-text) !important;
+  font-family: var(--font-mono) !important;
+  padding: 0.5rem 2rem 0.5rem 1rem !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+}
+
+[data-theme='mod'] select:focus {
+  border-color: var(--mono-500) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] select option {
+  background-color: var(--mod-surface) !important;
+  color: var(--mod-text) !important;
 }
 
 [data-theme='mod'] [role="option"] {
