@@ -1,6 +1,11 @@
 // Main component
 export { RewardsConfigForm, default } from './rewards-config-form';
 
+// Layout components
+export { PageHeader } from './page-header';
+export { StatusAlerts } from './status-alerts';
+export { Sidebar } from './sidebar';
+
 // Subcomponents
 export { RewardStats } from './reward-stats';
 export { UserClaimsLookup } from './user-claims-lookup';
