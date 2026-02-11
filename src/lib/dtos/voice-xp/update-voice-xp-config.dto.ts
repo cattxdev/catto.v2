@@ -27,10 +27,6 @@ export enum VoiceXPMode {
 export enum VoiceLevelCurveType {
   FORMULA = 'FORMULA',
   TABLE = 'TABLE',
-  // Legacy values kept for backward compatibility (normalized to FORMULA at route layer)
-  LINEAR = 'LINEAR',
-  EXPONENTIAL = 'EXPONENTIAL',
-  LOGARITHMIC = 'LOGARITHMIC',
 }
 
 export class UpdateVoiceXPConfigDto {
@@ -151,8 +147,7 @@ export class UpdateVoiceXPConfigDto {
 
   // Level Curve Configuration
   @IsEnum(VoiceLevelCurveType, {
-    message:
-      'levelCurveType must be FORMULA or TABLE (legacy LINEAR/EXPONENTIAL/LOGARITHMIC are accepted)',
+    message: 'levelCurveType must be FORMULA or TABLE',
   })
   @IsOptional()
   levelCurveType?: VoiceLevelCurveType;
@@ -177,7 +172,10 @@ export class UpdateVoiceXPConfigDto {
 
   @IsArray()
   @IsOptional()
-  @ArrayMinSize(1, { message: 'tableThresholds must contain at least one value' })
+  @ValidateIf((o) => o.levelCurveType === 'TABLE')
+  @ArrayMinSize(1, {
+    message: 'tableThresholds must contain at least one value when using TABLE curve type',
+  })
   @Type(() => Number)
   tableThresholds?: number[];
 }
