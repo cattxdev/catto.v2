@@ -9,6 +9,7 @@ import { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { AddJoinChannelDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 import { ApiGate } from '#lib/validation/ApiGate.js';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class TempVoiceJoinChannelsPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -46,15 +47,8 @@ export class TempVoiceJoinChannelsPostRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
-      // Parse body if it's a string
-      let body: unknown = request.body;
-      if (typeof body === 'string') {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
+      // Parse body from request stream
+      const body = await parseRequestBody(request);
 
       // Validate request body
       const validationResult = await validateDto(AddJoinChannelDto, body);

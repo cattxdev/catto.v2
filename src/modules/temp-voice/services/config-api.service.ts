@@ -136,6 +136,11 @@ export class TempVoiceConfigServiceStatic {
    * Update configuration for a guild
    */
   static async updateConfig(guildId: string, data: Partial<TempVoiceConfigApiInput>) {
+    container.logger.debug(
+      '[TempVoice API Service] Received update data:',
+      JSON.stringify(data, null, 2)
+    );
+
     // Map API input to service input
     const serviceData: TempVoiceConfigUpdate = {
       ...(data.enabled !== undefined && { enabled: data.enabled }),
@@ -146,7 +151,7 @@ export class TempVoiceConfigServiceStatic {
       ...(data.customNamingPattern !== undefined && {
         defaultNameTemplate: data.customNamingPattern ?? undefined,
       }),
-      ...(data.userLimit !== undefined && { defaultUserLimit: data.userLimit }),
+      ...(data.userLimit !== undefined && { defaultUserLimit: data.userLimit ?? 0 }),
       ...(data.bitrate !== undefined && { defaultBitrate: data.bitrate }),
       ...(data.defaultCategoryId !== undefined && {
         categoryId: data.defaultCategoryId ?? undefined,
@@ -166,6 +171,11 @@ export class TempVoiceConfigServiceStatic {
       ...(data.logChannelId !== undefined && { logChannelId: data.logChannelId ?? undefined }),
       ...(data.logWebhook !== undefined && { logWebhook: data.logWebhook ?? undefined }),
     };
+
+    container.logger.debug(
+      '[TempVoice API Service] Mapped service data:',
+      JSON.stringify(serviceData, null, 2)
+    );
 
     const config = await configService.update(guildId, serviceData);
 

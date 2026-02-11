@@ -9,6 +9,7 @@ import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules
 import { container } from '@sapphire/framework';
 import type { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { ApiGate } from '#lib/validation/ApiGate.js';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class TempVoiceSetupPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -29,23 +30,12 @@ export class TempVoiceSetupPostRoute extends Route {
 
       // Log raw request for debugging
       this.container.logger.debug('[TempVoice API] Setup request received');
-      this.container.logger.debug('[TempVoice API] Body:', request.body);
+
+      // Parse body from request stream
+      const body = (await parseRequestBody(request)) as Record<string, unknown> | undefined;
+
+      this.container.logger.debug('[TempVoice API] Body:', body);
       this.container.logger.debug('[TempVoice API] Headers:', request.headers);
-
-      // Parse body if it's a string
-      let body: unknown = request.body;
-      if (typeof body === 'string') {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
-
-      // Default to empty object if body is undefined
-      if (!body) {
-        body = {};
-      }
 
       if (!guildId) {
         return response.status(400).json({
@@ -99,7 +89,7 @@ export class TempVoiceSetupPostRoute extends Route {
       const bodyObj = body as Record<string, unknown>;
       const categoryName = (bodyObj?.categoryName as string) || 'Temp Voice Channels';
       const joinChannelName = (bodyObj?.joinChannelName as string) || '➕ Join to Create';
-      const logsChannelName = (bodyObj?.logsChannelName as string) || '📝 temp-voice-logs';
+      const logsChannelName = (bodyObj?.logsChannelName as string) || '📝 voice-logs';
 
       this.container.logger.info(`[TempVoice API] Starting auto-setup for guild ${guildId}`);
 
@@ -155,7 +145,7 @@ export class TempVoiceSetupPostRoute extends Route {
 
       // 4. Create webhook in logs channel
       const webhook = await logsChannel.createWebhook({
-        name: 'Temp Voice Logger',
+        name: `${this.container.client.user?.username}`,
         avatar: this.container.client.user?.displayAvatarURL(),
         reason: 'Auto-setup: Temp Voice logging webhook',
       });
