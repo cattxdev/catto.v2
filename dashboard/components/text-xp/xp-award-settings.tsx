@@ -189,20 +189,26 @@ export function XpAwardSettings({ config, onChange }: ConfigSectionProps) {
           </div>
 
           {/* XP Preview */}
-          <div className="md:col-span-2 p-4 rounded-lg bg-muted/20 border border-border/30">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                Each message will award{' '}
-                {config.xpMode === 'RANDOM' ? (
-                  <><strong className="text-foreground">{config.minXp}-{config.maxXp} XP</strong> (random)</>
-                ) : (
-                  <><strong className="text-foreground">{config.fixedXp} XP</strong> (fixed)</>
-                )}
-                {' '}with a <strong className="text-foreground">{config.cooldownSec}s cooldown</strong>
+          <div className="md:col-span-2 p-5 rounded-lg bg-gradient-to-br from-blue-500/5 via-muted/20 to-purple-500/5 border border-blue-500/20">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Award Preview</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap text-center">
+              <span className="text-sm text-muted-foreground">Each message awards</span>
+              {config.xpMode === 'RANDOM' ? (
+                <span className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 font-semibold text-foreground">
+                  {config.minXp}-{config.maxXp} XP
+                </span>
+              ) : (
+                <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 font-semibold text-foreground">
+                  {config.fixedXp} XP
+                </span>
+              )}
+              <span className="text-sm text-muted-foreground">with</span>
+              <span className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 font-semibold text-foreground">
+                {config.cooldownSec}s
               </span>
+              <span className="text-sm text-muted-foreground">cooldown</span>
             </div>
           </div>
         </div>

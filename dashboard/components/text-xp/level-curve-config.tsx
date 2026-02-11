@@ -132,15 +132,36 @@ export function LevelCurveConfig({ config, onChange }: ConfigSectionProps) {
               </div>
             </div>
             
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
-              <div className="text-sm text-muted-foreground font-mono mb-3">
-                XP = {config.formulaBase} × (level ^ {config.formulaExponent}) + {config.formulaOffset}
+            <div className="p-6 rounded-lg bg-gradient-to-br from-pink-500/5 via-muted/20 to-purple-500/5 border border-pink-500/20">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Formula Preview</span>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-2xl font-semibold mb-4 flex-wrap">
+                <span className="text-foreground">XP</span>
+                <span className="text-muted-foreground text-xl">=</span>
+                <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                  {config.formulaBase}
+                </span>
+                <span className="text-muted-foreground text-xl">×</span>
+                <span className="text-foreground">(</span>
+                <div className="flex items-start">
+                  <span className="text-foreground">level</span>
+                  <span className="text-sm px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono -mt-1 ml-0.5">
+                    {config.formulaExponent}
+                  </span>
+                </div>
+                <span className="text-foreground">)</span>
+                <span className="text-muted-foreground text-xl">+</span>
+                <span className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
+                  {config.formulaOffset}
+                </span>
               </div>
               <div className="grid grid-cols-5 gap-2 text-center">
                 {[1, 5, 10, 25, 50].map((level) => (
-                  <div key={level} className="p-2 rounded bg-muted/30">
-                    <div className="text-xs text-muted-foreground">Lvl {level}</div>
-                    <div className="font-medium text-foreground">{getSampleXP(level).toLocaleString()}</div>
+                  <div key={level} className="p-3 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40 hover:from-pink-500/10 hover:to-purple-500/10 hover:border-pink-500/30 transition-all">
+                    <div className="text-xs text-muted-foreground mb-1">Level {level}</div>
+                    <div className="font-semibold text-foreground text-sm">{getSampleXP(level).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground/70 mt-0.5">XP</div>
                   </div>
                 ))}
               </div>
@@ -173,22 +194,23 @@ export function LevelCurveConfig({ config, onChange }: ConfigSectionProps) {
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">Level Thresholds Preview</span>
-                <span className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+            <div className="p-6 rounded-lg bg-gradient-to-br from-pink-500/5 via-muted/20 to-purple-500/5 border border-pink-500/20">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Level Thresholds Preview</span>
+                <span className="text-xs text-muted-foreground bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full">
                   {config.tableThresholds.length} levels defined
                 </span>
               </div>
               <div className="grid grid-cols-5 gap-2 text-center max-h-32 overflow-y-auto">
                 {config.tableThresholds.slice(0, 10).map((xp, index) => (
-                  <div key={index} className="p-2 rounded bg-muted/30">
-                    <div className="text-xs text-muted-foreground">Lvl {index + 1}</div>
-                    <div className="font-medium text-foreground text-sm">{xp.toLocaleString()}</div>
+                  <div key={index} className="p-3 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40 hover:from-pink-500/10 hover:to-purple-500/10 hover:border-pink-500/30 transition-all">
+                    <div className="text-xs text-muted-foreground mb-1">Level {index + 1}</div>
+                    <div className="font-semibold text-foreground text-sm">{xp.toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground/70 mt-0.5">XP</div>
                   </div>
                 ))}
                 {config.tableThresholds.length > 10 && (
-                  <div className="p-2 rounded bg-muted/30 flex items-center justify-center">
+                  <div className="p-3 rounded-lg bg-gradient-to-br from-muted/40 to-muted/20 border border-border/40 flex items-center justify-center">
                     <span className="text-xs text-muted-foreground">+{config.tableThresholds.length - 10} more</span>
                   </div>
                 )}

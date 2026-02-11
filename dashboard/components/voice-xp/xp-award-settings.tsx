@@ -120,18 +120,28 @@ export function XpAwardSettings({ config, onChange }: ConfigSectionProps) {
           </div>
 
           {/* XP Preview */}
-          <div className="md:col-span-2 p-4 rounded-lg bg-muted/20 border border-border/30">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                A user in voice for <strong className="text-foreground">30 minutes</strong> will earn approximately{' '}
-                <strong className="text-foreground">{config.xpPerMinute * 30} XP</strong>
-                {config.minSessionMinutes > 0 && (
-                  <> (after {config.minSessionMinutes} min minimum)</>
-                )}
+          <div className="md:col-span-2 p-5 rounded-lg bg-gradient-to-br from-cyan-500/5 via-muted/20 to-blue-500/5 border border-cyan-500/20">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Award Preview</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap text-center">
+              <span className="text-sm text-muted-foreground">A user in voice for</span>
+              <span className="px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 font-semibold text-foreground">
+                30 minutes
               </span>
+              <span className="text-sm text-muted-foreground">earns approximately</span>
+              <span className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 font-semibold text-foreground">
+                {config.xpPerMinute * 30} XP
+              </span>
+              {config.minSessionMinutes > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground">after</span>
+                  <span className="px-2 py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-sm font-semibold text-foreground">
+                    {config.minSessionMinutes} min
+                  </span>
+                  <span className="text-sm text-muted-foreground">minimum</span>
+                </>
+              )}
             </div>
           </div>
         </div>
