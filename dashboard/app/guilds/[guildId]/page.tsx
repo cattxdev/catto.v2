@@ -30,31 +30,31 @@ export default async function GuildPage({ params }: { params: Promise<{ guildId:
 
   const quickActions = [
     {
-      href: `/guilds/${guild.id}/xp`,
+      href: `/mod/${guild.id}/xp`,
       label: 'Configure Text XP',
       description: 'Set up XP rewards for chat activity',
       icon: 'M13 10V3L4 14h7v7l9-11h-7z',
     },
     {
-      href: `/guilds/${guild.id}/voice-xp`,
+      href: `/mod/${guild.id}/voice-xp`,
       label: 'Configure Voice XP',
       description: 'Reward members for voice channel time',
       icon: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z',
     },
     {
-      href: `/guilds/${guild.id}/rewards`,
+      href: `/mod/${guild.id}/rewards`,
       label: 'Manage Rewards',
       description: 'Create role rewards for leveling up',
       icon: 'M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7',
     },
     {
-      href: `/guilds/${guild.id}/temp-voice`,
+      href: `/mod/${guild.id}/temp-voice`,
       label: 'Temp Voice Channels',
       description: 'Enable temporary voice channels',
       icon: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z',
     },
     {
-      href: `/guilds/${guild.id}/logs`,
+      href: `/mod/${guild.id}/logs`,
       label: 'Setup Logging',
       description: 'Configure event logging channels',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
