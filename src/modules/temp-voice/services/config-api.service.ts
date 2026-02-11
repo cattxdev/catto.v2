@@ -52,15 +52,39 @@ export interface TempVoiceConfigApiInput {
   userLimit?: number;
   bitrate?: number;
   defaultCategoryId?: string | null;
-  autoDeleteEmpty?: boolean;
   deleteEmptyAfterMs?: number;
-  autoDeleteOwnerLeave?: boolean;
-  deleteOwnerLeaveAfterMs?: number;
+  ownerLeaveStrategy?: OwnerLeaveStrategy;
   allowOwnerTransfer?: boolean;
   allowOwnerManagement?: boolean;
   maxChannelsPerUser?: number;
   logChannelId?: string | null;
   logWebhook?: string | null;
+}
+
+/**
+ * Map a TempVoiceConfig to the API response format
+ */
+function mapConfigToApiResponse(config: import('../models/config.model.js').TempVoiceConfig) {
+  return {
+    guildId: config.guildId,
+    enabled: config.enabled,
+    joinChannelIds: config.joinToCreateChannels,
+    namingScheme: mapNamingSchemeFromDb(config.namingScheme),
+    customNamingPattern: config.defaultNameTemplate,
+    userLimit: config.defaultUserLimit,
+    bitrate: config.defaultBitrate ?? 64000,
+    defaultCategoryId: config.categoryId,
+    autoDeleteEmpty: true,
+    deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
+    ownerLeaveStrategy: config.ownerLeaveStrategy,
+    allowOwnerTransfer: config.ownerLeaveStrategy === OwnerLeaveStrategy.TRANSFER,
+    allowOwnerManagement: config.controlPanelEnabled,
+    maxChannelsPerUser: config.maxChannelsPerUser,
+    logChannelId: config.logChannelId,
+    logWebhook: config.logWebhook,
+    createdAt: config.createdAt,
+    updatedAt: config.updatedAt,
+  };
 }
 
 /**
@@ -77,27 +101,7 @@ export class TempVoiceConfigServiceStatic {
       return null;
     }
 
-    // Map to API response format
-    return {
-      guildId: config.guildId,
-      enabled: config.enabled,
-      joinChannelIds: config.joinToCreateChannels,
-      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
-      customNamingPattern: config.defaultNameTemplate,
-      userLimit: config.defaultUserLimit,
-      bitrate: config.defaultBitrate ?? 64000,
-      defaultCategoryId: config.categoryId,
-      autoDeleteEmpty: config.deleteDelaySeconds > 0,
-      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-      allowOwnerTransfer: true, // Default value
-      allowOwnerManagement: config.controlPanelEnabled,
-      maxChannelsPerUser: config.maxChannelsPerUser,
-      logChannelId: config.logChannelId,
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt,
-    };
+    return mapConfigToApiResponse(config);
   }
 
   /**
@@ -116,9 +120,7 @@ export class TempVoiceConfigServiceStatic {
       defaultBitrate: data.bitrate ?? 64000,
       categoryId: data.defaultCategoryId,
       deleteDelaySeconds: Math.floor((data.deleteEmptyAfterMs ?? 60000) / 1000),
-      ownerLeaveStrategy: data.autoDeleteOwnerLeave
-        ? OwnerLeaveStrategy.DELETE
-        : OwnerLeaveStrategy.KEEP,
+      ownerLeaveStrategy: data.ownerLeaveStrategy ?? OwnerLeaveStrategy.TRANSFER,
       maxChannelsPerUser: data.maxChannelsPerUser ?? 1,
       logChannelId: data.logChannelId,
       logWebhook: data.logWebhook,
@@ -127,27 +129,7 @@ export class TempVoiceConfigServiceStatic {
 
     const config = await configService.create(guildId, serviceData);
 
-    // Map to API response format
-    return {
-      guildId: config.guildId,
-      enabled: config.enabled,
-      joinChannelIds: config.joinToCreateChannels,
-      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
-      customNamingPattern: config.defaultNameTemplate,
-      userLimit: config.defaultUserLimit,
-      bitrate: config.defaultBitrate ?? 64000,
-      defaultCategoryId: config.categoryId,
-      autoDeleteEmpty: config.deleteDelaySeconds > 0,
-      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-      allowOwnerTransfer: true,
-      allowOwnerManagement: config.controlPanelEnabled,
-      maxChannelsPerUser: config.maxChannelsPerUser,
-      logChannelId: config.logChannelId,
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt,
-    };
+    return mapConfigToApiResponse(config);
   }
 
   /**
@@ -172,10 +154,8 @@ export class TempVoiceConfigServiceStatic {
       ...(data.deleteEmptyAfterMs !== undefined && {
         deleteDelaySeconds: Math.floor(data.deleteEmptyAfterMs / 1000),
       }),
-      ...(data.autoDeleteOwnerLeave !== undefined && {
-        ownerLeaveStrategy: data.autoDeleteOwnerLeave
-          ? OwnerLeaveStrategy.DELETE
-          : OwnerLeaveStrategy.KEEP,
+      ...(data.ownerLeaveStrategy !== undefined && {
+        ownerLeaveStrategy: data.ownerLeaveStrategy,
       }),
       ...(data.allowOwnerManagement !== undefined && {
         controlPanelEnabled: data.allowOwnerManagement,
@@ -184,31 +164,12 @@ export class TempVoiceConfigServiceStatic {
         maxChannelsPerUser: data.maxChannelsPerUser,
       }),
       ...(data.logChannelId !== undefined && { logChannelId: data.logChannelId ?? undefined }),
+      ...(data.logWebhook !== undefined && { logWebhook: data.logWebhook ?? undefined }),
     };
 
     const config = await configService.update(guildId, serviceData);
 
-    // Map to API response format
-    return {
-      guildId: config.guildId,
-      enabled: config.enabled,
-      joinChannelIds: config.joinToCreateChannels,
-      namingScheme: mapNamingSchemeFromDb(config.namingScheme),
-      customNamingPattern: config.defaultNameTemplate,
-      userLimit: config.defaultUserLimit,
-      bitrate: config.defaultBitrate ?? 64000,
-      defaultCategoryId: config.categoryId,
-      autoDeleteEmpty: config.deleteDelaySeconds > 0,
-      deleteEmptyAfterMs: config.deleteDelaySeconds * 1000,
-      autoDeleteOwnerLeave: config.ownerLeaveStrategy === OwnerLeaveStrategy.DELETE,
-      deleteOwnerLeaveAfterMs: config.deleteDelaySeconds * 1000,
-      allowOwnerTransfer: true,
-      allowOwnerManagement: config.controlPanelEnabled,
-      maxChannelsPerUser: config.maxChannelsPerUser,
-      logChannelId: config.logChannelId,
-      createdAt: config.createdAt,
-      updatedAt: config.updatedAt,
-    };
+    return mapConfigToApiResponse(config);
   }
 
   /**

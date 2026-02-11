@@ -14,9 +14,10 @@ export * from './models/api-response.model.js';
 export { TempVoiceConfigService } from './services/config.service.js';
 export { TempChannelService } from './services/temp-channel.service.js';
 export { PermissionsService } from './services/permissions.service.js';
-export { CleanupService } from './services/cleanup.service.js';
 export { RecoveryService } from './services/recovery.service.js';
 export { ControlPanelService } from './services/control-panel.service.js';
+export { ChannelOperationsService } from './services/operations.service.js';
+export { getTempVoiceServices } from './services/service-container.js';
 
 // Utilities
 export * from './utils/validation.util.js';

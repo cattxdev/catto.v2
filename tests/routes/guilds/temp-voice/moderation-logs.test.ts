@@ -7,6 +7,26 @@ import { createMockRequest, createMockResponse, createMockContainer, expectSucce
 import { TempVoiceModerationLogsGetRoute } from '../../../../src/routes/guilds/temp-voice/moderation/logs-get.js';
 import { TempVoiceModerationTestPostRoute } from '../../../../src/routes/guilds/temp-voice/moderation/test-post.js';
 import { NameValidationService } from '../../../../src/modules/temp-voice/services/moderation/name-validation.service.js';
+
+const { mockApiGateFromRequest } = vi.hoisted(() => ({
+    mockApiGateFromRequest: vi.fn(),
+}));
+
+vi.mock('#lib/validation/ApiGate.js', () => ({
+    ApiGate: { fromRequest: mockApiGateFromRequest },
+}));
+
+function createMockGate(overrides: Partial<{ authOk: boolean }> = {}) {
+    return {
+        userId: 'user-123',
+        isAdmin: false,
+        checkAuth: vi.fn().mockResolvedValue({
+            ok: overrides.authOk ?? true,
+            code: overrides.authOk === false ? 'NO_PERMISSION' : undefined,
+        }),
+    };
+}
+
 // Create shared mock functions
 const mockValidate = vi.fn();
 
@@ -34,8 +54,10 @@ describe('Moderation Logs and Test Routes', () => {
 
         mockContainer = createMockContainer();
         mockContainer.prisma = mockPrisma;
+        mockApiGateFromRequest.mockResolvedValue(createMockGate());
 
         vi.clearAllMocks();
+        mockApiGateFromRequest.mockResolvedValue(createMockGate());
     });
 
     describe('GET /guilds/:guildId/temp-voice/moderation/logs', () => {

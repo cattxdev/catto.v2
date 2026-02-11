@@ -1,17 +1,20 @@
 /**
- * Service for managing control panel messages
+ * Service for managing control panel messages (Components V2)
  */
 
 import { TempVoiceChannel } from '@prisma/client';
-import type { Client, GuildMember, Message, TextChannel, VoiceChannel } from 'discord.js';
+import type { Client, GuildMember, Message, VoiceChannel } from 'discord.js';
 import {
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
+  MessageFlags,
 } from 'discord.js';
+import { container as sapphireContainer } from '@sapphire/framework';
 import { EMOJI } from '#lib/discord/design/index.js';
+import { encodeCustomId } from '#lib/discord/core/index.js';
+import { container as fluentContainer } from '#lib/discord/containers/container.js';
 import { TempChannelService } from './temp-channel.service.js';
 
 export class ControlPanelService {
@@ -21,7 +24,7 @@ export class ControlPanelService {
   ) {}
 
   /**
-   * Send a control panel message to the text channel associated with the voice channel
+   * Send a control panel message to the voice channel's text chat
    */
   async send(channelId: string, owner: GuildMember): Promise<Message | null> {
     try {
@@ -35,51 +38,38 @@ export class ControlPanelService {
         return null;
       }
 
-      // Get the voice channel's text chat (Discord automatically creates a linked text channel for voice channels)
       const guild = owner.guild;
-      const voiceChan = voiceChannel as VoiceChannel;
-
-      // Try to send to the voice channel itself (Discord shows text messages in voice channels)
-      let textChannel: TextChannel | VoiceChannel = voiceChan;
-
-      // If voice channel doesn't support sending messages, find first accessible text channel
       const botMember = guild.members.me;
       if (!botMember) {
         return null;
       }
 
-      if (!voiceChan.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])) {
-        const fallbackChannel = guild.channels.cache.find(
-          (ch) =>
-            ch.type === ChannelType.GuildText &&
-            ch.permissionsFor(owner)?.has('ViewChannel') &&
-            ch.permissionsFor(botMember)?.has(['SendMessages', 'EmbedLinks'])
-        ) as TextChannel | undefined;
-
-        if (!fallbackChannel) {
-          return null;
-        }
-        textChannel = fallbackChannel;
+      // Voice channels support text messages — send directly
+      const voiceChan = voiceChannel as VoiceChannel;
+      if (!voiceChan.permissionsFor(botMember)?.has('SendMessages')) {
+        sapphireContainer.logger.warn(
+          `[TempVoice Panel] Bot lacks SendMessages in voice channel ${channelId}`
+        );
+        return null;
       }
 
-      const embed = this.buildEmbed(tempChannel, voiceChannel as VoiceChannel, owner);
-      const rows = this.buildButtons(tempChannel);
+      const panel = this.buildPanel(tempChannel, voiceChan, owner);
+      const buttonRow = this.buildButtons(tempChannel);
 
-      const message = await textChannel.send({
-        content: `<@${owner.id}> Here's your voice channel control panel.`,
-        embeds: [embed],
-        components: rows,
+      const message = await voiceChan.send({
+        components: [panel.actions(buttonRow).build()],
+        flags: MessageFlags.IsComponentsV2,
       });
 
       // Store message info in database
       await this._channelService.update(channelId, {
         controlPanelMessageId: message.id,
-        controlPanelChannelId: textChannel.id,
+        controlPanelChannelId: voiceChan.id,
       });
 
       return message;
     } catch (error) {
-      console.error('Failed to send control panel:', error);
+      sapphireContainer.logger.error('[TempVoice Panel] Failed to send:', error);
       return null;
     }
   }
@@ -98,10 +88,8 @@ export class ControlPanelService {
         return;
       }
 
-      const textChannel = (await this._client.channels.fetch(
-        tempChannel.controlPanelChannelId
-      )) as TextChannel;
-      if (!textChannel) {
+      const textChannel = await this._client.channels.fetch(tempChannel.controlPanelChannelId);
+      if (!textChannel || !('messages' in textChannel) || !('guild' in textChannel)) {
         return;
       }
 
@@ -116,15 +104,15 @@ export class ControlPanelService {
       }
 
       const owner = await textChannel.guild.members.fetch(tempChannel.ownerId);
-      const embed = this.buildEmbed(tempChannel, voiceChannel, owner);
-      const rows = this.buildButtons(tempChannel);
+      const panel = this.buildPanel(tempChannel, voiceChannel, owner);
+      const buttonRow = this.buildButtons(tempChannel);
 
       await message.edit({
-        embeds: [embed],
-        components: rows,
+        components: [panel.actions(buttonRow).build()],
+        flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
-      console.error('Failed to refresh control panel:', error);
+      sapphireContainer.logger.error('[TempVoice Panel] Failed to refresh:', error);
     }
   }
 
@@ -133,126 +121,79 @@ export class ControlPanelService {
    */
   async delete(messageId: string, textChannelId: string): Promise<void> {
     try {
-      const textChannel = (await this._client.channels.fetch(textChannelId)) as TextChannel;
-      if (!textChannel) {
+      const channel = await this._client.channels.fetch(textChannelId);
+      if (!channel || !('messages' in channel)) {
         return;
       }
 
-      const message = await textChannel.messages.fetch(messageId);
+      const message = await channel.messages.fetch(messageId);
       if (message) {
         await message.delete();
       }
     } catch (error) {
-      console.error('Failed to delete control panel:', error);
+      sapphireContainer.logger.error('[TempVoice Panel] Failed to delete:', error);
     }
   }
 
   /**
-   * Build the control panel embed
+   * Build the control panel using Components V2 FluentContainer
    */
-  private buildEmbed(
+  private buildPanel(
     tempChannel: TempVoiceChannel,
     voiceChannel: VoiceChannel,
     owner: GuildMember
-  ): EmbedBuilder {
-    const usersValue =
-      tempChannel.customUserLimit && tempChannel.customUserLimit > 0
-        ? `\`${voiceChannel.members.size}/${tempChannel.customUserLimit}\``
-        : `\`${voiceChannel.members.size}\``;
+  ) {
+    const memberCount = voiceChannel.members.size;
+    const userLimit = tempChannel.customUserLimit ?? voiceChannel.userLimit;
+    const membersDisplay =
+      userLimit && userLimit > 0 ? `\`${memberCount}/${userLimit}\`` : `\`${memberCount}\``;
 
-    const embed = new EmbedBuilder()
-      .setColor(0xffffff) // White color (16777215)
-      .setDescription('### <:4767voiceevent:1462964331317825711> VOICE CHANNEL CONTROL PANEL')
-      .addFields(
-        {
-          name: '<:4102owner1:1462962657270169712> Owner',
-          value: `<@${owner.id}>`,
-          inline: true,
-        },
-        {
-          name: '<:5837members:1462962641105584211> Users',
-          value: usersValue,
-          inline: true,
-        },
-        {
-          name: '<:8635krispon:1462962615465541642> Bitrate',
-          value: `\`${(tempChannel.customBitrate || voiceChannel.bitrate) / 1000}kbps\``,
-          inline: true,
-        },
-        {
-          name: '<:9577voiceprivateevent:1462963079485853707> Status',
-          value: tempChannel.isLocked ? '`Locked`' : '`Unlocked`',
-          inline: true,
-        },
-        {
-          name: '<:3500preview:1462962674542444658> Visibility',
-          value: tempChannel.isHidden ? '`Hidden`' : '`Visible`',
-          inline: true,
-        },
-        {
-          name: '<:2910eventlocation:1462962693026611281> Region',
-          value: `\`${tempChannel.customRegion || voiceChannel.rtcRegion || 'Auto'}\``,
-          inline: true,
-        }
-      )
-      .setFooter({
-        text: `Channel ID: ${voiceChannel.id}`,
+    const bitrate = (tempChannel.customBitrate || voiceChannel.bitrate) / 1000;
+    const region = tempChannel.customRegion || voiceChannel.rtcRegion || 'auto';
+    const lockStatus = tempChannel.isLocked
+      ? `${EMOJI.CHANNELS.STATE.LOCKED} \`locked\``
+      : `${EMOJI.CHANNELS.STATE.UNLOCKED} \`unlocked\``;
+    const visStatus = tempChannel.isHidden
+      ? `${EMOJI.UI.INDICATORS.HIDDEN} \`hidden\``
+      : `${EMOJI.UI.INDICATORS.VISIBILITY} \`visible\``;
+
+    return fluentContainer({ color: 0xffffff })
+      .h2(`Voice Channel Control Panel`)
+      .separator()
+      .kv({
+        [`${EMOJI.USER.ROLES.OWNER} Owner`]: `<@${owner.id}>`,
+        [`${EMOJI.USER.ICONS.MULTIPLE_MEMBERS} Members`]: membersDisplay,
       })
-      .setTimestamp();
-
-    return embed;
+      .separator()
+      .text(
+        `> ${EMOJI.VOICE.CONTROLS.BITRATE} \`${bitrate}kbps\` • ` +
+          `${EMOJI.TIME.LOCATION}\`${region}\`` +
+          `\n> ${visStatus} • ` +
+          `${lockStatus}`
+      )
+      .divider()
+      .footer(`${EMOJI.USER.ICONS.ID_CARD} Channel ID: ${voiceChannel.id}`);
   }
 
   /**
-   * Build the control panel buttons
+   * Build the 3 category buttons (settings, users, ownership)
    */
-  private buildButtons(tempChannel: TempVoiceChannel): ActionRowBuilder<ButtonBuilder>[] {
-    const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  private buildButtons(tempChannel: TempVoiceChannel): ActionRowBuilder<ButtonBuilder> {
+    const channelId = tempChannel.channelId;
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setCustomId(`tempvoice_lock_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.CHANNELS.STATE.LOCKED)
+        .setCustomId(encodeCustomId('tv', 'settings', channelId))
+        .setEmoji(EMOJI.UI.ACTIONS.SETTINGS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
-        .setCustomId(`tempvoice_hide_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.UI.INDICATORS.VISIBILITY)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_rename_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.UI.ACTIONS.EDIT)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_limit_${tempChannel.channelId}`)
+        .setCustomId(encodeCustomId('tv', 'users', channelId))
         .setEmoji(EMOJI.USER.ICONS.MULTIPLE_MEMBERS)
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
-        .setCustomId(`tempvoice_settings_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.UI.ACTIONS.SETTINGS)
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_permit_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.USER.ACTIONS.INVITE)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_deny_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.MODERATION.STATE.SUSPICIOUS)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_trust_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.UI.ACTIONS.ADD_GREEN)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_claim_${tempChannel.channelId}`)
+        .setCustomId(encodeCustomId('tv', 'ownership', channelId))
         .setEmoji(EMOJI.USER.ROLES.OWNER)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`tempvoice_transfer_${tempChannel.channelId}`)
-        .setEmoji(EMOJI.UI.NAV.RIGHT)
         .setStyle(ButtonStyle.Secondary)
     );
-
-    return [row1, row2];
   }
 }

@@ -74,7 +74,7 @@ const RAW_EMOJIS = {
     CONTROLS: {
       TOGGLE_MIC: { custom: '<:voice_toggle:1462785392452305100>', fallback: '\uD83C\uDFA4' },
       PAUSE: { custom: '<:sound_pause_white:1462796413376139429>', fallback: '\u23F8\uFE0F' },
-      BITRATE: { custom: '<:bitrate:1464762458511601684>', fallback: '\uD83D\uDD0A' },
+      BITRATE: { custom: '<:bitrate:1464762636926455808>', fallback: '\uD83D\uDD0A' },
     },
     STATE: {
       MUTED: { custom: '<:muted:1462784532481577042>', fallback: '\uD83D\uDD07' },
@@ -118,7 +118,7 @@ const RAW_EMOJIS = {
         fallback: '\uD83D\uDD08',
       },
       LOCKED: { custom: '<:channel_locked:1464762947573125252>', fallback: '\uD83D\uDD12' },
-      UNLOCKED: { custom: '\uD83D\uDD13', fallback: '\uD83D\uDD13' },
+      UNLOCKED: { custom: '<:channel_unlocked:1470760381017489579>', fallback: '\uD83D\uDD13' },
     },
     ACTIONS: {
       CREATE: { custom: '<:create_channel:1463745157873537098>', fallback: '\uD83D\uDCCE' },
@@ -162,7 +162,7 @@ const RAW_EMOJIS = {
       READ: { custom: '<:read_check:1463366119825084501>', fallback: '\u2705' },
       VISIBILITY: { custom: '<:visibility:1464763305754230825>', fallback: '\uD83D\uDC41' },
       HIDDEN: {
-        custom: '\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8\uFE0F',
+        custom: '<:visibility2:1470638578290917426>',
         fallback: '\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8\uFE0F',
       },
     },

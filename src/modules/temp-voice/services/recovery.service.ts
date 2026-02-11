@@ -1,10 +1,12 @@
 /**
- * Service for recovering temp voice channels after bot restart
+ * Service for recovering temp voice channels after bot restart.
+ * Uses BullMQ (via tempVoiceQueue) as the single deletion authority.
  */
 
 import { PrismaClient } from '@prisma/client';
 import type { Client } from 'discord.js';
-import { CleanupService } from './cleanup.service.js';
+import { tempVoiceQueue } from './temp-voice-queue.service.js';
+import { TempVoiceConfigService } from './config.service.js';
 
 export class RecoveryService {
   private lastReconciliationStats = {
@@ -14,11 +16,14 @@ export class RecoveryService {
     lastRunAt: null as Date | null,
   };
 
+  private configService: TempVoiceConfigService;
+
   constructor(
     private prisma: PrismaClient,
-    private client: Client,
-    private cleanupService: CleanupService
-  ) {}
+    private client: Client
+  ) {
+    this.configService = new TempVoiceConfigService(prisma, client);
+  }
 
   /**
    * Reconcile database state with Discord after restart
@@ -58,8 +63,15 @@ export class RecoveryService {
 
         // Channel exists - check if empty
         if (channel.members.size === 0) {
-          // Empty channel - schedule for deletion
-          await this.cleanupService.scheduleDelete(record.channelId);
+          // Empty channel — queue deletion via BullMQ
+          const config = await this.configService.getOrNull(record.guildId);
+          const delayMs = config ? config.deleteDelaySeconds * 1000 : 5000;
+          await tempVoiceQueue.queueDelete(
+            record.guildId,
+            record.channelId,
+            'Empty after restart',
+            delayMs
+          );
           scheduledForDeletion++;
         } else {
           // Channel has members - resume tracking

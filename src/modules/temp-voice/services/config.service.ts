@@ -9,9 +9,21 @@ import type {
   TempVoiceConfigInput,
   TempVoiceConfigUpdate,
 } from '../models/config.model.js';
-import { DEFAULT_TEMP_VOICE_CONFIG, type OwnerLeaveStrategy } from '../constants.js';
+import {
+  DEFAULT_TEMP_VOICE_CONFIG,
+  REDIS_KEYS,
+  CACHE_TTL,
+  type OwnerLeaveStrategy,
+} from '../constants.js';
+import { getJson, setJson, deleteJson } from '#lib/cache/typedCache.js';
+import { z } from 'zod';
 import type { Client } from 'discord.js';
 import { ChannelType } from 'discord.js';
+
+/**
+ * Zod schema for cached config — passthrough to accept the full Prisma shape
+ */
+const tempVoiceConfigCacheSchema = z.object({}).passthrough();
 
 export class TempVoiceConfigService {
   constructor(
@@ -24,12 +36,29 @@ export class TempVoiceConfigService {
    * Creates default config if it doesn't exist
    */
   async get(guildId: string): Promise<TempVoiceConfig> {
+    // Try Redis cache first
+    try {
+      const cached = await getJson(this.cacheKey(guildId), tempVoiceConfigCacheSchema);
+      if (cached) {
+        return this.mapToModel(cached as PrismaTempVoiceConfig);
+      }
+    } catch {
+      // Redis unavailable — fall through to Prisma
+    }
+
     const config = await this.prisma.tempVoiceConfig.findUnique({
       where: { guildId },
     });
 
     if (!config) {
       return this.create(guildId, DEFAULT_TEMP_VOICE_CONFIG);
+    }
+
+    // Store in Redis cache
+    try {
+      await setJson(this.cacheKey(guildId), tempVoiceConfigCacheSchema, config, CACHE_TTL.CONFIG);
+    } catch {
+      // Redis unavailable — continue without caching
     }
 
     return this.mapToModel(config);
@@ -39,11 +68,32 @@ export class TempVoiceConfigService {
    * Get configuration without creating if it doesn't exist
    */
   async getOrNull(guildId: string): Promise<TempVoiceConfig | null> {
+    // Try Redis cache first
+    try {
+      const cached = await getJson(this.cacheKey(guildId), tempVoiceConfigCacheSchema);
+      if (cached) {
+        return this.mapToModel(cached as PrismaTempVoiceConfig);
+      }
+    } catch {
+      // Redis unavailable — fall through to Prisma
+    }
+
     const config = await this.prisma.tempVoiceConfig.findUnique({
       where: { guildId },
     });
 
-    return config ? this.mapToModel(config) : null;
+    if (!config) {
+      return null;
+    }
+
+    // Store in Redis cache
+    try {
+      await setJson(this.cacheKey(guildId), tempVoiceConfigCacheSchema, config, CACHE_TTL.CONFIG);
+    } catch {
+      // Redis unavailable — continue without caching
+    }
+
+    return this.mapToModel(config);
   }
 
   /**
@@ -59,6 +109,8 @@ export class TempVoiceConfigService {
       },
     });
 
+    await this.invalidateCache(guildId);
+
     return this.mapToModel(config);
   }
 
@@ -70,6 +122,8 @@ export class TempVoiceConfigService {
       where: { guildId },
       data,
     });
+
+    await this.invalidateCache(guildId);
 
     return this.mapToModel(config);
   }
@@ -222,6 +276,8 @@ export class TempVoiceConfigService {
     await this.prisma.tempVoiceConfig.delete({
       where: { guildId },
     });
+
+    await this.invalidateCache(guildId);
   }
 
   /**
@@ -247,5 +303,23 @@ export class TempVoiceConfigService {
           : {},
       ownerLeaveStrategy: data.ownerLeaveStrategy as OwnerLeaveStrategy,
     };
+  }
+
+  /**
+   * Build the Redis cache key for a guild's temp voice config
+   */
+  private cacheKey(guildId: string): string {
+    return `${REDIS_KEYS.CONFIG_CACHE}:${guildId}`;
+  }
+
+  /**
+   * Invalidate the Redis cache for a guild's temp voice config
+   */
+  private async invalidateCache(guildId: string): Promise<void> {
+    try {
+      await deleteJson(this.cacheKey(guildId));
+    } catch {
+      // Redis may be unavailable — ignore and continue
+    }
   }
 }

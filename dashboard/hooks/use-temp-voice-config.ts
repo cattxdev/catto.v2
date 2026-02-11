@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   tempVoiceService,
   type TempVoiceConfig,
@@ -8,7 +8,49 @@ import {
   type TempVoiceChannel,
   type TempVoiceStats,
   type TempVoiceSetupRequest,
+  type OwnerLeaveStrategy,
 } from '@/lib/services/temp-voice.service';
+
+/** Local editable fields tracked for dirty detection */
+export interface LocalTempVoiceConfig {
+  namingScheme: 'username' | 'displayname' | 'sequential' | 'custom';
+  customNamingPattern: string;
+  userLimit: number | null;
+  bitrate: number | null;
+  maxChannelsPerUser: number;
+  defaultLocked: boolean;
+  defaultHidden: boolean;
+  ownerLeaveStrategy: OwnerLeaveStrategy;
+  autoDeleteEmpty: boolean;
+  deleteEmptyAfterMs: number;
+  autoDeleteOwnerLeave: boolean;
+  deleteOwnerLeaveAfterMs: number;
+  allowOwnerTransfer: boolean;
+  allowOwnerManagement: boolean;
+  enableNameModeration: boolean;
+  blockedKeywords: string[];
+}
+
+function buildLocalConfig(config: TempVoiceConfig | null): LocalTempVoiceConfig {
+  return {
+    namingScheme: config?.namingScheme || 'username',
+    customNamingPattern: config?.customNamingPattern || "{username}'s Channel",
+    userLimit: config?.userLimit || null,
+    bitrate: config?.bitrate || null,
+    maxChannelsPerUser: config?.maxChannelsPerUser || 1,
+    defaultLocked: config?.defaultLocked ?? false,
+    defaultHidden: config?.defaultHidden ?? false,
+    ownerLeaveStrategy: config?.ownerLeaveStrategy || 'TRANSFER',
+    autoDeleteEmpty: config?.autoDeleteEmpty ?? true,
+    deleteEmptyAfterMs: config?.deleteEmptyAfterMs || 60000,
+    autoDeleteOwnerLeave: config?.autoDeleteOwnerLeave ?? false,
+    deleteOwnerLeaveAfterMs: config?.deleteOwnerLeaveAfterMs || 300000,
+    allowOwnerTransfer: config?.allowOwnerTransfer ?? true,
+    allowOwnerManagement: config?.allowOwnerManagement ?? true,
+    enableNameModeration: config?.enableNameModeration ?? false,
+    blockedKeywords: config?.blockedKeywords ?? [],
+  };
+}
 
 export function useTempVoiceConfig(guildId: string) {
   const [config, setConfig] = useState<TempVoiceConfig | null>(null);
@@ -18,6 +60,42 @@ export function useTempVoiceConfig(guildId: string) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const mountedRef = useRef(true);
+
+  // Local editable config state
+  const [localConfig, setLocalConfig] = useState<LocalTempVoiceConfig>(() =>
+    buildLocalConfig(null)
+  );
+
+  // Sync localConfig when server config changes (e.g., after setup or fetch)
+  useEffect(() => {
+    if (config) {
+      setLocalConfig(buildLocalConfig(config));
+    }
+  }, [config]);
+
+  // Dirty tracking: compare localConfig to server config
+  const isDirty = useMemo(() => {
+    if (!config) return false;
+    const server = buildLocalConfig(config);
+    return (
+      server.namingScheme !== localConfig.namingScheme ||
+      server.customNamingPattern !== localConfig.customNamingPattern ||
+      server.userLimit !== localConfig.userLimit ||
+      server.bitrate !== localConfig.bitrate ||
+      server.maxChannelsPerUser !== localConfig.maxChannelsPerUser ||
+      server.defaultLocked !== localConfig.defaultLocked ||
+      server.defaultHidden !== localConfig.defaultHidden ||
+      server.ownerLeaveStrategy !== localConfig.ownerLeaveStrategy ||
+      server.autoDeleteEmpty !== localConfig.autoDeleteEmpty ||
+      server.deleteEmptyAfterMs !== localConfig.deleteEmptyAfterMs ||
+      server.autoDeleteOwnerLeave !== localConfig.autoDeleteOwnerLeave ||
+      server.deleteOwnerLeaveAfterMs !== localConfig.deleteOwnerLeaveAfterMs ||
+      server.allowOwnerTransfer !== localConfig.allowOwnerTransfer ||
+      server.allowOwnerManagement !== localConfig.allowOwnerManagement ||
+      server.enableNameModeration !== localConfig.enableNameModeration ||
+      JSON.stringify(server.blockedKeywords) !== JSON.stringify(localConfig.blockedKeywords)
+    );
+  }, [config, localConfig]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -226,6 +304,9 @@ export function useTempVoiceConfig(guildId: string) {
     loading,
     saving,
     error,
+    isDirty,
+    localConfig,
+    setLocalConfig,
     updateConfig,
     createConfig,
     deleteConfig,

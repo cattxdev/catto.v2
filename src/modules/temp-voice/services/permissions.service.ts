@@ -219,26 +219,4 @@ export class PermissionsService {
       maxAllowed,
     };
   }
-
-  /**
-   * Get permissions for a temp channel (static method for API)
-   */
-  static async getPermissions(channelId: string) {
-    const { database } = require('#lib/database');
-    const perms = await database.tempVoicePermissions.findUnique({
-      where: { channelId },
-    });
-
-    if (!perms) {
-      return null;
-    }
-
-    return {
-      channelId: perms.channelId,
-      locked: perms.locked,
-      hidden: perms.hidden,
-      allowedUserIds: Array.isArray(perms.allowedUserIds) ? perms.allowedUserIds : [],
-      deniedUserIds: Array.isArray(perms.deniedUserIds) ? perms.deniedUserIds : [],
-    };
-  }
 }

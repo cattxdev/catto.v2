@@ -1,13 +1,11 @@
 import { Command } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
-import { ChannelType, VoiceChannel, type GuildMember } from 'discord.js';
+import { ChannelType, type GuildMember } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { TempChannelService } from '#modules/temp-voice/services/temp-channel.service.js';
-import { TempVoiceConfigService } from '#modules/temp-voice/services/config.service.js';
-import { PermissionsService } from '#modules/temp-voice/services/permissions.service.js';
-import { ControlPanelService } from '#modules/temp-voice/services/control-panel.service.js';
+import { getTempVoiceServices } from '../../modules/temp-voice/services/service-container.js';
 import { NameModerationService } from '#modules/temp-voice/services/moderation/name-moderation.service.js';
-import { TempVoiceChannel } from '@prisma/client';
+import type { OperationContext } from '../../modules/temp-voice/services/operations.service.js';
+import { handleVoiceSetup } from './_setup.js';
 
 @ApplyOptions<Command.Options>({
   name: 'voice',
@@ -16,10 +14,6 @@ import { TempVoiceChannel } from '@prisma/client';
   preconditions: ['GuildOnly'],
 })
 export class TempVoiceCommand extends Command {
-  private channelService!: TempChannelService;
-  private configService!: TempVoiceConfigService;
-  private permissionsService!: PermissionsService;
-  private controlPanelService!: ControlPanelService;
   private moderationService!: NameModerationService;
 
   public override registerApplicationCommands(registry: Command.Registry) {
@@ -167,6 +161,11 @@ export class TempVoiceCommand extends Command {
         .addSubcommand((subcommand) =>
           subcommand.setName('panel').setDescription('Show the control panel for your channel')
         )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName('setup')
+            .setDescription('Interactive setup wizard for temp voice (Manage Server)')
+        )
     );
   }
 
@@ -178,23 +177,15 @@ export class TempVoiceCommand extends Command {
       });
     }
 
-    const guildId = interaction.guild.id;
+    const member = interaction.member as GuildMember;
+    const subcommand = interaction.options.getSubcommand();
 
-    // Initialize services lazily
-    if (!this.channelService) {
-      this.configService = new TempVoiceConfigService(this.container.prisma, this.container.client);
-      this.permissionsService = new PermissionsService();
-      this.channelService = new TempChannelService(this.container.prisma, this.permissionsService);
-      this.controlPanelService = new ControlPanelService(
-        this.container.client,
-        this.channelService
-      );
+    // Setup doesn't require being in a voice channel
+    if (subcommand === 'setup') {
+      return handleVoiceSetup(interaction);
     }
 
-    const subcommand = interaction.options.getSubcommand();
-    const member = interaction.member as GuildMember;
-
-    // Get member's voice channel
+    // Must be in a voice channel
     const voiceChannel = member.voice.channel;
     if (!voiceChannel || voiceChannel.type !== ChannelType.GuildVoice) {
       return interaction.reply({
@@ -203,35 +194,29 @@ export class TempVoiceCommand extends Command {
       });
     }
 
-    // Check if it's a temp voice channel
-    const tempChannel = await this.channelService.getByChannelId(voiceChannel.id);
-    if (!tempChannel) {
+    const { operations } = getTempVoiceServices();
+
+    // Build context (fetches temp channel + config)
+    const ctx = await operations.buildContext(interaction.guild, voiceChannel.id);
+    if (!ctx) {
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} This is not a temporary voice channel.`,
         ephemeral: true,
       });
     }
 
-    // Check permissions (except for claim)
+    // Permission check (except for claim which checks owner presence instead)
     if (subcommand !== 'claim') {
-      const config = await this.configService.get(guildId);
-      const canManage = this.permissionsService.canManageChannel(
-        member.id,
-        tempChannel.ownerId,
-        config.adminRoleIds || [],
-        member.roles.cache.map((r) => r.id),
-        member.permissions.has('Administrator'),
-        (tempChannel.trustedUserIds as string[]) || []
-      );
-      if (!canManage) {
+      const accessError = operations.checkAccess(member, ctx.tempChannel, ctx.config);
+      if (accessError) {
         return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} You do not have permission to manage this channel.`,
+          content: `${EMOJI.STATUS.ERROR} ${accessError}`,
           ephemeral: true,
         });
       }
 
-      // Check if customization is allowed (except for panel/claim/transfer which are always allowed)
-      if (!config.allowCustomization && !['panel', 'claim', 'transfer'].includes(subcommand)) {
+      // Check if customization is allowed (except panel/claim/transfer)
+      if (!ctx.config.allowCustomization && !['panel', 'transfer'].includes(subcommand)) {
         return interaction.reply({
           content: `${EMOJI.STATUS.ERROR} Channel customization is disabled in this server.`,
           ephemeral: true,
@@ -239,42 +224,62 @@ export class TempVoiceCommand extends Command {
       }
     }
 
-    // Route to appropriate handler
+    // Route to operations service
     switch (subcommand) {
-      case 'rename':
-        return this.handleRename(interaction, tempChannel, voiceChannel as VoiceChannel);
-      case 'limit':
-        return this.handleLimit(interaction, tempChannel, voiceChannel as VoiceChannel);
       case 'lock':
-        return this.handleLock(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleToggleLock(interaction, ctx, true);
       case 'unlock':
-        return this.handleUnlock(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleToggleLock(interaction, ctx, false);
       case 'hide':
-        return this.handleHide(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleToggleHide(interaction, ctx, true);
       case 'show':
-        return this.handleShow(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleToggleHide(interaction, ctx, false);
+      case 'rename':
+        return this.handleRename(interaction, ctx);
+      case 'limit':
+        return this.handleSimpleOp(interaction, () =>
+          operations.setLimit(ctx, interaction.options.getInteger('limit', true))
+        );
       case 'permit':
-        return this.handlePermit(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.permit(ctx, [interaction.options.getUser('user', true).id])
+        );
       case 'deny':
-        return this.handleDeny(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.deny(ctx, [interaction.options.getUser('user', true).id])
+        );
       case 'trust':
-        return this.handleTrust(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.toggleTrust(ctx, [interaction.options.getUser('user', true).id])
+        );
       case 'untrust':
-        return this.handleUntrust(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.toggleTrust(ctx, [interaction.options.getUser('user', true).id])
+        );
       case 'kick':
-        return this.handleKick(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.kick(ctx, [interaction.options.getUser('user', true).id])
+        );
       case 'transfer':
-        return this.handleTransfer(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.transfer(ctx, interaction.options.getUser('user', true).id)
+        );
       case 'bitrate':
-        return this.handleBitrate(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.setBitrate(ctx, interaction.options.getInteger('bitrate', true))
+        );
       case 'region':
-        return this.handleRegion(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.setRegion(ctx, interaction.options.getString('region', true))
+        );
       case 'reset':
-        return this.handleReset(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () => operations.reset(ctx));
       case 'claim':
-        return this.handleClaim(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handleSimpleOp(interaction, () =>
+          operations.claim(ctx, member.id, member.voice.channelId)
+        );
       case 'panel':
-        return this.handlePanel(interaction, tempChannel, voiceChannel as VoiceChannel);
+        return this.handlePanel(interaction, ctx, member);
       default:
         return interaction.reply({
           content: `${EMOJI.STATUS.ERROR} Unknown subcommand.`,
@@ -283,12 +288,78 @@ export class TempVoiceCommand extends Command {
     }
   }
 
+  // ───── Generic operation handler ─────
+
+  private async handleSimpleOp(
+    interaction: Command.ChatInputCommandInteraction,
+    operationFn: () => Promise<{ ok: boolean; message: string }>
+  ) {
+    try {
+      const result = await operationFn();
+      const emoji = result.ok ? EMOJI.STATUS.SUCCESS : EMOJI.STATUS.ERROR;
+      return interaction.reply({
+        content: `${emoji} ${result.message}`,
+        ephemeral: true,
+      });
+    } catch (error) {
+      this.container.logger.error('[TempVoice] Command operation failed:', error);
+      return interaction.reply({
+        content: `${EMOJI.STATUS.ERROR} An unexpected error occurred. Please try again.`,
+        ephemeral: true,
+      });
+    }
+  }
+
+  // ───── Lock/Unlock (directional, not toggle) ─────
+
+  private async handleToggleLock(
+    interaction: Command.ChatInputCommandInteraction,
+    ctx: OperationContext,
+    wantLocked: boolean
+  ) {
+    // If already in desired state, just confirm
+    if (ctx.tempChannel.isLocked === wantLocked) {
+      return interaction.reply({
+        content: wantLocked
+          ? `${EMOJI.CHANNELS.STATE.LOCKED} Channel is already locked.`
+          : `${EMOJI.CHANNELS.STATE.UNLOCKED} Channel is already unlocked.`,
+        ephemeral: true,
+      });
+    }
+
+    // toggleLock will flip to the desired state since current != desired
+    return this.handleSimpleOp(interaction, () =>
+      getTempVoiceServices().operations.toggleLock(ctx)
+    );
+  }
+
+  // ───── Hide/Show (directional, not toggle) ─────
+
+  private async handleToggleHide(
+    interaction: Command.ChatInputCommandInteraction,
+    ctx: OperationContext,
+    wantHidden: boolean
+  ) {
+    if (ctx.tempChannel.isHidden === wantHidden) {
+      return interaction.reply({
+        content: wantHidden
+          ? `${EMOJI.UI.INDICATORS.HIDDEN} Channel is already hidden.`
+          : `${EMOJI.UI.INDICATORS.VISIBILITY} Channel is already visible.`,
+        ephemeral: true,
+      });
+    }
+
+    return this.handleSimpleOp(interaction, () =>
+      getTempVoiceServices().operations.toggleHide(ctx)
+    );
+  }
+
+  // ───── Rename (with moderation) ─────
+
   private async handleRename(
     interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
+    ctx: OperationContext
   ) {
-    // Initialize services if needed
     if (!this.moderationService) {
       this.moderationService = new NameModerationService(
         this.container.prisma,
@@ -297,57 +368,59 @@ export class TempVoiceCommand extends Command {
     }
 
     const newName = interaction.options.getString('name', true);
-    const guildId = voiceChannel.guildId;
+    const { operations } = getTempVoiceServices();
 
     try {
-      // Get config to check moderation settings
-      const config = await this.configService.get(guildId);
-      const oldName = voiceChannel.name;
       let finalName = newName;
 
       // Apply moderation if enabled
-      if (config.moderationEnabled) {
+      if (ctx.config.moderationEnabled) {
+        const voiceChannel = await ctx.guild.channels.fetch(ctx.channelId, { force: true });
+        if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+          return interaction.reply({
+            content: `${EMOJI.STATUS.ERROR} Voice channel not found.`,
+            ephemeral: true,
+          });
+        }
+
+        const oldName = voiceChannel.name;
         const moderationResult = await this.moderationService.moderateChannelName(
-          voiceChannel,
+          voiceChannel as import('discord.js').VoiceChannel,
           oldName,
           newName,
-          config,
+          ctx.config,
           interaction.user.id
         );
 
         if (moderationResult && !moderationResult.validation.isAllowed) {
           finalName = moderationResult.finalName;
 
-          // Notify user about moderation
-          if (config.moderationAction === 'AUTO_RENAME') {
-            // Channel already renamed by moderation service, just update DB
-            await this.channelService.update(tempChannel.channelId, { customName: finalName });
+          if (ctx.config.moderationAction === 'AUTO_RENAME') {
+            await operations.rename(ctx, finalName);
             return interaction.reply({
               content: `${EMOJI.STATUS.WARNING} Your channel name was automatically changed to **${finalName}** because "${newName}" contains inappropriate content.`,
               ephemeral: true,
             });
-          } else if (config.moderationAction === 'BLOCK') {
+          } else if (ctx.config.moderationAction === 'BLOCK') {
             return interaction.reply({
               content: `${EMOJI.STATUS.ERROR} That channel name is not allowed. Please choose a different name.`,
               ephemeral: true,
             });
           }
         }
+
+        // Mark as bot rename to prevent channelUpdate listener from re-processing
+        this.moderationService.markAsBotRename(ctx.channelId, finalName);
       }
 
-      // Mark as bot rename to prevent channelUpdate listener from re-processing
-      this.moderationService.markAsBotRename(voiceChannel.id, finalName);
-
-      // Set the Discord channel name
-      await voiceChannel.setName(finalName);
-      await this.channelService.update(tempChannel.channelId, { customName: finalName });
-
+      const result = await operations.rename(ctx, finalName);
+      const emoji = result.ok ? EMOJI.STATUS.SUCCESS : EMOJI.STATUS.ERROR;
       return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel renamed to **${finalName}**`,
+        content: `${emoji} ${result.message}`,
         ephemeral: true,
       });
     } catch (error) {
-      this.container.logger.error('Failed to rename temp voice channel:', error);
+      this.container.logger.error('[TempVoice] Failed to rename channel:', error);
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} Failed to rename channel. Please try again.`,
         ephemeral: true,
@@ -355,623 +428,30 @@ export class TempVoiceCommand extends Command {
     }
   }
 
-  private async handleLimit(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const limit = interaction.options.getInteger('limit', true);
-
-    try {
-      await voiceChannel.setUserLimit(limit);
-      await this.channelService.update(tempChannel.channelId, { customUserLimit: limit });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} User limit set to **${limit === 0 ? 'unlimited' : limit}**`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to set user limit:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to set user limit. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleLock(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    try {
-      await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, {
-        Connect: false,
-      });
-      await this.channelService.update(tempChannel.channelId, { isLocked: true });
-
-      return interaction.reply({
-        content: `${EMOJI.CHANNELS.STATE.LOCKED} Channel locked. Only permitted users can join.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to lock channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to lock channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleUnlock(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    try {
-      await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, {
-        Connect: null,
-      });
-      await this.channelService.update(tempChannel.channelId, { isLocked: false });
-
-      return interaction.reply({
-        content: `${EMOJI.CHANNELS.STATE.UNLOCKED} Channel unlocked.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to unlock channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to unlock channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleHide(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    try {
-      await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, {
-        ViewChannel: false,
-      });
-      await this.channelService.update(tempChannel.channelId, { isHidden: true });
-
-      return interaction.reply({
-        content: `${EMOJI.UI.INDICATORS.HIDDEN} Channel hidden from @everyone.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to hide channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to hide channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleShow(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    try {
-      await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, {
-        ViewChannel: null,
-      });
-      await this.channelService.update(tempChannel.channelId, { isHidden: false });
-
-      return interaction.reply({
-        content: `${EMOJI.UI.INDICATORS.VISIBILITY} Channel is now visible to @everyone.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to show channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to show channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handlePermit(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-
-    try {
-      await voiceChannel.permissionOverwrites.edit(user.id, {
-        Connect: true,
-        ViewChannel: true,
-      });
-
-      // Update allowed users list
-      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
-      if (!allowedUsers.includes(user.id)) {
-        allowedUsers.push(user.id);
-        await this.channelService.update(tempChannel.channelId, { allowedUserIds: allowedUsers });
-      }
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** can now join your channel.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to permit user:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to permit user. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleDeny(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-
-    if (user.id === tempChannel.ownerId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} You cannot deny the channel owner.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      await voiceChannel.permissionOverwrites.edit(user.id, {
-        Connect: false,
-        ViewChannel: false,
-      });
-
-      // Kick user if they're currently in the channel
-      const member = voiceChannel.guild.members.cache.get(user.id);
-      if (member && member.voice.channelId === voiceChannel.id) {
-        await member.voice.disconnect('Denied access to temporary voice channel');
-      }
-
-      // Update denied users list
-      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
-      if (!deniedUsers.includes(user.id)) {
-        deniedUsers.push(user.id);
-      }
-
-      // Remove from allowed users if present
-      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
-      const filteredAllowed = allowedUsers.filter((id: string) => id !== user.id);
-
-      // Remove from trusted users if present
-      const trustedUsers = (tempChannel.trustedUserIds as string[]) || [];
-      const filteredTrusted = trustedUsers.filter((id: string) => id !== user.id);
-
-      await this.channelService.update(tempChannel.channelId, {
-        deniedUserIds: deniedUsers,
-        allowedUserIds: filteredAllowed,
-        trustedUserIds: filteredTrusted,
-      });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** has been denied access to your channel.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to deny user:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to deny user. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleTrust(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-
-    if (user.id === tempChannel.ownerId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} The channel owner is already trusted.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
-
-      if (currentTrusted.includes(user.id)) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} **${user.tag}** is already trusted.`,
-          ephemeral: true,
-        });
-      }
-
-      // Give trusted user permissions
-      await voiceChannel.permissionOverwrites.edit(user.id, {
-        Connect: true,
-        ViewChannel: true,
-        Speak: true,
-        Stream: true,
-        UseVAD: true,
-      });
-
-      // Update trusted users list
-      const newTrusted = [...currentTrusted, user.id];
-
-      // Also add to allowed users and remove from denied
-      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
-      const newAllowed = [...new Set([...allowedUsers, user.id])];
-
-      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
-      const newDenied = deniedUsers.filter((id: string) => id !== user.id);
-
-      await this.channelService.update(tempChannel.channelId, {
-        trustedUserIds: newTrusted,
-        allowedUserIds: newAllowed,
-        deniedUserIds: newDenied,
-      });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** is now trusted and can help manage this channel (except transfer ownership).`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to trust user:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to trust user. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleUntrust(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-
-    if (user.id === tempChannel.ownerId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} The channel owner cannot be untrusted.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      const currentTrusted = (tempChannel.trustedUserIds as string[]) || [];
-
-      if (!currentTrusted.includes(user.id)) {
-        return interaction.reply({
-          content: `${EMOJI.STATUS.ERROR} **${user.tag}** is not trusted.`,
-          ephemeral: true,
-        });
-      }
-
-      // Remove trusted users list entry
-      const newTrusted = currentTrusted.filter((id: string) => id !== user.id);
-
-      await this.channelService.update(tempChannel.channelId, {
-        trustedUserIds: newTrusted,
-      });
-
-      // Remove permission overrides to respect channel state
-      // If user is in allowed list, they'll keep access via those permissions
-      const allowedUsers = (tempChannel.allowedUserIds as string[]) || [];
-      const deniedUsers = (tempChannel.deniedUserIds as string[]) || [];
-
-      if (!allowedUsers.includes(user.id) && !deniedUsers.includes(user.id)) {
-        // No explicit allow/deny, so remove the override entirely
-        await voiceChannel.permissionOverwrites.delete(user.id);
-      } else if (allowedUsers.includes(user.id)) {
-        // Keep as allowed user with basic permissions
-        await voiceChannel.permissionOverwrites.edit(user.id, {
-          Connect: true,
-          ViewChannel: true,
-        });
-      }
-      // If in denied list, permissions are already set correctly
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** is no longer trusted but can still access the channel.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to untrust user:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to untrust user. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleKick(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-    const member = voiceChannel.guild.members.cache.get(user.id);
-
-    if (!member) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} User not found in the server.`,
-        ephemeral: true,
-      });
-    }
-
-    if (user.id === tempChannel.ownerId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} You cannot kick the channel owner.`,
-        ephemeral: true,
-      });
-    }
-
-    if (member.voice.channelId !== voiceChannel.id) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} User is not in your channel.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      await member.voice.disconnect('Kicked from temporary voice channel');
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} **${user.tag}** has been kicked from your channel.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to kick user:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to kick user. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleTransfer(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const user = interaction.options.getUser('user', true);
-    const member = voiceChannel.guild.members.cache.get(user.id);
-
-    if (!member) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} User not found in the server.`,
-        ephemeral: true,
-      });
-    }
-
-    if (user.id === tempChannel.ownerId) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} This user is already the owner.`,
-        ephemeral: true,
-      });
-    }
-
-    if (member.voice.channelId !== voiceChannel.id) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} The new owner must be in your channel.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      // Update permissions
-      const oldOwnerId = tempChannel.ownerId;
-      await voiceChannel.permissionOverwrites.edit(user.id, {
-        Connect: true,
-        Speak: true,
-        MoveMembers: true,
-        ManageChannels: true,
-      });
-
-      // Remove old owner's special permissions
-      await voiceChannel.permissionOverwrites.delete(oldOwnerId);
-
-      // Update database
-      await this.channelService.update(tempChannel.channelId, { ownerId: user.id });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel ownership transferred to **${user.tag}**.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to transfer ownership:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to transfer ownership. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleBitrate(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const bitrate = interaction.options.getInteger('bitrate', true) * 1000; // Convert to bps
-
-    // Validate bitrate based on guild boost level
-    const bitrateValidation = this.permissionsService.validateBitrate(
-      bitrate,
-      voiceChannel.guild.premiumTier
-    );
-    if (!bitrateValidation.valid) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Maximum bitrate for this server is **${bitrateValidation.maxAllowed / 1000}kbps** based on boost level.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      await voiceChannel.setBitrate(bitrate);
-      await this.channelService.update(tempChannel.channelId, { customBitrate: bitrate });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Bitrate set to **${bitrate / 1000}kbps**`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to set bitrate:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to set bitrate. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleRegion(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const region = interaction.options.getString('region', true);
-    const rtcRegion = region === 'auto' ? null : region;
-
-    try {
-      await voiceChannel.setRTCRegion(rtcRegion);
-      await this.channelService.update(tempChannel.channelId, {
-        customRegion: rtcRegion || 'auto',
-      });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Region set to **${region}**`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to set region:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to set region. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleReset(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    try {
-      // Get guild config for defaults
-      const config = await this.configService.get(voiceChannel.guildId);
-
-      // Reset Discord channel settings
-      await voiceChannel.edit({
-        userLimit: config.defaultUserLimit,
-        bitrate: config.defaultBitrate ?? undefined,
-        rtcRegion: config.defaultRegion || undefined,
-      });
-
-      // Reset permissions to default
-      await voiceChannel.permissionOverwrites.set(
-        this.permissionsService.buildOverwrites({
-          ownerId: tempChannel.ownerId,
-          guildId: voiceChannel.guildId,
-          isLocked: config.defaultLocked,
-          isHidden: config.defaultHidden,
-          allowedUserIds: [],
-          deniedUserIds: [],
-          trustedUserIds: [],
-        })
-      );
-
-      // Reset database
-      await this.channelService.update(tempChannel.channelId, {
-        isLocked: config.defaultLocked,
-        isHidden: config.defaultHidden,
-        customUserLimit: config.defaultUserLimit,
-        customBitrate: config.defaultBitrate ?? undefined,
-        customRegion: config.defaultRegion || 'auto',
-        allowedUserIds: [],
-        deniedUserIds: [],
-      });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} Channel reset to default settings.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to reset channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to reset channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
-
-  private async handleClaim(
-    interaction: Command.ChatInputCommandInteraction,
-    tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
-  ) {
-    const member = interaction.member as GuildMember;
-
-    // Check if owner is still in the channel
-    const owner = voiceChannel.members.get(tempChannel.ownerId);
-    if (owner) {
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} The channel owner is still present. You cannot claim this channel.`,
-        ephemeral: true,
-      });
-    }
-
-    try {
-      const oldOwnerId = tempChannel.ownerId;
-
-      // Remove old owner's special permissions
-      await voiceChannel.permissionOverwrites.delete(oldOwnerId);
-
-      // Give new owner management permissions
-      await voiceChannel.permissionOverwrites.edit(member.id, {
-        Connect: true,
-        ViewChannel: true,
-        Speak: true,
-        Stream: true,
-        MoveMembers: true,
-        ManageChannels: true,
-      });
-
-      // Update database
-      await this.channelService.update(tempChannel.channelId, { ownerId: member.id });
-
-      return interaction.reply({
-        content: `${EMOJI.STATUS.SUCCESS} You are now the owner of this channel.`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      this.container.logger.error('Failed to claim channel:', error);
-      return interaction.reply({
-        content: `${EMOJI.STATUS.ERROR} Failed to claim channel. Please try again.`,
-        ephemeral: true,
-      });
-    }
-  }
+  // ───── Panel ─────
 
   private async handlePanel(
     interaction: Command.ChatInputCommandInteraction,
-    _tempChannel: TempVoiceChannel,
-    voiceChannel: VoiceChannel
+    ctx: OperationContext,
+    member: GuildMember
   ) {
     try {
-      const member = interaction.member as GuildMember;
-      await this.controlPanelService.send(voiceChannel.id, member);
+      const { controlPanel } = getTempVoiceServices();
+      const message = await controlPanel.send(ctx.channelId, member);
+
+      if (!message) {
+        return interaction.reply({
+          content: `${EMOJI.STATUS.ERROR} Could not send control panel. Make sure the bot has permission to send messages in the voice channel.`,
+          ephemeral: true,
+        });
+      }
 
       return interaction.reply({
         content: `${EMOJI.STATUS.SUCCESS} Control panel sent to your channel.`,
         ephemeral: true,
       });
     } catch (error) {
-      this.container.logger.error('Failed to send control panel:', error);
+      this.container.logger.error('[TempVoice] Failed to send control panel:', error);
       return interaction.reply({
         content: `${EMOJI.STATUS.ERROR} Failed to send control panel. Please try again.`,
         ephemeral: true,

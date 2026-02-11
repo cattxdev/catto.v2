@@ -3,6 +3,7 @@
  */
 
 import { PrismaClient, TempVoiceChannel } from '@prisma/client';
+import { container } from '@sapphire/framework';
 import type { Guild, GuildMember, VoiceChannel, CategoryChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
 import type { UpdateTempChannelData } from '../models/temp-channel.model.js';
@@ -115,7 +116,7 @@ export class TempChannelService {
         parent: categoryResult.category?.id || null,
         userLimit,
         bitrate: finalBitrate,
-        rtcRegion: region || undefined,
+        rtcRegion: region && region !== 'auto' ? region : undefined,
         permissionOverwrites,
         reason: `Temp voice channel for ${owner.user.tag}`,
       });
@@ -131,23 +132,33 @@ export class TempChannelService {
       }
       throw error;
     }
-    await this.prisma.tempVoiceChannel.create({
-      data: {
-        guildId: guild.id,
-        channelId: channel.id,
-        ownerId: owner.id,
-        createdByJoinChannelId: sourceChannelId,
-        isLocked,
-        isHidden,
-        allowedUserIds: userPrefs?.allowedUserIds || [],
-        deniedUserIds: userPrefs?.deniedUserIds || [],
-        trustedUserIds: userPrefs?.trustedUserIds || [],
-        metadata: {
-          creationAttempts: 1,
-          categoryStrategy: categoryResult.strategy,
+    try {
+      await this.prisma.tempVoiceChannel.create({
+        data: {
+          guildId: guild.id,
+          channelId: channel.id,
+          ownerId: owner.id,
+          createdByJoinChannelId: sourceChannelId,
+          isLocked,
+          isHidden,
+          allowedUserIds: userPrefs?.allowedUserIds || [],
+          deniedUserIds: userPrefs?.deniedUserIds || [],
+          trustedUserIds: userPrefs?.trustedUserIds || [],
+          metadata: {
+            creationAttempts: 1,
+            categoryStrategy: categoryResult.strategy,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      // Delete the Discord channel to prevent orphans if the DB record fails
+      try {
+        await channel.delete('Cleaning up orphaned channel after database error');
+      } catch {
+        // Best-effort cleanup — channel may already be gone
+      }
+      throw error;
+    }
 
     return channel;
   }
@@ -232,8 +243,7 @@ export class TempChannelService {
    * Get all temp channels for a guild
    */
   static async getGuildTempChannels(guildId: string) {
-    const { database } = require('#lib/database');
-    const channels = await database.tempVoiceChannel.findMany({
+    const channels = await container.prisma.tempVoiceChannel.findMany({
       where: { guildId },
       orderBy: { createdAt: 'desc' },
     });
@@ -244,6 +254,11 @@ export class TempChannelService {
       ownerId: channel.ownerId,
       createdAt: channel.createdAt,
       lastActiveAt: channel.lastActiveAt,
+      isLocked: channel.isLocked,
+      isHidden: channel.isHidden,
+      allowedUserIds: Array.isArray(channel.allowedUserIds) ? channel.allowedUserIds : [],
+      deniedUserIds: Array.isArray(channel.deniedUserIds) ? channel.deniedUserIds : [],
+      trustedUserIds: Array.isArray(channel.trustedUserIds) ? channel.trustedUserIds : [],
     }));
   }
 

@@ -26,6 +26,14 @@ export async function validateDto<T extends object>(
   dtoClass: new () => T,
   plain: unknown
 ): Promise<ValidationResult<T>> {
+  // Guard against null/undefined input
+  if (plain === null || plain === undefined) {
+    return {
+      success: false,
+      errors: [{ field: '_body', constraints: ['Request body is required'] }],
+    };
+  }
+
   // Transform plain object to class instance
   const dtoInstance = plainToInstance(dtoClass, plain, {
     enableImplicitConversion: false,

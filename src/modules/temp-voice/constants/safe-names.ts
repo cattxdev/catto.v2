@@ -1,99 +1,15 @@
 /**
  * Safe name datasets for auto-rename functionality
  * Contains pre-approved words and templates for generating safe channel names
+ *
+ * Adjectives and nouns are re-exported from the English safe-names set.
+ * Other language sets are available via the safe-names-registry.
  */
 
-/**
- * Positive adjectives for channel names
- */
-export const SAFE_ADJECTIVES = [
-  'Cozy',
-  'Chill',
-  'Friendly',
-  'Cool',
-  'Awesome',
-  'Epic',
-  'Nice',
-  'Quiet',
-  'Peaceful',
-  'Relaxing',
-  'Casual',
-  'Fun',
-  'Happy',
-  'Positive',
-  'Bright',
-  'Warm',
-  'Comfy',
-  'Pleasant',
-  'Lovely',
-  'Sweet',
-  'Cheerful',
-  'Lively',
-  'Active',
-  'Dynamic',
-  'Fresh',
-  'Clean',
-  'Private',
-  'Exclusive',
-  'Special',
-  'Premium',
-  'Grand',
-  'Royal',
-  'Elite',
-  'Pro',
-  'Prime',
-  'Ultimate',
-  'Super',
-  'Mega',
-  'Hyper',
-  'Ultra',
-] as const;
+import { SAFE_ADJECTIVES_EN, SAFE_NOUNS_EN } from './safe-names/safe-names-en.js';
 
-/**
- * Neutral nouns for channel names
- */
-export const SAFE_NOUNS = [
-  'Room',
-  'Lounge',
-  'Space',
-  'Zone',
-  'Hub',
-  'Spot',
-  'Place',
-  'Area',
-  'Corner',
-  'Nook',
-  'Haven',
-  'Hideout',
-  'Retreat',
-  'Sanctuary',
-  'Base',
-  'Station',
-  'Channel',
-  'Voice',
-  'Chat',
-  'Talk',
-  'Hangout',
-  'Gathering',
-  'Meeting',
-  'Session',
-  'Party',
-  'Group',
-  'Squad',
-  'Team',
-  'Crew',
-  'Gang',
-  'Club',
-  'Circle',
-  'Community',
-  'Network',
-  'Chamber',
-  'Hall',
-  'Lobby',
-  'Den',
-  'Studio',
-  'Office',
-] as const;
+export const SAFE_ADJECTIVES = SAFE_ADJECTIVES_EN;
+export const SAFE_NOUNS = SAFE_NOUNS_EN;
 
 /**
  * Pre-made safe templates

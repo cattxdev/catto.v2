@@ -3,6 +3,14 @@ import { TempVoiceConfigPostRoute } from '#routes/guilds/temp-voice/config-post.
 import { createMockRequest, createMockResponse, createMockContainer, expectError, expectSuccess, expectValidationError } from '../../../helpers/test-helpers.js';
 import { TempVoiceConfigServiceStatic } from '#modules/temp-voice/services/config-api.service.js';
 
+const { mockApiGateFromRequest } = vi.hoisted(() => ({
+    mockApiGateFromRequest: vi.fn(),
+}));
+
+vi.mock('#lib/validation/ApiGate.js', () => ({
+    ApiGate: { fromRequest: mockApiGateFromRequest },
+}));
+
 // Mock the service - using the correct import path and service name
 vi.mock('#modules/temp-voice/services/config-api.service.js', () => ({
     TempVoiceConfigServiceStatic: {
@@ -14,6 +22,17 @@ vi.mock('#modules/temp-voice/services/config-api.service.js', () => ({
 vi.mock('#lib/route-utils.js', () => ({
     parseRequestBody: vi.fn((req) => Promise.resolve(req.body)),
 }));
+
+function createMockGate(overrides: Partial<{ authOk: boolean }> = {}) {
+    return {
+        userId: 'user-123',
+        isAdmin: false,
+        checkAuth: vi.fn().mockResolvedValue({
+            ok: overrides.authOk ?? true,
+            code: overrides.authOk === false ? 'NO_PERMISSION' : undefined,
+        }),
+    };
+}
 
 
 
@@ -64,8 +83,10 @@ describe('TempVoiceConfigPostRoute', () => {
         
         // Setup default mocks
         vi.mocked(TempVoiceConfigServiceStatic.getConfig).mockResolvedValue(null); // No existing config by default
-        
+        mockApiGateFromRequest.mockResolvedValue(createMockGate());
+
         vi.clearAllMocks();
+        mockApiGateFromRequest.mockResolvedValue(createMockGate());
     });
 
     describe('POST /guilds/:guildId/temp-voice/config', () => {

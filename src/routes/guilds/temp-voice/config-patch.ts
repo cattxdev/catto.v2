@@ -8,6 +8,7 @@ import { TempVoiceConfigServiceStatic as TempVoiceConfigService } from '#modules
 import { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { UpdateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceConfigPatchRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -34,6 +35,15 @@ export class TempVoiceConfigPatchRoute extends Route {
             message: 'Guild ID is required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.config');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       // Parse body if it's a string
@@ -193,8 +203,7 @@ export class TempVoiceConfigPatchRoute extends Route {
           defaultCategoryId: config.defaultCategoryId,
           autoDeleteEmpty: config.autoDeleteEmpty,
           deleteEmptyAfterMs: config.deleteEmptyAfterMs,
-          autoDeleteOwnerLeave: config.autoDeleteOwnerLeave,
-          deleteOwnerLeaveAfterMs: config.deleteOwnerLeaveAfterMs,
+          ownerLeaveStrategy: config.ownerLeaveStrategy,
           allowOwnerTransfer: config.allowOwnerTransfer,
           allowOwnerManagement: config.allowOwnerManagement,
           maxChannelsPerUser: config.maxChannelsPerUser,

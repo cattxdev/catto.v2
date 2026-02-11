@@ -5,6 +5,7 @@
 
 import { Route } from '@sapphire/plugin-api';
 import type { Prisma } from '@prisma/client';
+import { ApiGate } from '#lib/validation/ApiGate.js';
 
 export class TempVoiceModerationPatternsGetRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -31,6 +32,15 @@ export class TempVoiceModerationPatternsGetRoute extends Route {
             message: 'Guild ID is required',
           },
         });
+      }
+
+      const gate = await ApiGate.fromRequest(request, guildId);
+      if (!gate) {
+        return response.status(401).json({ error: 'Unauthorized', code: 'NOT_AUTHENTICATED' });
+      }
+      const auth = await gate.checkAuth('tempvoice.moderation');
+      if (!auth.ok) {
+        return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
       // Parse query parameters
