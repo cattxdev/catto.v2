@@ -24,6 +24,10 @@ import {
   IconX,
   IconChartBar,
   IconUsers,
+  IconTrophy,
+  IconMicrophone,
+  IconMessage,
+  IconStarFilled,
 } from '@/lib/mod-icons';
 import type { Icon } from '@tabler/icons-react';
 
@@ -50,6 +54,17 @@ const CONFIG_NAV: NavItem[] = [
   { id: 'automod', label: 'Auto-Mod Rules', href: '/automod', icon: IconShieldCheck, disabled: true },
   { id: 'filters', label: 'Filters & Triggers', href: '/filters', icon: IconFilter, disabled: true },
   { id: 'settings', label: 'Settings', href: '/settings', icon: IconLayoutDashboard, disabled: true },
+];
+
+const XP_NAV: NavItem[] = [
+  { id: 'xp', label: 'Text XP', href: '/xp', icon: IconMessage, shortcut: 'G X' },
+  { id: 'voice-xp', label: 'Voice XP', href: '/voice-xp', icon: IconMicrophone, shortcut: 'G V' },
+  { id: 'rewards', label: 'Rewards', href: '/rewards', icon: IconTrophy, shortcut: 'G R' },
+];
+
+const FEATURES_NAV: NavItem[] = [
+  { id: 'temp-voice', label: 'Temp Voice', href: '/temp-voice', icon: IconStarFilled },
+  { id: 'logs', label: 'Logs', href: '/logs', icon: IconClipboardList },
 ];
 
 function SoonBadge() {
@@ -256,6 +271,21 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
             e.preventDefault();
             router.push(`/mod/${guildId}/analytics`);
             break;
+          case 'x':
+          case 'X':
+            e.preventDefault();
+            router.push(`/mod/${guildId}/xp`);
+            break;
+          case 'v':
+          case 'V':
+            e.preventDefault();
+            router.push(`/mod/${guildId}/voice-xp`);
+            break;
+          case 'r':
+          case 'R':
+            e.preventDefault();
+            router.push(`/mod/${guildId}/rewards`);
+            break;
           case 's':
           case 'S':
             e.preventDefault();
@@ -351,6 +381,8 @@ export default function GuildModLayout({ children }: { children: React.ReactNode
       {/* Navigation */}
       <nav className="flex-1 overflow-auto p-2">
         <NavSection label="MODERATION" items={MODERATION_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
+        <NavSection label="XP & REWARDS" items={XP_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
+        <NavSection label="FEATURES" items={FEATURES_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
         <NavSection label="CONFIGURATION" items={CONFIG_NAV} basePath={basePath} pathname={pathname} onNavClick={closeSidebar} />
       </nav>
 
