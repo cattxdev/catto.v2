@@ -1,6 +1,6 @@
 'use client';
 
-import VoiceXPConfigForm from '@/components/voice-xp-config-form';
+import { VoiceXPConfigForm } from '@/components/voice-xp';
 import { useVoiceXPConfig } from '@/hooks/use-voice-xp-config';
 import { Card, CardContent } from '@/components/ui/card';
 
