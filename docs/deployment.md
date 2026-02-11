@@ -165,7 +165,7 @@ To enable:
 
 1. Go to **Settings > Environments**, create `production` and `development` environments
 2. Add protection rules (required reviewers, wait timer, etc.)
-3. Add `environment: ${{ steps.env.outputs.env_name }}` to the `deploy` job in `.github/workflows/cd.yml`
+3. Add <code v-pre>environment: ${{ steps.env.outputs.env_name }}</code> to the `deploy` job in `.github/workflows/cd.yml`
 
 ## Manual Deploy
 
