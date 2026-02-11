@@ -148,14 +148,14 @@ export function RewardForm({
                 }))}
                 className={`p-3 rounded-lg text-left transition-all border ${
                   form.rewardType === type.value
-                    ? 'bg-primary/10 border-primary/50 ring-1 ring-primary/20'
-                    : 'bg-muted/20 border-border/30 hover:bg-muted/40'
+                    ? 'bg-muted/40 border-foreground/30 ring-1 ring-foreground/10'
+                    : 'bg-muted/20 border-border/30 hover:bg-muted/40 hover:border-border/50'
                 }`}
               >
-                <span className={`text-sm font-medium ${form.rewardType === type.value ? 'text-primary' : 'text-foreground'}`}>
+                <span className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
                   {type.label}
                 </span>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{type.description}</p>
+                <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'hsl(var(--muted-foreground))' }}>{type.description}</p>
               </button>
             ))}
           </div>
