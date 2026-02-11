@@ -6,14 +6,13 @@ import { useRewardsConfig } from '@/hooks/use-rewards-config';
 import { useGuildData } from '@/hooks/use-guild-data';
 import type { CreateReward } from '@/lib/services/rewards.service';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 import type { RewardFormState, Reward } from './types';
 import { DEFAULT_FORM_STATE } from './types';
 import { buildRewardData, isFormValid, groupRewardsByLevel } from './utils';
-import { RewardStats } from './reward-stats';
-import { UserClaimsLookup } from './user-claims-lookup';
-import { RewardTemplates } from './reward-templates';
+import { PageHeader } from './page-header';
+import { StatusAlerts } from './status-alerts';
+import { Sidebar } from './sidebar';
 import { RewardForm } from './reward-form';
 import { RewardsList } from './rewards-list';
 
@@ -161,123 +160,80 @@ export function RewardsConfigForm({ guildId }: RewardsConfigFormProps) {
   const rewardsByLevel = groupRewardsByLevel(rewards);
   const levelsWithRewards = Object.keys(rewardsByLevel).length;
 
+  const isFormOpen = showAddForm || editingReward !== null;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Level Rewards</h2>
-          <p className="text-muted-foreground mt-1">Configure rewards for reaching XP levels</p>
-        </div>
-        <Button variant="neon" onClick={() => setShowAddForm(true)}>
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-            />
-          </svg>
-          Add Reward
-        </Button>
-      </div>
+      <PageHeader onAddClick={() => setShowAddForm(true)} />
 
       {/* Status Messages */}
-      {error && (
-        <div className="glass border-destructive/50 rounded-lg p-4 flex items-start gap-3">
-          <svg
-            className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      <StatusAlerts error={error} success={success} />
+
+      {/* Form Overlay (when adding/editing) */}
+      {isFormOpen && (
+        <div className="animate-in slide-in-from-top-2 duration-300">
+          {showAddForm && (
+            <RewardForm
+              form={newReward}
+              onChange={setNewReward}
+              onSubmit={handleCreateReward}
+              onCancel={() => setShowAddForm(false)}
+              roles={roles}
+              textChannels={textChannels}
+              loadingRoles={loadingRoles}
+              saving={saving}
+              isValid={isFormValid(newReward)}
+              mode="create"
             />
-          </svg>
-          <div>
-            <h3 className="text-sm font-medium text-destructive">Error</h3>
-            <p className="text-sm text-destructive/80 mt-1">{error}</p>
-          </div>
+          )}
+
+          {editingReward && (
+            <RewardForm
+              form={editForm}
+              onChange={setEditForm}
+              onSubmit={handleSaveEdit}
+              onCancel={handleCancelEdit}
+              roles={roles}
+              textChannels={textChannels}
+              loadingRoles={loadingRoles}
+              saving={saving}
+              isValid={isFormValid(editForm)}
+              mode="edit"
+            />
+          )}
         </div>
       )}
 
-      {success && (
-        <div className="glass border-success/50 rounded-lg p-4 flex items-start gap-3">
-          <svg
-            className="w-5 h-5 text-success flex-shrink-0 mt-0.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <div>
-            <h3 className="text-sm font-medium text-success">Success</h3>
-            <p className="text-sm text-success/80 mt-1">Changes saved successfully!</p>
-          </div>
+      {/* Main Content - Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+        {/* Left Column - Rewards List */}
+        <div className="min-w-0">
+          <RewardsList
+            rewards={rewards}
+            roles={roles}
+            saving={saving}
+            onToggleEnabled={handleToggleEnabled}
+            onEdit={handleStartEdit}
+            onDelete={handleDeleteReward}
+            onAddClick={() => setShowAddForm(true)}
+          />
         </div>
-      )}
 
-      {/* Stats */}
-      {stats && <RewardStats stats={stats} levelsWithRewards={levelsWithRewards} />}
-
-      {/* User Claims Lookup */}
-      <UserClaimsLookup roles={roles} getUserRewards={getUserRewards} />
-
-      {/* Templates */}
-      <RewardTemplates
-        templates={templates}
-        hasExistingRewards={rewards.length > 0}
-        saving={saving}
-        onApplyTemplate={handleApplyTemplate}
-      />
-
-      {/* Add Reward Form */}
-      {showAddForm && (
-        <RewardForm
-          form={newReward}
-          onChange={setNewReward}
-          onSubmit={handleCreateReward}
-          onCancel={() => setShowAddForm(false)}
-          roles={roles}
-          textChannels={textChannels}
-          loadingRoles={loadingRoles}
-          saving={saving}
-          isValid={isFormValid(newReward)}
-          mode="create"
-        />
-      )}
-
-      {/* Edit Reward Form */}
-      {editingReward && (
-        <RewardForm
-          form={editForm}
-          onChange={setEditForm}
-          onSubmit={handleSaveEdit}
-          onCancel={handleCancelEdit}
-          roles={roles}
-          textChannels={textChannels}
-          loadingRoles={loadingRoles}
-          saving={saving}
-          isValid={isFormValid(editForm)}
-          mode="edit"
-        />
-      )}
-
-      {/* Rewards List */}
-      <RewardsList
-        rewards={rewards}
-        roles={roles}
-        saving={saving}
-        onToggleEnabled={handleToggleEnabled}
-        onEdit={handleStartEdit}
-        onDelete={handleDeleteReward}
-        onAddClick={() => setShowAddForm(true)}
-      />
+        {/* Right Column - Sidebar */}
+        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <Sidebar
+            stats={stats}
+            levelsWithRewards={levelsWithRewards}
+            templates={templates}
+            hasExistingRewards={rewards.length > 0}
+            roles={roles}
+            saving={saving}
+            onApplyTemplate={handleApplyTemplate}
+            getUserRewards={getUserRewards}
+          />
+        </div>
+      </div>
     </div>
   );
 }
