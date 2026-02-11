@@ -16,6 +16,10 @@
   --mono-100: #e5e5e5;
   --mono-white: #ffffff;
 
+  /* Override Tailwind primary color */
+  --primary: var(--mono-white);
+  --primary-foreground: var(--mono-black);
+
   --mod-bg: var(--mono-950);
   --mod-surface: var(--mono-900);
   --mod-surface-hover: var(--mono-850);
@@ -115,15 +119,30 @@
 }
 
 /* Button overrides */
-[data-theme='mod'] button[class*="bg-primary"] {
+[data-theme='mod'] button[class*="bg-primary"]:not([class*="text-primary"]) {
   background-color: var(--mono-white) !important;
   color: var(--mono-black) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 
-[data-theme='mod'] button[class*="bg-primary"]:hover {
+[data-theme='mod'] button[class*="bg-primary"]:not([class*="text-primary"]):hover {
   background-color: var(--mono-200) !important;
+}
+
+/* Outline buttons (have border + bg-transparent + text-primary) */
+[data-theme='mod'] button[class*="border"][class*="text-primary"] {
+  background-color: transparent !important;
+  border-color: var(--mod-border) !important;
+  color: var(--mod-text-muted) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] button[class*="border"][class*="text-primary"]:hover {
+  background-color: var(--mod-surface-hover) !important;
+  border-color: var(--mod-border-hover) !important;
+  color: var(--mod-text) !important;
 }
 
 [data-theme='mod'] button[class*="border"][class*="bg-transparent"] {
@@ -373,6 +392,76 @@
 /* Slider/Range inputs */
 [data-theme='mod'] input[type="range"] {
   accent-color: var(--mono-white) !important;
+}
+
+/* ─── Primary Color Overrides ─── */
+
+/* Border primary → mono white */
+[data-theme='mod'] [class*="border-primary"] {
+  border-color: var(--mono-white) !important;
+}
+
+/* Background primary with opacity → mono shades */
+[data-theme='mod'] [class*="bg-primary/10"],
+[data-theme='mod'] [class*="bg-primary/5"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme='mod'] [class*="bg-primary/20"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Text primary → mono white */
+[data-theme='mod'] [class*="text-primary"]:not(button) {
+  color: var(--mono-white) !important;
+}
+
+/* Hover states for log type cards and similar */
+[data-theme='mod'] label[class*="cursor-pointer"]:hover {
+  background-color: var(--mod-surface-hover) !important;
+}
+
+/* Selected log type cards */
+[data-theme='mod'] label[class*="border-primary"] {
+  border-color: var(--mono-white) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Checkbox in log cards */
+[data-theme='mod'] input[type="checkbox"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  accent-color: var(--mono-white) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] input[type="checkbox"]:checked {
+  background-color: var(--mono-white) !important;
+  border-color: var(--mono-white) !important;
+}
+
+/* Focus ring for checkboxes */
+[data-theme='mod'] input[type="checkbox"]:focus {
+  ring: none !important;
+  box-shadow: none !important;
+  outline: 1px solid var(--mono-500) !important;
+}
+
+/* Ring color overrides */
+[data-theme='mod'] [class*="ring-primary"],
+[data-theme='mod'] [class*="focus:ring-primary"] {
+  --tw-ring-color: var(--mono-500) !important;
+}
+
+/* Shadow overrides - remove neon effects */
+[data-theme='mod'] [class*="shadow-neon"],
+[data-theme='mod'] [class*="shadow-glass"] {
+  box-shadow: none !important;
+}
+
+/* Hover scale - disable in mod theme */
+[data-theme='mod'] [class*="hover-scale"]:hover {
+  transform: none !important;
 }
 
 
