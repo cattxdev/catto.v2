@@ -155,7 +155,7 @@ describe('UpdateXPConfigDto', () => {
   describe('level curve', () => {
     it('accepts valid level curve type', async () => {
       const result = await validateDto(UpdateXPConfigDto, {
-        levelCurveType: LevelCurveType.EXPONENTIAL,
+        levelCurveType: LevelCurveType.FORMULA,
       });
       expect(result.success).toBe(true);
     });
@@ -210,7 +210,7 @@ describe('UpdateXPConfigDto', () => {
         messageTemplate: 'Level up!',
         embedEnabled: true,
         embedColor: 0x5865f2,
-        levelCurveType: LevelCurveType.LINEAR,
+        levelCurveType: LevelCurveType.FORMULA,
         formulaBase: 100,
         formulaExponent: 1.2,
         formulaOffset: 0,
