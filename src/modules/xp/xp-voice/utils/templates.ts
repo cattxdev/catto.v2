@@ -19,6 +19,7 @@ export function parseVoiceTemplate(template: string, variables: VoiceTemplateVar
   result = result.replace(/{minutesInVoice}/g, variables.minutesInVoice.toString());
   result = result.replace(/{nextLevelXp}/g, variables.nextLevelXp.toString());
   result = result.replace(/{progress}/g, (variables.progress * 100).toFixed(1));
+  result = result.replace(/{type}/g, variables.type);
 
   return result;
 }

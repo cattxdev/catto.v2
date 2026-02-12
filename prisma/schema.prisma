@@ -620,7 +620,7 @@ model GuildXPConfig {
   // Level-Up Announcements
   announceLevelUp       Boolean  @default(true)
   announceChannelId     String?                 // If null, announce in message channel
-  messageTemplate       String   @default("🎉 {user} reached level {level}!")
+  messageTemplate       String   @default("🎉 {user} reached text level {level}!")
   embedEnabled          Boolean  @default(true)
   embedColor            Int      @default(5793266) // Hex 0x5865F2 (Discord Blurple)
   
