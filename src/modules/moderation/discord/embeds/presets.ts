@@ -291,27 +291,27 @@ export function createCaseEmbed(modCase: {
   const reason = modCase.reason ?? 'No reason provided';
   return container({ color: display.color })
     .h2(`${display.emoji} Case #${modCase.caseNumber}`)
-    .text(`${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} ${display.label ?? modCase.action}`)
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${modCase.targetTag}\n(\`${modCase.targetId}\`)`)
     .text(
-      `${EMOJI.MODERATION.ICONS.SHIELD_BLUE} ${modCase.moderatorTag}\n(\`${modCase.moderatorId}\`)`
+      `**Action**: ${display.label ?? modCase.action}
+**Reason**: ${reason}`
     )
-    .text(`${EMOJI.MODERATION.ACTIONS.REPORT} ${reason}`)
-    .text(`${EMOJI.TIME.CLOCK} ${formatRelativeTimestamp(modCase.createdAt)}`)
     .when(!!modCase.duration, (c) =>
       c.text(
-        `${EMOJI.MODERATION.ACTIONS.SLOWMODE} **Duration** ${formatDuration(ensureNonNull(modCase.duration, 'presets > createCaseEmbed(270): modCase.duration'))}`
+        `> ${EMOJI.MODERATION.ACTIONS.SLOWMODE} ${formatDuration(ensureNonNull(modCase.duration, 'presets > createCaseEmbed(270): modCase.duration'))}`
       )
     )
     .when(!!modCase.expiresAt, (c) =>
       c.text(
-        `${EMOJI.TIME.EXPIRED} **Expires** ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
+        `> ${EMOJI.TIME.EXPIRED} ${formatRelativeTimestamp(ensureNonNull(modCase.expiresAt, 'presets > createCaseEmbed(274): modCase.expiresAt'))}`
       )
     )
-    .when(modCase.evidenceCount !== undefined && modCase.evidenceCount > 0, (c) =>
-      c.text(`${EMOJI.MODERATION.ACTIONS.REPORT} **Evidence:** ${modCase.evidenceCount} item(s)`)
+    .text(
+      `-# Target: <@${modCase.targetId}>(\`${modCase.targetId}\`)
+-# Moderator: <@${modCase.moderatorId}>(\`${modCase.moderatorId}\`)`
     )
-    .text(`${EMOJI.CHANNELS.TYPES.FOLDER} **Guild** ${modCase.guildId}`)
+    .when(modCase.evidenceCount !== undefined && modCase.evidenceCount > 0, (c) =>
+      c.text(`> Evidence: ${modCase.evidenceCount} item(s)`)
+    )
     .footerWithTimestamp(`Case #${modCase.caseNumber}`, modCase.createdAt);
 }
 
