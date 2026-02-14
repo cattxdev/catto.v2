@@ -348,7 +348,7 @@ const ALIAS_TO_RESOURCE_KEY: Record<string, string> = {
  * Subcommand groups within the mod command.
  * Used to determine whether a word after "mod" is a group or direct subcommand.
  */
-const MOD_GROUPS = new Set(['voice', 'note', 'casemod', 'evidence', 'mute', 'unmute']);
+const MOD_GROUPS = new Set(['voice', 'note', 'evidence', 'mute', 'unmute']);
 
 /**
  * Parse the subcommand/group key from a message that invoked the "mod" subcommand.

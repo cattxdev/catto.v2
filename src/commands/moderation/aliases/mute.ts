@@ -1,4 +1,4 @@
-import { Command, type Args } from '@sapphire/framework';
+import { Command, container, type Args } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { Message } from 'discord.js';
 import { parseMuteFromMessage } from '#lib/interaction/messageArgs.js';
@@ -24,7 +24,7 @@ const MUTE_TYPE_MAP: Record<
  */
 @ApplyOptions<Command.Options>({
   name: 'mute',
-  description: 'Mute a member (prefix shortcut)',
+  description: 'Mute a member in text, voice, or both channels',
   preconditions: ['GuildOnly'],
 })
 export class MuteAliasCommand extends Command {
@@ -40,10 +40,11 @@ export class MuteAliasCommand extends Command {
       } else {
         args.restore();
       }
-    } catch {
-      // No args at all — parser will surface its own error
+    } catch (err) {
+      container.logger.debug('mute alias: no mute type arg provided, defaulting to both:', err);
+      args.restore();
     }
 
-    return runAliasCommand(message, args, parseMuteFromMessage, handler);
+    return runAliasCommand(message, args, parseMuteFromMessage, handler, true);
   }
 }

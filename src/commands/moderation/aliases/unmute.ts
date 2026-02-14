@@ -1,4 +1,4 @@
-import { Command, type Args } from '@sapphire/framework';
+import { Command, container, type Args } from '@sapphire/framework';
 import { ApplyOptions } from '@sapphire/decorators';
 import type { Message } from 'discord.js';
 import { parseUnmuteFromMessage } from '#lib/interaction/messageArgs.js';
@@ -24,7 +24,7 @@ const UNMUTE_TYPE_MAP: Record<
  */
 @ApplyOptions<Command.Options>({
   name: 'unmute',
-  description: 'Unmute a member (prefix shortcut)',
+  description: 'Remove text, voice, or all mutes from a member',
   preconditions: ['GuildOnly'],
 })
 export class UnmuteAliasCommand extends Command {
@@ -40,8 +40,9 @@ export class UnmuteAliasCommand extends Command {
       } else {
         args.restore();
       }
-    } catch {
-      // No args at all — parser will surface its own error
+    } catch (err) {
+      container.logger.debug('unmute alias: no unmute type arg provided, defaulting to both:', err);
+      args.restore();
     }
 
     return runAliasCommand(message, args, parseUnmuteFromMessage, handler);

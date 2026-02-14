@@ -283,8 +283,11 @@ export function paginationRow(
     showFirst?: boolean;
     showLast?: boolean;
     showPageInfo?: boolean;
+    /** Force all buttons to be disabled (e.g., after a collector times out). */
+    disabled?: boolean;
   }
 ): ActionRowBuilder<ButtonBuilder> {
+  const allDisabled = options?.disabled === true;
   const buttons: ButtonBuilder[] = [];
 
   // First page button
@@ -293,7 +296,7 @@ export function paginationRow(
       secondaryButton({
         customId: `${baseCustomId}:first`,
         emoji: EMOJI.UI.NAV.LEFT,
-        disabled: currentPage <= 1,
+        disabled: allDisabled || currentPage <= 1,
       })
     );
   }
@@ -303,7 +306,7 @@ export function paginationRow(
     secondaryButton({
       customId: `${baseCustomId}:prev`,
       emoji: EMOJI.UI.NAV.LEFT,
-      disabled: currentPage <= 1,
+      disabled: allDisabled || currentPage <= 1,
     })
   );
 
@@ -323,7 +326,7 @@ export function paginationRow(
     secondaryButton({
       customId: `${baseCustomId}:next`,
       emoji: EMOJI.UI.NAV.RIGHT,
-      disabled: currentPage >= totalPages,
+      disabled: allDisabled || currentPage >= totalPages,
     })
   );
 
@@ -333,7 +336,7 @@ export function paginationRow(
       secondaryButton({
         customId: `${baseCustomId}:last`,
         emoji: EMOJI.UI.NAV.RIGHT,
-        disabled: currentPage >= totalPages,
+        disabled: allDisabled || currentPage >= totalPages,
       })
     );
   }

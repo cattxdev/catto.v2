@@ -8,7 +8,7 @@
  */
 
 import type { Args } from '@sapphire/framework';
-import { UserError } from '@sapphire/framework';
+import { UserError, container } from '@sapphire/framework';
 import type { Message, GuildMember, Guild, User, VoiceChannel, StageChannel } from 'discord.js';
 import { ChannelType } from 'discord.js';
 import {
@@ -36,7 +36,6 @@ import {
   asUserId,
   asGuildId,
   asChannelId,
-  CaseStatus,
 } from '../../modules/moderation/domain/types.js';
 import type { PanelOptions } from '../../commands/moderation/_panel.js';
 import type { ContextOptions } from '../../commands/moderation/_context.js';
@@ -45,11 +44,6 @@ import type {
   NoteListOptions,
   NoteDeleteOptions,
 } from '../../commands/moderation/_note.js';
-import type {
-  CaseEditOptions,
-  CaseLinkOptions,
-  CaseCloseOptions,
-} from '../../commands/moderation/_caseManagement.js';
 import type { EvidenceAddOptions } from '../../commands/moderation/_evidenceAdd.js';
 import type { EvidenceListOptions } from '../../commands/moderation/_evidenceList.js';
 import type { MutesListOptions } from '../../commands/moderation/_mute.js';
@@ -90,9 +84,20 @@ function ensureGuildMessage(message: Message): {
 async function restOrDefault(args: Args, fallback: string): Promise<string> {
   try {
     return await args.rest('string');
-  } catch {
+  } catch (err) {
+    container.logger.debug('restOrDefault: no remaining args, using fallback:', err);
     return fallback;
   }
+}
+
+/**
+ * Throw a UserError with a descriptive message for a missing/invalid argument.
+ */
+function missingArg(name: string, usage: string): never {
+  throw new UserError({
+    identifier: 'MissingArg',
+    message: `Missing required argument: \`${name}\`. Usage: \`${usage}\``,
+  });
 }
 
 /**
@@ -111,30 +116,148 @@ function requireDuration(raw: string): DurationSeconds {
 }
 
 /**
+ * Flexibly resolve a user from args. Tries in order:
+ * 1. Sapphire's built-in user resolver (mentions, cached users)
+ * 2. Raw string as a snowflake ID → client.users.fetch
+ * 3. Raw string as a username → guild.members.fetch({ query })
+ */
+async function pickUserFlexible(args: Args, guild: Guild, usage: string): Promise<User> {
+  // 1. Try mention/user resolver
+  try {
+    return await args.pick('user');
+  } catch (err) {
+    container.logger.debug('pickUserFlexible: user resolver failed, trying raw string:', err);
+  }
+
+  // 2. Try raw string
+  let raw: string;
+  try {
+    raw = await args.pick('string');
+  } catch (err) {
+    container.logger.debug('pickUserFlexible: no string arg available:', err);
+    missingArg('user', usage);
+  }
+
+  // 2a. If it looks like a snowflake, try fetching by ID
+  if (SNOWFLAKE_REGEX.test(raw)) {
+    try {
+      return await guild.client.users.fetch(raw);
+    } catch (err) {
+      container.logger.debug(`pickUserFlexible: users.fetch failed for ID "${raw}":`, err);
+    }
+  }
+
+  // 3. Fuzzy-match by username/display name
+  try {
+    const members = await guild.members.fetch({ query: raw, limit: 1 });
+    const member = members.first();
+    if (member) return member.user;
+  } catch (err) {
+    container.logger.warn(`pickUserFlexible: members.fetch query failed for "${raw}":`, err);
+  }
+
+  throw new UserError({
+    identifier: 'InvalidUser',
+    message: `Could not find user \`${raw}\`. Try a @mention, user ID, or exact username.`,
+  });
+}
+
+/**
  * Try to resolve a user argument. Falls back to treating the next argument as
  * a raw snowflake ID when the user resolver fails (useful for banning users
- * who are not in the server).
+ * who are not in the server), and finally tries username search.
  *
  * Returns `{ target, targetId }` where `target` may be `undefined` when only
  * a raw ID was provided.
  */
-async function pickUserOrId(args: Args): Promise<{ target?: User; targetId: UserId }> {
+async function pickUserOrId(
+  args: Args,
+  guild: Guild,
+  usage: string
+): Promise<{ target?: User; targetId: UserId }> {
+  // 1. Try mention/user resolver
   try {
     const user = await args.pick('user');
     return { target: user, targetId: asUserId(user.id) };
-  } catch {
-    // Fall through to raw ID
+  } catch (err) {
+    container.logger.debug('pickUserOrId: user resolver failed, trying raw string:', err);
   }
 
-  const raw = await args.pick('string');
-  if (!SNOWFLAKE_REGEX.test(raw)) {
-    throw new UserError({
-      identifier: 'InvalidUser',
-      message:
-        'Could not resolve a user. Provide a mention or a valid user ID (17-19 digit number).',
-    });
+  let raw: string;
+  try {
+    raw = await args.pick('string');
+  } catch (err) {
+    container.logger.debug('pickUserOrId: no string arg available:', err);
+    missingArg('user', usage);
   }
-  return { target: undefined, targetId: asUserId(raw) };
+
+  // 2. Raw snowflake ID
+  if (SNOWFLAKE_REGEX.test(raw)) {
+    return { target: undefined, targetId: asUserId(raw) };
+  }
+
+  // 3. Fuzzy-match by username/display name
+  try {
+    const members = await guild.members.fetch({ query: raw, limit: 1 });
+    const member = members.first();
+    if (member) return { target: member.user, targetId: asUserId(member.id) };
+  } catch (err) {
+    container.logger.warn(`pickUserOrId: members.fetch query failed for "${raw}":`, err);
+  }
+
+  throw new UserError({
+    identifier: 'InvalidUser',
+    message: `Could not find user \`${raw}\`. Provide a @mention, user ID, or username.`,
+  });
+}
+
+/**
+ * Flexibly resolve a voice/stage channel from args. Tries:
+ * 1. Sapphire's built-in channel resolver (#channel mention)
+ * 2. Raw string as channel name via guild.channels.cache
+ */
+async function pickVoiceChannel(
+  args: Args,
+  guild: Guild,
+  usage: string
+): Promise<VoiceChannel | StageChannel> {
+  // 1. Try channel mention resolver
+  try {
+    const channel = await args.pick('channel');
+    if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
+      return channel as VoiceChannel | StageChannel;
+    }
+    throw new UserError({
+      identifier: 'InvalidChannel',
+      message: 'Please specify a voice or stage channel.',
+    });
+  } catch (err) {
+    // If it was our InvalidChannel error, rethrow
+    if (err instanceof UserError && err.identifier === 'InvalidChannel') throw err;
+    container.logger.debug('pickVoiceChannel: channel resolver failed, trying name search:', err);
+  }
+
+  // 2. Try raw string as channel name
+  let raw: string;
+  try {
+    raw = await args.pick('string');
+  } catch (err) {
+    container.logger.debug('pickVoiceChannel: no string arg available:', err);
+    missingArg('channel', usage);
+  }
+
+  const found = guild.channels.cache.find(
+    (c) =>
+      (c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice) &&
+      c.name.toLowerCase() === raw.toLowerCase()
+  );
+
+  if (found) return found as VoiceChannel | StageChannel;
+
+  throw new UserError({
+    identifier: 'InvalidChannel',
+    message: `Could not find voice channel \`${raw}\`. Use a #channel mention or exact channel name.`,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +273,7 @@ async function pickUserOrId(args: Args): Promise<{ target?: User; targetId: User
  */
 export async function parseBanFromMessage(message: Message, args: Args): Promise<BanOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const { target, targetId } = await pickUserOrId(args);
+  const { target, targetId } = await pickUserOrId(args, guild, '!ban <@user|userId> [reason]');
   const reason = await restOrDefault(args, 'No reason provided');
 
   return {
@@ -170,7 +293,7 @@ export async function parseBanFromMessage(message: Message, args: Args): Promise
  */
 export async function parseKickFromMessage(message: Message, args: Args): Promise<KickOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!kick <@user> [reason]');
   const reason = await restOrDefault(args, 'No reason provided');
 
   return {
@@ -192,8 +315,11 @@ export async function parseTimeoutFromMessage(
   args: Args
 ): Promise<TimeoutOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await args.pick('user');
-  const durationStr = await args.pick('string');
+  const target = await pickUserFlexible(args, guild, '!timeout <@user> <duration> [reason]');
+
+  const durationStr = await args.pick('string').catch(() => {
+    missingArg('duration', '!timeout <@user> <duration> [reason]');
+  });
   const durationSeconds = requireDuration(durationStr);
   const reason = await restOrDefault(args, 'No reason provided');
 
@@ -216,8 +342,11 @@ export async function parseTimeoutFromMessage(
  */
 export async function parseWarnFromMessage(message: Message, args: Args): Promise<WarnOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await args.pick('user');
-  const reason = await args.rest('string');
+  const target = await pickUserFlexible(args, guild, '!warn <@user> <reason>');
+
+  const reason = await args.rest('string').catch(() => {
+    missingArg('reason', '!warn <@user> <reason>');
+  });
 
   return {
     target,
@@ -238,7 +367,10 @@ export async function parseWarnFromMessage(message: Message, args: Args): Promis
  */
 export async function parseUnbanFromMessage(message: Message, args: Args): Promise<UnbanOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const raw = await args.pick('string');
+
+  const raw = await args.pick('string').catch(() => {
+    missingArg('user_id', '!unban <userId> [reason]');
+  });
   if (!SNOWFLAKE_REGEX.test(raw)) {
     throw new UserError({
       identifier: 'InvalidUserId',
@@ -266,7 +398,11 @@ export async function parseSoftbanFromMessage(
   args: Args
 ): Promise<SoftbanOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const { target, targetId } = await pickUserOrId(args);
+  const { target, targetId } = await pickUserOrId(
+    args,
+    guild,
+    '!softban <@user|userId> [deleteDays] [reason]'
+  );
 
   // Try to pick an integer for deleteDays; fall back to default.
   // Use save/restore to ensure the position rewinds on failure so the
@@ -275,7 +411,8 @@ export async function parseSoftbanFromMessage(
   args.save();
   try {
     deleteDays = await args.pick('integer');
-  } catch {
+  } catch (err) {
+    container.logger.debug('parseSoftban: no deleteDays integer, using default 7:', err);
     args.restore();
   }
 
@@ -301,8 +438,15 @@ export async function parseTempbanFromMessage(
   args: Args
 ): Promise<TempbanOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const { target, targetId } = await pickUserOrId(args);
-  const durationStr = await args.pick('string');
+  const { target, targetId } = await pickUserOrId(
+    args,
+    guild,
+    '!tempban <@user|userId> <duration> [reason]'
+  );
+
+  const durationStr = await args.pick('string').catch(() => {
+    missingArg('duration', '!tempban <@user|userId> <duration> [reason]');
+  });
   const durationSeconds = requireDuration(durationStr);
   const reason = await restOrDefault(args, 'No reason provided');
 
@@ -324,20 +468,32 @@ export async function parseTempbanFromMessage(
  */
 export async function parseCaseFromMessage(message: Message, args: Args): Promise<CaseOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
+
+  const caseNumber = await args.pick('integer').catch(() => {
+    missingArg('number', '!case <number>');
+  });
 
   return { caseNumber, guild, guildId };
 }
 
 /**
- * `!history <@user>`
+ * `!history [@user]`
+ *
+ * If no user is provided, defaults to the message author.
  */
 export async function parseHistoryFromMessage(
   message: Message,
   args: Args
 ): Promise<HistoryOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+
+  let target: User;
+  try {
+    target = await pickUserFlexible(args, guild, '!history [@user]');
+  } catch (err) {
+    container.logger.debug('parseHistory: no user provided, defaulting to author:', err);
+    target = message.author;
+  }
 
   return {
     target,
@@ -356,7 +512,7 @@ export async function parseHistoryFromMessage(
  */
 export async function parseMuteFromMessage(message: Message, args: Args): Promise<MuteOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!mute <@user> [duration] <reason>');
 
   let durationSeconds: DurationSeconds | undefined;
 
@@ -373,11 +529,14 @@ export async function parseMuteFromMessage(message: Message, args: Args): Promis
       // Not a duration — restore so it becomes part of the reason
       args.restore();
     }
-  } catch {
+  } catch (err) {
+    container.logger.debug('parseMute: no duration arg available, skipping:', err);
     args.restore();
   }
 
-  const reason = await args.rest('string');
+  const reason = await args.rest('string').catch(() => {
+    missingArg('reason', '!mute <@user> [duration] <reason>');
+  });
 
   return {
     target,
@@ -396,7 +555,7 @@ export async function parseMuteFromMessage(message: Message, args: Args): Promis
  */
 export async function parseUnmuteFromMessage(message: Message, args: Args): Promise<UnmuteOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!unmute <@user> [reason]');
   const reason = await restOrDefault(args, 'No reason provided');
 
   return {
@@ -419,7 +578,7 @@ export async function parseUnmuteFromMessage(message: Message, args: Args): Prom
  */
 export async function parsePanelFromMessage(message: Message, args: Args): Promise<PanelOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!panel <@user>');
 
   return {
     target,
@@ -440,7 +599,7 @@ export async function parseContextFromMessage(
   args: Args
 ): Promise<ContextOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!context <@user> [window]');
 
   let windowSeconds: number | undefined;
   try {
@@ -449,8 +608,8 @@ export async function parseContextFromMessage(
     if (parsed) {
       windowSeconds = parsed as number;
     }
-  } catch {
-    // No window argument — use handler default
+  } catch (err) {
+    container.logger.debug('parseContext: no window arg provided, using default:', err);
   }
 
   return {
@@ -474,8 +633,11 @@ export async function parseNoteAddFromMessage(
   args: Args
 ): Promise<NoteAddOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const target = await args.pick('user');
-  const content = await args.rest('string');
+  const target = await pickUserFlexible(args, guild, '!mod note add <@user> <content>');
+
+  const content = await args.rest('string').catch(() => {
+    missingArg('content', '!mod note add <@user> <content>');
+  });
 
   return {
     target,
@@ -495,7 +657,7 @@ export async function parseNoteListFromMessage(
   args: Args
 ): Promise<NoteListOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!mod note list <@user>');
 
   return {
     target,
@@ -513,87 +675,13 @@ export async function parseNoteDeleteFromMessage(
   args: Args
 ): Promise<NoteDeleteOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const noteId = await args.pick('string');
+
+  const noteId = await args.pick('string').catch(() => {
+    missingArg('note_id', '!mod note delete <noteId>');
+  });
 
   return {
     noteId,
-    guild,
-    guildId: guildId as string,
-    moderator,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Case management
-// ---------------------------------------------------------------------------
-
-/**
- * `!mod casemod edit <number> <reason>`
- */
-export async function parseCaseEditFromMessage(
-  message: Message,
-  args: Args
-): Promise<CaseEditOptions> {
-  const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
-  const reason = await args.rest('string');
-
-  return {
-    caseNumber,
-    reason,
-    guild,
-    guildId: guildId as string,
-    moderator,
-  };
-}
-
-/**
- * `!mod casemod link <number> <messageLink>`
- */
-export async function parseCaseLinkFromMessage(
-  message: Message,
-  args: Args
-): Promise<CaseLinkOptions> {
-  const { guild, guildId } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
-  const messageLink = await args.pick('string');
-
-  return {
-    caseNumber,
-    messageLink,
-    guild,
-    guildId: guildId as string,
-  };
-}
-
-/**
- * `!mod casemod close <number> [status]`
- *
- * Status may be "closed" or "void"/"voided". Defaults to CLOSED.
- */
-export async function parseCaseCloseFromMessage(
-  message: Message,
-  args: Args
-): Promise<CaseCloseOptions> {
-  const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
-
-  let status: CaseStatus | undefined;
-  try {
-    const raw = await args.pick('string');
-    const lower = raw.toLowerCase();
-    if (lower === 'void' || lower === 'voided') {
-      status = CaseStatus.VOID;
-    } else if (lower === 'closed') {
-      status = CaseStatus.CLOSED;
-    }
-  } catch {
-    // No status — handler will default to CLOSED
-  }
-
-  return {
-    caseNumber,
-    status,
     guild,
     guildId: guildId as string,
     moderator,
@@ -612,7 +700,10 @@ export async function parseEvidenceAddFromMessage(
   args: Args
 ): Promise<EvidenceAddOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
+
+  const caseNumber = await args.pick('integer').catch(() => {
+    missingArg('number', '!mod evidence add <number>');
+  });
 
   return {
     caseNumber,
@@ -630,7 +721,10 @@ export async function parseEvidenceListFromMessage(
   args: Args
 ): Promise<EvidenceListOptions> {
   const { guild, guildId } = ensureGuildMessage(message);
-  const caseNumber = await args.pick('integer');
+
+  const caseNumber = await args.pick('integer').catch(() => {
+    missingArg('number', '!mod evidence list <number>');
+  });
 
   return {
     caseNumber,
@@ -651,7 +745,7 @@ export async function parseVoiceWhereFromMessage(
   args: Args
 ): Promise<VoiceWhereOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const target = await args.pick('user');
+  const target = await pickUserFlexible(args, guild, '!mod voice where <@user>');
 
   return {
     target,
@@ -670,8 +764,11 @@ export async function parseVoiceWatchFromMessage(
   args: Args
 ): Promise<VoiceWatchOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const target = await args.pick('user');
-  const durationStr = await args.pick('string');
+  const target = await pickUserFlexible(args, guild, '!mod voice watch <@user> <duration>');
+
+  const durationStr = await args.pick('string').catch(() => {
+    missingArg('duration', '!mod voice watch <@user> <duration>');
+  });
   const durationSeconds = requireDuration(durationStr);
 
   return {
@@ -688,23 +785,17 @@ export async function parseVoiceWatchFromMessage(
  * `!mod voice snapshot <#channel>`
  *
  * Picks a channel argument and validates that it is a voice or stage channel.
+ * Falls back to resolving by channel name if a #mention isn't provided.
  */
 export async function parseVoiceSnapshotFromMessage(
   message: Message,
   args: Args
 ): Promise<VoiceSnapshotOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const channel = await args.pick('channel');
-
-  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
-    throw new UserError({
-      identifier: 'InvalidChannel',
-      message: 'Please specify a voice or stage channel.',
-    });
-  }
+  const channel = await pickVoiceChannel(args, guild, '!mod voice snapshot <#channel>');
 
   return {
-    channel: channel as VoiceChannel | StageChannel,
+    channel,
     channelId: asChannelId(channel.id),
     guild,
     guildId,
@@ -720,20 +811,15 @@ export async function parseVoiceTrackFromMessage(
   args: Args
 ): Promise<VoiceTrackOptions> {
   const { guild, guildId, moderator } = ensureGuildMessage(message);
-  const channel = await args.pick('channel');
+  const channel = await pickVoiceChannel(args, guild, '!mod voice track <#channel> <duration>');
 
-  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
-    throw new UserError({
-      identifier: 'InvalidChannel',
-      message: 'Please specify a voice or stage channel.',
-    });
-  }
-
-  const durationStr = await args.pick('string');
+  const durationStr = await args.pick('string').catch(() => {
+    missingArg('duration', '!mod voice track <#channel> <duration>');
+  });
   const durationSeconds = requireDuration(durationStr);
 
   return {
-    channel: channel as VoiceChannel | StageChannel,
+    channel,
     channelId: asChannelId(channel.id),
     durationSeconds,
     guild,
@@ -762,8 +848,8 @@ export async function parseMutesListFromMessage(
   try {
     target = await args.pick('user');
     targetId = target.id;
-  } catch {
-    // No user argument
+  } catch (err) {
+    container.logger.debug('parseMutesList: no user filter provided:', err);
   }
 
   let muteType: string | undefined;
@@ -773,8 +859,8 @@ export async function parseMutesListFromMessage(
     if (['TEXT', 'VOICE', 'BOTH'].includes(upper)) {
       muteType = upper;
     }
-  } catch {
-    // No type argument
+  } catch (err) {
+    container.logger.debug('parseMutesList: no type filter provided:', err);
   }
 
   return {

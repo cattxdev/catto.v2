@@ -6,6 +6,7 @@ import {
   SlashCommandSubcommandGroupBuilder,
   InteractionContextType,
   ChannelType,
+  EmbedBuilder,
 } from 'discord.js';
 import type { Message } from 'discord.js';
 import { handleKick } from './_kick.js';
@@ -24,7 +25,6 @@ import { handleTempban } from './_tempban.js';
 import { handlePanel } from './_panel.js';
 import { handleContext } from './_context.js';
 import { handleNoteAdd, handleNoteList, handleNoteDelete } from './_note.js';
-import { handleCaseEdit, handleCaseLink, handleCaseClose } from './_caseManagement.js';
 import { handleEvidenceAdd } from './_evidenceAdd.js';
 import { handleEvidenceList } from './_evidenceList.js';
 
@@ -39,6 +39,7 @@ import {
 } from './_mute.js';
 import { handleSetup } from './_setup.js';
 
+import { COLORS } from '#lib/constants.js';
 import { InteractionResponder, MessageResponder } from '#lib/discord/index.js';
 import { ValidationError } from '#lib/validation/zod.js';
 import { ephemeralError, buildErrorText } from '#lib/discord/index.js';
@@ -61,7 +62,6 @@ import {
   parseUnmuteOptions,
   parseDurationToSeconds,
 } from '#lib/interaction/typedOptions.js';
-import { CaseStatus } from '@prisma/client';
 import { asGuildId } from '../../modules/moderation/domain/types.js';
 import {
   parseBanFromMessage,
@@ -86,9 +86,6 @@ import {
   parseNoteAddFromMessage,
   parseNoteListFromMessage,
   parseNoteDeleteFromMessage,
-  parseCaseEditFromMessage,
-  parseCaseLinkFromMessage,
-  parseCaseCloseFromMessage,
   parseEvidenceAddFromMessage,
   parseEvidenceListFromMessage,
 } from '#lib/interaction/messageArgs.js';
@@ -96,17 +93,18 @@ import {
 import type { PanelOptions } from './_panel.js';
 import type { ContextOptions } from './_context.js';
 import type { NoteAddOptions, NoteListOptions, NoteDeleteOptions } from './_note.js';
-import type { CaseEditOptions, CaseLinkOptions, CaseCloseOptions } from './_caseManagement.js';
 import type { EvidenceAddOptions } from './_evidenceAdd.js';
 import type { EvidenceListOptions } from './_evidenceList.js';
 import type { MutesListOptions } from './_mute.js';
 import type { SetupOptions } from './_setup.js';
+import { sendModWelcome } from './aliases/_shared.js';
 
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
   description: 'Moderation commands',
   requiredClientPermissions: [PermissionFlagsBits.ModerateMembers],
   subcommands: [
+    { name: 'help', default: true, messageRun: 'messageModHelp' },
     { name: 'ban', chatInputRun: 'chatInputBan', messageRun: 'messageBan' },
     { name: 'kick', chatInputRun: 'chatInputKick', messageRun: 'messageKick' },
     { name: 'timeout', chatInputRun: 'chatInputTimeout', messageRun: 'messageTimeout' },
@@ -123,6 +121,7 @@ import type { SetupOptions } from './_setup.js';
       name: 'voice',
       type: 'group',
       entries: [
+        { name: 'help', default: true, messageRun: 'messageVoiceHelp' },
         { name: 'where', chatInputRun: 'chatInputVoiceWhere', messageRun: 'messageVoiceWhere' },
         { name: 'watch', chatInputRun: 'chatInputVoiceWatch', messageRun: 'messageVoiceWatch' },
         {
@@ -138,19 +137,10 @@ import type { SetupOptions } from './_setup.js';
       name: 'note',
       type: 'group',
       entries: [
+        { name: 'help', default: true, messageRun: 'messageNoteHelp' },
         { name: 'add', chatInputRun: 'chatInputNoteAdd', messageRun: 'messageNoteAdd' },
         { name: 'list', chatInputRun: 'chatInputNoteList', messageRun: 'messageNoteList' },
         { name: 'delete', chatInputRun: 'chatInputNoteDelete', messageRun: 'messageNoteDelete' },
-      ],
-    },
-    // Case management subcommand group
-    {
-      name: 'casemod',
-      type: 'group',
-      entries: [
-        { name: 'edit', chatInputRun: 'chatInputCaseEdit', messageRun: 'messageCaseEdit' },
-        { name: 'link', chatInputRun: 'chatInputCaseLink', messageRun: 'messageCaseLink' },
-        { name: 'close', chatInputRun: 'chatInputCaseClose', messageRun: 'messageCaseClose' },
       ],
     },
     // Evidence subcommand group
@@ -158,6 +148,7 @@ import type { SetupOptions } from './_setup.js';
       name: 'evidence',
       type: 'group',
       entries: [
+        { name: 'help', default: true, messageRun: 'messageEvidenceHelp' },
         { name: 'add', chatInputRun: 'chatInputEvidenceAdd', messageRun: 'messageEvidenceAdd' },
         { name: 'list', chatInputRun: 'chatInputEvidenceList', messageRun: 'messageEvidenceList' },
       ],
@@ -168,6 +159,7 @@ import type { SetupOptions } from './_setup.js';
       name: 'mute',
       type: 'group',
       entries: [
+        { name: 'help', default: true, messageRun: 'messageMuteHelp' },
         { name: 'text', chatInputRun: 'chatInputMuteText', messageRun: 'messageMuteText' },
         { name: 'voice', chatInputRun: 'chatInputMuteVoice', messageRun: 'messageMuteVoice' },
         { name: 'both', chatInputRun: 'chatInputMuteBoth', messageRun: 'messageMuteBoth' },
@@ -178,6 +170,7 @@ import type { SetupOptions } from './_setup.js';
       name: 'unmute',
       type: 'group',
       entries: [
+        { name: 'help', default: true, messageRun: 'messageUnmuteHelp' },
         { name: 'text', chatInputRun: 'chatInputUnmuteText', messageRun: 'messageUnmuteText' },
         { name: 'voice', chatInputRun: 'chatInputUnmuteVoice', messageRun: 'messageUnmuteVoice' },
         { name: 'both', chatInputRun: 'chatInputUnmuteBoth', messageRun: 'messageUnmuteBoth' },
@@ -212,8 +205,6 @@ export class ModCommand extends Subcommand {
         .addSubcommand(this.buildSetupSubcommand)
         .addSubcommandGroup(this.buildVoiceSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildNoteSubcommandGroup.bind(this))
-        .addSubcommandGroup(this.buildCaseModSubcommandGroup.bind(this))
-
         .addSubcommandGroup(this.buildEvidenceSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildMuteSubcommandGroup.bind(this))
         .addSubcommandGroup(this.buildUnmuteSubcommandGroup.bind(this))
@@ -493,58 +484,6 @@ export class ModCommand extends Subcommand {
           .setDescription('Delete a note by ID')
           .addStringOption((option) =>
             option.setName('note_id').setDescription('The note ID to delete').setRequired(true)
-          )
-      );
-  }
-
-  private buildCaseModSubcommandGroup(group: SlashCommandSubcommandGroupBuilder) {
-    return group
-      .setName('casemod')
-      .setDescription('Case management commands')
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('edit')
-          .setDescription('Edit a case reason')
-          .addIntegerOption((option) =>
-            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
-          )
-          .addStringOption((option) =>
-            option
-              .setName('reason')
-              .setDescription('New reason')
-              .setRequired(true)
-              .setMaxLength(512)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('link')
-          .setDescription('Link evidence to a case')
-          .addIntegerOption((option) =>
-            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
-          )
-          .addStringOption((option) =>
-            option
-              .setName('message_link')
-              .setDescription('Message link to attach')
-              .setRequired(true)
-          )
-      )
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName('close')
-          .setDescription('Close a case')
-          .addIntegerOption((option) =>
-            option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
-          )
-          .addStringOption((option) =>
-            option
-              .setName('status')
-              .setDescription('Close status')
-              .addChoices(
-                { name: 'Closed', value: 'CLOSED' },
-                { name: 'Void (reversed)', value: 'VOID' }
-              )
           )
       );
   }
@@ -945,39 +884,6 @@ export class ModCommand extends Subcommand {
     return handleNoteDelete(options, new InteractionResponder(interaction));
   }
 
-  // Case management subcommand handlers
-  public async chatInputCaseEdit(interaction: Subcommand.ChatInputCommandInteraction) {
-    const options: CaseEditOptions = {
-      caseNumber: interaction.options.getInteger('number', true),
-      reason: interaction.options.getString('reason', true),
-      guild: interaction.guild!,
-      guildId: interaction.guild!.id,
-      moderator: interaction.user,
-    };
-    return handleCaseEdit(options, new InteractionResponder(interaction));
-  }
-
-  public async chatInputCaseLink(interaction: Subcommand.ChatInputCommandInteraction) {
-    const options: CaseLinkOptions = {
-      caseNumber: interaction.options.getInteger('number', true),
-      messageLink: interaction.options.getString('message_link', true),
-      guild: interaction.guild!,
-      guildId: interaction.guild!.id,
-    };
-    return handleCaseLink(options, new InteractionResponder(interaction));
-  }
-
-  public async chatInputCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
-    const options: CaseCloseOptions = {
-      caseNumber: interaction.options.getInteger('number', true),
-      status: (interaction.options.getString('status') ?? undefined) as CaseStatus | undefined,
-      guild: interaction.guild!,
-      guildId: interaction.guild!.id,
-      moderator: interaction.user,
-    };
-    return handleCaseClose(options, new InteractionResponder(interaction));
-  }
-
   // Evidence subcommand handlers
   public async chatInputEvidenceAdd(interaction: Subcommand.ChatInputCommandInteraction) {
     const options: EvidenceAddOptions = {
@@ -1107,6 +1013,145 @@ export class ModCommand extends Subcommand {
     return handleSetup(options, new InteractionResponder(interaction));
   }
 
+  // Default/Help Handlers (when no subcommand is matched)
+
+  public async messageModHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const p = this.container.client.options.defaultPrefix ?? '!';
+
+    const embed = new EmbedBuilder()
+      .setColor(COLORS.DEFAULT)
+      .setTitle('Moderation Commands')
+      .addFields(
+        {
+          name: 'Actions',
+          value: [
+            `\`${p}ban <user> [reason]\` — Ban a member`,
+            `\`${p}kick <user> <reason>\` — Kick a member`,
+            `\`${p}warn <user> <reason>\` — Warn a member`,
+            `\`${p}timeout <user> <duration> [reason]\` — Timeout`,
+            `\`${p}softban <user> [reason]\` — Ban + unban`,
+            `\`${p}tempban <user> <duration> [reason]\` — Temp ban`,
+            `\`${p}unban <userId> [reason]\` — Unban a user`,
+            `\`${p}mute [text|voice|both] <user> [dur] <reason>\``,
+            `\`${p}unmute [text|voice|both] <user> [reason]\``,
+          ].join('\n'),
+        },
+        {
+          name: 'Info',
+          value: [
+            `\`${p}case <number>\` — View a case`,
+            `\`${p}history [user]\` — Moderation history`,
+            `\`${p}mod panel <user>\` — Interactive mod panel`,
+            `\`${p}mod context <user> [window]\` — Context bundle`,
+            `\`${p}mod mutes [user]\` — List active mutes`,
+          ].join('\n'),
+        },
+        {
+          name: 'Voice  (`!voice`, `!vc`)',
+          value: [
+            `\`${p}voice where <user>\` — Locate in voice`,
+            `\`${p}voice watch <user> <duration>\` — Watch activity`,
+            `\`${p}voice snapshot <channel>\` — Snapshot channel`,
+            `\`${p}voice track <channel> <duration>\` — Track channel`,
+          ].join('\n'),
+          inline: true,
+        },
+        {
+          name: 'Notes  (`!note`, `!n`)',
+          value: [
+            `\`${p}note add <user> <text>\` — Add a note`,
+            `\`${p}note list <user>\` — List notes`,
+            `\`${p}note del <noteId>\` — Delete a note`,
+          ].join('\n'),
+          inline: true,
+        },
+        {
+          name: 'Evidence  (`!ev`)',
+          value: [
+            `\`${p}ev add <caseNumber>\` — Add evidence`,
+            `\`${p}ev list <caseNumber>\` — List evidence`,
+          ].join('\n'),
+          inline: true,
+        }
+      )
+      .setFooter({ text: 'Use !help to see all commands' });
+
+    return message.channel.send({ embeds: [embed] });
+  }
+
+  public async messageVoiceHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const prefix = this.container.client.options.defaultPrefix ?? '!';
+    return message.channel.send({
+      content: [
+        '**Voice Commands** (shortcut: `!voice`)',
+        `\`${prefix}voice where <user>\` — Locate user in voice`,
+        `\`${prefix}voice watch <user> <duration>\` — Watch voice activity`,
+        `\`${prefix}voice snapshot <channel>\` — Snapshot voice channel`,
+        `\`${prefix}voice track <channel> <duration>\` — Track voice channel`,
+      ].join('\n'),
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  public async messageNoteHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const prefix = this.container.client.options.defaultPrefix ?? '!';
+    return message.channel.send({
+      content: [
+        '**Note Commands** (shortcut: `!note`)',
+        `\`${prefix}note add <user> <text> [tags]\` — Add a note`,
+        `\`${prefix}note list <user>\` — List notes`,
+        `\`${prefix}note del <noteId>\` — Delete a note`,
+      ].join('\n'),
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  public async messageEvidenceHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const prefix = this.container.client.options.defaultPrefix ?? '!';
+    return message.channel.send({
+      content: [
+        '**Evidence Commands** (shortcut: `!ev`)',
+        `\`${prefix}ev add <caseNumber>\` — Add evidence to a case`,
+        `\`${prefix}ev list <caseNumber>\` — List evidence for a case`,
+      ].join('\n'),
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  public async messageMuteHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const prefix = this.container.client.options.defaultPrefix ?? '!';
+    return message.channel.send({
+      content: [
+        '**Mute Commands**',
+        `\`${prefix}mute <user> [duration] <reason>\` — Mute text + voice (shortcut)`,
+        `\`${prefix}mod mute text <user> [duration] <reason>\` — Text mute only`,
+        `\`${prefix}mod mute voice <user> [duration] <reason>\` — Voice mute only`,
+        `\`${prefix}mod mute both <user> [duration] <reason>\` — Mute text + voice`,
+      ].join('\n'),
+      allowedMentions: { parse: [] },
+    });
+  }
+
+  public async messageUnmuteHelp(message: Message) {
+    if (!message.channel.isSendable()) return;
+    const prefix = this.container.client.options.defaultPrefix ?? '!';
+    return message.channel.send({
+      content: [
+        '**Unmute Commands**',
+        `\`${prefix}unmute <user> [reason]\` — Unmute text + voice (shortcut)`,
+        `\`${prefix}mod unmute text <user> [reason]\` — Remove text mute`,
+        `\`${prefix}mod unmute voice <user> [reason]\` — Remove voice mute`,
+        `\`${prefix}mod unmute both <user> [reason]\` — Remove all mutes`,
+      ].join('\n'),
+      allowedMentions: { parse: [] },
+    });
+  }
+
   // ============================================================================
   // Message Command Handlers (prefix commands)
   // ============================================================================
@@ -1115,11 +1160,14 @@ export class ModCommand extends Subcommand {
     message: Message,
     args: Args,
     parser: (message: Message, args: Args) => Promise<T>,
-    handler: (options: T, ctx: MessageResponder) => Promise<unknown>
+    handler: (options: T, ctx: MessageResponder) => Promise<unknown>,
+    createsCases = false
   ): Promise<unknown> {
     try {
       const options = await parser(message, args);
-      return handler(options, new MessageResponder(message as Message<true>));
+      const result = await handler(options, new MessageResponder(message as Message<true>));
+      if (createsCases) sendModWelcome(message);
+      return result;
     } catch (error) {
       if (error instanceof UserError || error instanceof ValidationError) {
         if (message.channel.isSendable()) {
@@ -1134,19 +1182,19 @@ export class ModCommand extends Subcommand {
   }
 
   public async messageBan(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseBanFromMessage, handleBan);
+    return this.handleMessageCommand(message, args, parseBanFromMessage, handleBan, true);
   }
 
   public async messageKick(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseKickFromMessage, handleKick);
+    return this.handleMessageCommand(message, args, parseKickFromMessage, handleKick, true);
   }
 
   public async messageTimeout(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseTimeoutFromMessage, handleTimeout);
+    return this.handleMessageCommand(message, args, parseTimeoutFromMessage, handleTimeout, true);
   }
 
   public async messageWarn(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseWarnFromMessage, handleWarn);
+    return this.handleMessageCommand(message, args, parseWarnFromMessage, handleWarn, true);
   }
 
   public async messageUnban(message: Message, args: Args) {
@@ -1162,11 +1210,11 @@ export class ModCommand extends Subcommand {
   }
 
   public async messageSoftban(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseSoftbanFromMessage, handleSoftban);
+    return this.handleMessageCommand(message, args, parseSoftbanFromMessage, handleSoftban, true);
   }
 
   public async messageTempban(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseTempbanFromMessage, handleTempban);
+    return this.handleMessageCommand(message, args, parseTempbanFromMessage, handleTempban, true);
   }
 
   public async messagePanel(message: Message, args: Args) {
@@ -1212,19 +1260,6 @@ export class ModCommand extends Subcommand {
     return this.handleMessageCommand(message, args, parseNoteDeleteFromMessage, handleNoteDelete);
   }
 
-  // Case management
-  public async messageCaseEdit(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseCaseEditFromMessage, handleCaseEdit);
-  }
-
-  public async messageCaseLink(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseCaseLinkFromMessage, handleCaseLink);
-  }
-
-  public async messageCaseClose(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseCaseCloseFromMessage, handleCaseClose);
-  }
-
   // Evidence
   public async messageEvidenceAdd(message: Message, args: Args) {
     return this.handleMessageCommand(message, args, parseEvidenceAddFromMessage, handleEvidenceAdd);
@@ -1241,15 +1276,15 @@ export class ModCommand extends Subcommand {
 
   // Mute
   public async messageMuteText(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteText);
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteText, true);
   }
 
   public async messageMuteVoice(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteVoice);
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteVoice, true);
   }
 
   public async messageMuteBoth(message: Message, args: Args) {
-    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteBoth);
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteBoth, true);
   }
 
   // Unmute
