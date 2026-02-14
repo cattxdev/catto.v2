@@ -163,12 +163,15 @@ commands/
 │   ├── help.ts
 │   └── language.ts
 ├── moderation/     # Moderation commands
-│   ├── mod.ts           # Main subcommand entry
-│   ├── _ban.ts          # Subcommand handlers
+│   ├── mod.ts           # Main subcommand entry (/mod)
+│   ├── _ban.ts          # Shared handlers (slash + prefix)
 │   ├── _kick.ts
 │   ├── _evidenceAdd.ts  # Evidence subcommands
 │   ├── _evidenceList.ts
 │   ├── captureEvidence.ts  # Context menu command
+│   ├── aliases/         # Prefix command aliases (!ban, !kick, etc.)
+│   │   ├── _registry.ts # Data-driven registry for simple aliases
+│   │   └── _shared.ts   # Shared prefix utilities
 │   └── ...
 ├── reputation/     # Reputation commands
 ├── rewards/        # Reward commands
