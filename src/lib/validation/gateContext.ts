@@ -202,6 +202,19 @@ export async function requirePunitive(
   return gate.requirePunitive(resourceKey, targetId, options);
 }
 
+// Message Command Helpers
+
+/**
+ * Create a Gate from a guild member directly (no interaction needed).
+ * Used for message/prefix commands.
+ */
+export function getGateFromMember(
+  member: import('discord.js').GuildMember,
+  guild: import('discord.js').Guild
+): Gate {
+  return Gate.fromMember(member, guild);
+}
+
 // TypeScript Module Augmentation
 
 declare module 'discord.js' {

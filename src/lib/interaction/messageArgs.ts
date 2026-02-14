@@ -1,0 +1,804 @@
+/**
+ * Message/prefix command argument parsers.
+ *
+ * Each parser takes a guild-only Message and Sapphire Args instance and returns
+ * the same typed options interface consumed by the shared command handlers,
+ * bridging the gap between slash-command option parsing (typedOptions.ts) and
+ * traditional prefix-based argument parsing.
+ */
+
+import type { Args } from '@sapphire/framework';
+import { UserError } from '@sapphire/framework';
+import type { Message, GuildMember, Guild, User, VoiceChannel, StageChannel } from 'discord.js';
+import { ChannelType } from 'discord.js';
+import {
+  type BanOptions,
+  type KickOptions,
+  type TimeoutOptions,
+  type WarnOptions,
+  type UnbanOptions,
+  type SoftbanOptions,
+  type TempbanOptions,
+  type CaseOptions,
+  type HistoryOptions,
+  type MuteOptions,
+  type UnmuteOptions,
+  type VoiceWhereOptions,
+  type VoiceWatchOptions,
+  type VoiceSnapshotOptions,
+  type VoiceTrackOptions,
+  parseDurationToSeconds,
+} from './typedOptions.js';
+import {
+  type UserId,
+  type GuildId,
+  type DurationSeconds,
+  asUserId,
+  asGuildId,
+  asChannelId,
+  CaseStatus,
+} from '../../modules/moderation/domain/types.js';
+import type { PanelOptions } from '../../commands/moderation/_panel.js';
+import type { ContextOptions } from '../../commands/moderation/_context.js';
+import type {
+  NoteAddOptions,
+  NoteListOptions,
+  NoteDeleteOptions,
+} from '../../commands/moderation/_note.js';
+import type {
+  CaseEditOptions,
+  CaseLinkOptions,
+  CaseCloseOptions,
+} from '../../commands/moderation/_caseManagement.js';
+import type { EvidenceAddOptions } from '../../commands/moderation/_evidenceAdd.js';
+import type { EvidenceListOptions } from '../../commands/moderation/_evidenceList.js';
+import type { MutesListOptions } from '../../commands/moderation/_mute.js';
+import type { SetupOptions } from '../../commands/moderation/_setup.js';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const SNOWFLAKE_REGEX = /^\d{17,19}$/;
+
+/**
+ * Validate that a message originates from a guild and extract common context.
+ */
+function ensureGuildMessage(message: Message): {
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+  moderatorMember: GuildMember;
+} {
+  if (!message.guild || !message.member) {
+    throw new UserError({
+      identifier: 'GuildOnly',
+      message: 'This command can only be used in a server.',
+    });
+  }
+  return {
+    guild: message.guild,
+    guildId: asGuildId(message.guild.id),
+    moderator: message.author,
+    moderatorMember: message.member as GuildMember,
+  };
+}
+
+/**
+ * Try to pick the remaining text as a string; returns the fallback on failure.
+ */
+async function restOrDefault(args: Args, fallback: string): Promise<string> {
+  try {
+    return await args.rest('string');
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Parse a duration string through `parseDurationToSeconds`, throwing a
+ * `UserError` if the value cannot be parsed.
+ */
+function requireDuration(raw: string): DurationSeconds {
+  const seconds = parseDurationToSeconds(raw);
+  if (!seconds) {
+    throw new UserError({
+      identifier: 'InvalidDuration',
+      message: 'Invalid duration format. Use formats like: 10m, 1h, 1d, 7d',
+    });
+  }
+  return seconds;
+}
+
+/**
+ * Try to resolve a user argument. Falls back to treating the next argument as
+ * a raw snowflake ID when the user resolver fails (useful for banning users
+ * who are not in the server).
+ *
+ * Returns `{ target, targetId }` where `target` may be `undefined` when only
+ * a raw ID was provided.
+ */
+async function pickUserOrId(args: Args): Promise<{ target?: User; targetId: UserId }> {
+  try {
+    const user = await args.pick('user');
+    return { target: user, targetId: asUserId(user.id) };
+  } catch {
+    // Fall through to raw ID
+  }
+
+  const raw = await args.pick('string');
+  if (!SNOWFLAKE_REGEX.test(raw)) {
+    throw new UserError({
+      identifier: 'InvalidUser',
+      message:
+        'Could not resolve a user. Provide a mention or a valid user ID (17-19 digit number).',
+    });
+  }
+  return { target: undefined, targetId: asUserId(raw) };
+}
+
+// ---------------------------------------------------------------------------
+// Parsers
+// ---------------------------------------------------------------------------
+
+/**
+ * `!ban <@user|userId> [reason]`
+ *
+ * Target may be a mention or a raw user ID (for banning users not in the
+ * server). Reason defaults to "No reason provided". `deleteMessages` defaults
+ * to `false`.
+ */
+export async function parseBanFromMessage(message: Message, args: Args): Promise<BanOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const { target, targetId } = await pickUserOrId(args);
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId,
+    reason,
+    deleteMessages: false,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!kick <@user> [reason]`
+ */
+export async function parseKickFromMessage(message: Message, args: Args): Promise<KickOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!timeout <@user> <duration> [reason]`
+ */
+export async function parseTimeoutFromMessage(
+  message: Message,
+  args: Args
+): Promise<TimeoutOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const durationStr = await args.pick('string');
+  const durationSeconds = requireDuration(durationStr);
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    durationSeconds,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!warn <@user> <reason>`
+ *
+ * Reason is required for warnings.
+ */
+export async function parseWarnFromMessage(message: Message, args: Args): Promise<WarnOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const reason = await args.rest('string');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!unban <userId> [reason]`
+ *
+ * Because banned users cannot be mentioned, only a raw snowflake ID is
+ * accepted.
+ */
+export async function parseUnbanFromMessage(message: Message, args: Args): Promise<UnbanOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const raw = await args.pick('string');
+  if (!SNOWFLAKE_REGEX.test(raw)) {
+    throw new UserError({
+      identifier: 'InvalidUserId',
+      message: 'Invalid user ID format. User IDs are 17-19 digit numbers.',
+    });
+  }
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    userId: asUserId(raw),
+    reason,
+    guild,
+    guildId,
+    moderator,
+  };
+}
+
+/**
+ * `!softban <@user|userId> [deleteDays] [reason]`
+ *
+ * `deleteDays` defaults to 7 if not provided or not a valid integer.
+ */
+export async function parseSoftbanFromMessage(
+  message: Message,
+  args: Args
+): Promise<SoftbanOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const { target, targetId } = await pickUserOrId(args);
+
+  // Try to pick an integer for deleteDays; fall back to default.
+  // Use save/restore to ensure the position rewinds on failure so the
+  // word that was not an integer remains available for the reason.
+  let deleteDays = 7;
+  args.save();
+  try {
+    deleteDays = await args.pick('integer');
+  } catch {
+    args.restore();
+  }
+
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId,
+    reason,
+    deleteDays,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!tempban <@user|userId> <duration> [reason]`
+ */
+export async function parseTempbanFromMessage(
+  message: Message,
+  args: Args
+): Promise<TempbanOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const { target, targetId } = await pickUserOrId(args);
+  const durationStr = await args.pick('string');
+  const durationSeconds = requireDuration(durationStr);
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId,
+    reason,
+    durationSeconds,
+    deleteMessages: false,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!case <number>`
+ */
+export async function parseCaseFromMessage(message: Message, args: Args): Promise<CaseOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+
+  return { caseNumber, guild, guildId };
+}
+
+/**
+ * `!history <@user>`
+ */
+export async function parseHistoryFromMessage(
+  message: Message,
+  args: Args
+): Promise<HistoryOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    guild,
+    guildId,
+  };
+}
+
+/**
+ * `!mute <@user> [duration] <reason>`
+ *
+ * If the first word after the user mention parses as a valid duration it is
+ * consumed as the optional duration; otherwise the entire remainder (including
+ * that word) is treated as the reason.
+ */
+export async function parseMuteFromMessage(message: Message, args: Args): Promise<MuteOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  let durationSeconds: DurationSeconds | undefined;
+
+  // Peek at the next word to check if it is a duration string.
+  // If it parses as a valid duration, consume it; otherwise restore the
+  // cursor so the word is included in the reason.
+  args.save();
+  try {
+    const word = await args.pick('string');
+    const parsed = parseDurationToSeconds(word);
+    if (parsed) {
+      durationSeconds = parsed;
+    } else {
+      // Not a duration — restore so it becomes part of the reason
+      args.restore();
+    }
+  } catch {
+    args.restore();
+  }
+
+  const reason = await args.rest('string');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    durationSeconds,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+/**
+ * `!unmute <@user> [reason]`
+ */
+export async function parseUnmuteFromMessage(message: Message, args: Args): Promise<UnmuteOptions> {
+  const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const reason = await restOrDefault(args, 'No reason provided');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    reason,
+    guild,
+    guildId,
+    moderator,
+    moderatorMember,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Panel / Context
+// ---------------------------------------------------------------------------
+
+/**
+ * `!panel <@user>`
+ */
+export async function parsePanelFromMessage(message: Message, args: Args): Promise<PanelOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  return {
+    target,
+    targetId: target.id,
+    guild,
+    guildId: guildId as string,
+  };
+}
+
+/**
+ * `!context <@user> [window]`
+ *
+ * The optional window is a duration string (e.g. "24h", "7d"). When omitted
+ * the handler defaults to 24 hours.
+ */
+export async function parseContextFromMessage(
+  message: Message,
+  args: Args
+): Promise<ContextOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  let windowSeconds: number | undefined;
+  try {
+    const raw = await args.pick('string');
+    const parsed = parseDurationToSeconds(raw);
+    if (parsed) {
+      windowSeconds = parsed as number;
+    }
+  } catch {
+    // No window argument — use handler default
+  }
+
+  return {
+    target,
+    targetId: target.id,
+    guild,
+    guildId: guildId as string,
+    windowSeconds,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod note add <@user> <content>`
+ */
+export async function parseNoteAddFromMessage(
+  message: Message,
+  args: Args
+): Promise<NoteAddOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const content = await args.rest('string');
+
+  return {
+    target,
+    targetId: target.id,
+    content,
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}
+
+/**
+ * `!mod note list <@user>`
+ */
+export async function parseNoteListFromMessage(
+  message: Message,
+  args: Args
+): Promise<NoteListOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  return {
+    target,
+    targetId: target.id,
+    guild,
+    guildId: guildId as string,
+  };
+}
+
+/**
+ * `!mod note delete <noteId>`
+ */
+export async function parseNoteDeleteFromMessage(
+  message: Message,
+  args: Args
+): Promise<NoteDeleteOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const noteId = await args.pick('string');
+
+  return {
+    noteId,
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Case management
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod casemod edit <number> <reason>`
+ */
+export async function parseCaseEditFromMessage(
+  message: Message,
+  args: Args
+): Promise<CaseEditOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+  const reason = await args.rest('string');
+
+  return {
+    caseNumber,
+    reason,
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}
+
+/**
+ * `!mod casemod link <number> <messageLink>`
+ */
+export async function parseCaseLinkFromMessage(
+  message: Message,
+  args: Args
+): Promise<CaseLinkOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+  const messageLink = await args.pick('string');
+
+  return {
+    caseNumber,
+    messageLink,
+    guild,
+    guildId: guildId as string,
+  };
+}
+
+/**
+ * `!mod casemod close <number> [status]`
+ *
+ * Status may be "closed" or "void"/"voided". Defaults to CLOSED.
+ */
+export async function parseCaseCloseFromMessage(
+  message: Message,
+  args: Args
+): Promise<CaseCloseOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+
+  let status: CaseStatus | undefined;
+  try {
+    const raw = await args.pick('string');
+    const lower = raw.toLowerCase();
+    if (lower === 'void' || lower === 'voided') {
+      status = CaseStatus.VOID;
+    } else if (lower === 'closed') {
+      status = CaseStatus.CLOSED;
+    }
+  } catch {
+    // No status — handler will default to CLOSED
+  }
+
+  return {
+    caseNumber,
+    status,
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Evidence
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod evidence add <caseNumber>`
+ */
+export async function parseEvidenceAddFromMessage(
+  message: Message,
+  args: Args
+): Promise<EvidenceAddOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+
+  return {
+    caseNumber,
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}
+
+/**
+ * `!mod evidence list <caseNumber>`
+ */
+export async function parseEvidenceListFromMessage(
+  message: Message,
+  args: Args
+): Promise<EvidenceListOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+  const caseNumber = await args.pick('integer');
+
+  return {
+    caseNumber,
+    guild,
+    guildId: guildId as string,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Voice
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod voice where <@user>`
+ */
+export async function parseVoiceWhereFromMessage(
+  message: Message,
+  args: Args
+): Promise<VoiceWhereOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    guild,
+    guildId,
+    moderator,
+  };
+}
+
+/**
+ * `!mod voice watch <@user> <duration>`
+ */
+export async function parseVoiceWatchFromMessage(
+  message: Message,
+  args: Args
+): Promise<VoiceWatchOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const target = await args.pick('user');
+  const durationStr = await args.pick('string');
+  const durationSeconds = requireDuration(durationStr);
+
+  return {
+    target,
+    targetId: asUserId(target.id),
+    durationSeconds,
+    guild,
+    guildId,
+    moderator,
+  };
+}
+
+/**
+ * `!mod voice snapshot <#channel>`
+ *
+ * Picks a channel argument and validates that it is a voice or stage channel.
+ */
+export async function parseVoiceSnapshotFromMessage(
+  message: Message,
+  args: Args
+): Promise<VoiceSnapshotOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const channel = await args.pick('channel');
+
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    throw new UserError({
+      identifier: 'InvalidChannel',
+      message: 'Please specify a voice or stage channel.',
+    });
+  }
+
+  return {
+    channel: channel as VoiceChannel | StageChannel,
+    channelId: asChannelId(channel.id),
+    guild,
+    guildId,
+    moderator,
+  };
+}
+
+/**
+ * `!mod voice track <#channel> <duration>`
+ */
+export async function parseVoiceTrackFromMessage(
+  message: Message,
+  args: Args
+): Promise<VoiceTrackOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+  const channel = await args.pick('channel');
+
+  if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+    throw new UserError({
+      identifier: 'InvalidChannel',
+      message: 'Please specify a voice or stage channel.',
+    });
+  }
+
+  const durationStr = await args.pick('string');
+  const durationSeconds = requireDuration(durationStr);
+
+  return {
+    channel: channel as VoiceChannel | StageChannel,
+    channelId: asChannelId(channel.id),
+    durationSeconds,
+    guild,
+    guildId,
+    moderator,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mutes list
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod mutes [@user] [type]`
+ *
+ * Both arguments are optional. `type` can be "text", "voice", or "both".
+ */
+export async function parseMutesListFromMessage(
+  message: Message,
+  args: Args
+): Promise<MutesListOptions> {
+  const { guild, guildId } = ensureGuildMessage(message);
+
+  let target: User | undefined;
+  let targetId: string | undefined;
+  try {
+    target = await args.pick('user');
+    targetId = target.id;
+  } catch {
+    // No user argument
+  }
+
+  let muteType: string | undefined;
+  try {
+    const raw = await args.pick('string');
+    const upper = raw.toUpperCase();
+    if (['TEXT', 'VOICE', 'BOTH'].includes(upper)) {
+      muteType = upper;
+    }
+  } catch {
+    // No type argument
+  }
+
+  return {
+    target,
+    targetId,
+    muteType,
+    guild,
+    guildId,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+/**
+ * `!mod setup` (no arguments)
+ */
+export async function parseSetupFromMessage(message: Message, _args: Args): Promise<SetupOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+
+  return {
+    guild,
+    guildId: guildId as string,
+    moderator,
+  };
+}

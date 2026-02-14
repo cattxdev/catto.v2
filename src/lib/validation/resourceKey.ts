@@ -21,6 +21,7 @@ import type {
   ButtonInteraction,
   ChatInputCommandInteraction,
   ContextMenuCommandInteraction,
+  Message,
   ModalSubmitInteraction,
   StringSelectMenuInteraction,
 } from 'discord.js';
@@ -322,4 +323,70 @@ export function isKnownCustomId(customId: string): boolean {
  */
 export function getModPanelActionKey(action: string): string {
   return MOD_PANEL_ACTION_MAP[action] ?? 'mod.panel';
+}
+
+// Message Command Key Resolution
+
+/**
+ * Mapping from top-level alias command names to their full resource keys.
+ */
+const ALIAS_TO_RESOURCE_KEY: Record<string, string> = {
+  ban: 'mod.ban',
+  kick: 'mod.kick',
+  timeout: 'mod.timeout',
+  warn: 'mod.warn',
+  unban: 'mod.unban',
+  softban: 'mod.softban',
+  tempban: 'mod.tempban',
+  mute: 'mod.mute.both',
+  unmute: 'mod.unmute.both',
+  case: 'mod.case',
+  history: 'mod.history',
+};
+
+/**
+ * Subcommand groups within the mod command.
+ * Used to determine whether a word after "mod" is a group or direct subcommand.
+ */
+const MOD_GROUPS = new Set(['voice', 'note', 'casemod', 'evidence', 'mute', 'unmute']);
+
+/**
+ * Parse the subcommand/group key from a message that invoked the "mod" subcommand.
+ *
+ * - `!mod ban @user` → `"mod.ban"`
+ * - `!mod mute text @user` → `"mod.mute.text"`
+ */
+function resolveModSubcommandKey(message: Message): string {
+  const match = message.content.match(/\bmod\s+(\S+)(?:\s+(\S+))?/i);
+  if (!match) return 'mod';
+
+  const first = match[1]!.toLowerCase();
+  const second = match[2]?.toLowerCase();
+
+  if (MOD_GROUPS.has(first) && second) {
+    return buildCommandKey('mod', first, second);
+  }
+
+  return buildCommandKey('mod', null, first);
+}
+
+/**
+ * Resolve the resource key from a message command.
+ *
+ * @param commandName - The resolved command name (e.g. "ban" for alias, "mod" for subcommand)
+ * @param message - The original message (needed to extract subcommand from "mod" commands)
+ */
+export function resolveMessageCommandKey(commandName: string, message: Message): string {
+  // Check if it's a known alias
+  if (commandName in ALIAS_TO_RESOURCE_KEY) {
+    return ALIAS_TO_RESOURCE_KEY[commandName]!;
+  }
+
+  // For the "mod" subcommand, parse message content
+  if (commandName === 'mod') {
+    return resolveModSubcommandKey(message);
+  }
+
+  // Fallback: use the command name as-is
+  return commandName;
 }

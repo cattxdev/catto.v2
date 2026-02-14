@@ -48,6 +48,8 @@ export {
   editReply,
 } from './reply.js';
 
+export { type CommandResponder, InteractionResponder, MessageResponder } from './responder.js';
+
 export {
   type UIResponse,
   type PaginationState,

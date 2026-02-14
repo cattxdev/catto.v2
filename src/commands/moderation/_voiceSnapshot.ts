@@ -1,24 +1,11 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
-import { container as sapphireContainer } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
-import { parseVoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { EMOJI, ephemeralError, editError, container, editReply } from '#lib/discord/index.js';
+import type { VoiceSnapshotOptions } from '#lib/interaction/typedOptions.js';
+import type { CommandResponder } from '#lib/discord/index.js';
+import { EMOJI, container, errorMessage } from '#lib/discord/index.js';
 import { formatVoiceMemberLine } from '#root/modules/voice/services/messageBuilders.js';
 
-export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseVoiceSnapshotOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
-  await interaction.deferReply();
+export async function handleVoiceSnapshot(options: VoiceSnapshotOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     const voiceChannel = options.channel;
@@ -53,11 +40,11 @@ export async function handleVoiceSnapshot(interaction: Subcommand.ChatInputComma
       `**Channel Info:** User Limit: ${voiceChannel.userLimit || 'None'} | Bitrate: ${Math.floor(voiceChannel.bitrate / 1000)}kbps`
     );
 
-    await editReply(interaction, c);
+    await ctx.editReply(c);
   } catch (error) {
-    sapphireContainer.logger.error('Error in voice snapshot command:', error);
-    await interaction
-      .editReply(editError('An error occurred while taking the snapshot.'))
+    ctx.client.logger.error('Error in voice snapshot command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An error occurred while taking the snapshot.'))
       .catch(() => {});
   }
 }

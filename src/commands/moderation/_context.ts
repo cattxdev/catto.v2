@@ -1,5 +1,5 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
-import { MessageFlags, type GuildMember } from 'discord.js';
+import type { Guild, GuildMember, User } from 'discord.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
@@ -13,33 +13,31 @@ import {
   type CaseNumber,
   type CaseEvidence,
 } from '../../modules/moderation/domain/types.js';
-import { parseDurationToSeconds } from '#lib/interaction/typedOptions.js';
-import { ephemeralError, editError } from '#lib/discord/index.js';
+import { errorMessage } from '#lib/discord/index.js';
 
-export async function handleContext(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
+export interface ContextOptions {
+  target: User;
+  targetId: string;
+  guild: Guild;
+  guildId: string;
+  windowSeconds?: number;
+}
 
-  const target = interaction.options.getUser('target', true);
-  const windowStr = interaction.options.getString('window') ?? '24h';
-
-  await interaction.deferReply();
+export async function handleContext(options: ContextOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
-    const guildId = asGuildId(interaction.guild.id);
-    const userId = asUserId(target.id);
+    const guildId = asGuildId(options.guildId);
+    const userId = asUserId(options.targetId);
 
-    // Parse window to seconds
-    const windowSeconds = parseDurationToSeconds(windowStr);
-    const windowMs = windowSeconds ? windowSeconds * 1000 : 24 * 60 * 60 * 1000;
+    // Determine time window
+    const windowMs = options.windowSeconds ? options.windowSeconds * 1000 : 24 * 60 * 60 * 1000;
     const windowStart = new Date(Date.now() - windowMs);
 
     // Fetch target member
     let targetMember: GuildMember | null = null;
     try {
-      targetMember = await interaction.guild.members.fetch(target.id);
+      targetMember = await options.guild.members.fetch(options.targetId);
     } catch {
       // User may not be in the server
     }
@@ -77,7 +75,7 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
 
     // Build context
     const context: ModPanelContext = {
-      target,
+      target: options.target,
       targetMember,
       casesCount: userCases.length,
       notesCount: notes.length,
@@ -85,21 +83,20 @@ export async function handleContext(interaction: Subcommand.ChatInputCommandInte
       recentNotes: recentNotes.slice(0, 5),
       voiceChannelId: targetMember?.voice.channel?.id ?? null,
       joinedAt: targetMember?.joinedAt ?? null,
-      accountCreatedAt: target.createdAt,
+      accountCreatedAt: options.target.createdAt,
       hasActiveMutes: activeMutes.length > 0,
     };
 
     // Build the Components V2 context bundle
     const container = buildContextBundle(context);
 
-    await interaction.editReply({
-      components: [container.build()],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await ctx.editReply(container);
   } catch (error) {
-    interaction.client.logger.error('Error in context command:', error);
-    await interaction
-      .editReply(editError('An unexpected error occurred while loading the context bundle.'))
+    ctx.client.logger.error('Error in context command:', error);
+    await ctx
+      .editReply(
+        errorMessage('Error', 'An unexpected error occurred while loading the context bundle.')
+      )
       .catch(() => {});
   }
 }

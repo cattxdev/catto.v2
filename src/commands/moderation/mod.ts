@@ -7,6 +7,7 @@ import {
   InteractionContextType,
   ChannelType,
 } from 'discord.js';
+import type { Message } from 'discord.js';
 import { handleKick } from './_kick.js';
 import { handleTimeout } from './_timeout.js';
 import { handleWarn } from './_warn.js';
@@ -38,64 +39,98 @@ import {
 } from './_mute.js';
 import { handleSetup } from './_setup.js';
 
+import { InteractionResponder, MessageResponder } from '#lib/discord/index.js';
+import { ValidationError } from '#lib/validation/zod.js';
+import { ephemeralError, buildErrorText } from '#lib/discord/index.js';
+import { UserError, type Args } from '@sapphire/framework';
+import {
+  parseBanOptions,
+  parseKickOptions,
+  parseTimeoutOptions,
+  parseWarnOptions,
+  parseUnbanOptions,
+  parseCaseOptions,
+  parseHistoryOptions,
+  parseSoftbanOptions,
+  parseTempbanOptions,
+  parseVoiceWhereOptions,
+  parseVoiceWatchOptions,
+  parseVoiceSnapshotOptions,
+  parseVoiceTrackOptions,
+  parseMuteOptions,
+  parseUnmuteOptions,
+  parseDurationToSeconds,
+} from '#lib/interaction/typedOptions.js';
+import { CaseStatus } from '@prisma/client';
+import { asGuildId } from '../../modules/moderation/domain/types.js';
+import {
+  parseBanFromMessage,
+  parseKickFromMessage,
+  parseTimeoutFromMessage,
+  parseWarnFromMessage,
+  parseUnbanFromMessage,
+  parseSoftbanFromMessage,
+  parseTempbanFromMessage,
+  parseCaseFromMessage,
+  parseHistoryFromMessage,
+  parsePanelFromMessage,
+  parseContextFromMessage,
+  parseMuteFromMessage,
+  parseUnmuteFromMessage,
+  parseMutesListFromMessage,
+  parseSetupFromMessage,
+  parseVoiceWhereFromMessage,
+  parseVoiceWatchFromMessage,
+  parseVoiceSnapshotFromMessage,
+  parseVoiceTrackFromMessage,
+  parseNoteAddFromMessage,
+  parseNoteListFromMessage,
+  parseNoteDeleteFromMessage,
+  parseCaseEditFromMessage,
+  parseCaseLinkFromMessage,
+  parseCaseCloseFromMessage,
+  parseEvidenceAddFromMessage,
+  parseEvidenceListFromMessage,
+} from '#lib/interaction/messageArgs.js';
+
+import type { PanelOptions } from './_panel.js';
+import type { ContextOptions } from './_context.js';
+import type { NoteAddOptions, NoteListOptions, NoteDeleteOptions } from './_note.js';
+import type { CaseEditOptions, CaseLinkOptions, CaseCloseOptions } from './_caseManagement.js';
+import type { EvidenceAddOptions } from './_evidenceAdd.js';
+import type { EvidenceListOptions } from './_evidenceList.js';
+import type { MutesListOptions } from './_mute.js';
+import type { SetupOptions } from './_setup.js';
+
 @ApplyOptions<Subcommand.Options>({
   name: 'mod',
   description: 'Moderation commands',
   requiredClientPermissions: [PermissionFlagsBits.ModerateMembers],
   subcommands: [
-    {
-      name: 'ban',
-      chatInputRun: 'chatInputBan',
-    },
-    {
-      name: 'kick',
-      chatInputRun: 'chatInputKick',
-    },
-    {
-      name: 'timeout',
-      chatInputRun: 'chatInputTimeout',
-    },
-    {
-      name: 'warn',
-      chatInputRun: 'chatInputWarn',
-    },
-    {
-      name: 'unban',
-      chatInputRun: 'chatInputUnban',
-    },
-    {
-      name: 'case',
-      chatInputRun: 'chatInputCase',
-    },
-    {
-      name: 'history',
-      chatInputRun: 'chatInputHistory',
-    },
-    {
-      name: 'softban',
-      chatInputRun: 'chatInputSoftban',
-    },
-    {
-      name: 'tempban',
-      chatInputRun: 'chatInputTempban',
-    },
-    {
-      name: 'panel',
-      chatInputRun: 'chatInputPanel',
-    },
-    {
-      name: 'context',
-      chatInputRun: 'chatInputContext',
-    },
+    { name: 'ban', chatInputRun: 'chatInputBan', messageRun: 'messageBan' },
+    { name: 'kick', chatInputRun: 'chatInputKick', messageRun: 'messageKick' },
+    { name: 'timeout', chatInputRun: 'chatInputTimeout', messageRun: 'messageTimeout' },
+    { name: 'warn', chatInputRun: 'chatInputWarn', messageRun: 'messageWarn' },
+    { name: 'unban', chatInputRun: 'chatInputUnban', messageRun: 'messageUnban' },
+    { name: 'case', chatInputRun: 'chatInputCase', messageRun: 'messageCase' },
+    { name: 'history', chatInputRun: 'chatInputHistory', messageRun: 'messageHistory' },
+    { name: 'softban', chatInputRun: 'chatInputSoftban', messageRun: 'messageSoftban' },
+    { name: 'tempban', chatInputRun: 'chatInputTempban', messageRun: 'messageTempban' },
+    { name: 'panel', chatInputRun: 'chatInputPanel', messageRun: 'messagePanel' },
+    { name: 'context', chatInputRun: 'chatInputContext', messageRun: 'messageContext' },
     // Voice subcommand group
     {
       name: 'voice',
       type: 'group',
       entries: [
-        { name: 'where', chatInputRun: 'chatInputVoiceWhere' },
-        { name: 'watch', chatInputRun: 'chatInputVoiceWatch' },
-        { name: 'snapshot', chatInputRun: 'chatInputVoiceSnapshot' },
-        { name: 'track', chatInputRun: 'chatInputVoiceTrack' },
+        { name: 'where', chatInputRun: 'chatInputVoiceWhere', messageRun: 'messageVoiceWhere' },
+        { name: 'watch', chatInputRun: 'chatInputVoiceWatch', messageRun: 'messageVoiceWatch' },
+        {
+          name: 'snapshot',
+          chatInputRun: 'chatInputVoiceSnapshot',
+          messageRun: 'messageVoiceSnapshot',
+        },
+        { name: 'track', chatInputRun: 'chatInputVoiceTrack', messageRun: 'messageVoiceTrack' },
       ],
     },
     // Note subcommand group
@@ -103,9 +138,9 @@ import { handleSetup } from './_setup.js';
       name: 'note',
       type: 'group',
       entries: [
-        { name: 'add', chatInputRun: 'chatInputNoteAdd' },
-        { name: 'list', chatInputRun: 'chatInputNoteList' },
-        { name: 'delete', chatInputRun: 'chatInputNoteDelete' },
+        { name: 'add', chatInputRun: 'chatInputNoteAdd', messageRun: 'messageNoteAdd' },
+        { name: 'list', chatInputRun: 'chatInputNoteList', messageRun: 'messageNoteList' },
+        { name: 'delete', chatInputRun: 'chatInputNoteDelete', messageRun: 'messageNoteDelete' },
       ],
     },
     // Case management subcommand group
@@ -113,9 +148,9 @@ import { handleSetup } from './_setup.js';
       name: 'casemod',
       type: 'group',
       entries: [
-        { name: 'edit', chatInputRun: 'chatInputCaseEdit' },
-        { name: 'link', chatInputRun: 'chatInputCaseLink' },
-        { name: 'close', chatInputRun: 'chatInputCaseClose' },
+        { name: 'edit', chatInputRun: 'chatInputCaseEdit', messageRun: 'messageCaseEdit' },
+        { name: 'link', chatInputRun: 'chatInputCaseLink', messageRun: 'messageCaseLink' },
+        { name: 'close', chatInputRun: 'chatInputCaseClose', messageRun: 'messageCaseClose' },
       ],
     },
     // Evidence subcommand group
@@ -123,8 +158,8 @@ import { handleSetup } from './_setup.js';
       name: 'evidence',
       type: 'group',
       entries: [
-        { name: 'add', chatInputRun: 'chatInputEvidenceAdd' },
-        { name: 'list', chatInputRun: 'chatInputEvidenceList' },
+        { name: 'add', chatInputRun: 'chatInputEvidenceAdd', messageRun: 'messageEvidenceAdd' },
+        { name: 'list', chatInputRun: 'chatInputEvidenceList', messageRun: 'messageEvidenceList' },
       ],
     },
 
@@ -133,9 +168,9 @@ import { handleSetup } from './_setup.js';
       name: 'mute',
       type: 'group',
       entries: [
-        { name: 'text', chatInputRun: 'chatInputMuteText' },
-        { name: 'voice', chatInputRun: 'chatInputMuteVoice' },
-        { name: 'both', chatInputRun: 'chatInputMuteBoth' },
+        { name: 'text', chatInputRun: 'chatInputMuteText', messageRun: 'messageMuteText' },
+        { name: 'voice', chatInputRun: 'chatInputMuteVoice', messageRun: 'messageMuteVoice' },
+        { name: 'both', chatInputRun: 'chatInputMuteBoth', messageRun: 'messageMuteBoth' },
       ],
     },
     // Unmute subcommand group
@@ -143,21 +178,15 @@ import { handleSetup } from './_setup.js';
       name: 'unmute',
       type: 'group',
       entries: [
-        { name: 'text', chatInputRun: 'chatInputUnmuteText' },
-        { name: 'voice', chatInputRun: 'chatInputUnmuteVoice' },
-        { name: 'both', chatInputRun: 'chatInputUnmuteBoth' },
+        { name: 'text', chatInputRun: 'chatInputUnmuteText', messageRun: 'messageUnmuteText' },
+        { name: 'voice', chatInputRun: 'chatInputUnmuteVoice', messageRun: 'messageUnmuteVoice' },
+        { name: 'both', chatInputRun: 'chatInputUnmuteBoth', messageRun: 'messageUnmuteBoth' },
       ],
     },
     // Mutes list
-    {
-      name: 'mutes',
-      chatInputRun: 'chatInputMutesList',
-    },
+    { name: 'mutes', chatInputRun: 'chatInputMutesList', messageRun: 'messageMutesList' },
     // Setup wizard
-    {
-      name: 'setup',
-      chatInputRun: 'chatInputSetup',
-    },
+    { name: 'setup', chatInputRun: 'chatInputSetup', messageRun: 'messageSetup' },
   ],
 })
 export class ModCommand extends Subcommand {
@@ -673,134 +702,576 @@ export class ModCommand extends Subcommand {
   }
 
   public async chatInputBan(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleBan(interaction);
+    let options;
+    try {
+      options = parseBanOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleBan(options, new InteractionResponder(interaction));
   }
 
   public async chatInputKick(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleKick(interaction);
+    let options;
+    try {
+      options = parseKickOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleKick(options, new InteractionResponder(interaction));
   }
 
   public async chatInputTimeout(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleTimeout(interaction);
+    let options;
+    try {
+      options = parseTimeoutOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleTimeout(options, new InteractionResponder(interaction));
   }
 
   public async chatInputWarn(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleWarn(interaction);
+    let options;
+    try {
+      options = parseWarnOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleWarn(options, new InteractionResponder(interaction));
   }
 
   public async chatInputUnban(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleUnban(interaction);
+    let options;
+    try {
+      options = parseUnbanOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleUnban(options, new InteractionResponder(interaction));
   }
 
   public async chatInputCase(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleCase(interaction);
+    let options;
+    try {
+      options = parseCaseOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleCase(options, new InteractionResponder(interaction));
   }
 
   public async chatInputHistory(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleHistory(interaction);
+    let options;
+    try {
+      options = parseHistoryOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleHistory(options, new InteractionResponder(interaction));
   }
 
   public async chatInputSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleSoftban(interaction);
+    let options;
+    try {
+      options = parseSoftbanOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleSoftban(options, new InteractionResponder(interaction));
   }
 
   public async chatInputTempban(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleTempban(interaction);
+    let options;
+    try {
+      options = parseTempbanOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleTempban(options, new InteractionResponder(interaction));
   }
 
   public async chatInputPanel(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handlePanel(interaction);
+    const target = interaction.options.getUser('target', true);
+    const options: PanelOptions = {
+      target,
+      targetId: target.id,
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+    };
+    return handlePanel(options, new InteractionResponder(interaction));
   }
 
   public async chatInputContext(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleContext(interaction);
+    const target = interaction.options.getUser('target', true);
+    const windowStr = interaction.options.getString('window');
+    const windowSeconds = windowStr ? (parseDurationToSeconds(windowStr) ?? undefined) : undefined;
+    const options: ContextOptions = {
+      target,
+      targetId: target.id,
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      windowSeconds,
+    };
+    return handleContext(options, new InteractionResponder(interaction));
   }
 
   // Voice subcommand handlers
   public async chatInputVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleVoiceWhere(interaction);
+    let options;
+    try {
+      options = parseVoiceWhereOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleVoiceWhere(options, new InteractionResponder(interaction));
   }
 
   public async chatInputVoiceWatch(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleVoiceWatch(interaction);
+    let options;
+    try {
+      options = parseVoiceWatchOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleVoiceWatch(options, new InteractionResponder(interaction));
   }
 
   public async chatInputVoiceSnapshot(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleVoiceSnapshot(interaction);
+    let options;
+    try {
+      options = parseVoiceSnapshotOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleVoiceSnapshot(options, new InteractionResponder(interaction));
   }
 
   public async chatInputVoiceTrack(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleVoiceTrack(interaction);
+    let options;
+    try {
+      options = parseVoiceTrackOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleVoiceTrack(options, new InteractionResponder(interaction));
   }
 
   // Note subcommand handlers
   public async chatInputNoteAdd(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleNoteAdd(interaction);
+    const target = interaction.options.getUser('target', true);
+    const options: NoteAddOptions = {
+      target,
+      targetId: target.id,
+      content: interaction.options.getString('note', true),
+      tags: interaction.options.getString('tags') ?? undefined,
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleNoteAdd(options, new InteractionResponder(interaction));
   }
 
   public async chatInputNoteList(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleNoteList(interaction);
+    const target = interaction.options.getUser('target', true);
+    const options: NoteListOptions = {
+      target,
+      targetId: target.id,
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+    };
+    return handleNoteList(options, new InteractionResponder(interaction));
   }
 
   public async chatInputNoteDelete(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleNoteDelete(interaction);
+    const options: NoteDeleteOptions = {
+      noteId: interaction.options.getString('note_id', true),
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleNoteDelete(options, new InteractionResponder(interaction));
   }
 
   // Case management subcommand handlers
   public async chatInputCaseEdit(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleCaseEdit(interaction);
+    const options: CaseEditOptions = {
+      caseNumber: interaction.options.getInteger('number', true),
+      reason: interaction.options.getString('reason', true),
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleCaseEdit(options, new InteractionResponder(interaction));
   }
 
   public async chatInputCaseLink(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleCaseLink(interaction);
+    const options: CaseLinkOptions = {
+      caseNumber: interaction.options.getInteger('number', true),
+      messageLink: interaction.options.getString('message_link', true),
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+    };
+    return handleCaseLink(options, new InteractionResponder(interaction));
   }
 
   public async chatInputCaseClose(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleCaseClose(interaction);
+    const options: CaseCloseOptions = {
+      caseNumber: interaction.options.getInteger('number', true),
+      status: (interaction.options.getString('status') ?? undefined) as CaseStatus | undefined,
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleCaseClose(options, new InteractionResponder(interaction));
   }
 
   // Evidence subcommand handlers
   public async chatInputEvidenceAdd(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleEvidenceAdd(interaction);
+    const options: EvidenceAddOptions = {
+      caseNumber: interaction.options.getInteger('number', true),
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleEvidenceAdd(options, new InteractionResponder(interaction));
   }
 
   public async chatInputEvidenceList(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleEvidenceList(interaction);
+    const options: EvidenceListOptions = {
+      caseNumber: interaction.options.getInteger('number', true),
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+    };
+    return handleEvidenceList(options, new InteractionResponder(interaction));
   }
 
   // Mute subcommand handlers
   public async chatInputMuteText(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleMuteText(interaction);
+    let options;
+    try {
+      options = parseMuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleMuteText(options, new InteractionResponder(interaction));
   }
 
   public async chatInputMuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleMuteVoice(interaction);
+    let options;
+    try {
+      options = parseMuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleMuteVoice(options, new InteractionResponder(interaction));
   }
 
   public async chatInputMuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleMuteBoth(interaction);
+    let options;
+    try {
+      options = parseMuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleMuteBoth(options, new InteractionResponder(interaction));
   }
 
   // Unmute subcommand handlers
   public async chatInputUnmuteText(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleUnmuteText(interaction);
+    let options;
+    try {
+      options = parseUnmuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleUnmuteText(options, new InteractionResponder(interaction));
   }
 
   public async chatInputUnmuteVoice(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleUnmuteVoice(interaction);
+    let options;
+    try {
+      options = parseUnmuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleUnmuteVoice(options, new InteractionResponder(interaction));
   }
 
   public async chatInputUnmuteBoth(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleUnmuteBoth(interaction);
+    let options;
+    try {
+      options = parseUnmuteOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleUnmuteBoth(options, new InteractionResponder(interaction));
   }
 
   // Mutes list handler
   public async chatInputMutesList(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleMutesList(interaction);
+    const target = interaction.options.getUser('target') ?? undefined;
+    const options: MutesListOptions = {
+      target,
+      targetId: target?.id,
+      muteType: interaction.options.getString('type') ?? undefined,
+      guild: interaction.guild!,
+      guildId: asGuildId(interaction.guild!.id),
+    };
+    return handleMutesList(options, new InteractionResponder(interaction));
   }
 
   // Setup handler
   public async chatInputSetup(interaction: Subcommand.ChatInputCommandInteraction) {
-    return handleSetup(interaction);
+    const options: SetupOptions = {
+      guild: interaction.guild!,
+      guildId: interaction.guild!.id,
+      moderator: interaction.user,
+    };
+    return handleSetup(options, new InteractionResponder(interaction));
+  }
+
+  // ============================================================================
+  // Message Command Handlers (prefix commands)
+  // ============================================================================
+
+  private async handleMessageCommand<T>(
+    message: Message,
+    args: Args,
+    parser: (message: Message, args: Args) => Promise<T>,
+    handler: (options: T, ctx: MessageResponder) => Promise<unknown>
+  ): Promise<unknown> {
+    try {
+      const options = await parser(message, args);
+      return handler(options, new MessageResponder(message as Message<true>));
+    } catch (error) {
+      if (error instanceof UserError || error instanceof ValidationError) {
+        if (message.channel.isSendable()) {
+          return message.channel.send({
+            content: buildErrorText(error.message),
+            allowedMentions: { parse: [] },
+          });
+        }
+      }
+      throw error;
+    }
+  }
+
+  public async messageBan(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseBanFromMessage, handleBan);
+  }
+
+  public async messageKick(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseKickFromMessage, handleKick);
+  }
+
+  public async messageTimeout(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseTimeoutFromMessage, handleTimeout);
+  }
+
+  public async messageWarn(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseWarnFromMessage, handleWarn);
+  }
+
+  public async messageUnban(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseUnbanFromMessage, handleUnban);
+  }
+
+  public async messageCase(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseCaseFromMessage, handleCase);
+  }
+
+  public async messageHistory(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseHistoryFromMessage, handleHistory);
+  }
+
+  public async messageSoftban(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseSoftbanFromMessage, handleSoftban);
+  }
+
+  public async messageTempban(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseTempbanFromMessage, handleTempban);
+  }
+
+  public async messagePanel(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parsePanelFromMessage, handlePanel);
+  }
+
+  public async messageContext(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseContextFromMessage, handleContext);
+  }
+
+  // Voice
+  public async messageVoiceWhere(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseVoiceWhereFromMessage, handleVoiceWhere);
+  }
+
+  public async messageVoiceWatch(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseVoiceWatchFromMessage, handleVoiceWatch);
+  }
+
+  public async messageVoiceSnapshot(message: Message, args: Args) {
+    return this.handleMessageCommand(
+      message,
+      args,
+      parseVoiceSnapshotFromMessage,
+      handleVoiceSnapshot
+    );
+  }
+
+  public async messageVoiceTrack(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseVoiceTrackFromMessage, handleVoiceTrack);
+  }
+
+  // Notes
+  public async messageNoteAdd(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseNoteAddFromMessage, handleNoteAdd);
+  }
+
+  public async messageNoteList(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseNoteListFromMessage, handleNoteList);
+  }
+
+  public async messageNoteDelete(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseNoteDeleteFromMessage, handleNoteDelete);
+  }
+
+  // Case management
+  public async messageCaseEdit(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseCaseEditFromMessage, handleCaseEdit);
+  }
+
+  public async messageCaseLink(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseCaseLinkFromMessage, handleCaseLink);
+  }
+
+  public async messageCaseClose(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseCaseCloseFromMessage, handleCaseClose);
+  }
+
+  // Evidence
+  public async messageEvidenceAdd(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseEvidenceAddFromMessage, handleEvidenceAdd);
+  }
+
+  public async messageEvidenceList(message: Message, args: Args) {
+    return this.handleMessageCommand(
+      message,
+      args,
+      parseEvidenceListFromMessage,
+      handleEvidenceList
+    );
+  }
+
+  // Mute
+  public async messageMuteText(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteText);
+  }
+
+  public async messageMuteVoice(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteVoice);
+  }
+
+  public async messageMuteBoth(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseMuteFromMessage, handleMuteBoth);
+  }
+
+  // Unmute
+  public async messageUnmuteText(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseUnmuteFromMessage, handleUnmuteText);
+  }
+
+  public async messageUnmuteVoice(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseUnmuteFromMessage, handleUnmuteVoice);
+  }
+
+  public async messageUnmuteBoth(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseUnmuteFromMessage, handleUnmuteBoth);
+  }
+
+  // Mutes list
+  public async messageMutesList(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseMutesListFromMessage, handleMutesList);
+  }
+
+  // Setup
+  public async messageSetup(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseSetupFromMessage, handleSetup);
   }
 }

@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction } from '../../modules/moderation/discord/embeds/presets.js';
@@ -6,33 +5,18 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseUnbanOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { UnbanOptions } from '#lib/interaction/typedOptions.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 
-export async function handleUnban(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseUnbanOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    interaction.client.logger.error('Unexpected error while parsing unban options:', error);
-    throw error;
-  }
-
-  await defer(interaction);
+export async function handleUnban(options: UnbanOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to unban members.')
-      );
+      await ctx.editReply(errorMessage('Error', 'I do not have permission to unban members.'));
       return;
     }
 
@@ -41,7 +25,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     try {
       ban = await options.guild.bans.fetch(options.userId);
     } catch {
-      await editReply(interaction, errorMessage('Error', 'This user is not banned.'));
+      await ctx.editReply(errorMessage('Error', 'This user is not banned.'));
       return;
     }
 
@@ -55,8 +39,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(result.error ?? 'Failed to unban the user.', 'Check bot permissions.')
       );
       return;
@@ -72,8 +55,7 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
       ensureNonNull(result.caseNumber, '_unban > handleUnban > logModAction(74): result.caseNumber')
     );
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Unban',
         ban.user,
@@ -87,10 +69,9 @@ export async function handleUnban(interaction: Subcommand.ChatInputCommandIntera
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in unban command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the unban.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in unban command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An unexpected error occurred while processing the unban.'))
+      .catch(() => {});
   }
 }
