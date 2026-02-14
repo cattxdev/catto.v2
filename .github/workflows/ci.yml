@@ -175,3 +175,24 @@ jobs:
           labels: ${{ steps.meta-watermark.outputs.labels }}
           cache-from: type=gha,scope=watermark
           cache-to: type=gha,mode=max,scope=watermark
+
+  deploy:
+    name: Trigger Deployment
+    needs: [build-and-push-bot, build-and-push-watermark]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
+    steps:
+      - name: Call deploy webhook
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            --fail-with-body \
+            --max-time 30 \
+            "${{ secrets.DEPLOY_WEBHOOK_URL }}")
+
+          if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+            echo "Deployment triggered successfully (HTTP $response)"
+          else
+            echo "::error::Deployment webhook failed with HTTP $response"
+            exit 1
+          fi
