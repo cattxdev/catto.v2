@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
@@ -6,48 +5,31 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseWarnOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { WarnOptions } from '#lib/interaction/typedOptions.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleWarn(interaction: Subcommand.ChatInputCommandInteraction) {
+export async function handleWarn(options: WarnOptions, ctx: CommandResponder) {
   // Create gate for validation
-  const gate = Gate.from(interaction);
-  if (!gate) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
-
-  // Parse options
-  let options;
-  try {
-    options = parseWarnOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    interaction.client.logger.error('Unexpected error while parsing warn options:', error);
-    throw error;
-  }
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
 
   // Resolve target and check hierarchy (authorization already checked by precondition)
   const targetMember = await gate.resolveMember(options.target.id);
   if (!targetMember) {
-    await interaction.reply(ephemeralError('Target is not a member of this server.'));
+    await ctx.replyError('Target is not a member of this server.');
     return;
   }
 
   // Check hierarchy
   const hierarchyResult = gate.checkHierarchy(targetMember);
   if (isFail(hierarchyResult)) {
-    await gate.deny(hierarchyResult);
+    await gate.deny(hierarchyResult, ctx);
     return;
   }
 
-  await defer(interaction);
+  await ctx.defer();
 
   try {
     // Notify user before warn
@@ -67,8 +49,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'An unexpected error occurred while processing the warning.'
         )
@@ -86,8 +67,7 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
       ensureNonNull(result.caseNumber, '_warn > handleWarn > logModAction(82): result.caseNumber')
     );
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Warning',
         options.target,
@@ -101,10 +81,11 @@ export async function handleWarn(interaction: Subcommand.ChatInputCommandInterac
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in warn command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the warning.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in warn command:', error);
+    await ctx
+      .editReply(
+        errorMessage('Error', 'An unexpected error occurred while processing the warning.')
+      )
+      .catch(() => {});
   }
 }

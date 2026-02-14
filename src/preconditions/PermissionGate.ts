@@ -1,12 +1,17 @@
-import { AllFlowsPrecondition } from '@sapphire/framework';
+import { AllFlowsPrecondition, type Command } from '@sapphire/framework';
 import type {
   ChatInputCommandInteraction,
   ContextMenuCommandInteraction,
+  GuildMember,
   Message,
 } from 'discord.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 import { getGate } from '#lib/validation/gateContext.js';
-import { resolveCommandKey, resolveContextMenuKey } from '#lib/validation/resourceKey.js';
+import {
+  resolveCommandKey,
+  resolveContextMenuKey,
+  resolveMessageCommandKey,
+} from '#lib/validation/resourceKey.js';
 
 /**
  * Global precondition that gates all commands through the Gate validation system.
@@ -34,9 +39,21 @@ export class PermissionGatePrecondition extends AllFlowsPrecondition {
     });
   }
 
-  public override async messageRun(_message: Message) {
-    // Future: Implement message command permission checking
-    // For now, allow all message commands (they'll have their own checks)
+  public override async messageRun(message: Message, command: Command) {
+    if (!message.guild || !message.member) return this.ok();
+
+    const gate = Gate.fromMember(message.member as GuildMember, message.guild);
+    const commandKey = resolveMessageCommandKey(command.name, message);
+    const result = await gate.checkAuth(commandKey);
+
+    if (isFail(result)) {
+      return this.error({
+        identifier: 'PermissionDenied',
+        message: result.message,
+        context: { commandKey, code: result.code, response: result.response },
+      });
+    }
+
     return this.ok();
   }
 

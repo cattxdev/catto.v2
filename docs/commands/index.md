@@ -16,7 +16,7 @@ Commands are built using the Sapphire Framework. The bot supports:
 |----------|----------|----------|
 | General | `src/commands/general/` | ping, info, help, language, dbstats, redis |
 | Admin | `src/commands/admin/` | permission |
-| Moderation | `src/commands/moderation/` | mod (with 20+ subcommands) |
+| Moderation | `src/commands/moderation/` | mod (with 20+ subcommands), plus prefix aliases |
 | Reputation | `src/commands/reputation/` | rep, reputation |
 | Rewards | `src/commands/rewards/` | rewards |
 | Temp Voice | `src/commands/temp-voice/` | tempvoice |
@@ -33,10 +33,18 @@ src/commands/
 │   ├── help.ts
 │   └── language.ts
 ├── moderation/
-│   ├── mod.ts           # Main subcommand entry
-│   ├── _ban.ts          # Subcommand handler
+│   ├── mod.ts              # Main subcommand entry (/mod)
+│   ├── _ban.ts             # Shared handler (slash + prefix)
 │   ├── _kick.ts
-│   └── ...
+│   ├── ...
+│   └── aliases/
+│       ├── _registry.ts    # Data-driven registry for simple aliases
+│       ├── _shared.ts      # Shared prefix alias utilities
+│       ├── mute.ts         # Complex aliases (subcommand routing)
+│       ├── unmute.ts
+│       ├── evidence.ts
+│       ├── note.ts
+│       └── voice.ts
 └── ...
 ```
 

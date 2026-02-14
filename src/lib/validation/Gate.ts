@@ -44,6 +44,7 @@ import {
 import { getCommand, fallbackDiscordPermissionForCommand } from './permissionRegistry.js';
 import { errorMessage, type FluentContainer } from '../discord/containers/index.js';
 import { reply, editReply } from '../discord/core/reply.js';
+import type { CommandResponder } from '../discord/core/responder.js';
 
 // Types
 
@@ -134,8 +135,8 @@ function fail(code: GateErrorCode, title: string, message: string): GateFail {
  */
 export class Gate {
   private constructor(
-    /** The interaction being validated */
-    public readonly interaction: GateableInteraction,
+    /** The interaction being validated (null for message commands) */
+    public readonly interaction: GateableInteraction | null,
     /** The guild member executing the interaction */
     public readonly member: GuildMember,
     /** The guild context */
@@ -183,6 +184,14 @@ export class Gate {
     return gate;
   }
 
+  /**
+   * Create a Gate from a guild member directly (no interaction needed).
+   * Used for message/prefix commands where there is no interaction object.
+   */
+  static fromMember(member: GuildMember, guild: Guild): Gate {
+    return new Gate(null, member, guild);
+  }
+
   // ===========================================================================
   // Authorization
   // ===========================================================================
@@ -223,12 +232,14 @@ export class Gate {
    * Require authorization for a command.
    * Automatically sends error response on failure.
    *
+   * @param commandKey - The command key (e.g., 'mod.warn')
+   * @param ctx - Optional CommandResponder for message command support
    * @returns true if authorized, false if denied (error already sent)
    */
-  async requireAuth(commandKey: string): Promise<boolean> {
+  async requireAuth(commandKey: string, ctx?: CommandResponder): Promise<boolean> {
     const result = await this.checkAuth(commandKey);
     if (isFail(result)) {
-      await this.deny(result);
+      await this.deny(result, ctx);
       return false;
     }
     return true;
@@ -276,15 +287,19 @@ export class Gate {
    * Require resource-level authorization.
    * Automatically sends error response on failure.
    *
+   * @param commandKey - The command key
+   * @param context - Optional resource context
+   * @param ctx - Optional CommandResponder for message command support
    * @returns true if authorized, false if denied (error already sent)
    */
   async requireResourceAuth(
     commandKey: string,
-    context?: { caseId?: string; ownerId?: string }
+    context?: { caseId?: string; ownerId?: string },
+    ctx?: CommandResponder
   ): Promise<boolean> {
     const result = await this.checkResourceAuth(commandKey, context);
     if (isFail(result)) {
-      await this.deny(result);
+      await this.deny(result, ctx);
       return false;
     }
     return true;
@@ -377,14 +392,16 @@ export class Gate {
     options: {
       /** Whether target must be a guild member. Default: true */
       requiresMember?: boolean;
+      /** Optional CommandResponder for message command support */
+      ctx?: CommandResponder;
     } = {}
   ): Promise<GuildMember | null> {
-    const { requiresMember = true } = options;
+    const { requiresMember = true, ctx } = options;
 
     // 1. Authorization
     const authResult = await this.checkAuth(commandKey);
     if (isFail(authResult)) {
-      await this.deny(authResult);
+      await this.deny(authResult, ctx);
       return null;
     }
 
@@ -399,7 +416,8 @@ export class Gate {
     // 3. Member required check
     if (requiresMember && !targetMember) {
       await this.deny(
-        fail(GateErrorCode.TARGET_NOT_MEMBER, 'User Not Found', 'User is not in this server.')
+        fail(GateErrorCode.TARGET_NOT_MEMBER, 'User Not Found', 'User is not in this server.'),
+        ctx
       );
       return null;
     }
@@ -408,7 +426,7 @@ export class Gate {
     if (targetMember) {
       const hierarchyResult = this.checkHierarchy(targetMember);
       if (isFail(hierarchyResult)) {
-        await this.deny(hierarchyResult);
+        await this.deny(hierarchyResult, ctx);
         return null;
       }
     }
@@ -419,20 +437,27 @@ export class Gate {
   /**
    * Quick punitive check when you already have the target member.
    *
+   * @param commandKey - The command key (e.g., 'mod.warn')
+   * @param targetMember - The target guild member
+   * @param ctx - Optional CommandResponder for message command support
    * @returns true if action is allowed, false otherwise (error already sent)
    */
-  async requirePunitiveWithMember(commandKey: string, targetMember: GuildMember): Promise<boolean> {
+  async requirePunitiveWithMember(
+    commandKey: string,
+    targetMember: GuildMember,
+    ctx?: CommandResponder
+  ): Promise<boolean> {
     // Authorization
     const authResult = await this.checkAuth(commandKey);
     if (isFail(authResult)) {
-      await this.deny(authResult);
+      await this.deny(authResult, ctx);
       return false;
     }
 
     // Hierarchy
     const hierarchyResult = this.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await this.deny(hierarchyResult);
+      await this.deny(hierarchyResult, ctx);
       return false;
     }
 
@@ -448,14 +473,19 @@ export class Gate {
    * Handles deferred/replied state automatically.
    *
    * @param result - The failed gate result
+   * @param ctx - Optional CommandResponder for message command support
    * @returns Always returns true (for early-return pattern)
    */
-  async deny(result: GateFail): Promise<true> {
+  async deny(result: GateFail, ctx?: CommandResponder): Promise<true> {
     try {
-      if (this.interaction.deferred || this.interaction.replied) {
-        await editReply(this.interaction, result.response);
-      } else {
-        await reply(this.interaction, result.response);
+      if (ctx) {
+        await ctx.editReply(result.response);
+      } else if (this.interaction) {
+        if (this.interaction.deferred || this.interaction.replied) {
+          await editReply(this.interaction, result.response);
+        } else {
+          await reply(this.interaction, result.response);
+        }
       }
     } catch {
       // Interaction may have expired or failed

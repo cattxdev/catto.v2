@@ -1,19 +1,16 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
-import { container as sapphireContainer } from '@sapphire/framework';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, channelMention } from 'discord.js';
-import { parseVoiceWhereOptions } from '#lib/interaction/typedOptions.js';
+import type { VoiceWhereOptions } from '#lib/interaction/typedOptions.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
-import { EMOJI, defer, editReply, editError, container } from '#lib/discord/index.js';
+import { EMOJI, container, errorMessage } from '#lib/discord/index.js';
 import {
   getVoiceIndicators,
   formatMemberName,
 } from '#root/modules/voice/services/messageBuilders.js';
 
-export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandInteraction) {
-  const options = parseVoiceWhereOptions(interaction);
-
-  await defer(interaction);
+export async function handleVoiceWhere(options: VoiceWhereOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     const cached = await getJson(
@@ -25,8 +22,7 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
     try {
       member = await options.guild.members.fetch(options.targetId);
     } catch {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         container().text(`User **${options.target.tag}** is not a member of this server.`)
       );
       return;
@@ -85,11 +81,11 @@ export async function handleVoiceWhere(interaction: Subcommand.ChatInputCommandI
       c.actions(actionRow);
     }
 
-    await editReply(interaction, c);
+    await ctx.editReply(c);
   } catch (error) {
-    sapphireContainer.logger.error('Error in voice where command:', error);
-    await interaction
-      .editReply(editError('An error occurred while checking voice location.'))
+    ctx.client.logger.error('Error in voice where command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An error occurred while checking voice location.'))
       .catch(() => {});
   }
 }

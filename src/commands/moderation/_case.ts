@@ -1,38 +1,26 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
+import type { CaseOptions } from '#lib/interaction/typedOptions.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { createCaseEmbed } from '../../modules/moderation/discord/embeds/presets.js';
-import { parseCaseOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, editError, defer, editReply, infoMessage } from '#lib/discord/index.js';
+import { infoMessage, errorMessage } from '#lib/discord/index.js';
 
-export async function handleCase(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseCaseOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
-  await defer(interaction);
+export async function handleCase(options: CaseOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     const modCase = await moderationService.getCase(options.guildId, options.caseNumber);
 
     if (!modCase) {
-      await editReply(interaction, infoMessage(`Case #${options.caseNumber} not found.`));
+      await ctx.editReply(infoMessage(`Case #${options.caseNumber} not found.`));
       return;
     }
 
     const message = createCaseEmbed(modCase);
-    await editReply(interaction, message);
+    await ctx.editReply(message);
   } catch (error) {
-    interaction.client.logger.error('Error in case command:', error);
-    await interaction
-      .editReply(editError('An unexpected error occurred while fetching the case.'))
+    ctx.client.logger.error('Error in case command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An unexpected error occurred while fetching the case.'))
       .catch(() => {});
   }
 }

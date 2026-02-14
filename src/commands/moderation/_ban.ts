@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
@@ -6,45 +5,23 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseBanOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { BanOptions } from '#lib/interaction/typedOptions.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import type { User } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import { getGate } from '#lib/validation/gateContext.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleBan(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseBanOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
-  await defer(interaction);
+export async function handleBan(options: BanOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   // Get Gate for hierarchy validation
-  const gate = getGate(interaction);
-  if (!gate) {
-    await editReply(
-      interaction,
-      errorMessage('Error', 'This command can only be used in a server.')
-    );
-    return;
-  }
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
 
   try {
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('BanMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to ban members.')
-      );
+      await ctx.editReply(errorMessage('Error', 'I do not have permission to ban members.'));
       return;
     }
 
@@ -52,7 +29,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     let targetUser: User | undefined = options.target;
     if (!targetUser) {
       try {
-        targetUser = await interaction.client.users.fetch(options.targetId);
+        targetUser = await ctx.client.users.fetch(options.targetId);
       } catch {
         // User doesn't exist or is not fetchable - we can still ban by ID
       }
@@ -67,7 +44,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       // Check hierarchy using Gate (only if target is a member)
       const hierarchyResult = gate.checkHierarchy(targetMember);
       if (isFail(hierarchyResult)) {
-        await editReply(interaction, hierarchyResult.response);
+        await ctx.editReply(hierarchyResult.response);
         return;
       }
 
@@ -92,8 +69,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'Failed to ban the user.',
           'Check bot permissions and role hierarchy.'
@@ -118,8 +94,7 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       tag: `Unknown User (${options.targetId})`,
     };
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Ban',
         successTarget as User,
@@ -131,10 +106,9 @@ export async function handleBan(interaction: Subcommand.ChatInputCommandInteract
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in ban command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the ban.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in ban command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An unexpected error occurred while processing the ban.'))
+      .catch(() => {});
   }
 }
