@@ -306,8 +306,8 @@ export function createCaseEmbed(modCase: {
       )
     )
     .text(
-      `-# Target: <@${modCase.targetId}>(\`${modCase.targetId}\`)
--# Moderator: <@${modCase.moderatorId}>(\`${modCase.moderatorId}\`)`
+      `-# Target: <@${modCase.targetId}>(${modCase.targetTag ?? modCase.targetId})
+-# Moderator: ${modCase.moderatorId === 'System' ? 'System' : `<@${modCase.moderatorId}>(${modCase.moderatorTag ?? modCase.moderatorId})`}`
     )
     .when(modCase.evidenceCount !== undefined && modCase.evidenceCount > 0, (c) =>
       c.text(`> Evidence: ${modCase.evidenceCount} item(s)`)

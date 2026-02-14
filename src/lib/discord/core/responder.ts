@@ -64,10 +64,13 @@ export class InteractionResponder implements CommandResponder {
   public readonly client: Client;
 
   constructor(interaction: RepliableInteraction) {
+    if (!interaction.guild || !interaction.member) {
+      throw new Error('InteractionResponder requires a guild interaction');
+    }
     this.interaction = interaction;
     this.user = interaction.user;
     this.member = interaction.member as GuildMember;
-    this.guild = interaction.guild!;
+    this.guild = interaction.guild;
     this.client = interaction.client;
   }
 
@@ -120,10 +123,13 @@ export class MessageResponder implements CommandResponder {
   public readonly client: Client;
 
   constructor(message: Message<true>) {
+    if (!message.member) {
+      throw new Error('MessageResponder requires a message with member data');
+    }
     this.source = message;
     this.channel = message.channel;
     this.user = message.author;
-    this.member = message.member!;
+    this.member = message.member;
     this.guild = message.guild;
     this.client = message.client;
   }
