@@ -5,9 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "rimraf dist && tsc && pnpm copy:templates && pnpm copy:assets",
-    "copy:templates": "cpy src/lib/templates/*.html dist/lib/templates --flat",
-    "copy:assets": "cpy src/lib/assets/bonk/*.png dist/lib/assets/bonk --flat",
+    "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
     "dev": "pnpm build && tsx watch src/index.ts",
     "dev:env": "tsx scripts/dev-db.ts",
@@ -83,7 +81,6 @@
     "franc-min": "^6.2.0",
     "ioredis": "^5.9.2",
     "prisma": "^7.2.0",
-    "puppeteer": "^24.36.1",
     "re2-wasm": "^1.0.2",
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.34.5",
@@ -101,7 +98,7 @@
     "@typescript-eslint/eslint-plugin": "^8.22.1",
     "@typescript-eslint/parser": "^8.53.0",
     "concurrently": "^8.2.2",
-    "cpy-cli": "^6.0.0",
+
     "eslint": "^9.19.0",
     "fast-glob": "^3.3.3",
     "husky": "^9.1.7",

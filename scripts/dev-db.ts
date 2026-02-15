@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
 
 const WATERMARK_SERVICE_PORT = 3847;
+const IMAGE_GEN_SERVICE_PORT = 3848;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -147,6 +148,7 @@ async function startDevEnvironment() {
   let redisContainer: StartedRedisContainer | null = null;
   let devProcess: ChildProcess | null = null;
   let watermarkProcess: ChildProcess | null = null;
+  let imageGenProcess: ChildProcess | null = null;
   let isCleaningUp = false;
 
   const cleanup = async () => {
@@ -161,6 +163,10 @@ async function startDevEnvironment() {
 
     if (watermarkProcess && !watermarkProcess.killed) {
       watermarkProcess.kill('SIGTERM');
+    }
+
+    if (imageGenProcess && !imageGenProcess.killed) {
+      imageGenProcess.kill('SIGTERM');
     }
 
     await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
@@ -241,6 +247,43 @@ async function startDevEnvironment() {
       console.log('Using Sharp-based watermarking fallback');
     }
 
+    // Start image-gen service if available
+    const imageGenBinary = join(__dirname, '..', 'services', 'image-gen-rs', 'target', 'release', 'image-gen-service');
+    let imageGenServiceUrl = '';
+
+    if (existsSync(imageGenBinary)) {
+      console.log('Starting image-gen service...');
+      imageGenProcess = spawn(imageGenBinary, [], {
+        env: {
+          ...process.env,
+          IMAGE_GEN_SERVICE_PORT: IMAGE_GEN_SERVICE_PORT.toString(),
+          RUST_LOG: 'info',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      imageGenProcess.stdout?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.log(`[image-gen] ${line}`);
+      });
+
+      imageGenProcess.stderr?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.error(`[image-gen] ${line}`);
+      });
+
+      imageGenProcess.on('error', (err) => {
+        console.warn(`Image-gen service failed to start: ${err.message}`);
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      imageGenServiceUrl = `http://localhost:${IMAGE_GEN_SERVICE_PORT}`;
+      console.log(`Image-gen service: ${imageGenServiceUrl}`);
+    } else {
+      console.log('Image-gen service binary not found (run: cd services/image-gen-rs && cargo build --release)');
+    }
+
     console.log('');
 
     const env = {
@@ -250,6 +293,7 @@ async function startDevEnvironment() {
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
       ...(watermarkServiceUrl && { WATERMARK_SERVICE_URL: watermarkServiceUrl }),
+      ...(imageGenServiceUrl && { IMAGE_GEN_SERVICE_URL: imageGenServiceUrl }),
     };
 
     previousEnvValues = readEnvValues(ENV_KEYS_TO_MANAGE);

@@ -7,8 +7,7 @@ This guide will help you set up and run Catto v2.x locally for development.
 - [Node.js](https://nodejs.org/) v20 or higher
 - [pnpm](https://pnpm.io/) v10+
 - [Docker](https://www.docker.com/) and Docker Compose (recommended)
-- [Rust](https://rustup.rs/) (optional, for watermark microservice)
-- [Chromium/Chrome](#puppeteer-setup) — required by Puppeteer for image generation (manual setup required)
+- [Rust](https://rustup.rs/) (optional, for watermark and image-gen microservices)
 
 ## Installation
 
@@ -25,7 +24,7 @@ cd catto
 pnpm install
 ```
 
-### 3. Build Watermark Service (Optional)
+### 3. Build Rust Microservices (Optional)
 
 For faster evidence image processing, build the Rust watermark microservice:
 
@@ -36,6 +35,16 @@ cd ../..
 ```
 
 If not built, the bot will use Sharp-based watermarking as a fallback.
+
+For image generation (rank cards, leaderboards, bonk memes), build the Rust image-gen microservice:
+
+```bash
+cd services/image-gen-rs
+cargo build --release
+cd ../..
+```
+
+The image-gen service is required for generating images. It is automatically started by `pnpm dev:env` if the binary exists.
 
 ### 4. Configure Environment
 
@@ -73,6 +82,7 @@ Fill in the required values:
 | `DASHBOARD_URL` | Moderator dashboard URL (default: `http://localhost:3000`) | No |
 | `WATERMARK_SERVICE_URL` | Watermark microservice URL (default: `http://localhost:3847`) | No |
 | `WATERMARK_MAX_UPLOAD_SIZE` | Max watermark upload size (default: `1gb`) | No |
+| `IMAGE_GEN_SERVICE_URL` | Image generation microservice URL (default: `http://localhost:3848`) | No |
 
 ## Running the Bot
 
@@ -106,75 +116,35 @@ pnpm prisma:migrate
 pnpm dev
 ```
 
-## Puppeteer Setup
+## Image Generation
 
-Catto uses [Puppeteer](https://pptr.dev/) to render HTML templates into images (rank cards, leaderboards, bonk memes, etc.). Puppeteer requires a Chromium binary, which is **not** guaranteed to be downloaded automatically by `pnpm install` (pnpm may skip postinstall scripts depending on your configuration).
+Catto uses a Rust microservice (`image-gen-rs`) for all image generation (rank cards, leaderboards, bonk memes). The service uses `tiny-skia` for 2D rendering and `cosmic-text` for font layout, producing images significantly faster than the previous Puppeteer-based approach.
 
-### Installing Chromium
-
-After installing dependencies, download a compatible Chromium binary:
+### Building
 
 ```bash
-npx puppeteer browsers install chrome
+cd services/image-gen-rs
+cargo build --release
 ```
 
-Verify it was installed:
+The binary is automatically started by `pnpm dev:env` if found at `services/image-gen-rs/target/release/image-gen-service`.
 
-```bash
-ls ~/.cache/puppeteer/chrome/
-```
+### Configuration
 
-You should see a directory like `linux-137.0.7151.55` (the version and platform will differ).
-
-### System Dependencies (Linux / WSL)
-
-On Debian/Ubuntu-based systems (including WSL), Chromium needs several system libraries:
-
-```bash
-sudo apt-get install -y \
-  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-  libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
-  libgbm1 libpango-1.0-0 libcairo2 libasound2 libxshmfence1
-```
-
-On Alpine (used in Docker):
-
-```bash
-apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
-```
-
-### Docker / CI
-
-The Dockerfile already handles Puppeteer setup using system Chromium:
-
-```dockerfile
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-```
-
-If using a different base image, prefer the official [Puppeteer Docker images](https://pptr.dev/guides/docker) or install system dependencies manually as shown above.
-
-### Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| `Error: Could not find Chrome` | Run `npx puppeteer browsers install chrome` |
-| Sandbox errors on Linux | The bot launches Chromium with `--no-sandbox` for convenience. In production, prefer keeping the sandbox enabled (requires user namespace support). Ensure access to `/dev/shm` or pass `--disable-dev-shm-usage` |
-| Missing shared libraries | Install the system dependencies listed above for your distro |
-| Slow first image generation | The first call launches a headless browser. Subsequent calls reuse the instance and are much faster |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMAGE_GEN_SERVICE_URL` | `http://localhost:3848` | URL of the image-gen microservice |
 
 ### How It Works
 
-Both `ImageGeneratorService` and `BonkImageService` extend `BasePuppeteerService` in `src/lib/services/`, which manages the headless Chromium lifecycle. The rendering pipeline:
+The TypeScript bot communicates with the Rust service via HTTP (JSON request → PNG response). The `imageGenClient` in `src/lib/services/image-gen-client.ts` handles health checks, timeouts, and error reporting.
 
-1. Load an HTML template from `src/lib/templates/`
-2. Inject dynamic data (avatars, stats, text) into the template
-3. Render the page in headless Chromium
-4. Screenshot the target DOM element
-5. Return the PNG `Buffer` to attach to the Discord message
-
-Static assets (bonk meme source images) live in `src/lib/assets/` and are copied to `dist/` during the build via `pnpm copy:assets`.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/bonk` | POST | Generate bonk meme image |
+| `/rank` | POST | Generate XP rank card |
+| `/leaderboard` | POST | Generate leaderboard card |
 
 ## Available Scripts
 
@@ -182,7 +152,7 @@ Static assets (bonk meme source images) live in `src/lib/assets/` and are copied
 |--------|-------------|
 | `pnpm dev` | Start bot in watch mode |
 | `pnpm dev:env` | Start with ephemeral database + update `.env` |
-| `pnpm build` | Compile TypeScript + copy templates and assets |
+| `pnpm build` | Compile TypeScript |
 | `pnpm start` | Run compiled bot |
 | `pnpm lint` | Run ESLint |
 | `pnpm lint:fix` | Fix ESLint issues |
@@ -217,9 +187,7 @@ catto/
 │   ├── routes/               # REST API endpoints
 │   ├── modules/              # Business logic modules
 │   ├── lib/                  # Utilities and helpers
-│   │   ├── assets/           # Static assets (bonk images, etc.)
-│   │   ├── services/         # Image generation (Puppeteer)
-│   │   ├── templates/        # HTML templates for image rendering
+│   │   ├── services/         # Image generation client, storage, etc.
 │   │   ├── storage/          # B2 storage and signing services
 │   │   └── validation/       # Gate, permissions, rate limiting
 │   ├── preconditions/        # Permission checks
@@ -229,7 +197,8 @@ catto/
 │   ├── components/mod/       # Evidence gallery, viewer, upload
 │   └── lib/                  # Services and types
 ├── services/
-│   └── watermark-rs/         # Rust watermark microservice
+│   ├── watermark-rs/         # Rust watermark microservice
+│   └── image-gen-rs/         # Rust image generation microservice
 ├── prisma/
 │   ├── schema.prisma         # Database schema
 │   └── seed.ts               # Database seeder

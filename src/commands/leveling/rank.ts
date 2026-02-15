@@ -8,10 +8,9 @@ import { EMOJI } from '#lib/discord/design/index.js';
 import { RankCardDataService } from '#modules/xp/services/rank-card-data.service.js';
 import { leaderboardService } from '#root/modules/xp/xp-text/index.js';
 import * as voiceLeaderboardService from '#root/modules/xp/xp-voice/index.js';
-import { ImageGeneratorService } from '#root/lib/services/image-generator.js';
+import { imageGenClient } from '#lib/services/image-gen-client.js';
 
 export class RankCommand extends Command {
-  private imageGenerator: ImageGeneratorService;
   private rankDataService: RankCardDataService;
 
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -21,7 +20,6 @@ export class RankCommand extends Command {
       description: "View your or another user's XP rank card",
     });
 
-    this.imageGenerator = new ImageGeneratorService();
     this.rankDataService = new RankCardDataService(this.container.prisma);
   }
 
@@ -121,7 +119,7 @@ export class RankCommand extends Command {
       const memberSince = await this.rankDataService.getMemberSince(guildId, targetUser.id);
 
       // Generate rank card
-      const cardImage = await this.imageGenerator.generateRankCard({
+      const { buffer: cardImage } = await imageGenClient.generateRankCardWithFallback({
         username: targetUser.username,
         avatarUrl: avatarUrl,
         level: stats.level,
@@ -231,7 +229,7 @@ export class RankCommand extends Command {
       const memberSince = await this.rankDataService.getMemberSince(guildId, targetUser.id);
 
       // Generate rank card
-      const cardImage = await this.imageGenerator.generateRankCard({
+      const { buffer: cardImage } = await imageGenClient.generateRankCardWithFallback({
         username: targetUser.username,
         avatarUrl: avatarUrl,
         level: stats.level,

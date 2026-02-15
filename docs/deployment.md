@@ -362,6 +362,7 @@ Bot (:4000, API + Discord Gateway)
    +---> Redis 7 (cache, queues)
    +---> PostgreSQL 17 (data)
    +---> Watermark (Rust, image processing)
+   +---> Image Gen (Rust, rank/leaderboard/bonk images)
 
 Vercel (dashboard, serverless)
    |

@@ -6,11 +6,8 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
 import { AttachmentBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
-import {
-  getBonkImageService,
-  type BonkStyle,
-  type BonkVisualConfig,
-} from '#lib/services/bonk-image-generator.js';
+import { type BonkStyle, type BonkVisualConfig } from '#lib/services/image-gen-types.js';
+import { imageGenClient } from '#lib/services/image-gen-client.js';
 
 const REVENGE_VISUALS: BonkVisualConfig = {
   bonkText: '*REVENGE!*',
@@ -23,7 +20,7 @@ const REVENGE_VISUALS: BonkVisualConfig = {
   textStrokeWidth: 3,
 };
 
-const VALID_STYLES: BonkStyle[] = ['doge', 'cat', 'lions', 'rabbit'];
+const VALID_STYLES: BonkStyle[] = ['doge', 'cat', 'lions', 'rabbit', 'capybara'];
 
 export class BonkButtonHandler extends InteractionHandler {
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
@@ -80,7 +77,7 @@ export class BonkButtonHandler extends InteractionHandler {
     try {
       const originalBonker = await this.container.client.users.fetch(originalBonkerId);
 
-      const imageBuffer = await getBonkImageService().generateBonkImage({
+      const { buffer: imageBuffer } = await imageGenClient.generateBonkWithFallback({
         bonkerAvatarUrl: interaction.user.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: originalBonker.displayAvatarURL({ extension: 'png', size: 256 }),
         style,
