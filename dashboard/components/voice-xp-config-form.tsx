@@ -267,6 +267,78 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
               }
             />
           </div>
+
+          <div className="rounded-lg bg-muted/20 border border-border/30 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  Anti-Farm Dampening (Optional)
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Reduce XP in likely farming contexts without hard-blocking gains
+                </p>
+              </div>
+              <Switch
+                checked={!!config.antiFarmDampeningEnabled}
+                onCheckedChange={(checked) =>
+                  setConfig((prev) => ({ ...prev, antiFarmDampeningEnabled: checked }))
+                }
+              />
+            </div>
+
+            {config.antiFarmDampeningEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Dampening Multiplier
+                  </label>
+                  <Input
+                    type="number"
+                    value={config.antiFarmDampeningMultiplier ?? 0.35}
+                    onChange={(e) =>
+                      setConfig((prev) => {
+                        const parsed = parseFloat(e.target.value);
+                        const isValid = Number.isFinite(parsed) && parsed >= 0 && parsed <= 1;
+                        return {
+                          ...prev,
+                          antiFarmDampeningMultiplier: isValid
+                            ? parsed
+                            : (prev.antiFarmDampeningMultiplier ?? 0.35),
+                        };
+                      })
+                    }
+                    min="0"
+                    max="1"
+                    step="0.05"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Minimum Non-Bot Participants
+                  </label>
+                  <Input
+                    type="number"
+                    value={config.antiFarmMinimumParticipants ?? 2}
+                    onChange={(e) =>
+                      setConfig((prev) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        const isValid = Number.isFinite(parsed) && parsed >= 1 && parsed <= 99;
+                        return {
+                          ...prev,
+                          antiFarmMinimumParticipants: isValid
+                            ? parsed
+                            : (prev.antiFarmMinimumParticipants ?? 2),
+                        };
+                      })
+                    }
+                    min="1"
+                    max="99"
+                    step="1"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -406,7 +478,7 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
                     }
                     className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                   >
-                    <option value="">Current Channel</option>
+                    <option value="">No announcement channel</option>
                     {textChannels.map((channel) => (
                       <option key={channel.id} value={channel.id}>
                         # {channel.name}
@@ -414,7 +486,7 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Leave as "Current Channel" to send in the same channel as the user
+                    Set a channel to enable voice level-up announcements
                   </p>
                 </div>
               )}
@@ -574,7 +646,7 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
               </div>
               <div className="md:col-span-3">
                 <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50 font-mono">
-                  Formula: XP = base x (level ^ exponent) + offset
+                  Per-level XP: (base x level^exponent + offset x level + 100) x epoch-multiplier
                 </div>
               </div>
             </div>

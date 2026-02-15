@@ -26,15 +26,28 @@ function calculateLevelFromFormula(
   const exponent = config.formulaExponent;
   const offset = config.formulaOffset;
 
-  // Formula: XP(level) = base * level^exponent + offset
-  // Solve for level: level = ((XP - offset) / base)^(1/exponent)
+  // Cumulative progression with epoch multipliers:
+  // XP required for one level: base * level^exponent + offset * level + 100
+  // Total XP for target level = sum(single-level XP from 1..targetLevel)
   let level = 0;
-  if (currentXP >= offset) {
-    level = Math.floor(Math.pow((currentXP - offset) / base, 1 / exponent));
+  let currentLevelXP = 0;
+
+  while (true) {
+    const xpForNextLevel = calculateSingleLevelXP(level + 1, base, exponent, offset);
+    if (currentLevelXP + xpForNextLevel > currentXP) {
+      break;
+    }
+
+    currentLevelXP += xpForNextLevel;
+    level++;
+
+    // Safety guard
+    if (level > 10_000) {
+      break;
+    }
   }
 
-  const currentLevelXP = Math.floor(base * Math.pow(level, exponent) + offset);
-  const nextLevelXP = Math.floor(base * Math.pow(level + 1, exponent) + offset);
+  const nextLevelXP = currentLevelXP + calculateSingleLevelXP(level + 1, base, exponent, offset);
   const xpInCurrentLevel = currentXP - currentLevelXP;
   const xpNeededForLevel = nextLevelXP - currentLevelXP;
   const progress = xpNeededForLevel > 0 ? (xpInCurrentLevel / xpNeededForLevel) * 100 : 0;
@@ -46,6 +59,28 @@ function calculateLevelFromFormula(
     progress,
     xpIntoLevel: xpInCurrentLevel,
   };
+}
+
+function calculateSingleLevelXP(
+  level: number,
+  base: number,
+  exponent: number,
+  offset: number
+): number {
+  if (level <= 0) return 0;
+
+  const baseRequirement = base * Math.pow(level, exponent) + offset * level + 100;
+  const epochMultiplier = getEpochMultiplier(level);
+  return Math.floor(baseRequirement * epochMultiplier);
+}
+
+function getEpochMultiplier(level: number): number {
+  if (level <= 5) return 0.95; // onboarding
+  if (level <= 12) return 1.2; // harder
+  if (level <= 18) return 1.05; // breather
+  if (level <= 28) return 1.35; // harder
+  if (level <= 40) return 1.15; // breather
+  return 1.5; // endgame climb
 }
 
 function calculateLevelFromTable(

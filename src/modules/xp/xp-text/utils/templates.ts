@@ -16,6 +16,7 @@ import { TemplateVariables } from '../types/xp-text.types.js';
  * - {totalXp} - Total XP
  * - {nextLevelXp} - XP needed for next level
  * - {progress} - Progress percentage (0-100)
+ * - {type} - XP type label (Text or Voice)
  *
  * @param template Template string with placeholders
  * @param variables Variable values to replace
@@ -33,6 +34,7 @@ export function parseTemplate(template: string, variables: TemplateVariables): s
   result = result.replace(/{totalXp}/g, variables.totalXp.toString());
   result = result.replace(/{nextLevelXp}/g, variables.nextLevelXp.toString());
   result = result.replace(/{progress}/g, Math.floor(variables.progress * 100).toString());
+  result = result.replace(/{type}/g, variables.type);
 
   return result;
 }
@@ -57,6 +59,7 @@ export function validateTemplate(template: string): {
     '{totalXp}',
     '{nextLevelXp}',
     '{progress}',
+    '{type}',
   ];
 
   // Find all placeholders in template
@@ -89,6 +92,7 @@ export function getAvailablePlaceholders(): Array<{ placeholder: string; descrip
     { placeholder: '{totalXp}', description: 'Total XP amount' },
     { placeholder: '{nextLevelXp}', description: 'XP needed for next level' },
     { placeholder: '{progress}', description: 'Progress percentage (0-100)' },
+    { placeholder: '{type}', description: 'XP type (Text or Voice)' },
   ];
 }
 
@@ -96,7 +100,7 @@ export function getAvailablePlaceholders(): Array<{ placeholder: string; descrip
  * Generate default templates for various scenarios
  */
 export const DEFAULT_TEMPLATES = {
-  levelUp: '🎉 {user} reached level {level}!',
+  levelUp: '🎉 {user} reached text level {level}!',
   levelUpDetailed:
     "🎉 Congratulations {user}! You've reached **Level {level}**! ({totalXp}/{nextLevelXp} XP)",
   xpGain: '{user} gained {xpGain} XP! ({totalXp}/{nextLevelXp} XP)',

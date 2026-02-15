@@ -5,6 +5,14 @@ import { validateDto } from '#lib/validation/validate-dto.js';
 import { UpdateVoiceXPConfigDto } from '#root/lib/dtos/voice-xp/update-voice-xp-config.dto.js';
 import type { UpdateVoiceXPConfigDTO } from '#root/modules/xp/xp-voice/dtos/update-voice-xp-config.dto.js';
 
+function normalizeLevelCurveType(
+  levelCurveType: unknown
+): UpdateVoiceXPConfigDTO['levelCurveType'] | undefined {
+  if (levelCurveType === undefined) return undefined;
+  if (levelCurveType === 'TABLE') return 'TABLE' as UpdateVoiceXPConfigDTO['levelCurveType'];
+  return 'FORMULA' as UpdateVoiceXPConfigDTO['levelCurveType'];
+}
+
 export class VoiceXPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
@@ -57,10 +65,22 @@ export class VoiceXPConfigRoute extends Route {
         details: validation.errors,
       });
     }
+    if (!validation.data) {
+      return response.status(400).json({
+        error: 'Validation returned no data',
+      });
+    }
 
     try {
+      const normalizedData: UpdateVoiceXPConfigDTO = {
+        ...(validation.data as UpdateVoiceXPConfigDTO),
+        ...(validation.data.levelCurveType !== undefined
+          ? { levelCurveType: normalizeLevelCurveType(validation.data.levelCurveType) }
+          : {}),
+      };
+
       // Cast to service's expected interface (both DTOs have compatible structure)
-      const config = await updateVoiceXPConfig(guildId, validation.data as UpdateVoiceXPConfigDTO);
+      const config = await updateVoiceXPConfig(guildId, normalizedData);
       return response.json(config);
     } catch (error) {
       this.container.logger.error('[Voice XP API] Error updating voice XP config:', error);

@@ -22,6 +22,9 @@ export interface UpdateVoiceXPConfigDTO {
   awardStreaming?: boolean;
   awardVideo?: boolean;
   ignoreAfkChannel?: boolean;
+  antiFarmDampeningEnabled?: boolean;
+  antiFarmDampeningMultiplier?: number;
+  antiFarmMinimumParticipants?: number;
 
   // Role Filters
   ignoredRoles?: string[];
@@ -109,6 +112,20 @@ export function validateUpdateVoiceXPConfig(dto: UpdateVoiceXPConfigDTO): {
 
   if (dto.formulaOffset !== undefined && dto.formulaOffset < 0) {
     errors.push('formulaOffset must be >= 0');
+  }
+
+  if (dto.antiFarmDampeningMultiplier !== undefined) {
+    if (dto.antiFarmDampeningMultiplier < 0 || dto.antiFarmDampeningMultiplier > 1) {
+      errors.push('antiFarmDampeningMultiplier must be between 0 and 1');
+    }
+  }
+
+  if (dto.antiFarmMinimumParticipants !== undefined) {
+    if (!Number.isInteger(dto.antiFarmMinimumParticipants)) {
+      errors.push('antiFarmMinimumParticipants must be an integer');
+    } else if (dto.antiFarmMinimumParticipants < 1 || dto.antiFarmMinimumParticipants > 99) {
+      errors.push('antiFarmMinimumParticipants must be between 1 and 99');
+    }
   }
 
   // Validate table thresholds

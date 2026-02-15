@@ -127,6 +127,7 @@ pnpm dev
 |--------|-------------|
 | `pnpm prisma:generate` | Generate Prisma client |
 | `pnpm prisma:migrate` | Run migrations |
+| `pnpm prisma:migrate:create -- <name>` | Create migration safely for ephemeral DB flow |
 | `pnpm prisma:studio` | Open Prisma Studio |
 | `pnpm prisma:push` | Push schema changes |
 | `pnpm prisma:seed` | Seed the database |
@@ -169,4 +170,5 @@ catto/
 - Read the [Architecture](architecture.md) overview
 - Learn about [Coding Rules](RULES.md)
 - Explore the [Internal APIs](api/index.md)
+- Use the [Prisma Migrations guide](api/prisma-migrations.md) when creating schema migrations with ephemeral DBs
 - Create your first [Command](commands/creating-commands.md)

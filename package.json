@@ -23,6 +23,7 @@
     "prepare": "husky",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:create": "tsx scripts/create-migration.ts",
     "prisma:studio": "prisma studio",
     "prisma:push": "prisma db push",
     "prisma:pull": "prisma db pull",
