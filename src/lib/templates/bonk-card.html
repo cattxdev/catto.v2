@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; margin: 0; }
+
+  .bonk-scene {
+    position: relative;
+    width: 800px;
+    height: 534px;
+    overflow: hidden;
+  }
+
+  .source-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  .avatar {
+    position: absolute;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+    z-index: 2;
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .bat-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .bonk-text {
+    position: absolute;
+    z-index: 10;
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-weight: 900;
+    -webkit-text-stroke: {{textStrokeWidth}}px black;
+    color: {{bonkTextColor}};
+    text-shadow:
+      0 0 15px {{bonkGlowColor}},
+      0 0 30px {{bonkGlowColor}},
+      3px 3px 0 rgba(0, 0, 0, 0.5);
+    letter-spacing: 3px;
+    white-space: nowrap;
+  }
+
+  .impact-star {
+    position: absolute;
+    z-index: 8;
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.6));
+  }
+
+  .speed-line {
+    position: absolute;
+    z-index: 7;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 1px;
+    transform-origin: left center;
+  }
+
+  .damage-number {
+    position: absolute;
+    z-index: 11;
+    font-family: 'Impact', sans-serif;
+    color: #FF3333;
+    -webkit-text-stroke: 2px black;
+    font-weight: 900;
+    filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.5));
+  }
+</style>
+</head>
+<body>
+<div class="bonk-scene">
+  <img class="source-img" src="{{sourceImage}}" />
+
+  <div class="avatar" style="width:{{bonkerSize}}px;height:{{bonkerSize}}px;left:{{bonkerLeft}}px;top:{{bonkerTop}}px;">
+    <img src="{{bonkerAvatar}}" />
+  </div>
+
+  <div class="avatar" style="width:{{bonkedSize}}px;height:{{bonkedSize}}px;left:{{bonkedLeft}}px;top:{{bonkedTop}}px;">
+    <img src="{{bonkedAvatar}}" />
+  </div>
+
+  <img class="bat-layer" src="{{batImage}}" style="{{batExtraStyle}}" />
+
+  <div class="bonk-text" style="font-size:{{bonkFontSize}}px;left:{{bonkTextLeft}}px;top:{{bonkTextTop}}px;transform:{{bonkTextTransform}};{{bonkTextExtraStyle}}">
+    {{bonkText}}
+  </div>
+
+  {{impactEffects}}
+</div>
+</body>
+</html>
