@@ -296,10 +296,16 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
                     type="number"
                     value={config.antiFarmDampeningMultiplier ?? 0.35}
                     onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        antiFarmDampeningMultiplier: parseFloat(e.target.value) || 0,
-                      }))
+                      setConfig((prev) => {
+                        const parsed = parseFloat(e.target.value);
+                        const isValid = Number.isFinite(parsed) && parsed >= 0 && parsed <= 1;
+                        return {
+                          ...prev,
+                          antiFarmDampeningMultiplier: isValid
+                            ? parsed
+                            : (prev.antiFarmDampeningMultiplier ?? 0.35),
+                        };
+                      })
                     }
                     min="0"
                     max="1"
@@ -314,10 +320,16 @@ export default function VoiceXPConfigForm({ guildId, initialConfig }: VoiceXPCon
                     type="number"
                     value={config.antiFarmMinimumParticipants ?? 2}
                     onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        antiFarmMinimumParticipants: parseInt(e.target.value) || 1,
-                      }))
+                      setConfig((prev) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        const isValid = Number.isFinite(parsed) && parsed >= 1 && parsed <= 99;
+                        return {
+                          ...prev,
+                          antiFarmMinimumParticipants: isValid
+                            ? parsed
+                            : (prev.antiFarmMinimumParticipants ?? 2),
+                        };
+                      })
                     }
                     min="1"
                     max="99"

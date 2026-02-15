@@ -120,16 +120,7 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
     };
   }
 
-  // Get reputation boost multiplier
-  let reputationMultiplier = 1.0;
-  try {
-    const reputationService = new ReputationService(container.prisma);
-    const reputation = await reputationService.getOrCreateReputation(guild.id, member.id);
-    reputationMultiplier = reputationService.getXPBoostForTier(reputation.reputationTier);
-  } catch (error) {
-    // If reputation system fails, continue with default multiplier
-    container.logger.warn('Failed to get reputation multiplier for voice XP:', error);
-  }
+  const reputationMultiplier = await getReputationMultiplier(guild.id, member.id);
 
   const antiFarmMultiplier = getAntiFarmMultiplier(
     config,
@@ -290,6 +281,19 @@ function getAntiFarmMultiplier(
   return multiplier;
 }
 
+async function getReputationMultiplier(guildId: string, userId: string): Promise<number> {
+  let reputationMultiplier = 1.0;
+  try {
+    const reputationService = new ReputationService(container.prisma);
+    const reputation = await reputationService.getOrCreateReputation(guildId, userId);
+    reputationMultiplier = reputationService.getXPBoostForTier(reputation.reputationTier);
+  } catch (error) {
+    // If reputation system fails, continue with default multiplier
+    container.logger.warn('Failed to get reputation multiplier for voice XP:', error);
+  }
+  return reputationMultiplier;
+}
+
 interface VoiceLevelUpContext {
   guildId: string;
   userId: string;
@@ -426,7 +430,8 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
       session.isMuted,
       session.isDeafened
     );
-    const xpAwarded = Math.floor(config.xpPerMinute * antiFarmMultiplier);
+    const reputationMultiplier = await getReputationMultiplier(guildId, session.userId);
+    const xpAwarded = Math.floor(config.xpPerMinute * antiFarmMultiplier * reputationMultiplier);
     if (xpAwarded <= 0) {
       continue;
     }
