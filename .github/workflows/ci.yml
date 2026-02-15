@@ -74,11 +74,42 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-  build-and-push-bot:
-    name: Build & Push Bot Image
-    needs: [lint-typecheck, test]
+  detect-changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    outputs:
+      bot: ${{ steps.filter.outputs.bot }}
+      watermark: ${{ steps.filter.outputs.watermark }}
+      image-gen: ${{ steps.filter.outputs.image-gen }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            bot:
+              - 'src/**'
+              - 'prisma/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'tsconfig.json'
+              - 'Dockerfile'
+              - 'languages/**'
+              - 'prisma.config.ts'
+            watermark:
+              - 'services/watermark-rs/**'
+            image-gen:
+              - 'services/image-gen-rs/**'
+
+  build-and-push-bot:
+    name: Build & Push Bot Image
+    needs: [lint-typecheck, test, detect-changes]
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.bot == 'true'
     permissions:
       contents: read
       packages: write
@@ -128,9 +159,9 @@ jobs:
 
   build-and-push-watermark:
     name: Build & Push Watermark Image
-    needs: [lint-typecheck, test]
+    needs: [lint-typecheck, test, detect-changes]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    if: needs.detect-changes.outputs.watermark == 'true'
     permissions:
       contents: read
       packages: write
@@ -178,9 +209,9 @@ jobs:
 
   build-and-push-image-gen:
     name: Build & Push Image Gen Image
-    needs: [lint-typecheck, test]
+    needs: [lint-typecheck, test, detect-changes]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    if: needs.detect-changes.outputs.image-gen == 'true'
     permissions:
       contents: read
       packages: write
@@ -230,13 +261,15 @@ jobs:
     name: Trigger Deployment
     needs: [build-and-push-bot, build-and-push-watermark, build-and-push-image-gen]
     runs-on: ubuntu-latest
-    # Deploy if bot & image-gen succeeded; watermark failure is non-blocking
+    # Deploy if at least one image was built, and neither bot nor image-gen failed.
+    # Skipped builds (out of scope) are fine; watermark failure is non-blocking
     # (the bot has a Sharp-based watermarking fallback).
     if: |
       always() &&
       github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
-      needs.build-and-push-bot.result == 'success' &&
-      needs.build-and-push-image-gen.result == 'success'
+      (needs.build-and-push-bot.result == 'success' || needs.build-and-push-watermark.result == 'success' || needs.build-and-push-image-gen.result == 'success') &&
+      needs.build-and-push-bot.result != 'failure' &&
+      needs.build-and-push-image-gen.result != 'failure'
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
     steps:
       - name: Call deploy webhook
