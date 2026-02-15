@@ -5,13 +5,11 @@
 import { Command } from '@sapphire/framework';
 import { AttachmentBuilder, EmbedBuilder, Colors } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import { ImageGeneratorService } from '#root/lib/services/image-generator.js';
+import { imageGenClient } from '#lib/services/image-gen-client.js';
 import * as leaderboardService from '#root/modules/xp/xp-text/services/xp-text-leaderboard.service.js';
 import * as voiceLeaderboardService from '#root/modules/xp/xp-voice/services/voice-xp-leaderboard.service.js';
 
 export class LeaderboardCommand extends Command {
-  private imageGenerator: ImageGeneratorService;
-
   public constructor(context: Command.LoaderContext, options: Command.Options) {
     super(context, {
       ...options,
@@ -19,8 +17,6 @@ export class LeaderboardCommand extends Command {
       description: 'View the server XP leaderboard',
       aliases: ['lb', 'top'],
     });
-
-    this.imageGenerator = new ImageGeneratorService();
   }
 
   public override registerApplicationCommands(registry: Command.Registry) {
@@ -110,7 +106,7 @@ export class LeaderboardCommand extends Command {
       const weeklyXp = await leaderboardService.getWeeklyXP(guildId);
 
       // Generate leaderboard card
-      const cardImage = await this.imageGenerator.generateLeaderboardCard({
+      const cardImage = await imageGenClient.generateLeaderboard({
         guildName: guild.name,
         guildIcon: guild.iconURL({ extension: 'png', size: 128 }) || undefined,
         entries: entries,
@@ -199,7 +195,7 @@ export class LeaderboardCommand extends Command {
       const weeklyXp = await voiceLeaderboardService.getWeeklyVoiceXP(guildId);
 
       // Generate leaderboard card
-      const cardImage = await this.imageGenerator.generateLeaderboardCard({
+      const cardImage = await imageGenClient.generateLeaderboard({
         guildName: guild.name,
         guildIcon: guild.iconURL({ extension: 'png', size: 128 }) || undefined,
         entries: entries,

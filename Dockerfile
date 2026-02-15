@@ -20,24 +20,14 @@ COPY . .
 # Generate Prisma Client
 RUN pnpm prisma:generate
 
-# Build the application (tsc + copy:templates via cpy-cli)
+# Build the application
 RUN pnpm build
-
-# Ensure HTML templates are in dist (fallback if cpy-cli glob fails on Alpine)
-RUN mkdir -p dist/lib/templates && cp src/lib/templates/*.html dist/lib/templates/
 
 # Production stage
 FROM node:20-alpine AS production
 
 ARG DEPLOY_VERSION=dev
 ENV DEPLOY_VERSION=$DEPLOY_VERSION
-
-# Install Chromium for Puppeteer (rank card / leaderboard image generation)
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
-
-# Tell Puppeteer to use the system Chromium instead of downloading its own
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.25.0 --activate

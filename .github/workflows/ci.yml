@@ -176,11 +176,67 @@ jobs:
           cache-from: type=gha,scope=watermark
           cache-to: type=gha,mode=max,scope=watermark
 
-  deploy:
-    name: Trigger Deployment
-    needs: [build-and-push-bot, build-and-push-watermark]
+  build-and-push-image-gen:
+    name: Build & Push Image Gen Image
+    needs: [lint-typecheck, test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Docker tag
+        id: docker-tag
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract metadata for image-gen
+        id: meta-image-gen
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/image-gen
+          tags: |
+            type=raw,value=${{ steps.docker-tag.outputs.tag }}
+
+      - name: Build and push image-gen image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/image-gen-rs
+          file: ./services/image-gen-rs/Dockerfile
+          push: true
+          tags: ${{ steps.meta-image-gen.outputs.tags }}
+          labels: ${{ steps.meta-image-gen.outputs.labels }}
+          cache-from: type=gha,scope=image-gen
+          cache-to: type=gha,mode=max,scope=image-gen
+
+  deploy:
+    name: Trigger Deployment
+    needs: [build-and-push-bot, build-and-push-watermark, build-and-push-image-gen]
+    runs-on: ubuntu-latest
+    # Deploy if bot & image-gen succeeded; watermark failure is non-blocking
+    # (the bot has a Sharp-based watermarking fallback).
+    if: |
+      always() &&
+      github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') &&
+      needs.build-and-push-bot.result == 'success' &&
+      needs.build-and-push-image-gen.result == 'success'
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
     steps:
       - name: Call deploy webhook

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
 
 const WATERMARK_SERVICE_PORT = 3847;
+const IMAGE_GEN_SERVICE_PORT = 3848;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -135,6 +136,22 @@ const updateEnvFile = (updates: Record<string, string>) => {
   console.log('Updated .env with ephemeral connection details.');
 };
 
+async function waitForHealth(baseUrl: string, name: string, maxAttempts = 20): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(1000) });
+      if (res.ok) {
+        console.log(`${name} service ready: ${baseUrl}`);
+        return;
+      }
+    } catch {
+      // Not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  console.warn(`${name} service did not become healthy within ${maxAttempts * 250}ms`);
+}
+
 async function startDevEnvironment() {
   if (process.env.NODE_ENV === 'production') {
     console.error('Error: dev environment script cannot be run in production.');
@@ -147,6 +164,7 @@ async function startDevEnvironment() {
   let redisContainer: StartedRedisContainer | null = null;
   let devProcess: ChildProcess | null = null;
   let watermarkProcess: ChildProcess | null = null;
+  let imageGenProcess: ChildProcess | null = null;
   let isCleaningUp = false;
 
   const cleanup = async () => {
@@ -161,6 +179,10 @@ async function startDevEnvironment() {
 
     if (watermarkProcess && !watermarkProcess.killed) {
       watermarkProcess.kill('SIGTERM');
+    }
+
+    if (imageGenProcess && !imageGenProcess.killed) {
+      imageGenProcess.kill('SIGTERM');
     }
 
     await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
@@ -231,14 +253,46 @@ async function startDevEnvironment() {
         console.warn('Falling back to Sharp-based watermarking');
       });
 
-      // Wait a moment for the service to start
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       watermarkServiceUrl = `http://localhost:${WATERMARK_SERVICE_PORT}`;
-      console.log(`Watermark service: ${watermarkServiceUrl}`);
+      await waitForHealth(watermarkServiceUrl, 'watermark');
     } else {
       console.log('Watermark service binary not found (run: cd services/watermark-rs && cargo build --release)');
       console.log('Using Sharp-based watermarking fallback');
+    }
+
+    // Start image-gen service if available
+    const imageGenBinary = join(__dirname, '..', 'services', 'image-gen-rs', 'target', 'release', 'image-gen-service');
+    let imageGenServiceUrl = '';
+
+    if (existsSync(imageGenBinary)) {
+      console.log('Starting image-gen service...');
+      imageGenProcess = spawn(imageGenBinary, [], {
+        env: {
+          ...process.env,
+          IMAGE_GEN_SERVICE_PORT: IMAGE_GEN_SERVICE_PORT.toString(),
+          RUST_LOG: 'info',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      imageGenProcess.stdout?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.log(`[image-gen] ${line}`);
+      });
+
+      imageGenProcess.stderr?.on('data', (data: Buffer) => {
+        const line = data.toString().trim();
+        if (line) console.error(`[image-gen] ${line}`);
+      });
+
+      imageGenProcess.on('error', (err) => {
+        console.warn(`Image-gen service failed to start: ${err.message}`);
+      });
+
+      imageGenServiceUrl = `http://localhost:${IMAGE_GEN_SERVICE_PORT}`;
+      await waitForHealth(imageGenServiceUrl, 'image-gen');
+    } else {
+      console.log('Image-gen service binary not found (run: cd services/image-gen-rs && cargo build --release)');
     }
 
     console.log('');
@@ -250,6 +304,7 @@ async function startDevEnvironment() {
       REDIS_PORT: redisPort,
       REDIS_PASSWORD: '',
       ...(watermarkServiceUrl && { WATERMARK_SERVICE_URL: watermarkServiceUrl }),
+      ...(imageGenServiceUrl && { IMAGE_GEN_SERVICE_URL: imageGenServiceUrl }),
     };
 
     previousEnvValues = readEnvValues(ENV_KEYS_TO_MANAGE);

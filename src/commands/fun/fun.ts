@@ -14,11 +14,8 @@ import {
   type User,
 } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
-import {
-  getBonkImageService,
-  type BonkStyle,
-  type BonkVisualConfig,
-} from '#lib/services/bonk-image-generator.js';
+import { type BonkStyle, type BonkVisualConfig } from '#lib/services/image-gen-types.js';
+import { imageGenClient } from '#lib/services/image-gen-client.js';
 import { CONFIG } from '#config.js';
 import {
   buildModerationContext,
@@ -231,7 +228,8 @@ export class FunCommand extends Subcommand {
                   { name: 'Doge', value: 'doge' },
                   { name: 'Cat', value: 'cat' },
                   { name: 'Lions', value: 'lions' },
-                  { name: 'Rabbit', value: 'rabbit' }
+                  { name: 'Rabbit', value: 'rabbit' },
+                  { name: 'Capybara', value: 'capybara' }
                 )
                 .setRequired(false)
             )
@@ -299,7 +297,7 @@ export class FunCommand extends Subcommand {
       .replace(/\{user\}/g, `${bonkerUser}`);
 
     try {
-      const imageBuffer = await getBonkImageService().generateBonkImage({
+      const imageBuffer = await imageGenClient.generateBonk({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style,
@@ -375,7 +373,7 @@ export class FunCommand extends Subcommand {
     const reason = `Super Bonk: ${banReason}`;
 
     try {
-      const imageBuffer = await getBonkImageService().generateBonkImage({
+      const imageBuffer = await imageGenClient.generateBonk({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style: 'doge_fatality',

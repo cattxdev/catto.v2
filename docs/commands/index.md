@@ -37,8 +37,8 @@ src/commands/
 │   ├── help.ts
 │   └── language.ts
 ├── leveling/
-│   ├── rank.ts             # /rank - XP rank card (Puppeteer image)
-│   └── leaderboard.ts      # /leaderboard - XP leaderboard (Puppeteer image)
+│   ├── rank.ts             # /rank - XP rank card
+│   └── leaderboard.ts      # /leaderboard - XP leaderboard
 ├── moderation/
 │   ├── mod.ts              # Main subcommand entry (/mod)
 │   ├── _ban.ts             # Shared handler (slash + prefix)
@@ -59,12 +59,12 @@ src/commands/
 
 ### `/fun bonk`
 
-Bonk another user with a bat meme image. Generates a custom PNG using Puppeteer with the bonker's and target's avatars composited onto an animal-themed template.
+Bonk another user with a bat meme image. Generates a custom PNG with the bonker's and target's avatars composited onto an animal-themed template.
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
 | `target` | User | Yes | The user to bonk |
-| `style` | String | No | Meme style: Doge (default), Cat, Lions, Rabbit |
+| `style` | String | No | Meme style: Doge (default), Cat, Lions, Rabbit, Capybara |
 | `effects` | Boolean | No | Add random intensity effects (stars, speed lines, damage numbers) |
 
 When effects are enabled, intensity is rolled randomly with a weighted distribution (25% gentle, 30% normal, 25% mega, 15% critical, 5% ultra). Non-self-bonks include a "Bonk Back" revenge button that only the victim can use.
