@@ -6,6 +6,7 @@
 import type { GuildVoiceXPConfig } from '@prisma/client';
 import type { VoiceLevelCalculation } from '../types/voice-xp.types.js';
 import { VoiceLevelCurveType } from '../types/voice-xp.types.js';
+import * as voiceXPRepository from '../repositories/voice-xp.repository.js';
 
 export function calculateVoiceLevel(
   config: GuildVoiceXPConfig,
@@ -126,12 +127,43 @@ function calculateLevelFromTable(
   };
 }
 
-export function recalculateAllVoiceLevels(
-  config: GuildVoiceXPConfig,
-  users: Array<{ userId: string; xp: number }>
-): Array<{ userId: string; newLevel: number }> {
-  return users.map((user) => ({
-    userId: user.userId,
-    newLevel: calculateVoiceLevel(config, user.xp).level,
-  }));
+/**
+ * Recalculates voice levels for all users in a guild using the current curve config.
+ * Processes users in batches and only updates those whose level actually changed.
+ */
+export async function recalculateGuildVoiceLevels(
+  guildId: string,
+  config: GuildVoiceXPConfig
+): Promise<{ processed: number; updated: number }> {
+  const batchSize = 500;
+  let offset = 0;
+  let processed = 0;
+  let updated = 0;
+
+  while (true) {
+    const users = await voiceXPRepository.getAllGuildVoiceUsers(guildId, batchSize, offset);
+
+    if (users.length === 0) {
+      break;
+    }
+
+    for (const user of users) {
+      const newLevel = calculateVoiceLevel(config, user.xp).level;
+
+      if (newLevel !== user.level) {
+        await voiceXPRepository.updateUserVoiceLevel(guildId, user.userId, newLevel);
+        updated++;
+      }
+
+      processed++;
+    }
+
+    if (users.length < batchSize) {
+      break;
+    }
+
+    offset += batchSize;
+  }
+
+  return { processed, updated };
 }

@@ -1,7 +1,7 @@
 use crate::avatar::{draw_square_avatar, fetch_avatar};
 use crate::error::ImageGenError;
 use crate::text::{FontWeight, SharedTextRenderer};
-use super::common::{draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align};
+use super::common::{draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align, sanitize_text};
 use serde::Deserialize;
 use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
 
@@ -32,8 +32,8 @@ const STAT_BOX_PAD: f32 = 16.0;
 fn bg_color() -> Color { Color::from_rgba8(13, 17, 23, 255) }
 fn border_color() -> Color { Color::from_rgba8(33, 38, 45, 255) }
 fn text_primary() -> Color { Color::from_rgba8(201, 209, 217, 255) }
-fn text_secondary() -> Color { Color::from_rgba8(72, 79, 88, 255) }
-fn text_muted() -> Color { Color::from_rgba8(139, 148, 158, 255) }
+fn text_secondary() -> Color { Color::from_rgba8(110, 118, 129, 255) }
+fn text_muted() -> Color { Color::from_rgba8(155, 164, 174, 255) }
 fn box_bg() -> Color { Color::from_rgba8(22, 27, 34, 255) }
 fn accent_green() -> Color { Color::from_rgba8(124, 152, 133, 255) }
 fn bar_messages() -> Color { Color::from_rgba8(124, 152, 133, 255) }
@@ -124,8 +124,9 @@ pub async fn render_rank_card(
         let mut renderer = text_renderer.lock().unwrap();
 
         // Username — vertically centered in top half of avatar area
+        let username = sanitize_text(&req.username);
         let (username_pm, _, uh) = renderer.render_text(
-            &req.username, "JetBrains Mono", 22.0, FontWeight::SemiBold,
+            &username, "JetBrains Mono", 22.0, FontWeight::SemiBold,
             text_primary(), text_area_w,
         )?;
         let username_y = y + (AVATAR_SIZE / 2.0 - uh) / 2.0;
@@ -398,8 +399,9 @@ pub async fn render_rank_card(
         let last7_label = if is_voice { "LAST 7 DAYS (MIN)" } else { "LAST 7 DAYS" };
         let last30_label = if is_voice { "LAST 30 DAYS (MIN)" } else { "LAST 30 DAYS" };
 
+        let channel_name = sanitize_text(req.most_active_channel.as_deref().unwrap_or("N/A"));
         let activity_rows = [
-            ("MOST ACTIVE IN", req.most_active_channel.as_deref().unwrap_or("N/A").to_string()),
+            ("MOST ACTIVE IN", channel_name),
             (last7_label, format!("+{}", format_number(req.last_7_days_xp.unwrap_or(0)))),
             (last30_label, format!("+{}", format_number(req.last_30_days_xp.unwrap_or(0)))),
             ("STREAK", format!("{} days", req.streak.unwrap_or(0))),

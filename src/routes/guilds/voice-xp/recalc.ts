@@ -1,9 +1,4 @@
-import {
-  getVoiceXPConfig,
-  getAllGuildVoiceUsers,
-  recalculateAllVoiceLevels,
-  updateUserVoiceLevel,
-} from '#root/modules/xp/xp-voice/index.js';
+import { recalculateGuildVoiceLevels, getVoiceXPConfig } from '#root/modules/xp/xp-voice/index.js';
 import { Route } from '@sapphire/plugin-api';
 
 export class VoiceXPRecalcRoute extends Route {
@@ -26,21 +21,13 @@ export class VoiceXPRecalcRoute extends Route {
 
     try {
       const config = await getVoiceXPConfig(guildId);
-      const users = await getAllGuildVoiceUsers(guildId);
-
-      const updates = recalculateAllVoiceLevels(
-        config,
-        users.map((u) => ({ userId: u.userId, xp: u.xp }))
-      );
-
-      for (const update of updates) {
-        await updateUserVoiceLevel(guildId, update.userId, update.newLevel);
-      }
+      const { processed, updated } = await recalculateGuildVoiceLevels(guildId, config);
 
       return response.json({
         success: true,
         message: 'Voice XP levels recalculated successfully',
-        usersUpdated: updates.length,
+        processedUsers: processed,
+        updatedLevels: updated,
       });
     } catch (error) {
       this.container.logger.error('[Voice XP API] Error recalculating voice XP levels:', error);

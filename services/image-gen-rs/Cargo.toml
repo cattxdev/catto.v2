@@ -16,7 +16,7 @@ tiny-skia = "0.11"
 cosmic-text = "0.12"
 
 # Image processing
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 
 # HTTP client (for avatar fetching)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
