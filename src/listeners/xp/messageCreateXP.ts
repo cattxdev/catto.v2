@@ -169,7 +169,7 @@ export class MessageCreateXPListener extends Listener {
         await announcementChannel.send({
           components: [ui.build()],
           flags: MessageFlags.IsComponentsV2,
-          allowedMentions: { parse: [] },
+          allowedMentions: { parse: ['users'] },
         });
       } else {
         await announcementChannel.send(messageText);
