@@ -106,7 +106,7 @@ export class LeaderboardCommand extends Command {
       const weeklyXp = await leaderboardService.getWeeklyXP(guildId);
 
       // Generate leaderboard card
-      const { buffer: cardImage } = await imageGenClient.generateLeaderboardWithFallback({
+      const cardImage = await imageGenClient.generateLeaderboard({
         guildName: guild.name,
         guildIcon: guild.iconURL({ extension: 'png', size: 128 }) || undefined,
         entries: entries,
@@ -195,7 +195,7 @@ export class LeaderboardCommand extends Command {
       const weeklyXp = await voiceLeaderboardService.getWeeklyVoiceXP(guildId);
 
       // Generate leaderboard card
-      const { buffer: cardImage } = await imageGenClient.generateLeaderboardWithFallback({
+      const cardImage = await imageGenClient.generateLeaderboard({
         guildName: guild.name,
         guildIcon: guild.iconURL({ extension: 'png', size: 128 }) || undefined,
         entries: entries,

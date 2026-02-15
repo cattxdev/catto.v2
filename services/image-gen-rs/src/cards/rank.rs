@@ -1,8 +1,9 @@
 use crate::avatar::{draw_square_avatar, fetch_avatar};
 use crate::error::ImageGenError;
 use crate::text::{FontWeight, SharedTextRenderer};
+use super::common::{draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align};
 use serde::Deserialize;
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, PixmapPaint, Rect, Transform};
+use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
 
 // Canvas
 const CARD_WIDTH: u32 = 934;
@@ -39,16 +40,6 @@ fn bar_messages() -> Color { Color::from_rgba8(124, 152, 133, 255) }
 fn bar_voice() -> Color { Color::from_rgba8(107, 140, 122, 255) }
 fn bar_reactions() -> Color { Color::from_rgba8(90, 125, 106, 255) }
 fn bar_commands() -> Color { Color::from_rgba8(74, 109, 90, 255) }
-
-/// Center an element of `elem_w` inside a container starting at `start` with width `container_w`.
-fn center_in(start: f32, container_w: f32, elem_w: f32) -> f32 {
-    start + (container_w - elem_w) / 2.0
-}
-
-/// Right-align an element of `elem_w` inside a container starting at `start` with width `container_w`.
-fn right_align(start: f32, container_w: f32, elem_w: f32) -> f32 {
-    start + container_w - elem_w
-}
 
 fn content_width() -> f32 {
     CARD_WIDTH as f32 - PAD_X * 2.0
@@ -130,13 +121,13 @@ pub async fn render_rank_card(
     let text_area_w = cw - AVATAR_SIZE - 16.0 - 160.0; // leave room for rank badge
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         // Username — vertically centered in top half of avatar area
         let (username_pm, _, uh) = renderer.render_text(
             &req.username, "JetBrains Mono", 22.0, FontWeight::SemiBold,
             text_primary(), text_area_w,
-        );
+        )?;
         let username_y = y + (AVATAR_SIZE / 2.0 - uh) / 2.0;
         canvas.draw_pixmap(
             text_left as i32, username_y as i32,
@@ -149,7 +140,7 @@ pub async fn render_rank_card(
         let (tag_pm, _, th) = renderer.render_text(
             &tag, "JetBrains Mono", 11.0, FontWeight::Regular,
             text_secondary(), text_area_w,
-        );
+        )?;
         let tag_y = y + AVATAR_SIZE / 2.0 + (AVATAR_SIZE / 2.0 - th) / 2.0;
         canvas.draw_pixmap(
             text_left as i32, tag_y as i32,
@@ -161,11 +152,11 @@ pub async fn render_rank_card(
         let (rl_pm, rlw, rlh) = renderer.render_text(
             "RANK", "JetBrains Mono", 12.0, FontWeight::Regular,
             text_secondary(), 100.0,
-        );
+        )?;
         let (rv_pm, rvw, rvh) = renderer.render_text(
             &rank_text, "JetBrains Mono", 22.0, FontWeight::Bold,
             text_primary(), 100.0,
-        );
+        )?;
         let badge_w = rlw + 8.0 + rvw;
         let badge_x = right_align(PAD_X, cw, badge_w);
         let badge_center_y = y + (AVATAR_SIZE - rvh.max(rlh)) / 2.0;
@@ -188,11 +179,11 @@ pub async fn render_rank_card(
 
     // ── YOUR STATS ──────────────────────────────────────────────────────
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
         let (lbl_pm, _, _) = renderer.render_text(
             "YOUR STATS", "JetBrains Mono", 11.0, FontWeight::Regular,
             text_secondary(), cw,
-        );
+        )?;
         canvas.draw_pixmap(
             PAD_X as i32, y as i32,
             lbl_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -214,13 +205,13 @@ pub async fn render_rank_card(
         draw_rect_filled(&mut canvas, bx, y, box_w, STAT_BOX_H, box_bg());
         draw_rect_outline(&mut canvas, bx, y, box_w, STAT_BOX_H, border_color(), 1.0);
 
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         // Label — left-aligned with inner padding
         let (lbl_pm, _, _) = renderer.render_text(
             label, "JetBrains Mono", 11.0, FontWeight::Regular,
             text_secondary(), box_w - STAT_BOX_PAD * 2.0,
-        );
+        )?;
         canvas.draw_pixmap(
             (bx + STAT_BOX_PAD) as i32, (y + STAT_BOX_PAD) as i32,
             lbl_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -231,7 +222,7 @@ pub async fn render_rank_card(
         let (val_pm, _, _) = renderer.render_text(
             value, "JetBrains Mono", 28.0, FontWeight::SemiBold,
             text_primary(), box_w - STAT_BOX_PAD * 2.0,
-        );
+        )?;
         canvas.draw_pixmap(
             (bx + STAT_BOX_PAD) as i32, value_y as i32,
             val_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -247,14 +238,14 @@ pub async fn render_rank_card(
     };
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         // "PROGRESS TO LEVEL X" — left-aligned
         let progress_label = format!("PROGRESS TO LEVEL {}", req.level + 1);
         let (pl_pm, _, _) = renderer.render_text(
             &progress_label, "JetBrains Mono", 11.0, FontWeight::Regular,
             text_secondary(), cw,
-        );
+        )?;
         canvas.draw_pixmap(
             PAD_X as i32, y as i32,
             pl_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -265,7 +256,7 @@ pub async fn render_rank_card(
         let (xp_pm, xw, _) = renderer.render_text(
             &xp_text, "JetBrains Mono", 12.0, FontWeight::Regular,
             text_secondary(), cw,
-        );
+        )?;
         canvas.draw_pixmap(
             right_align(PAD_X, cw, xw) as i32, y as i32,
             xp_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -284,12 +275,12 @@ pub async fn render_rank_card(
 
     // Percentage text — right-aligned inside bar, vertically centered
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
         let pct_text = format!("{:.1}%", progress_pct);
         let (pct_pm, pw, ph) = renderer.render_text(
             &pct_text, "JetBrains Mono", 11.0, FontWeight::Medium,
             text_primary(), 100.0,
-        );
+        )?;
         let pct_x = right_align(PAD_X, cw, pw + 12.0);
         let pct_y = y + (PROGRESS_BAR_H - ph) / 2.0;
         canvas.draw_pixmap(
@@ -321,13 +312,13 @@ pub async fn render_rank_card(
     let label4 = if is_voice { "Regular" } else { "Commands" };
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         // Panel title
         let (title_pm, _, _) = renderer.render_text(
             "XP BREAKDOWN", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), inner_w,
-        );
+        )?;
         canvas.draw_pixmap(
             (left_x + inner_pad) as i32, (y + inner_pad) as i32,
             title_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -354,7 +345,7 @@ pub async fn render_rank_card(
             let (lbl_pm, lw, lh) = renderer.render_text(
                 label, "JetBrains Mono", 11.0, FontWeight::Regular,
                 text_muted(), label_col_w,
-            );
+            )?;
             let lbl_x = left_x + inner_pad + label_col_w - lw;
             canvas.draw_pixmap(
                 lbl_x as i32, by as i32,
@@ -378,7 +369,7 @@ pub async fn render_rank_card(
             let (val_pm, vw, _) = renderer.render_text(
                 &format_number(*xp), "JetBrains Mono", 11.0, FontWeight::Regular,
                 text_muted(), value_col_w,
-            );
+            )?;
             let val_x = track_x + bar_track_w + gap_w + value_col_w - vw;
             canvas.draw_pixmap(
                 val_x as i32, by as i32,
@@ -393,12 +384,12 @@ pub async fn render_rank_card(
     draw_rect_outline(&mut canvas, right_x, y, half_w, BREAKDOWN_H, border_color(), 1.0);
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         let (title_pm, _, _) = renderer.render_text(
             "ACTIVITY", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), inner_w,
-        );
+        )?;
         canvas.draw_pixmap(
             (right_x + inner_pad) as i32, (y + inner_pad) as i32,
             title_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -424,7 +415,7 @@ pub async fn render_rank_card(
             let (lbl_pm, _, _) = renderer.render_text(
                 label, "JetBrains Mono", 11.0, FontWeight::Regular,
                 text_secondary(), inner_w,
-            );
+            )?;
             canvas.draw_pixmap(
                 (right_x + inner_pad) as i32, ry as i32,
                 lbl_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -434,7 +425,7 @@ pub async fn render_rank_card(
             let (val_pm, vw, _) = renderer.render_text(
                 value, "JetBrains Mono", 12.0, FontWeight::Regular,
                 text_primary(), inner_w,
-            );
+            )?;
             canvas.draw_pixmap(
                 right_align(right_x + inner_pad, inner_w, vw) as i32, ry as i32,
                 val_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -458,56 +449,4 @@ pub async fn render_rank_card(
         .map_err(|e| ImageGenError::Rendering(format!("PNG encode error: {e}")))?;
 
     Ok(png_data)
-}
-
-// ── Drawing helpers ─────────────────────────────────────────────────────
-
-fn draw_rect_filled(canvas: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color) {
-    if let Some(rect) = Rect::from_xywh(x, y, w, h) {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        canvas.fill_rect(rect, &paint, Transform::identity(), None);
-    }
-}
-
-fn draw_rect_outline(canvas: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color, width: f32) {
-    let mut pb = PathBuilder::new();
-    pb.move_to(x, y);
-    pb.line_to(x + w, y);
-    pb.line_to(x + w, y + h);
-    pb.line_to(x, y + h);
-    pb.close();
-    if let Some(path) = pb.finish() {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        let mut stroke = tiny_skia::Stroke::default();
-        stroke.width = width;
-        canvas.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-    }
-}
-
-fn draw_hline(canvas: &mut Pixmap, x1: f32, x2: f32, y: f32, color: Color) {
-    if let Some(rect) = Rect::from_xywh(x1, y, x2 - x1, 1.0) {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        canvas.fill_rect(rect, &paint, Transform::identity(), None);
-    }
-}
-
-fn format_number(n: u64) -> String {
-    if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
-    } else if n >= 1_000 {
-        let s = n.to_string();
-        let mut result = String::new();
-        for (i, c) in s.chars().rev().enumerate() {
-            if i > 0 && i % 3 == 0 {
-                result.push(',');
-            }
-            result.push(c);
-        }
-        result.chars().rev().collect()
-    } else {
-        n.to_string()
-    }
 }

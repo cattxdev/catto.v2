@@ -1,22 +1,57 @@
 use crate::error::ImageGenError;
 use image::GenericImageView;
+use std::sync::OnceLock;
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PixmapPaint, PremultipliedColorU8, Transform};
+
+/// Maximum avatar response body size (10 MB).
+const MAX_AVATAR_BYTES: usize = 10 * 1024 * 1024;
+
+/// Shared HTTP client — created once, reused for all avatar fetches.
+fn http_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .expect("failed to build reqwest client")
+    })
+}
 
 /// Fetch an avatar image from a URL and return it as a decoded Pixmap.
 pub async fn fetch_avatar(url: &str) -> Result<Pixmap, ImageGenError> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| ImageGenError::AvatarFetch(e.to_string()))?;
-
-    let bytes = client
+    let response = http_client()
         .get(url)
         .send()
         .await
-        .map_err(|e| ImageGenError::AvatarFetch(format!("HTTP request failed: {e}")))?
+        .map_err(|e| ImageGenError::AvatarFetch(format!("HTTP request failed: {e}")))?;
+
+    if !response.status().is_success() {
+        return Err(ImageGenError::AvatarFetch(format!(
+            "HTTP {} for avatar URL",
+            response.status()
+        )));
+    }
+
+    // Check Content-Length header if present to reject obviously oversized responses early.
+    if let Some(len) = response.content_length() {
+        if len as usize > MAX_AVATAR_BYTES {
+            return Err(ImageGenError::AvatarFetch(format!(
+                "Avatar response too large: {len} bytes"
+            )));
+        }
+    }
+
+    let bytes = response
         .bytes()
         .await
         .map_err(|e| ImageGenError::AvatarFetch(format!("Failed to read body: {e}")))?;
+
+    if bytes.len() > MAX_AVATAR_BYTES {
+        return Err(ImageGenError::AvatarFetch(format!(
+            "Avatar response too large: {} bytes",
+            bytes.len()
+        )));
+    }
 
     decode_image_to_pixmap(&bytes)
 }

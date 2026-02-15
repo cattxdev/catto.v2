@@ -136,6 +136,22 @@ const updateEnvFile = (updates: Record<string, string>) => {
   console.log('Updated .env with ephemeral connection details.');
 };
 
+async function waitForHealth(baseUrl: string, name: string, maxAttempts = 20): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(1000) });
+      if (res.ok) {
+        console.log(`${name} service ready: ${baseUrl}`);
+        return;
+      }
+    } catch {
+      // Not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  console.warn(`${name} service did not become healthy within ${maxAttempts * 250}ms`);
+}
+
 async function startDevEnvironment() {
   if (process.env.NODE_ENV === 'production') {
     console.error('Error: dev environment script cannot be run in production.');
@@ -237,11 +253,8 @@ async function startDevEnvironment() {
         console.warn('Falling back to Sharp-based watermarking');
       });
 
-      // Wait a moment for the service to start
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       watermarkServiceUrl = `http://localhost:${WATERMARK_SERVICE_PORT}`;
-      console.log(`Watermark service: ${watermarkServiceUrl}`);
+      await waitForHealth(watermarkServiceUrl, 'watermark');
     } else {
       console.log('Watermark service binary not found (run: cd services/watermark-rs && cargo build --release)');
       console.log('Using Sharp-based watermarking fallback');
@@ -276,10 +289,8 @@ async function startDevEnvironment() {
         console.warn(`Image-gen service failed to start: ${err.message}`);
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       imageGenServiceUrl = `http://localhost:${IMAGE_GEN_SERVICE_PORT}`;
-      console.log(`Image-gen service: ${imageGenServiceUrl}`);
+      await waitForHealth(imageGenServiceUrl, 'image-gen');
     } else {
       console.log('Image-gen service binary not found (run: cd services/image-gen-rs && cargo build --release)');
     }

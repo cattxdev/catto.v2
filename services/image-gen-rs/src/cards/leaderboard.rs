@@ -1,8 +1,9 @@
 use crate::avatar::{draw_square_avatar, fetch_avatar};
 use crate::error::ImageGenError;
 use crate::text::{FontWeight, SharedTextRenderer};
+use super::common::{center_in, draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align, truncate_username};
 use serde::Deserialize;
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, PixmapPaint, Rect, Transform};
+use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
 
 const CARD_WIDTH: u32 = 700;
 
@@ -36,16 +37,6 @@ fn rank3_color() -> Color { Color::from_rgba8(110, 92, 59, 255) }
 
 fn content_width() -> f32 {
     CARD_WIDTH as f32 - PAD * 2.0
-}
-
-/// Right-align an element of `elem_w` inside a container starting at `start` with width `container_w`.
-fn right_align(start: f32, container_w: f32, elem_w: f32) -> f32 {
-    start + container_w - elem_w
-}
-
-/// Center an element of `elem_w` inside a container starting at `start` with width `container_w`.
-fn center_in(start: f32, container_w: f32, elem_w: f32) -> f32 {
-    start + (container_w - elem_w) / 2.0
 }
 
 fn compute_card_height(entry_count: usize, has_distribution: bool) -> u32 {
@@ -101,11 +92,11 @@ pub async fn render_leaderboard(
     let card_h = compute_card_height(entry_count, has_dist);
     let cw = content_width();
 
-    // Fetch all avatars sequentially
-    let mut avatars: Vec<Result<Pixmap, ImageGenError>> = Vec::with_capacity(entry_count);
-    for entry in &req.entries {
-        avatars.push(fetch_avatar(&entry.avatar_url).await);
-    }
+    // Fetch all avatars in parallel
+    let avatar_futures: Vec<_> = req.entries.iter()
+        .map(|entry| fetch_avatar(&entry.avatar_url))
+        .collect();
+    let avatars: Vec<Result<Pixmap, ImageGenError>> = futures::future::join_all(avatar_futures).await;
 
     let mut canvas = Pixmap::new(CARD_WIDTH, card_h)
         .ok_or_else(|| ImageGenError::Rendering("Failed to create canvas".into()))?;
@@ -117,12 +108,12 @@ pub async fn render_leaderboard(
 
     // ── HEADER ──────────────────────────────────────────────────────────
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         let (title_pm, _, _) = renderer.render_text(
             &req.guild_name, "JetBrains Mono", 24.0, FontWeight::Bold,
             text_primary(), cw,
-        );
+        )?;
         canvas.draw_pixmap(
             PAD as i32, y as i32,
             title_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -133,7 +124,7 @@ pub async fn render_leaderboard(
         let (sub_pm, _, _) = renderer.render_text(
             &subtitle, "JetBrains Mono", 11.0, FontWeight::Medium,
             text_secondary(), cw,
-        );
+        )?;
         canvas.draw_pixmap(
             PAD as i32, y as i32,
             sub_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -158,7 +149,7 @@ pub async fn render_leaderboard(
     let box_w = (cw - STAT_BOX_GAP * 2.0) / 3.0;
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
         for (i, (label, value)) in stats.iter().enumerate() {
             let bx = PAD + (box_w + STAT_BOX_GAP) * i as f32;
             draw_rect_filled(&mut canvas, bx, y, box_w, STAT_BOX_H, box_bg());
@@ -170,11 +161,11 @@ pub async fn render_leaderboard(
             let (lbl_pm, _, lbl_h) = renderer.render_text(
                 label, "JetBrains Mono", 10.0, FontWeight::Regular,
                 text_secondary(), inner_w,
-            );
+            )?;
             let (val_pm, _, val_h) = renderer.render_text(
                 value, "JetBrains Mono", 20.0, FontWeight::Bold,
                 text_primary(), inner_w,
-            );
+            )?;
 
             // Vertically center both lines as a group within the box
             let content_h = lbl_h + 4.0 + val_h; // label + gap + value
@@ -209,12 +200,12 @@ pub async fn render_leaderboard(
     let xp_col_right = level_col_right - level_col_w - col_gap;
 
     {
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         let (rank_hdr, _, _) = renderer.render_text(
             "RANK", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), rank_col_w,
-        );
+        )?;
         canvas.draw_pixmap(
             rank_col_x as i32, y as i32,
             rank_hdr.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -223,7 +214,7 @@ pub async fn render_leaderboard(
         let (user_hdr, _, _) = renderer.render_text(
             "USER", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), 200.0,
-        );
+        )?;
         canvas.draw_pixmap(
             username_col_x as i32, y as i32,
             user_hdr.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -232,7 +223,7 @@ pub async fn render_leaderboard(
         let (xp_hdr, xhw, _) = renderer.render_text(
             "XP", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), xp_col_w,
-        );
+        )?;
         canvas.draw_pixmap(
             (xp_col_right - xhw) as i32, y as i32,
             xp_hdr.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -241,7 +232,7 @@ pub async fn render_leaderboard(
         let (lvl_hdr, lhw, _) = renderer.render_text(
             "LEVEL", "JetBrains Mono", 10.0, FontWeight::Regular,
             text_secondary(), level_col_w,
-        );
+        )?;
         canvas.draw_pixmap(
             (level_col_right - lhw) as i32, y as i32,
             lvl_hdr.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -269,14 +260,14 @@ pub async fn render_leaderboard(
         }
 
         {
-            let mut renderer = text_renderer.lock().await;
+            let mut renderer = text_renderer.lock().unwrap();
 
             // Rank — centered in rank column area
             let rank_text = format!("#{}", entry.rank);
             let (rank_pm, rw, rh) = renderer.render_text(
                 &rank_text, "JetBrains Mono", 14.0, FontWeight::SemiBold,
                 rank_color, 50.0,
-            );
+            )?;
             let rank_x = center_in(rank_col_x, rank_col_w, rw);
             let rank_y = ey + (ENTRY_H - rh) / 2.0;
             canvas.draw_pixmap(
@@ -292,22 +283,18 @@ pub async fn render_leaderboard(
                 draw_square_avatar(&mut canvas, av, avatar_col_x, avatar_y, AVATAR_SIZE);
             }
 
-            // Username + sub-text as a tight block, vertically centered
-            let display_name = if entry.username.len() > 18 {
-                format!("{}...", &entry.username[..15])
-            } else {
-                entry.username.clone()
-            };
+            // Username — UTF-8 safe truncation
+            let display_name = truncate_username(&entry.username, 18, 15);
             let username_max_w = xp_col_right - xp_col_w - col_gap - username_col_x;
             let (name_pm, _, nh) = renderer.render_text(
                 &display_name, "JetBrains Mono", 14.0, FontWeight::SemiBold,
                 text_primary(), username_max_w,
-            );
+            )?;
             let xp_sub = format!("{} XP", format_number(entry.xp));
             let (xpsub_pm, _, sh) = renderer.render_text(
                 &xp_sub, "JetBrains Mono", 11.0, FontWeight::Regular,
                 text_secondary(), username_max_w,
-            );
+            )?;
             let name_gap = 2.0; // tight gap between name and sub-text
             let name_block_h = nh + name_gap + sh;
             let name_top = ey + (ENTRY_H - name_block_h) / 2.0;
@@ -325,11 +312,11 @@ pub async fn render_leaderboard(
             let (xpv_pm, xvw, xvh) = renderer.render_text(
                 &xp_val, "JetBrains Mono", 14.0, FontWeight::SemiBold,
                 xp_color(), xp_col_w,
-            );
+            )?;
             let (xpl_pm, xlw, xlh) = renderer.render_text(
                 "XP", "JetBrains Mono", 10.0, FontWeight::Regular,
                 text_secondary(), 40.0,
-            );
+            )?;
             let xp_gap = 1.0; // flush: label sits tight under value
             let xp_block_h = xvh + xp_gap + xlh;
             let xp_top = ey + (ENTRY_H - xp_block_h) / 2.0;
@@ -347,11 +334,11 @@ pub async fn render_leaderboard(
             let (lvv_pm, lvw, lvh) = renderer.render_text(
                 &level_val, "JetBrains Mono", 14.0, FontWeight::Bold,
                 text_primary(), level_col_w,
-            );
+            )?;
             let (lvl_pm, llw, llh) = renderer.render_text(
                 "LEVEL", "JetBrains Mono", 10.0, FontWeight::Regular,
                 text_secondary(), level_col_w,
-            );
+            )?;
             let lvl_gap = 1.0;
             let lvl_block_h = lvh + lvl_gap + llh;
             let lvl_top = ey + (ENTRY_H - lvl_block_h) / 2.0;
@@ -381,12 +368,12 @@ pub async fn render_leaderboard(
         let third_pct = if top_xp > 0 { third_xp as f32 / top_xp as f32 } else { 0.0 };
 
         {
-            let mut renderer = text_renderer.lock().await;
+            let mut renderer = text_renderer.lock().unwrap();
 
             let (dist_pm, _, _) = renderer.render_text(
                 "XP DISTRIBUTION", "JetBrains Mono", 10.0, FontWeight::Regular,
                 text_secondary(), cw,
-            );
+            )?;
             canvas.draw_pixmap(
                 PAD as i32, y as i32,
                 dist_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -408,7 +395,7 @@ pub async fn render_leaderboard(
                 let (lbl_pm, lw, lh) = renderer.render_text(
                     label, "JetBrains Mono", 11.0, FontWeight::Regular,
                     text_muted(), label_w,
-                );
+                )?;
                 canvas.draw_pixmap(
                     (PAD + label_w - lw) as i32, y as i32,
                     lbl_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -429,7 +416,7 @@ pub async fn render_leaderboard(
                 let (val_pm, vw, _) = renderer.render_text(
                     value, "JetBrains Mono", 11.0, FontWeight::Regular,
                     text_muted(), value_w,
-                );
+                )?;
                 canvas.draw_pixmap(
                     right_align(track_x + bar_track_w + gap, value_w, vw) as i32, y as i32,
                     val_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
@@ -444,56 +431,4 @@ pub async fn render_leaderboard(
         .map_err(|e| ImageGenError::Rendering(format!("PNG encode error: {e}")))?;
 
     Ok(png_data)
-}
-
-// ── Drawing helpers ─────────────────────────────────────────────────────
-
-fn draw_rect_filled(canvas: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color) {
-    if let Some(rect) = Rect::from_xywh(x, y, w, h) {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        canvas.fill_rect(rect, &paint, Transform::identity(), None);
-    }
-}
-
-fn draw_rect_outline(canvas: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color, width: f32) {
-    let mut pb = PathBuilder::new();
-    pb.move_to(x, y);
-    pb.line_to(x + w, y);
-    pb.line_to(x + w, y + h);
-    pb.line_to(x, y + h);
-    pb.close();
-    if let Some(path) = pb.finish() {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        let mut stroke = tiny_skia::Stroke::default();
-        stroke.width = width;
-        canvas.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
-    }
-}
-
-fn draw_hline(canvas: &mut Pixmap, x1: f32, x2: f32, y: f32, color: Color) {
-    if let Some(rect) = Rect::from_xywh(x1, y, x2 - x1, 1.0) {
-        let mut paint = Paint::default();
-        paint.set_color(color);
-        canvas.fill_rect(rect, &paint, Transform::identity(), None);
-    }
-}
-
-fn format_number(n: u64) -> String {
-    if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
-    } else if n >= 1_000 {
-        let s = n.to_string();
-        let mut result = String::new();
-        for (i, c) in s.chars().rev().enumerate() {
-            if i > 0 && i % 3 == 0 {
-                result.push(',');
-            }
-            result.push(c);
-        }
-        result.chars().rev().collect()
-    } else {
-        n.to_string()
-    }
 }

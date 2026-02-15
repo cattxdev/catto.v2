@@ -297,7 +297,7 @@ pub async fn render_bonk(
         // Clean display text (remove * markers)
         let display_text = visuals.bonk_text.replace('*', "");
 
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         // Render stroke (black outline) - draw text multiple times offset
         let stroke_w = visuals.text_stroke_width;
@@ -311,7 +311,7 @@ pub async fn render_bonk(
         let (text_pixmap, tw, _th) = renderer.render_text(
             &display_text, "Anton", visuals.font_size, FontWeight::Regular,
             text_color, CANVAS_WIDTH as f32,
-        );
+        )?;
 
         // Apply -12deg rotation around the text position
         let angle = -12.0_f32;
@@ -325,7 +325,7 @@ pub async fn render_bonk(
             let (glow_pixmap, _, _) = renderer.render_text(
                 &display_text, "Anton", visuals.font_size, FontWeight::Regular,
                 glow_color, CANVAS_WIDTH as f32,
-            );
+            )?;
             for &(dx, dy) in &[(0.0_f32, 0.0_f32), (2.0, 2.0), (-2.0, -2.0)] {
                 let glow_transform = base_transform.post_translate(dx, dy);
                 canvas.draw_pixmap(
@@ -342,7 +342,7 @@ pub async fn render_bonk(
         let (stroke_pixmap, _, _) = renderer.render_text(
             &display_text, "Anton", visuals.font_size, FontWeight::Regular,
             stroke_color, CANVAS_WIDTH as f32,
-        );
+        )?;
         for &(dx, dy) in offsets {
             let stroke_transform = base_transform.post_translate(dx, dy);
             canvas.draw_pixmap(
@@ -359,7 +359,7 @@ pub async fn render_bonk(
         let (shadow_pixmap, _, _) = renderer.render_text(
             &display_text, "Anton", visuals.font_size, FontWeight::Regular,
             shadow_color, CANVAS_WIDTH as f32,
-        );
+        )?;
         let shadow_transform = base_transform.post_translate(3.0, 3.0);
         canvas.draw_pixmap(
             0, 0,
@@ -382,7 +382,7 @@ pub async fn render_bonk(
     // 7. Draw damage number (z-index 11)
     if let Some((damage, dmg_x, dmg_y)) = effects.damage_number {
         let damage_text = format!("{}!", damage);
-        let mut renderer = text_renderer.lock().await;
+        let mut renderer = text_renderer.lock().unwrap();
 
         let dmg_color = Color::from_rgba8(255, 51, 51, 255);
         let stroke_color = Color::from_rgba8(0, 0, 0, 255);
@@ -391,7 +391,7 @@ pub async fn render_bonk(
         let (stroke_pm, _, _) = renderer.render_text(
             &damage_text, "Anton", 32.0, FontWeight::Regular,
             stroke_color, 200.0,
-        );
+        )?;
         let transform = Transform::identity().post_rotate(-15.0).post_translate(dmg_x, dmg_y);
         for &(dx, dy) in &[(-2.0_f32, -2.0_f32), (2.0, -2.0), (-2.0, 2.0), (2.0, 2.0)] {
             let t = transform.post_translate(dx, dy);
@@ -402,7 +402,7 @@ pub async fn render_bonk(
         let (dmg_pm, _, _) = renderer.render_text(
             &damage_text, "Anton", 32.0, FontWeight::Regular,
             dmg_color, 200.0,
-        );
+        )?;
         canvas.draw_pixmap(0, 0, dmg_pm.as_ref(), &PixmapPaint::default(), transform, None);
     }
 

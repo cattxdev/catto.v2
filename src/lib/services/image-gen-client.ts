@@ -9,50 +9,9 @@ import type { BonkImageData, RankCardData, LeaderboardCardData } from './image-g
 /* global AbortController, fetch */
 
 const IMAGE_GEN_SERVICE_URL = process.env.IMAGE_GEN_SERVICE_URL || 'http://localhost:3848';
-const SERVICE_TIMEOUT = 15_000; // 15 seconds (longer than watermark due to multi-avatar fetching)
-
-interface ImageGenResult {
-  buffer: Buffer;
-  usedRustService: boolean;
-}
+const SERVICE_TIMEOUT = 15_000; // 15 seconds
 
 class ImageGenClient {
-  private serviceAvailable: boolean | null = null;
-  private lastHealthCheck = 0;
-  private readonly healthCheckInterval = 60_000; // 1 minute
-
-  /**
-   * Check if the Rust image-gen service is available.
-   * Caches result for 1 minute to avoid excessive health checks.
-   */
-  async isServiceAvailable(): Promise<boolean> {
-    const now = Date.now();
-
-    if (this.serviceAvailable !== null && now - this.lastHealthCheck < this.healthCheckInterval) {
-      return this.serviceAvailable;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 2000);
-
-      const response = await fetch(`${IMAGE_GEN_SERVICE_URL}/health`, {
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      this.serviceAvailable = response.ok;
-      this.lastHealthCheck = now;
-
-      return this.serviceAvailable;
-    } catch {
-      this.serviceAvailable = false;
-      this.lastHealthCheck = now;
-      return false;
-    }
-  }
-
   /**
    * Generate a bonk image using the Rust microservice.
    */
@@ -67,8 +26,6 @@ class ImageGenClient {
         body: JSON.stringify(data),
         signal: controller.signal,
       });
-
-      clearTimeout(timeout);
 
       if (!response.ok) {
         const body = await response.text().catch(() => '');
@@ -87,11 +44,6 @@ class ImageGenClient {
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  async generateBonkWithFallback(data: BonkImageData): Promise<ImageGenResult> {
-    const buffer = await this.generateBonk(data);
-    return { buffer, usedRustService: true };
   }
 
   /**
@@ -109,8 +61,6 @@ class ImageGenClient {
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         let message: string;
@@ -128,11 +78,6 @@ class ImageGenClient {
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  async generateRankCardWithFallback(data: RankCardData): Promise<ImageGenResult> {
-    const buffer = await this.generateRankCard(data);
-    return { buffer, usedRustService: true };
   }
 
   /**
@@ -150,8 +95,6 @@ class ImageGenClient {
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         let message: string;
@@ -169,11 +112,6 @@ class ImageGenClient {
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  async generateLeaderboardWithFallback(data: LeaderboardCardData): Promise<ImageGenResult> {
-    const buffer = await this.generateLeaderboard(data);
-    return { buffer, usedRustService: true };
   }
 }
 

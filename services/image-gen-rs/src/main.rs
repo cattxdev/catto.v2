@@ -59,8 +59,10 @@ async fn main() {
     let addr = format!("0.0.0.0:{}", port);
     tracing::info!("Image generation service listening on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr).await
+        .expect("failed to bind TCP listener");
+    axum::serve(listener, app).await
+        .expect("server error");
 }
 
 async fn health() -> Json<HealthResponse> {

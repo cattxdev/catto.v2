@@ -77,7 +77,7 @@ export class BonkButtonHandler extends InteractionHandler {
     try {
       const originalBonker = await this.container.client.users.fetch(originalBonkerId);
 
-      const { buffer: imageBuffer } = await imageGenClient.generateBonkWithFallback({
+      const imageBuffer = await imageGenClient.generateBonk({
         bonkerAvatarUrl: interaction.user.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: originalBonker.displayAvatarURL({ extension: 'png', size: 256 }),
         style,

@@ -53,34 +53,3 @@ pub fn parse_css_color(s: &str) -> Option<Color> {
     None
 }
 
-/// Lighten a hex color by a percentage (same algorithm as TypeScript).
-pub fn lighten_hex(hex: &str, percent: f32) -> String {
-    let hex = hex.trim_start_matches('#');
-    let num = u32::from_str_radix(hex, 16).unwrap_or(0);
-    let amt = (2.55 * percent).round() as i32;
-    let r = (((num >> 16) & 0xff) as i32 + amt).min(255).max(0) as u32;
-    let g = (((num >> 8) & 0xff) as i32 + amt).min(255).max(0) as u32;
-    let b = ((num & 0xff) as i32 + amt).min(255).max(0) as u32;
-    format!("#{:06x}", (r << 16) | (g << 8) | b)
-}
-
-/// Darken a hex color by a percentage (same algorithm as TypeScript).
-pub fn darken_hex(hex: &str, percent: f32) -> String {
-    let hex = hex.trim_start_matches('#');
-    let num = u32::from_str_radix(hex, 16).unwrap_or(0);
-    let amt = (2.55 * percent).round() as i32;
-    let r = (((num >> 16) & 0xff) as i32 - amt).min(255).max(0) as u32;
-    let g = (((num >> 8) & 0xff) as i32 - amt).min(255).max(0) as u32;
-    let b = ((num & 0xff) as i32 - amt).min(255).max(0) as u32;
-    format!("#{:06x}", (r << 16) | (g << 8) | b)
-}
-
-/// Convert a hex color to rgba() string with given alpha.
-pub fn add_alpha(hex: &str, alpha: f32) -> String {
-    let hex = hex.trim_start_matches('#');
-    let num = u32::from_str_radix(hex, 16).unwrap_or(0);
-    let r = (num >> 16) & 0xff;
-    let g = (num >> 8) & 0xff;
-    let b = num & 0xff;
-    format!("rgba({}, {}, {}, {})", r, g, b, alpha)
-}

@@ -297,7 +297,7 @@ export class FunCommand extends Subcommand {
       .replace(/\{user\}/g, `${bonkerUser}`);
 
     try {
-      const { buffer: imageBuffer } = await imageGenClient.generateBonkWithFallback({
+      const imageBuffer = await imageGenClient.generateBonk({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style,
@@ -373,7 +373,7 @@ export class FunCommand extends Subcommand {
     const reason = `Super Bonk: ${banReason}`;
 
     try {
-      const { buffer: imageBuffer } = await imageGenClient.generateBonkWithFallback({
+      const imageBuffer = await imageGenClient.generateBonk({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style: 'doge_fatality',

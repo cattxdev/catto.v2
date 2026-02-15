@@ -119,7 +119,7 @@ export class RankCommand extends Command {
       const memberSince = await this.rankDataService.getMemberSince(guildId, targetUser.id);
 
       // Generate rank card
-      const { buffer: cardImage } = await imageGenClient.generateRankCardWithFallback({
+      const cardImage = await imageGenClient.generateRankCard({
         username: targetUser.username,
         avatarUrl: avatarUrl,
         level: stats.level,
@@ -229,7 +229,7 @@ export class RankCommand extends Command {
       const memberSince = await this.rankDataService.getMemberSince(guildId, targetUser.id);
 
       // Generate rank card
-      const { buffer: cardImage } = await imageGenClient.generateRankCardWithFallback({
+      const cardImage = await imageGenClient.generateRankCard({
         username: targetUser.username,
         avatarUrl: avatarUrl,
         level: stats.level,

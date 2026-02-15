@@ -1,4 +1,5 @@
 use crate::assets::fonts;
+use crate::error::ImageGenError;
 use cosmic_text::{
     Attrs, Buffer as CosmicBuffer, Color as CosmicColor, Family, FontSystem, Metrics,
     Shaping, SwashCache, Weight,
@@ -78,7 +79,7 @@ impl TextRenderer {
         weight: FontWeight,
         color: tiny_skia::Color,
         max_width: f32,
-    ) -> (Pixmap, f32, f32) {
+    ) -> Result<(Pixmap, f32, f32), ImageGenError> {
         let line_height = font_size * 1.2;
         let metrics = Metrics::new(font_size, line_height);
         let mut buffer = CosmicBuffer::new(&mut self.font_system, metrics);
@@ -103,7 +104,10 @@ impl TextRenderer {
 
         let pix_w = (total_width.ceil() as u32).max(1);
         let pix_h = (total_height.ceil() as u32).max(1);
-        let mut pixmap = Pixmap::new(pix_w, pix_h).unwrap();
+        let mut pixmap = Pixmap::new(pix_w, pix_h)
+            .ok_or_else(|| ImageGenError::Rendering(format!(
+                "Failed to create text pixmap ({pix_w}x{pix_h})"
+            )))?;
 
         let cosmic_color = CosmicColor::rgba(
             (color.red() * 255.0) as u8,
@@ -128,25 +132,25 @@ impl TextRenderer {
                             let src_b = color.b();
                             let src_a = a;
 
-                            // Alpha-blend onto existing pixel
+                            // Alpha-blend onto existing pixel (use u32 to prevent overflow)
                             let dst = pixel[idx];
                             let dst_r = dst.red();
                             let dst_g = dst.green();
                             let dst_b = dst.blue();
                             let dst_a = dst.alpha();
 
-                            let sa = src_a as u16;
-                            let da = dst_a as u16;
+                            let sa = src_a as u32;
+                            let da = dst_a as u32;
                             let out_a = sa + da * (255 - sa) / 255;
 
                             if out_a > 0 {
-                                let out_r = ((src_r as u16 * sa + dst_r as u16 * da * (255 - sa) / 255) / out_a) as u8;
-                                let out_g = ((src_g as u16 * sa + dst_g as u16 * da * (255 - sa) / 255) / out_a) as u8;
-                                let out_b = ((src_b as u16 * sa + dst_b as u16 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_r = ((src_r as u32 * sa + dst_r as u32 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_g = ((src_g as u32 * sa + dst_g as u32 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_b = ((src_b as u32 * sa + dst_b as u32 * da * (255 - sa) / 255) / out_a) as u8;
                                 // Store as premultiplied
-                                let pm_r = (out_r as u16 * out_a / 255) as u8;
-                                let pm_g = (out_g as u16 * out_a / 255) as u8;
-                                let pm_b = (out_b as u16 * out_a / 255) as u8;
+                                let pm_r = (out_r as u32 * out_a / 255) as u8;
+                                let pm_g = (out_g as u32 * out_a / 255) as u8;
+                                let pm_b = (out_b as u32 * out_a / 255) as u8;
                                 pixel[idx] = PremultipliedColorU8::from_rgba(pm_r, pm_g, pm_b, out_a as u8).unwrap();
                             }
                         }
@@ -155,7 +159,7 @@ impl TextRenderer {
             }
         });
 
-        (pixmap, total_width, total_height)
+        Ok((pixmap, total_width, total_height))
     }
 }
 
@@ -169,8 +173,9 @@ fn weight_to_cosmic(w: FontWeight) -> Weight {
 }
 
 /// Thread-safe shared text renderer.
-pub type SharedTextRenderer = Arc<tokio::sync::Mutex<TextRenderer>>;
+/// Uses std::sync::Mutex because the critical section is CPU-bound (no .await inside).
+pub type SharedTextRenderer = Arc<std::sync::Mutex<TextRenderer>>;
 
 pub fn create_shared_renderer() -> SharedTextRenderer {
-    Arc::new(tokio::sync::Mutex::new(TextRenderer::new()))
+    Arc::new(std::sync::Mutex::new(TextRenderer::new()))
 }
