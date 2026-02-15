@@ -8,14 +8,11 @@ on:
   pull_request:
   workflow_call:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   lint-typecheck:
     name: Lint, Typecheck & Format
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: github.event_name != 'pull_request' || (github.head_ref != 'dev' && github.head_ref != 'main')
 
     steps:
       - name: Checkout code
@@ -53,6 +50,7 @@ jobs:
   test:
     name: Test
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: github.event_name != 'pull_request' || (github.head_ref != 'dev' && github.head_ref != 'main')
 
     steps:
       - name: Checkout code
