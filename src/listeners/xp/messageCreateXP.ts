@@ -4,10 +4,14 @@
  */
 
 import { Listener, Events } from '@sapphire/framework';
-import { Message, EmbedBuilder, TextChannel, NewsChannel } from 'discord.js';
+import { Message, MessageFlags, TextChannel, NewsChannel } from 'discord.js';
+import { container as fluentContainer } from '../../lib/discord/containers/container.js';
 import { awardService, configService } from '../../modules/xp/xp-text/services/index.js';
 import { parseTemplate } from '../../modules/xp/xp-text/utils/templates.js';
-import type { ValidationContext } from '../../modules/xp/xp-text/types/xp-text.types.js';
+import type {
+  TemplateVariables,
+  ValidationContext,
+} from '../../modules/xp/xp-text/types/xp-text.types.js';
 import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration.js';
 import type { RewardClaimResult } from '../../lib/types/rewards.types.js';
 
@@ -133,7 +137,7 @@ export class MessageCreateXPListener extends Listener {
       }
 
       // Build template variables
-      const variables = {
+      const variables: TemplateVariables = {
         user: `<@${userId}>`,
         userId,
         username: message.author.username,
@@ -142,6 +146,7 @@ export class MessageCreateXPListener extends Listener {
         totalXp,
         nextLevelXp: 0, // Will be calculated if needed
         progress: 0,
+        type: 'Text',
       };
 
       // Use custom template or fallback
@@ -156,12 +161,16 @@ export class MessageCreateXPListener extends Listener {
 
       // Send announcement
       if (config.embedEnabled) {
-        const embed = new EmbedBuilder()
-          .setColor(config.embedColor)
-          .setDescription(messageText)
-          .setTimestamp();
+        const ui = fluentContainer({ color: config.embedColor })
+          .h2('Text XP Level Up')
+          .text(messageText)
+          .footerWithTimestamp();
 
-        await announcementChannel.send({ embeds: [embed] });
+        await announcementChannel.send({
+          components: [ui.build()],
+          flags: MessageFlags.IsComponentsV2,
+          allowedMentions: { parse: ['users'] },
+        });
       } else {
         await announcementChannel.send(messageText);
       }

@@ -41,6 +41,20 @@ services:
     networks:
       - catto-network
 
+  image-gen:
+    build:
+      context: ./services/image-gen-rs
+      dockerfile: Dockerfile
+    container_name: catto-image-gen
+    restart: unless-stopped
+    environment:
+      IMAGE_GEN_SERVICE_PORT: 3848
+      RUST_LOG: info
+    ports:
+      - '${IMAGE_GEN_SERVICE_PORT:-3848}:3848'
+    networks:
+      - catto-network
+
   # Bot service is deployed via Dokploy (not in this compose file)
   # Dokploy's bot container connects to this network to access postgres/redis/watermark
   #

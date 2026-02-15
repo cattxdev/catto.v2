@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
@@ -10,79 +9,56 @@ import {
   buildModActionError,
   buildModActionSuccess,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseTempbanOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { type GuildMember } from 'discord.js';
+import type { TempbanOptions } from '#lib/interaction/typedOptions.js';
+import type { GuildMember } from 'discord.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
-import { getGate } from '#lib/validation/gateContext.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleTempban(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild || !interaction.member) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
-
-  let options;
-  try {
-    options = parseTempbanOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
+export async function handleTempban(options: TempbanOptions, ctx: CommandResponder) {
   const { target, targetId, reason, durationSeconds, deleteMessages, guild, moderator } = options;
 
   const maxDuration = 365 * 24 * 60 * 60;
   if (durationSeconds > maxDuration) {
-    await interaction.reply(ephemeralError('Maximum tempban duration is 1 year.'));
+    await ctx.replyError('Maximum tempban duration is 1 year.');
     return;
   }
 
-  await defer(interaction);
+  // Create gate for validation
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
 
-  // Get Gate for hierarchy validation
-  const gate = getGate(interaction);
-  if (!gate) {
-    await editReply(
-      interaction,
-      errorMessage('Error', 'This command can only be used in a server.')
-    );
+  // Check bot permissions
+  if (!guild.members.me?.permissions.has('BanMembers')) {
+    await ctx.replyError('I do not have permission to ban members.');
     return;
   }
 
+  // Try to fetch the target member if they're in the server
+  let targetMember: GuildMember | null = null;
   try {
-    if (!guild.members.me?.permissions.has('BanMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to ban members.')
-      );
+    targetMember = await guild.members.fetch(targetId);
+  } catch {
+    // User is not in the server - that's fine for tempban
+  }
+
+  // Check hierarchy using Gate (only if target is in server)
+  if (targetMember) {
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await gate.deny(hierarchyResult, ctx);
       return;
     }
 
-    let targetMember: GuildMember | null = null;
-    try {
-      targetMember = await guild.members.fetch(targetId);
-    } catch {
-      // User is not in the server - that's fine for tempban
+    // Notify user before tempban (only if they're in server)
+    if (target) {
+      await notifyUser(target, ModAction.TEMPBAN, guild, reason, durationSeconds);
     }
+  }
 
-    if (targetMember) {
-      const hierarchyResult = gate.checkHierarchy(targetMember);
-      if (isFail(hierarchyResult)) {
-        await editReply(interaction, hierarchyResult.response);
-        return;
-      }
+  await ctx.defer();
 
-      if (target) {
-        await notifyUser(target, ModAction.TEMPBAN, guild, reason, durationSeconds);
-      }
-    }
-
+  try {
     const targetTag = target?.tag ?? `User ID: ${targetId}`;
 
     const result = await moderationService.tempbanById(
@@ -96,8 +72,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'Failed to tempban the user.',
           'Check bot permissions and try again.'
@@ -116,8 +91,7 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
       durationSeconds
     );
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Tempban',
         target ?? { id: targetId, tag: targetTag },
@@ -131,10 +105,11 @@ export async function handleTempban(interaction: Subcommand.ChatInputCommandInte
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in tempban command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the tempban.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in tempban command:', error);
+    await ctx
+      .editReply(
+        errorMessage('Error', 'An unexpected error occurred while processing the tempban.')
+      )
+      .catch(() => {});
   }
 }

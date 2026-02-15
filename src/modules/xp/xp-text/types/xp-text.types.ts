@@ -159,6 +159,7 @@ export interface TemplateVariables {
   totalXp: number;
   nextLevelXp: number;
   progress: number;
+  type: 'Text' | 'Voice';
 }
 
 // Validation Context

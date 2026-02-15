@@ -306,7 +306,11 @@ model Mute {
 
 ## Commands
 
-The main moderation command is `/mod` with subcommands:
+All moderation commands support both **slash commands** (`/mod <subcommand>`) and **prefix commands** (`!<command>`). Both invoke the same shared handlers, so behavior is identical regardless of how the command is triggered.
+
+### Slash Commands
+
+The main slash command is `/mod` with subcommands:
 
 | Subcommand | Description |
 |------------|-------------|
@@ -328,6 +332,29 @@ The main moderation command is `/mod` with subcommands:
 | `panel` | Open mod panel |
 | `evidence add` | Get dashboard link to add evidence |
 | `evidence list` | View evidence summary for a case |
+
+### Prefix Commands
+
+Top-level prefix aliases for quick access:
+
+| Command | Example | Equivalent |
+|---------|---------|------------|
+| `!ban` | `!ban @user reason` | `/mod ban` |
+| `!kick` | `!kick @user reason` | `/mod kick` |
+| `!warn` | `!warn @user reason` | `/mod warn` |
+| `!timeout` | `!timeout @user 1h reason` | `/mod timeout` |
+| `!softban` | `!softban @user reason` | `/mod softban` |
+| `!tempban` | `!tempban @user 7d reason` | `/mod tempban` |
+| `!unban` | `!unban <userId> reason` | `/mod unban` |
+| `!mute` | `!mute @user reason` | `/mod mute` |
+| `!unmute` | `!unmute @user` | `/mod unmute` |
+| `!case` | `!case 42` | `/mod case view` |
+| `!history` | `!history @user` | `/mod history` |
+| `!evidence` | `!evidence add 42` / `!evidence list 42` | `/mod evidence` |
+| `!note` | `!note add @user text` / `!note list @user` | `/mod notes` |
+| `!voice` | `!voice where @user` / `!voice snapshot #channel` | `/mod voice` |
+
+Simple aliases (ban, kick, warn, timeout, softban, tempban, unban, case, history) are registered via a data-driven registry in `aliases/_registry.ts`. Complex aliases with subcommand routing (mute, unmute, evidence, note, voice) are individual files.
 
 ### Context Menu Commands
 

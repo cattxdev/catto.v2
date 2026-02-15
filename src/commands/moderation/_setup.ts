@@ -6,9 +6,12 @@ import {
   ButtonStyle,
   ComponentType,
   type TextChannel,
-  type GuildMember,
+  type Guild,
+  type User,
+  type Message,
 } from 'discord.js';
 import { asGuildId } from '../../modules/moderation/domain/types.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import {
   row,
   button,
@@ -22,10 +25,14 @@ import {
   errorContainer,
   infoContainer,
   reply,
-  defer,
 } from '#lib/discord/index.js';
 import { isAdmin } from '#lib/validation/index.js';
-import { ensureNonNull } from '#root/lib/utils.js';
+
+export interface SetupOptions {
+  guild: Guild;
+  guildId: string;
+  moderator: User;
+}
 
 /**
  * Helper to build setup buttons row 1
@@ -82,23 +89,19 @@ function buildSetupRow2() {
 /**
  * Handle /mod setup command - Interactive setup wizard
  */
-export async function handleSetup(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    return reply(interaction, errorMessage('Error', 'This command can only be used in a server.'));
-  }
-
-  if (!isAdmin(interaction.member as GuildMember)) {
-    return reply(
-      interaction,
+export async function handleSetup(options: SetupOptions, ctx: CommandResponder) {
+  if (!isAdmin(ctx.member)) {
+    await ctx.reply(
       errorContainer()
         .h2('Permission Denied')
         .text('You need Administrator permissions to configure moderation settings.')
     );
+    return;
   }
 
-  await defer(interaction);
+  await ctx.defer();
 
-  const guildId = asGuildId(interaction.guild.id);
+  const guildId = asGuildId(options.guildId);
 
   // Get or create config
   let config = await container.prisma.modConfig.findUnique({
@@ -112,7 +115,7 @@ export async function handleSetup(interaction: Subcommand.ChatInputCommandIntera
   }
 
   // Show overview with current settings
-  await showSetupOverview(interaction, config);
+  await showSetupOverview(ctx, config);
 }
 
 /**
@@ -158,7 +161,7 @@ function buildSetupContainer(
  * Show setup overview
  */
 async function showSetupOverview(
-  interaction: Subcommand.ChatInputCommandInteraction,
+  ctx: CommandResponder,
   config: {
     modLogChannelId: string | null;
     mutedTextRole: string | null;
@@ -168,10 +171,7 @@ async function showSetupOverview(
     autoModEnabled: boolean;
   }
 ) {
-  const guild = ensureNonNull(
-    interaction.guild,
-    '_setup > showSetupOverview(172): interaction.guild'
-  );
+  const guild = ctx.guild;
 
   // Resolve current settings
   const modLogChannel = config.modLogChannelId
@@ -191,28 +191,21 @@ async function showSetupOverview(
     voiceMuteRole
   ).actions(buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole), buildSetupRow2());
 
-  await interaction.editReply({
-    components: [setupContainer.build()],
-    flags: MessageFlags.IsComponentsV2,
-  });
+  const message = await ctx.editReply(setupContainer);
 
   // Wait for button interactions
-  await handleSetupInteractions(interaction);
+  await handleSetupInteractions(ctx, message);
 }
 
 /**
  * Handle button interactions during setup
  */
-async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandInteraction) {
-  const message = await interaction.fetchReply();
-  const guild = ensureNonNull(
-    interaction.guild,
-    '_setup > handleSetupInteractions(206): interaction.guild'
-  );
+async function handleSetupInteractions(ctx: CommandResponder, message: Message) {
+  const guild = ctx.guild;
   const guildId = asGuildId(guild.id);
 
   const collector = message.createMessageComponentCollector({
-    filter: (i) => i.user.id === interaction.user.id,
+    filter: (i) => i.user.id === ctx.user.id,
     time: 300_000, // 5 minutes
   });
 
@@ -246,8 +239,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
         try {
           const selectInteraction = await buttonInteraction.channel?.awaitMessageComponent({
-            filter: (i) =>
-              i.user.id === interaction.user.id && i.customId === 'mod_setup:select_mod_log',
+            filter: (i) => i.user.id === ctx.user.id && i.customId === 'mod_setup:select_mod_log',
             componentType: ComponentType.ChannelSelect,
             time: 60_000,
           });
@@ -270,7 +262,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
                 where: { guildId },
               });
               if (updatedConfig) {
-                await refreshOverview(interaction, updatedConfig, guild);
+                await refreshOverview(ctx, updatedConfig, guild);
               }
             }
           }
@@ -294,8 +286,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
 
         try {
           const selectInteraction = await buttonInteraction.channel?.awaitMessageComponent({
-            filter: (i) =>
-              i.user.id === interaction.user.id && i.customId === 'mod_setup:select_text_role',
+            filter: (i) => i.user.id === ctx.user.id && i.customId === 'mod_setup:select_text_role',
             componentType: ComponentType.RoleSelect,
             time: 60_000,
           });
@@ -317,7 +308,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
                 where: { guildId },
               });
               if (updatedConfig) {
-                await refreshOverview(interaction, updatedConfig, guild);
+                await refreshOverview(ctx, updatedConfig, guild);
               }
             }
           }
@@ -342,7 +333,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         try {
           const selectInteraction = await buttonInteraction.channel?.awaitMessageComponent({
             filter: (i) =>
-              i.user.id === interaction.user.id && i.customId === 'mod_setup:select_voice_role',
+              i.user.id === ctx.user.id && i.customId === 'mod_setup:select_voice_role',
             componentType: ComponentType.RoleSelect,
             time: 60_000,
           });
@@ -364,7 +355,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
                 where: { guildId },
               });
               if (updatedConfig) {
-                await refreshOverview(interaction, updatedConfig, guild);
+                await refreshOverview(ctx, updatedConfig, guild);
               }
             }
           }
@@ -401,7 +392,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
         try {
           const selectInteraction = await buttonInteraction.channel?.awaitMessageComponent({
             filter: (i) =>
-              i.user.id === interaction.user.id && i.customId === 'mod_setup:select_escalation',
+              i.user.id === ctx.user.id && i.customId === 'mod_setup:select_escalation',
             componentType: ComponentType.StringSelect,
             time: 60_000,
           });
@@ -463,7 +454,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
               where: { guildId },
             });
             if (updatedConfig) {
-              await refreshOverview(interaction, updatedConfig, guild);
+              await refreshOverview(ctx, updatedConfig, guild);
             }
           }
         } catch {
@@ -672,10 +663,10 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
             where: { guildId },
           });
           if (updatedConfig) {
-            await refreshOverview(interaction, updatedConfig, guild);
+            await refreshOverview(ctx, updatedConfig, guild);
           }
         } catch (error) {
-          container.logger.error('[Setup] Failed to create roles:', error);
+          ctx.client.logger.error('[Setup] Failed to create roles:', error);
           await buttonInteraction.editReply({
             content: `${EMOJI.STATUS.ERROR} Failed to create roles. Make sure I have the Manage Roles permission.`,
           });
@@ -686,22 +677,19 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
       // Unknown button - just acknowledge
       await buttonInteraction.deferUpdate();
     } catch (error) {
-      container.logger.error('[Setup] Button interaction error:', error);
+      ctx.client.logger.error('[Setup] Button interaction error:', error);
     }
   });
 
   collector.on('end', async (_, reason) => {
     if (reason === 'time') {
       try {
-        await interaction.editReply({
-          components: [
-            warningMessage(
-              'Setup Timed Out',
-              'The setup wizard has timed out. Run `/mod setup` again to continue.'
-            ).build(),
-          ],
-          flags: MessageFlags.IsComponentsV2,
-        });
+        await ctx.editReply(
+          warningMessage(
+            'Setup Timed Out',
+            'The setup wizard has timed out. Run `/mod setup` again to continue.'
+          )
+        );
       } catch {
         // Message may be deleted
       }
@@ -713,7 +701,7 @@ async function handleSetupInteractions(interaction: Subcommand.ChatInputCommandI
  * Refresh the overview container without recreating the collector
  */
 async function refreshOverview(
-  interaction: Subcommand.ChatInputCommandInteraction,
+  ctx: CommandResponder,
   config: {
     modLogChannelId: string | null;
     mutedTextRole: string | null;
@@ -742,10 +730,7 @@ async function refreshOverview(
     voiceMuteRole as { id: string } | null
   ).actions(buildSetupRow1(!!modLogChannel, !!textMuteRole, !!voiceMuteRole), buildSetupRow2());
 
-  await interaction.editReply({
-    components: [setupContainer.build()],
-    flags: MessageFlags.IsComponentsV2,
-  });
+  await ctx.editReply(setupContainer);
 }
 
 /**

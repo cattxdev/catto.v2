@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
@@ -6,78 +5,50 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseSoftbanOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { type GuildMember } from 'discord.js';
+import type { SoftbanOptions } from '#lib/interaction/typedOptions.js';
+import type { GuildMember } from 'discord.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import { ephemeralError, errorMessage, editReply, defer } from '#root/lib/discord/index.js';
-import { getGate } from '#lib/validation/gateContext.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleSoftban(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild || !interaction.member) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
-
-  // Parse options (supports both target user and target_id for users not in server)
-  let options;
-  try {
-    options = parseSoftbanOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
+export async function handleSoftban(options: SoftbanOptions, ctx: CommandResponder) {
   const { target, targetId, reason, deleteDays, guild, moderator } = options;
 
-  await defer(interaction);
+  // Create gate for validation
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
 
-  // Get Gate for hierarchy validation
-  const gate = getGate(interaction);
-  if (!gate) {
-    await editReply(
-      interaction,
-      errorMessage('Error', 'This command can only be used in a server.')
-    );
+  // Check bot permissions
+  if (!guild.members.me?.permissions.has('BanMembers')) {
+    await ctx.replyError('I do not have permission to ban members.');
     return;
   }
 
+  // Try to fetch the target member if they're in the server
+  let targetMember: GuildMember | null = null;
   try {
-    // Check bot permissions
-    if (!guild.members.me?.permissions.has('BanMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to ban members.')
-      );
+    targetMember = await guild.members.fetch(targetId);
+  } catch {
+    // User is not in the server - that's fine for softban
+  }
+
+  // Check hierarchy using Gate (only if target is in server)
+  if (targetMember) {
+    const hierarchyResult = gate.checkHierarchy(targetMember);
+    if (isFail(hierarchyResult)) {
+      await gate.deny(hierarchyResult, ctx);
       return;
     }
 
-    // Try to fetch the target member if they're in the server
-    let targetMember: GuildMember | null = null;
-    try {
-      targetMember = await guild.members.fetch(targetId);
-    } catch {
-      // User is not in the server - that's fine for softban
+    // Notify user before softban (only if they're in server)
+    if (target) {
+      await notifyUser(target, ModAction.SOFTBAN, guild, reason);
     }
+  }
 
-    // Check hierarchy using Gate (only if target is in server)
-    if (targetMember) {
-      const hierarchyResult = gate.checkHierarchy(targetMember);
-      if (isFail(hierarchyResult)) {
-        await editReply(interaction, hierarchyResult.response);
-        return;
-      }
+  await ctx.defer();
 
-      // Notify user before softban (only if they're in server)
-      if (target) {
-        await notifyUser(target, ModAction.SOFTBAN, guild, reason);
-      }
-    }
-
+  try {
     // Determine the target tag to display
     const targetTag = target?.tag ?? `User ID: ${targetId}`;
 
@@ -92,8 +63,7 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'Failed to softban the user.',
           'Check bot permissions and role hierarchy.'
@@ -115,8 +85,7 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       )
     );
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Softban',
         target ?? { id: targetId, tag: targetTag },
@@ -130,10 +99,11 @@ export async function handleSoftban(interaction: Subcommand.ChatInputCommandInte
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in softban command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the softban.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in softban command:', error);
+    await ctx
+      .editReply(
+        errorMessage('Error', 'An unexpected error occurred while processing the softban.')
+      )
+      .catch(() => {});
   }
 }

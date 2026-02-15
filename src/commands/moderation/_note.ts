@@ -1,133 +1,121 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
+import type { Guild, User } from 'discord.js';
+import type { CommandResponder } from '#root/lib/discord/index.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import { buildNotesList } from '../../modules/moderation/discord/panelBuilder.js';
 import { asGuildId, asUserId, asNoteId } from '../../modules/moderation/domain/types.js';
-import { MessageFlags } from 'discord.js';
-import {
-  defer,
-  editReply,
-  ephemeralError,
-  errorMessage,
-  successMessage,
-} from '#root/lib/discord/index.js';
+import { errorMessage, successMessage } from '#root/lib/discord/index.js';
 
-export async function handleNoteAdd(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
+export interface NoteAddOptions {
+  target: User;
+  targetId: string;
+  content: string;
+  tags?: string;
+  guild: Guild;
+  guildId: string;
+  moderator: User;
+}
 
-  const target = interaction.options.getUser('target', true);
-  const note = interaction.options.getString('note', true);
-  const tagsStr = interaction.options.getString('tags');
+export interface NoteListOptions {
+  target: User;
+  targetId: string;
+  guild: Guild;
+  guildId: string;
+}
 
-  const tags = tagsStr
-    ? tagsStr
+export interface NoteDeleteOptions {
+  noteId: string;
+  guild: Guild;
+  guildId: string;
+  moderator: User;
+}
+
+export async function handleNoteAdd(options: NoteAddOptions, ctx: CommandResponder) {
+  const tags = options.tags
+    ? options.tags
         .split(',')
         .map((t) => t.trim().toLowerCase())
         .filter((t) => t.length > 0)
     : [];
 
-  await interaction.deferReply();
+  await ctx.defer();
 
   try {
     const result = await notesService.addNote({
-      guildId: asGuildId(interaction.guild.id),
-      userId: asUserId(target.id),
-      createdById: asUserId(interaction.user.id),
-      note,
+      guildId: asGuildId(options.guildId),
+      userId: asUserId(options.targetId),
+      createdById: asUserId(options.moderator.id),
+      note: options.content,
       tags,
     });
 
     if (!result.success) {
-      await editReply(interaction, errorMessage('Error', `${result.error}`));
+      await ctx.editReply(errorMessage('Error', `${result.error}`));
       return;
     }
 
     const tagsDisplay =
       tags.length > 0 ? `\n**Tags:** ${tags.map((t) => `\`${t}\``).join(', ')}` : '';
-    await editReply(
-      interaction,
+    await ctx.editReply(
       successMessage(
-        `Note added for **${target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``
+        `Note added for **${options.target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in note add command:', error);
-    await editReply(
-      interaction,
+    ctx.client.logger.error('Error in note add command:', error);
+    await ctx.editReply(
       errorMessage('Error', 'An unexpected error occurred while adding the note.')
     );
   }
 }
 
-export async function handleNoteList(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
-
-  const target = interaction.options.getUser('target', true);
-
-  await interaction.deferReply();
+export async function handleNoteList(options: NoteListOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     const notes = await notesService.listNotes(
-      asGuildId(interaction.guild.id),
-      asUserId(target.id)
+      asGuildId(options.guildId),
+      asUserId(options.targetId)
     );
 
-    const container = buildNotesList(target, notes);
+    const container = buildNotesList(options.target, notes);
 
-    await interaction.editReply({
-      components: [container.build()],
-      flags: MessageFlags.IsComponentsV2,
-    });
+    await ctx.editReply(container.build());
   } catch (error) {
-    interaction.client.logger.error('Error in note list command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while listing notes.')
-    );
+    ctx.client.logger.error('Error in note list command:', error);
+    await ctx.editReply(errorMessage('Error', 'An unexpected error occurred while listing notes.'));
   }
 }
 
-export async function handleNoteDelete(interaction: Subcommand.ChatInputCommandInteraction) {
-  if (!interaction.guild) {
-    await interaction.reply(ephemeralError('This command can only be used in a server.'));
-    return;
-  }
-
-  const noteId = interaction.options.getString('note_id', true);
-
-  await defer(interaction);
+export async function handleNoteDelete(options: NoteDeleteOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   try {
     // First get the note to show what was deleted
-    const note = await notesService.getNote(asNoteId(noteId));
+    const note = await notesService.getNote(asNoteId(options.noteId));
 
     if (!note) {
-      await editReply(interaction, errorMessage('Error', 'Note not found.'));
+      await ctx.editReply(errorMessage('Error', 'Note not found.'));
       return;
     }
 
-    const result = await notesService.deleteNote(asNoteId(noteId), asGuildId(interaction.guild.id));
+    const result = await notesService.deleteNote(
+      asNoteId(options.noteId),
+      asGuildId(options.guildId)
+    );
 
     if (!result.success) {
-      await editReply(interaction, errorMessage('Error', `${result.error}`));
+      await ctx.editReply(errorMessage('Error', `${result.error}`));
       return;
     }
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       successMessage(
-        `Note \`${noteId}\` has been deleted.\n**Preview:** ${note.note.substring(0, 100)}${note.note.length > 100 ? '...' : ''}`
+        `Note \`${options.noteId}\` has been deleted.\n**Preview:** ${note.note.substring(0, 100)}${note.note.length > 100 ? '...' : ''}`
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in note delete command:', error);
-    await editReply(
-      interaction,
+    ctx.client.logger.error('Error in note delete command:', error);
+    await ctx.editReply(
       errorMessage('Error', 'An unexpected error occurred while deleting the note.')
     );
   }

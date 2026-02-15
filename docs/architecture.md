@@ -16,7 +16,7 @@ This document describes the system architecture of Catto v2.x and how components
 | Dashboard | Next.js 15 | Moderator web UI |
 | Validation | Zod | Schema validation |
 | i18n | i18next | Internationalization |
-| Microservices | Rust (axum) | High-performance image processing |
+| Microservices | Rust (axum) | High-performance image processing and generation |
 
 ## System Overview
 
@@ -69,10 +69,10 @@ This document describes the system architecture of Catto v2.x and how components
 └───────────────┘                        └───────────────┘
         ▲
         │
-┌───────────────┐
-│   Watermark   │
-│   (Rust)      │
-└───────────────┘
+┌───────────────┐    ┌───────────────┐
+│   Watermark   │    │  Image Gen    │
+│   (Rust)      │    │   (Rust)      │
+└───────────────┘    └───────────────┘
 ```
 
 ## Request Flow
@@ -163,12 +163,15 @@ commands/
 │   ├── help.ts
 │   └── language.ts
 ├── moderation/     # Moderation commands
-│   ├── mod.ts           # Main subcommand entry
-│   ├── _ban.ts          # Subcommand handlers
+│   ├── mod.ts           # Main subcommand entry (/mod)
+│   ├── _ban.ts          # Shared handlers (slash + prefix)
 │   ├── _kick.ts
 │   ├── _evidenceAdd.ts  # Evidence subcommands
 │   ├── _evidenceList.ts
 │   ├── captureEvidence.ts  # Context menu command
+│   ├── aliases/         # Prefix command aliases (!ban, !kick, etc.)
+│   │   ├── _registry.ts # Data-driven registry for simple aliases
+│   │   └── _shared.ts   # Shared prefix utilities
 │   └── ...
 ├── reputation/     # Reputation commands
 ├── rewards/        # Reward commands
@@ -355,6 +358,31 @@ Located in `services/watermark-rs/`, this is a high-performance image watermarki
 **Building:**
 ```bash
 cd services/watermark-rs
+cargo build --release
+```
+
+The service is automatically started by `pnpm dev:env` if the binary exists.
+
+### Image Generation Service (Rust)
+
+Located in `services/image-gen-rs/`, this microservice generates all image assets (rank cards, leaderboards, bonk memes) using `tiny-skia` for 2D rendering and `cosmic-text` for font layout.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check |
+| `/bonk` | POST | Generate bonk meme image |
+| `/rank` | POST | Generate XP rank card |
+| `/leaderboard` | POST | Generate leaderboard card |
+
+**Features:**
+- Sub-10ms image generation (vs ~150-300ms with Puppeteer)
+- ~300MB less memory usage (no Chromium process)
+- Embedded assets and fonts (no filesystem dependencies at runtime)
+- Supports PNG, JPEG, and WebP avatar formats
+
+**Building:**
+```bash
+cd services/image-gen-rs
 cargo build --release
 ```
 

@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
@@ -6,36 +5,17 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseKickOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { KickOptions } from '#lib/interaction/typedOptions.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import { getGate } from '#lib/validation/gateContext.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleKick(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseKickOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
-
-  await defer(interaction);
+export async function handleKick(options: KickOptions, ctx: CommandResponder) {
+  await ctx.defer();
 
   // Get Gate for hierarchy validation
-  const gate = getGate(interaction);
-  if (!gate) {
-    await editReply(
-      interaction,
-      errorMessage('Error', 'This command can only be used in a server.')
-    );
-    return;
-  }
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
 
   try {
     // Fetch target member
@@ -43,23 +23,20 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     try {
       targetMember = await options.guild.members.fetch(options.target.id);
     } catch {
-      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
+      await ctx.editReply(errorMessage('Error', 'Target is not a member of this server.'));
       return;
     }
 
     // Check bot permissions
     if (!options.guild.members.me?.permissions.has('KickMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to kick members.')
-      );
+      await ctx.editReply(errorMessage('Error', 'I do not have permission to kick members.'));
       return;
     }
 
     // Check hierarchy using Gate
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
-      await editReply(interaction, hierarchyResult.response);
+      await ctx.editReply(hierarchyResult.response);
       return;
     }
 
@@ -80,8 +57,7 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'Failed to kick the user.',
           'Check bot permissions and role hierarchy.'
@@ -100,8 +76,7 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
       ensureNonNull(result.caseNumber, 'logModAction(88): result.caseNumber')
     );
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Kick',
         options.target,
@@ -112,10 +87,9 @@ export async function handleKick(interaction: Subcommand.ChatInputCommandInterac
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in kick command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the kick.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in kick command:', error);
+    await ctx
+      .editReply(errorMessage('Error', 'An unexpected error occurred while processing the kick.'))
+      .catch(() => {});
   }
 }

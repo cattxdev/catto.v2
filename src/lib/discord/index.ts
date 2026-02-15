@@ -64,6 +64,10 @@ export {
   defer,
   reply,
   editReply,
+  // CommandResponder
+  type CommandResponder,
+  InteractionResponder,
+  MessageResponder,
   // Types
   type UIResponse,
   type PaginationState,

@@ -7,7 +7,7 @@ This guide will help you set up and run Catto v2.x locally for development.
 - [Node.js](https://nodejs.org/) v20 or higher
 - [pnpm](https://pnpm.io/) v10+
 - [Docker](https://www.docker.com/) and Docker Compose (recommended)
-- [Rust](https://rustup.rs/) (optional, for watermark microservice)
+- [Rust](https://rustup.rs/) (optional, for watermark and image-gen microservices)
 
 ## Installation
 
@@ -24,7 +24,7 @@ cd catto
 pnpm install
 ```
 
-### 3. Build Watermark Service (Optional)
+### 3. Build Rust Microservices (Optional)
 
 For faster evidence image processing, build the Rust watermark microservice:
 
@@ -35,6 +35,16 @@ cd ../..
 ```
 
 If not built, the bot will use Sharp-based watermarking as a fallback.
+
+For image generation (rank cards, leaderboards, bonk memes), build the Rust image-gen microservice:
+
+```bash
+cd services/image-gen-rs
+cargo build --release
+cd ../..
+```
+
+The image-gen service is required for generating images. It is automatically started by `pnpm dev:env` if the binary exists.
 
 ### 4. Configure Environment
 
@@ -72,6 +82,7 @@ Fill in the required values:
 | `DASHBOARD_URL` | Moderator dashboard URL (default: `http://localhost:3000`) | No |
 | `WATERMARK_SERVICE_URL` | Watermark microservice URL (default: `http://localhost:3847`) | No |
 | `WATERMARK_MAX_UPLOAD_SIZE` | Max watermark upload size (default: `1gb`) | No |
+| `IMAGE_GEN_SERVICE_URL` | Image generation microservice URL (default: `http://localhost:3848`) | No |
 
 ## Running the Bot
 
@@ -105,6 +116,36 @@ pnpm prisma:migrate
 pnpm dev
 ```
 
+## Image Generation
+
+Catto uses a Rust microservice (`image-gen-rs`) for all image generation (rank cards, leaderboards, bonk memes). The service uses `tiny-skia` for 2D rendering and `cosmic-text` for font layout, producing images significantly faster than the previous Puppeteer-based approach.
+
+### Building
+
+```bash
+cd services/image-gen-rs
+cargo build --release
+```
+
+The binary is automatically started by `pnpm dev:env` if found at `services/image-gen-rs/target/release/image-gen-service`.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMAGE_GEN_SERVICE_URL` | `http://localhost:3848` | URL of the image-gen microservice |
+
+### How It Works
+
+The TypeScript bot communicates with the Rust service via HTTP (JSON request → PNG response). The `imageGenClient` in `src/lib/services/image-gen-client.ts` handles health checks, timeouts, and error reporting.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/bonk` | POST | Generate bonk meme image |
+| `/rank` | POST | Generate XP rank card |
+| `/leaderboard` | POST | Generate leaderboard card |
+
 ## Available Scripts
 
 | Script | Description |
@@ -127,6 +168,7 @@ pnpm dev
 |--------|-------------|
 | `pnpm prisma:generate` | Generate Prisma client |
 | `pnpm prisma:migrate` | Run migrations |
+| `pnpm prisma:migrate:create -- <name>` | Create migration safely for ephemeral DB flow |
 | `pnpm prisma:studio` | Open Prisma Studio |
 | `pnpm prisma:push` | Push schema changes |
 | `pnpm prisma:seed` | Seed the database |
@@ -145,6 +187,7 @@ catto/
 │   ├── routes/               # REST API endpoints
 │   ├── modules/              # Business logic modules
 │   ├── lib/                  # Utilities and helpers
+│   │   ├── services/         # Image generation client, storage, etc.
 │   │   ├── storage/          # B2 storage and signing services
 │   │   └── validation/       # Gate, permissions, rate limiting
 │   ├── preconditions/        # Permission checks
@@ -154,7 +197,8 @@ catto/
 │   ├── components/mod/       # Evidence gallery, viewer, upload
 │   └── lib/                  # Services and types
 ├── services/
-│   └── watermark-rs/         # Rust watermark microservice
+│   ├── watermark-rs/         # Rust watermark microservice
+│   └── image-gen-rs/         # Rust image generation microservice
 ├── prisma/
 │   ├── schema.prisma         # Database schema
 │   └── seed.ts               # Database seeder
@@ -169,4 +213,5 @@ catto/
 - Read the [Architecture](architecture.md) overview
 - Learn about [Coding Rules](RULES.md)
 - Explore the [Internal APIs](api/index.md)
+- Use the [Prisma Migrations guide](api/prisma-migrations.md) when creating schema migrations with ephemeral DBs
 - Create your first [Command](commands/creating-commands.md)

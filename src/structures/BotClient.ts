@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Redis } from 'ioredis'; // recommended by IORedis docs starting from v5 for module interop
 import { getRootData } from '@sapphire/pieces';
+import { registerSimpleAliases } from '#commands/moderation/aliases/_registry.js';
 
 // Augment container with Prisma, Redis, and API Server
 declare module '@sapphire/framework' {
@@ -169,6 +170,7 @@ export class BotClient extends SapphireClient {
       }
     });
     this.stores.get('interaction-handlers').registerPath(join(this.rootData.root, 'interactions'));
+    registerSimpleAliases(this.stores);
   }
 
   public override async login(token?: string): Promise<string> {

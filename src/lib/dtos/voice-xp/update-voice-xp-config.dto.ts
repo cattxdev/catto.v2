@@ -91,6 +91,25 @@ export class UpdateVoiceXPConfigDto {
   @Type(() => Boolean)
   ignoreAfkChannel?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  antiFarmDampeningEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0, { message: 'antiFarmDampeningMultiplier must be between 0 and 1' })
+  @Max(1, { message: 'antiFarmDampeningMultiplier must be between 0 and 1' })
+  @Type(() => Number)
+  antiFarmDampeningMultiplier?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1, { message: 'antiFarmMinimumParticipants must be between 1 and 99' })
+  @Max(99, { message: 'antiFarmMinimumParticipants must be between 1 and 99' })
+  @Type(() => Number)
+  antiFarmMinimumParticipants?: number;
+
   // Role Filters
   @IsArray()
   @IsOptional()

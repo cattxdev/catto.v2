@@ -1,4 +1,3 @@
-import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
@@ -10,82 +9,52 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
-import { parseTimeoutOptions } from '#lib/interaction/typedOptions.js';
-import { ValidationError } from '#lib/validation/zod.js';
-import { ephemeralError, defer, editReply, errorMessage } from '#lib/discord/index.js';
+import type { TimeoutOptions } from '#lib/interaction/typedOptions.js';
+import { errorMessage } from '#lib/discord/index.js';
+import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
-import { getGate } from '#lib/validation/gateContext.js';
-import { isFail } from '#lib/validation/Gate.js';
+import { Gate, isFail } from '#lib/validation/Gate.js';
 
-export async function handleTimeout(interaction: Subcommand.ChatInputCommandInteraction) {
-  let options;
-  try {
-    options = parseTimeoutOptions(interaction);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      await interaction.reply(ephemeralError(error.message));
-      return;
-    }
-    throw error;
-  }
+export async function handleTimeout(options: TimeoutOptions, ctx: CommandResponder) {
+  const durationMs = options.durationSeconds * 1000;
+  const maxDuration = 28 * 24 * 60 * 60 * 1000;
 
-  await defer(interaction);
-
-  // Get Gate for hierarchy validation
-  const gate = getGate(interaction);
-  if (!gate) {
-    await editReply(
-      interaction,
-      errorMessage('Error', 'This command can only be used in a server.')
-    );
+  if (durationMs > maxDuration) {
+    await ctx.replyError('Timeout duration cannot exceed 28 days.');
     return;
   }
 
+  if (durationMs < 60 * 1000) {
+    await ctx.replyError('Timeout duration must be at least 1 minute.');
+    return;
+  }
+
+  // Create gate for validation
+  const gate = Gate.fromMember(ctx.member, ctx.guild);
+
+  // Fetch target member
+  const targetMember = await gate.resolveMember(options.target.id);
+  if (!targetMember) {
+    await ctx.replyError('Target is not a member of this server.');
+    return;
+  }
+
+  // Check bot permissions
+  if (!options.guild.members.me?.permissions.has('ModerateMembers')) {
+    await ctx.replyError('I do not have permission to timeout members.');
+    return;
+  }
+
+  // Check hierarchy using Gate
+  const hierarchyResult = gate.checkHierarchy(targetMember);
+  if (isFail(hierarchyResult)) {
+    await gate.deny(hierarchyResult, ctx);
+    return;
+  }
+
+  await ctx.defer();
+
   try {
-    const durationMs = options.durationSeconds * 1000;
-    const maxDuration = 28 * 24 * 60 * 60 * 1000;
-
-    if (durationMs > maxDuration) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'Timeout duration cannot exceed 28 days.')
-      );
-      return;
-    }
-
-    if (durationMs < 60 * 1000) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'Timeout duration must be at least 1 minute.')
-      );
-      return;
-    }
-
-    // Fetch target member
-    let targetMember;
-    try {
-      targetMember = await options.guild.members.fetch(options.target.id);
-    } catch {
-      await editReply(interaction, errorMessage('Error', 'Target is not a member of this server.'));
-      return;
-    }
-
-    // Check bot permissions
-    if (!options.guild.members.me?.permissions.has('ModerateMembers')) {
-      await editReply(
-        interaction,
-        errorMessage('Error', 'I do not have permission to timeout members.')
-      );
-      return;
-    }
-
-    // Check hierarchy using Gate
-    const hierarchyResult = gate.checkHierarchy(targetMember);
-    if (isFail(hierarchyResult)) {
-      await editReply(interaction, hierarchyResult.response);
-      return;
-    }
-
     // Notify user before timeout
     const notified = await notifyUser(
       options.target,
@@ -105,8 +74,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
     );
 
     if (!result.success) {
-      await editReply(
-        interaction,
+      await ctx.editReply(
         buildModActionError(
           result.error ?? 'Failed to timeout the user.',
           'Check bot permissions and role hierarchy.'
@@ -131,8 +99,7 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
 
     const durationText = formatDuration(options.durationSeconds);
 
-    await editReply(
-      interaction,
+    await ctx.editReply(
       buildModActionSuccess(
         'Timeout',
         options.target,
@@ -146,10 +113,11 @@ export async function handleTimeout(interaction: Subcommand.ChatInputCommandInte
       )
     );
   } catch (error) {
-    interaction.client.logger.error('Error in timeout command:', error);
-    await editReply(
-      interaction,
-      errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
-    ).catch(() => {});
+    ctx.client.logger.error('Error in timeout command:', error);
+    await ctx
+      .editReply(
+        errorMessage('Error', 'An unexpected error occurred while processing the timeout.')
+      )
+      .catch(() => {});
   }
 }
