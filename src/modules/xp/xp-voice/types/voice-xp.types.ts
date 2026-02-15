@@ -123,7 +123,7 @@ export interface VoiceTemplateVariables {
   minutesInVoice: number;
   nextLevelXp: number;
   progress: number;
-  type: string;
+  type: 'Text' | 'Voice';
 }
 
 // Validation Context

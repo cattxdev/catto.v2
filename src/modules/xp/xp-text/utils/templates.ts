@@ -16,6 +16,7 @@ import { TemplateVariables } from '../types/xp-text.types.js';
  * - {totalXp} - Total XP
  * - {nextLevelXp} - XP needed for next level
  * - {progress} - Progress percentage (0-100)
+ * - {type} - XP type label (Text or Voice)
  *
  * @param template Template string with placeholders
  * @param variables Variable values to replace

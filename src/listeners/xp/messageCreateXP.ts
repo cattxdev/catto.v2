@@ -8,7 +8,10 @@ import { Message, MessageFlags, TextChannel, NewsChannel } from 'discord.js';
 import { container as fluentContainer } from '../../lib/discord/containers/container.js';
 import { awardService, configService } from '../../modules/xp/xp-text/services/index.js';
 import { parseTemplate } from '../../modules/xp/xp-text/utils/templates.js';
-import type { ValidationContext } from '../../modules/xp/xp-text/types/xp-text.types.js';
+import type {
+  TemplateVariables,
+  ValidationContext,
+} from '../../modules/xp/xp-text/types/xp-text.types.js';
 import { RewardIntegration } from '../../modules/rewards/integrations/RewardIntegration.js';
 import type { RewardClaimResult } from '../../lib/types/rewards.types.js';
 
@@ -134,7 +137,7 @@ export class MessageCreateXPListener extends Listener {
       }
 
       // Build template variables
-      const variables = {
+      const variables: TemplateVariables = {
         user: `<@${userId}>`,
         userId,
         username: message.author.username,

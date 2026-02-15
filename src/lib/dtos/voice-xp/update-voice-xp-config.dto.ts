@@ -25,10 +25,12 @@ export enum VoiceXPMode {
 }
 
 export enum VoiceLevelCurveType {
+  FORMULA = 'FORMULA',
+  TABLE = 'TABLE',
+  // Legacy values kept for backward compatibility (normalized to FORMULA at route layer)
   LINEAR = 'LINEAR',
   EXPONENTIAL = 'EXPONENTIAL',
   LOGARITHMIC = 'LOGARITHMIC',
-  TABLE = 'TABLE',
 }
 
 export class UpdateVoiceXPConfigDto {
@@ -93,6 +95,25 @@ export class UpdateVoiceXPConfigDto {
   @Type(() => Boolean)
   ignoreAfkChannel?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  antiFarmDampeningEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0, { message: 'antiFarmDampeningMultiplier must be between 0 and 1' })
+  @Max(1, { message: 'antiFarmDampeningMultiplier must be between 0 and 1' })
+  @Type(() => Number)
+  antiFarmDampeningMultiplier?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1, { message: 'antiFarmMinimumParticipants must be between 1 and 99' })
+  @Max(99, { message: 'antiFarmMinimumParticipants must be between 1 and 99' })
+  @Type(() => Number)
+  antiFarmMinimumParticipants?: number;
+
   // Role Filters
   @IsArray()
   @IsOptional()
@@ -130,7 +151,8 @@ export class UpdateVoiceXPConfigDto {
 
   // Level Curve Configuration
   @IsEnum(VoiceLevelCurveType, {
-    message: 'levelCurveType must be LINEAR, EXPONENTIAL, LOGARITHMIC, or TABLE',
+    message:
+      'levelCurveType must be FORMULA or TABLE (legacy LINEAR/EXPONENTIAL/LOGARITHMIC are accepted)',
   })
   @IsOptional()
   levelCurveType?: VoiceLevelCurveType;

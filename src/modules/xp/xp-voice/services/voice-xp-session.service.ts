@@ -3,7 +3,8 @@
  * Manages voice session lifecycle and XP awards
  */
 
-import type { VoiceState } from 'discord.js';
+import type { GuildVoiceXPConfig } from '@prisma/client';
+import { MessageFlags, NewsChannel, TextChannel, type VoiceState } from 'discord.js';
 import type { VoiceValidationContext, SessionAwardResult } from '../types/voice-xp.types.js';
 import { VoiceXPMode } from '../types/voice-xp.types.js';
 import * as sessionTracking from '../utils/session-tracking.js';
@@ -14,6 +15,11 @@ import { calculateVoiceLevel } from './voice-level-calculator.service.js';
 import { getVoiceXPConfig } from './voice-xp-config.service.js';
 import { container } from '@sapphire/framework';
 import { ReputationService } from '#modules/reputation/services/reputation.service.js';
+import { container as fluentContainer } from '#root/lib/discord/containers/container.js';
+import { parseVoiceTemplate } from '../utils/templates.js';
+import type { VoiceTemplateVariables } from '../types/voice-xp.types.js';
+import { RewardIntegration } from '#modules/rewards/integrations/RewardIntegration.js';
+import type { RewardClaimResult } from '#lib/types/rewards.types.js';
 
 export async function handleVoiceJoin(voiceState: VoiceState): Promise<void> {
   const { guild, member, channelId } = voiceState;
@@ -104,6 +110,16 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
     };
   }
 
+  // In PER_MINUTE mode, XP is awarded by the queue worker
+  if (config.xpMode === VoiceXPMode.PER_MINUTE) {
+    await voiceSessionRepository.endVoiceSession(session.sessionId, durationMinutes, 0);
+    return {
+      awarded: false,
+      reason: 'Session ended in PER_MINUTE mode',
+      durationMinutes,
+    };
+  }
+
   // Get reputation boost multiplier
   let reputationMultiplier = 1.0;
   try {
@@ -115,12 +131,29 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
     container.logger.warn('Failed to get reputation multiplier for voice XP:', error);
   }
 
-  // Calculate XP award with reputation boost
+  const antiFarmMultiplier = getAntiFarmMultiplier(
+    config,
+    guild,
+    session.channelId,
+    session.isMuted,
+    session.isDeafened
+  );
+
+  // Calculate XP award with reputation and anti-farm multipliers
   const xpAwarded = validation.calculateSessionXP(
     durationMinutes,
     config.xpPerMinute,
-    reputationMultiplier
+    reputationMultiplier * antiFarmMultiplier
   );
+
+  if (xpAwarded <= 0) {
+    await voiceSessionRepository.endVoiceSession(session.sessionId, durationMinutes, 0);
+    return {
+      awarded: false,
+      reason: 'Award amount was zero after dampening',
+      durationMinutes,
+    };
+  }
 
   // Award XP
   const userXP = await voiceXPRepository.getUserVoiceXP(guild.id, member.id);
@@ -147,6 +180,17 @@ export async function handleVoiceLeave(voiceState: VoiceState): Promise<SessionA
   container.logger.info(
     `[Voice XP] Awarded ${xpAwarded} XP to ${member.user.tag} for ${durationMinutes}m session (Level ${result.userXP.level})`
   );
+
+  if (result.leveledUp) {
+    await handleVoiceLevelUpEffects({
+      guildId: guild.id,
+      userId: member.id,
+      newLevel: result.userXP.level,
+      newXp: result.userXP.xp,
+      xpGained: xpAwarded,
+      durationMinutes,
+    });
+  }
 
   return {
     awarded: true,
@@ -217,9 +261,117 @@ export async function handleVoiceStateUpdate(
   }
 }
 
+function getAntiFarmMultiplier(
+  config: GuildVoiceXPConfig,
+  guild: VoiceState['guild'],
+  channelId: string,
+  isMuted: boolean,
+  isDeafened: boolean
+): number {
+  if (!config.antiFarmDampeningEnabled) {
+    return 1;
+  }
+
+  let multiplier = 1;
+  const dampeningMultiplier = Math.min(Math.max(config.antiFarmDampeningMultiplier, 0), 1);
+
+  if (isMuted || isDeafened) {
+    multiplier = Math.min(multiplier, dampeningMultiplier);
+  }
+
+  const channel = guild.channels.cache.get(channelId);
+  if (channel?.isVoiceBased()) {
+    const nonBotParticipants = channel.members.filter((voiceMember) => !voiceMember.user.bot).size;
+    if (nonBotParticipants < config.antiFarmMinimumParticipants) {
+      multiplier = Math.min(multiplier, dampeningMultiplier);
+    }
+  }
+
+  return multiplier;
+}
+
+interface VoiceLevelUpContext {
+  guildId: string;
+  userId: string;
+  newLevel: number;
+  newXp: number;
+  xpGained: number;
+  durationMinutes: number;
+}
+
+export async function handleVoiceLevelUpEffects(context: VoiceLevelUpContext): Promise<void> {
+  try {
+    const guild = container.client.guilds.cache.get(context.guildId);
+    if (!guild) return;
+
+    const member = await guild.members.fetch(context.userId).catch(() => null);
+    if (!member) return;
+
+    let rewardResults: RewardClaimResult[] = [];
+    rewardResults = await RewardIntegration.onVoiceLevelUp(
+      guild.id,
+      member.id,
+      context.newLevel,
+      context.newXp,
+      guild,
+      member
+    );
+
+    const config = await getVoiceXPConfig(guild.id);
+    if (!config.announceLevelUp || !config.announceChannelId) {
+      return;
+    }
+
+    const channel = guild.channels.cache.get(config.announceChannelId);
+    if (!(channel instanceof TextChannel || channel instanceof NewsChannel)) {
+      return;
+    }
+
+    const levelCalc = calculateVoiceLevel(config, context.newXp);
+    const template = config.messageTemplate || '🎤 {user} reached voice level {level}!';
+    const variables: VoiceTemplateVariables = {
+      user: `<@${member.id}>`,
+      userId: member.id,
+      username: member.user.username,
+      level: context.newLevel,
+      xpGain: context.xpGained,
+      totalXp: context.newXp,
+      minutesInVoice: context.durationMinutes,
+      nextLevelXp: levelCalc.nextLevelXp,
+      progress: levelCalc.progress,
+      type: 'Voice',
+    };
+
+    let messageText = parseVoiceTemplate(template, variables);
+    const rewardsSummary = RewardIntegration.formatRewardsSummary(rewardResults);
+    if (rewardsSummary) {
+      messageText += rewardsSummary;
+    }
+
+    if (config.embedEnabled) {
+      const ui = fluentContainer({ color: config.embedColor })
+        .h2('Voice XP Level Up')
+        .text(messageText)
+        .footerWithTimestamp();
+
+      await channel.send({
+        components: [ui.build()],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [] },
+      });
+    } else {
+      await channel.send(messageText);
+    }
+  } catch (error) {
+    container.logger.error('[Voice XP] Failed to send level-up announcement:', error);
+  }
+}
+
 export async function awardPerMinuteXP(guildId: string): Promise<number> {
   const config = await getVoiceXPConfig(guildId);
   if (!config.enabled || config.xpMode !== VoiceXPMode.PER_MINUTE) return 0;
+  const guild = container.client.guilds.cache.get(guildId);
+  if (!guild) return 0;
 
   const activeSessions = await sessionTracking.getGuildActiveSessions(guildId);
 
@@ -242,10 +394,7 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
       continue;
     }
 
-    // Fetch guild and member for validation
-    const guild = container.client.guilds.cache.get(guildId);
-    if (!guild) continue;
-
+    // Fetch member for validation
     const member = await guild.members.fetch(session.userId).catch(() => null);
     if (!member) continue;
 
@@ -270,13 +419,23 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
       continue;
     }
 
-    // Award XP for 1 minute
-    const xpAwarded = config.xpPerMinute;
+    const antiFarmMultiplier = getAntiFarmMultiplier(
+      config,
+      guild,
+      session.channelId,
+      session.isMuted,
+      session.isDeafened
+    );
+    const xpAwarded = Math.floor(config.xpPerMinute * antiFarmMultiplier);
+    if (xpAwarded <= 0) {
+      continue;
+    }
+
     const userXP = await voiceXPRepository.getUserVoiceXP(guildId, session.userId);
     const newTotalXP = (userXP?.xp ?? 0) + xpAwarded;
     const levelCalc = calculateVoiceLevel(config, newTotalXP);
 
-    await voiceXPRepository.awardVoiceXPSafe(
+    const result = await voiceXPRepository.awardVoiceXPSafe(
       guildId,
       session.userId,
       xpAwarded,
@@ -290,13 +449,24 @@ export async function awardPerMinuteXP(guildId: string): Promise<number> {
       }
     );
 
+    if (result.leveledUp) {
+      await handleVoiceLevelUpEffects({
+        guildId,
+        userId: session.userId,
+        newLevel: result.userXP.level,
+        newXp: result.userXP.xp,
+        xpGained: xpAwarded,
+        durationMinutes: 1,
+      });
+    }
+
     await sessionTracking.updateSession(guildId, session.userId, {
       lastAwardTime: Date.now(),
     });
     awarded++;
 
     container.logger.debug(
-      `[Voice XP] Awarded ${xpAwarded} XP to ${session.userId} in guild ${guildId}`
+      `[Voice XP] Awarded ${xpAwarded} XP to ${session.userId} in guild ${guildId} (x${antiFarmMultiplier.toFixed(2)})`
     );
   }
 

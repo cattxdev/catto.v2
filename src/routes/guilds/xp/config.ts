@@ -5,6 +5,14 @@ import { validateDto } from '#lib/validation/validate-dto.js';
 import { UpdateXPConfigDto } from '#root/lib/dtos/xp/update-xp-config.dto.js';
 import type { UpdateXPConfigDTO } from '#root/modules/xp/xp-text/dtos/update-xp-config.dto.js';
 
+function normalizeLevelCurveType(
+  levelCurveType: unknown
+): UpdateXPConfigDTO['levelCurveType'] | undefined {
+  if (levelCurveType === undefined) return undefined;
+  if (levelCurveType === 'TABLE') return 'TABLE' as UpdateXPConfigDTO['levelCurveType'];
+  return 'FORMULA' as UpdateXPConfigDTO['levelCurveType'];
+}
+
 export class XPConfigRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
     super(context, {
@@ -83,12 +91,21 @@ export class XPConfigRoute extends Route {
           details: validation.errors,
         });
       }
+      if (!validation.data) {
+        return response.status(400).json({
+          error: 'Validation returned no data',
+        });
+      }
+
+      const normalizedData: UpdateXPConfigDTO = {
+        ...(validation.data as UpdateXPConfigDTO),
+        ...(validation.data.levelCurveType !== undefined
+          ? { levelCurveType: normalizeLevelCurveType(validation.data.levelCurveType) }
+          : {}),
+      };
 
       // Update configuration (cast to service's expected interface)
-      const config = await configService.updateConfig(
-        guildId,
-        validation.data as UpdateXPConfigDTO
-      );
+      const config = await configService.updateConfig(guildId, normalizedData);
 
       return response.json({
         success: true,

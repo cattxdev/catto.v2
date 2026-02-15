@@ -132,6 +132,28 @@ describe('XPConfigRoute', () => {
             );
         });
 
+        it('normalizes legacy levelCurveType values to FORMULA', async () => {
+            vi.mocked(configService.updateConfig).mockResolvedValue({
+                guildId: '123456789',
+                levelCurveType: 'FORMULA',
+            } as any);
+
+            const request = createMockRequest({
+                method: 'PUT',
+                params: { guildId: '123456789' },
+                body: { levelCurveType: 'LINEAR' },
+            });
+            const response = createMockResponse();
+
+            await route.run(request, response as any);
+
+            expectSuccess(response);
+            expect(configService.updateConfig).toHaveBeenCalledWith(
+                '123456789',
+                expect.objectContaining({ levelCurveType: 'FORMULA' })
+            );
+        });
+
         it('validates cooldownSec range', async () => {
             const request = createMockRequest({
                 method: 'PUT',
@@ -241,7 +263,7 @@ describe('XPConfigRoute', () => {
                 messageTemplate: 'Congrats {user}!',
                 embedEnabled: true,
                 embedColor: 0x5865f2,
-                levelCurveType: 'LINEAR',
+                levelCurveType: 'FORMULA',
                 formulaBase: 100,
                 formulaExponent: 1.2,
                 formulaOffset: 0,

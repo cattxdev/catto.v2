@@ -7,6 +7,7 @@ This section documents the internal APIs and helper functions available in the c
 | API | Location | Purpose |
 |-----|----------|---------|
 | [Database](database.md) | `src/lib/database.ts` | High-level Prisma helpers |
+| [Prisma Migrations](prisma-migrations.md) | `prisma/` | Safe migration workflow for ephemeral dev DBs |
 | [Redis/Cache](redis.md) | `src/lib/redis.ts` | Caching and distributed operations |
 | [Validation](validation.md) | `src/lib/validation/zod.ts` | Zod schemas and validation |
 | [i18n](i18n.md) | `src/lib/i18n.ts` | Internationalization helpers |

@@ -620,7 +620,7 @@ model GuildXPConfig {
   // Level-Up Announcements
   announceLevelUp       Boolean  @default(true)
   announceChannelId     String?                 // If null, announce in message channel
-  messageTemplate       String   @default("🎉 {user} reached text level {level}!")
+  messageTemplate       String   @default("🎉 {user} reached level {level}!")
   embedEnabled          Boolean  @default(true)
   embedColor            Int      @default(5793266) // Hex 0x5865F2 (Discord Blurple)
   
@@ -713,6 +713,11 @@ model GuildVoiceXPConfig {
   awardStreaming    Boolean  @default(true)            // Award XP to streaming users?
   awardVideo        Boolean  @default(true)            // Award XP to video users?
   ignoreAfkChannel  Boolean  @default(true)            // Ignore AFK channel?
+
+  // Optional anti-farm dampening (reduces XP, doesn't hard-block)
+  antiFarmDampeningEnabled     Boolean @default(false)
+  antiFarmDampeningMultiplier  Float   @default(0.35)
+  antiFarmMinimumParticipants  Int     @default(2)
   
   // Role Filters
   ignoredRoles      String[] @default([])              // Users with these roles don't earn XP
@@ -1280,4 +1285,3 @@ model RewardTemplate {
   @@index([isPublic])
   @@map("reward_templates")
 }
-

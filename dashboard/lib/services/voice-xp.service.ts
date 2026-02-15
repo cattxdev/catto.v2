@@ -16,6 +16,9 @@ export interface VoiceXPConfig {
   awardStreaming: boolean;
   awardVideo: boolean;
   ignoreAfkChannel: boolean;
+  antiFarmDampeningEnabled: boolean;
+  antiFarmDampeningMultiplier: number;
+  antiFarmMinimumParticipants: number;
 
   // Role Filters
   ignoredRoles: string[];
