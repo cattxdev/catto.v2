@@ -361,7 +361,7 @@ export async function handleVoiceLevelUpEffects(context: VoiceLevelUpContext): P
       await channel.send({
         components: [ui.build()],
         flags: MessageFlags.IsComponentsV2,
-        allowedMentions: { parse: [] },
+        allowedMentions: { parse: ['users'] },
       });
     } else {
       await channel.send(messageText);
