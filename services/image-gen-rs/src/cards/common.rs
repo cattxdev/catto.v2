@@ -1,4 +1,4 @@
-use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Rect, Transform};
+use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
 /// Fill a rectangle with a solid color.
 pub fn draw_rect_filled(canvas: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color) {
@@ -72,4 +72,34 @@ pub fn truncate_username(name: &str, max_display: usize, max_with_ellipsis: usiz
     } else {
         name.to_string()
     }
+}
+
+/// Draw a small filled circle (dot separator, icon stand-in, etc.).
+pub fn draw_dot(canvas: &mut Pixmap, cx: f32, cy: f32, radius: f32, color: Color) {
+    let mut pb = PathBuilder::new();
+    pb.push_circle(cx, cy, radius);
+    if let Some(path) = pb.finish() {
+        let mut paint = Paint::default();
+        paint.set_color(color);
+        paint.anti_alias = true;
+        canvas.fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
+    }
+}
+
+/// Strip characters that cannot be rendered by our embedded fonts (JetBrains Mono, Anton).
+/// Keeps ASCII, Latin-1 Supplement, and common punctuation. Removes emoji and other
+/// unsupported Unicode blocks so they don't render as tofu boxes.
+pub fn sanitize_text(text: &str) -> String {
+    text.chars()
+        .filter(|&c| {
+            // Keep ASCII (includes basic Latin, digits, punctuation)
+            c.is_ascii()
+            // Keep Latin-1 Supplement (accented letters, symbols like ·, ©, etc.)
+            || ('\u{00A0}'..='\u{00FF}').contains(&c)
+            // Keep Latin Extended-A & B (covers most European languages)
+            || ('\u{0100}'..='\u{024F}').contains(&c)
+            // Keep General Punctuation (en-dash, em-dash, bullets, ellipsis, etc.)
+            || ('\u{2000}'..='\u{206F}').contains(&c)
+        })
+        .collect()
 }
