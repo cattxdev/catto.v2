@@ -109,7 +109,7 @@ jobs:
     name: Build & Push Bot Image
     needs: [lint-typecheck, test, detect-changes]
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.bot == 'true'
+    if: github.event_name == 'push' && needs.detect-changes.outputs.bot == 'true'
     permissions:
       contents: read
       packages: write
@@ -161,7 +161,7 @@ jobs:
     name: Build & Push Watermark Image
     needs: [lint-typecheck, test, detect-changes]
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.watermark == 'true'
+    if: github.event_name == 'push' && needs.detect-changes.outputs.watermark == 'true'
     permissions:
       contents: read
       packages: write
@@ -211,7 +211,7 @@ jobs:
     name: Build & Push Image Gen Image
     needs: [lint-typecheck, test, detect-changes]
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.image-gen == 'true'
+    if: github.event_name == 'push' && needs.detect-changes.outputs.image-gen == 'true'
     permissions:
       contents: read
       packages: write
