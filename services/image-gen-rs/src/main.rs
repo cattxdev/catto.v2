@@ -14,7 +14,7 @@ use axum::{
 };
 use serde::Serialize;
 use text::SharedTextRenderer;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::trace::TraceLayer;
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Clone)]
@@ -46,7 +46,6 @@ async fn main() {
         .route("/bonk", post(handle_bonk))
         .route("/rank", post(handle_rank))
         .route("/leaderboard", post(handle_leaderboard))
-        .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 

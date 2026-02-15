@@ -121,37 +121,32 @@ impl TextRenderer {
             if a == 0 {
                 return;
             }
+
+            let pixels = pixmap.pixels_mut();
+            let src_r = color.r();
+            let src_g = color.g();
+            let src_b = color.b();
+            let sa = a as u32;
+
             for py in y..(y + h as i32) {
                 for px in x..(x + w as i32) {
                     if px >= 0 && (px as u32) < pix_w && py >= 0 && (py as u32) < pix_h {
                         let idx = (py as u32 * pix_w + px as u32) as usize;
-                        let pixel = pixmap.pixels_mut();
-                        if idx < pixel.len() {
-                            let src_r = color.r();
-                            let src_g = color.g();
-                            let src_b = color.b();
-                            let src_a = a;
-
+                        if idx < pixels.len() {
                             // Alpha-blend onto existing pixel (use u32 to prevent overflow)
-                            let dst = pixel[idx];
-                            let dst_r = dst.red();
-                            let dst_g = dst.green();
-                            let dst_b = dst.blue();
-                            let dst_a = dst.alpha();
-
-                            let sa = src_a as u32;
-                            let da = dst_a as u32;
+                            let dst = pixels[idx];
+                            let da = dst.alpha() as u32;
                             let out_a = sa + da * (255 - sa) / 255;
 
                             if out_a > 0 {
-                                let out_r = ((src_r as u32 * sa + dst_r as u32 * da * (255 - sa) / 255) / out_a) as u8;
-                                let out_g = ((src_g as u32 * sa + dst_g as u32 * da * (255 - sa) / 255) / out_a) as u8;
-                                let out_b = ((src_b as u32 * sa + dst_b as u32 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_r = ((src_r as u32 * sa + dst.red() as u32 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_g = ((src_g as u32 * sa + dst.green() as u32 * da * (255 - sa) / 255) / out_a) as u8;
+                                let out_b = ((src_b as u32 * sa + dst.blue() as u32 * da * (255 - sa) / 255) / out_a) as u8;
                                 // Store as premultiplied
                                 let pm_r = (out_r as u32 * out_a / 255) as u8;
                                 let pm_g = (out_g as u32 * out_a / 255) as u8;
                                 let pm_b = (out_b as u32 * out_a / 255) as u8;
-                                pixel[idx] = PremultipliedColorU8::from_rgba(pm_r, pm_g, pm_b, out_a as u8).unwrap();
+                                pixels[idx] = PremultipliedColorU8::from_rgba(pm_r, pm_g, pm_b, out_a as u8).unwrap();
                             }
                         }
                     }
