@@ -3,14 +3,12 @@
  * Generates bonk meme images with avatar overlays using Puppeteer
  */
 
-import puppeteer, { type Browser } from 'puppeteer';
-import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Buffer } from 'node:buffer';
+import { BasePuppeteerService } from './base-puppeteer-service.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export type BonkStyle = 'doge' | 'cat' | 'lions' | 'rabbit' | 'doge_fatality';
 
@@ -116,98 +114,27 @@ const POSITIONS: Record<BonkStyle, PositionConfig> = {
   },
 };
 
-export class BonkImageService {
-  private browser: Browser | null = null;
-  private isInitializing = false;
+const STAR_CHARS = ['\u2726', '\u2605', '\u2727', '\u2606', '\u2736', '\u273B', '*', '\u00D7', '+'];
+
+export class BonkImageService extends BasePuppeteerService {
   private template: string;
   private sourceImages: Record<BonkStyle, string>;
   private batBase64: string;
-  private avatarCache: Map<string, string> = new Map();
 
   constructor() {
+    super(50);
     const templatesDir = join(__dirname, '..', 'templates');
     const assetsDir = join(__dirname, '..', 'assets', 'bonk');
 
-    try {
-      this.template = readFileSync(join(templatesDir, 'bonk-card.html'), 'utf-8');
-      this.sourceImages = this.loadSourceImages(assetsDir);
-      this.batBase64 = this.fileToBase64(join(assetsDir, 'bonk_bat.png'));
-    } catch {
-      // Fallback: try src path during development
-      const srcTemplatesDir = templatesDir.replace(/dist[\\/]/, 'src/');
-      const srcAssetsDir = assetsDir.replace(/dist[\\/]/, 'src/');
-
-      this.template = readFileSync(join(srcTemplatesDir, 'bonk-card.html'), 'utf-8');
-      this.sourceImages = this.loadSourceImages(srcAssetsDir);
-      this.batBase64 = this.fileToBase64(join(srcAssetsDir, 'bonk_bat.png'));
-    }
-  }
-
-  private loadSourceImages(dir: string): Record<BonkStyle, string> {
-    return {
-      doge: this.fileToBase64(join(dir, 'doge_bonk_source.png')),
-      cat: this.fileToBase64(join(dir, 'cat_bonk_source.png')),
-      lions: this.fileToBase64(join(dir, 'lions_bonk_source.png')),
-      rabbit: this.fileToBase64(join(dir, 'rabbit_bonk_source.png')),
-      doge_fatality: this.fileToBase64(join(dir, 'doge_bonk_fatality.png')),
+    this.template = this.readTemplate(join(templatesDir, 'bonk-card.html'));
+    this.sourceImages = {
+      doge: this.fileToBase64(join(assetsDir, 'doge_bonk_source.png')),
+      cat: this.fileToBase64(join(assetsDir, 'cat_bonk_source.png')),
+      lions: this.fileToBase64(join(assetsDir, 'lions_bonk_source.png')),
+      rabbit: this.fileToBase64(join(assetsDir, 'rabbit_bonk_source.png')),
+      doge_fatality: this.fileToBase64(join(assetsDir, 'doge_bonk_fatality.png')),
     };
-  }
-
-  private fileToBase64(filePath: string): string {
-    const buffer = readFileSync(filePath);
-    return `data:image/png;base64,${buffer.toString('base64')}`;
-  }
-
-  async initialize(): Promise<void> {
-    if (this.browser || this.isInitializing) return;
-    this.isInitializing = true;
-    try {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-        ],
-      });
-    } finally {
-      this.isInitializing = false;
-    }
-  }
-
-  async close(): Promise<void> {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
-    this.avatarCache.clear();
-  }
-
-  private async imageUrlToBase64(url: string): Promise<string> {
-    const cached = this.avatarCache.get(url);
-    if (cached) return cached;
-
-    try {
-      // eslint-disable-next-line no-undef
-      const response = await fetch(url);
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const contentType = response.headers.get('content-type') || 'image/png';
-      const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
-
-      if (this.avatarCache.size > 50) {
-        const firstKey = this.avatarCache.keys().next().value as string | undefined;
-        if (firstKey) this.avatarCache.delete(firstKey);
-      }
-      this.avatarCache.set(url, dataUrl);
-      return dataUrl;
-    } catch {
-      return url;
-    }
+    this.batBase64 = this.fileToBase64(join(assetsDir, 'bonk_bat.png'));
   }
 
   async generateBonkImage(data: BonkImageData): Promise<Buffer> {
@@ -298,30 +225,16 @@ export class BonkImageService {
     const impactX = Math.round((config.bonkedCenterX / 100) * CANVAS_WIDTH);
     const impactY = Math.round((config.bonkedCenterY / 100) * CANVAS_HEIGHT);
 
-    // Impact stars scattered around the bonked's head
-    const starChars = [
-      '\u2726',
-      '\u2605',
-      '\u2727',
-      '\u2606',
-      '\u2736',
-      '\u273B',
-      '*',
-      '\u00D7',
-      '+',
-    ];
     for (let i = 0; i < visuals.starCount; i++) {
       const angle = (i / visuals.starCount) * 2 * Math.PI + Math.random() * 0.5;
       const radius = 50 + Math.random() * 70;
       const x = Math.max(0, Math.min(CANVAS_WIDTH, impactX + Math.cos(angle) * radius));
       const y = Math.max(0, Math.min(CANVAS_HEIGHT, impactY + Math.sin(angle) * radius));
       const size = 16 + Math.random() * 24;
-      const starIdx = Math.floor(Math.random() * starChars.length);
-      const star = starChars[starIdx] ?? '\u2726';
+      const star = STAR_CHARS[Math.floor(Math.random() * STAR_CHARS.length)] as string;
       effects += `<span class="impact-star" style="left:${Math.round(x)}px;top:${Math.round(y)}px;font-size:${Math.round(size)}px;">${star}</span>\n`;
     }
 
-    // Speed lines radiating from impact
     if (visuals.showSpeedLines) {
       for (let i = 0; i < 5; i++) {
         const angle = -40 + Math.random() * 25;
@@ -332,7 +245,6 @@ export class BonkImageService {
       }
     }
 
-    // Floating damage number
     if (visuals.showDamageNumber) {
       const damage = Math.floor(Math.random() * 9000) + 1000;
       const dmgX = impactX + 40 > CANVAS_WIDTH - 150 ? impactX - 140 : impactX + 40;
@@ -341,4 +253,11 @@ export class BonkImageService {
 
     return effects;
   }
+}
+
+let sharedInstance: BonkImageService | null = null;
+
+export function getBonkImageService(): BonkImageService {
+  if (!sharedInstance) sharedInstance = new BonkImageService();
+  return sharedInstance;
 }

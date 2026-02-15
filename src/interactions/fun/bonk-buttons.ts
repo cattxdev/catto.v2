@@ -7,14 +7,25 @@ import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework
 import type { ButtonInteraction } from 'discord.js';
 import { AttachmentBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import {
-  BonkImageService,
+  getBonkImageService,
   type BonkStyle,
   type BonkVisualConfig,
 } from '#lib/services/bonk-image-generator.js';
 
-export class BonkButtonHandler extends InteractionHandler {
-  private bonkImageService!: BonkImageService;
+const REVENGE_VISUALS: BonkVisualConfig = {
+  bonkText: '*REVENGE!*',
+  fontSize: 44,
+  starCount: 0,
+  showSpeedLines: false,
+  showDamageNumber: false,
+  textColor: '#FF4444',
+  glowColor: 'rgba(255,0,0,0.4)',
+  textStrokeWidth: 3,
+};
 
+const VALID_STYLES: BonkStyle[] = ['doge', 'cat', 'lions', 'rabbit'];
+
+export class BonkButtonHandler extends InteractionHandler {
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
     super(ctx, {
       ...options,
@@ -45,8 +56,7 @@ export class BonkButtonHandler extends InteractionHandler {
     const allowedUserId = parts[2];
     const originalBonkerId = parts[3];
     const styleStr = parts[4] ?? 'doge';
-    const validStyles: BonkStyle[] = ['doge', 'cat', 'lions', 'rabbit'];
-    const style: BonkStyle = validStyles.includes(styleStr as BonkStyle)
+    const style: BonkStyle = VALID_STYLES.includes(styleStr as BonkStyle)
       ? (styleStr as BonkStyle)
       : 'doge';
 
@@ -67,29 +77,14 @@ export class BonkButtonHandler extends InteractionHandler {
 
     await interaction.deferReply();
 
-    if (!this.bonkImageService) {
-      this.bonkImageService = new BonkImageService();
-    }
-
     try {
       const originalBonker = await this.container.client.users.fetch(originalBonkerId);
 
-      const visuals: BonkVisualConfig = {
-        bonkText: '*REVENGE!*',
-        fontSize: 44,
-        starCount: 0,
-        showSpeedLines: false,
-        showDamageNumber: false,
-        textColor: '#FF4444',
-        glowColor: 'rgba(255,0,0,0.4)',
-        textStrokeWidth: 3,
-      };
-
-      const imageBuffer = await this.bonkImageService.generateBonkImage({
+      const imageBuffer = await getBonkImageService().generateBonkImage({
         bonkerAvatarUrl: interaction.user.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: originalBonker.displayAvatarURL({ extension: 'png', size: 256 }),
         style,
-        visuals,
+        visuals: REVENGE_VISUALS,
       });
 
       const attachment = new AttachmentBuilder(imageBuffer, { name: 'revenge-bonk.png' });

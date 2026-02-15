@@ -15,7 +15,7 @@ import {
 } from 'discord.js';
 import { EMOJI } from '#lib/discord/design/index.js';
 import {
-  BonkImageService,
+  getBonkImageService,
   type BonkStyle,
   type BonkVisualConfig,
 } from '#lib/services/bonk-image-generator.js';
@@ -25,6 +25,7 @@ import {
   executeBan,
   executeTimeout,
 } from '#modules/moderation/handlers/index.js';
+import { moderationService } from '#modules/moderation/services/ModerationService.js';
 import { asDuration } from '#modules/moderation/domain/types.js';
 
 // --- Bonk intensity system (only used when effects=true) ---
@@ -146,8 +147,7 @@ function getRandomIntensity(): BonkIntensity {
     max = 9;
   }
   const idx = min + Math.floor(Math.random() * (max - min + 1));
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return BONK_INTENSITIES[idx]!;
+  return BONK_INTENSITIES[idx] as BonkIntensity;
 }
 
 function intensityToVisuals(intensity: BonkIntensity): BonkVisualConfig {
@@ -187,13 +187,10 @@ const SUPERBONK_VISUALS: BonkVisualConfig = {
 };
 
 function randomFrom<T>(arr: readonly T[]): T {
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return arr[Math.floor(Math.random() * arr.length)]!;
+  return arr[Math.floor(Math.random() * arr.length)] as T;
 }
 
 export class FunCommand extends Subcommand {
-  private bonkImageService: BonkImageService;
-
   public constructor(context: Subcommand.LoaderContext, options: Subcommand.Options) {
     super(context, {
       ...options,
@@ -212,7 +209,6 @@ export class FunCommand extends Subcommand {
         },
       ],
     });
-    this.bonkImageService = new BonkImageService();
   }
 
   public override registerApplicationCommands(registry: Subcommand.Registry) {
@@ -303,7 +299,7 @@ export class FunCommand extends Subcommand {
       .replace(/\{user\}/g, `${bonkerUser}`);
 
     try {
-      const imageBuffer = await this.bonkImageService.generateBonkImage({
+      const imageBuffer = await getBonkImageService().generateBonkImage({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style,
@@ -362,11 +358,24 @@ export class FunCommand extends Subcommand {
     const targetUser = interaction.options.getUser('target', true);
     const action = (interaction.options.getString('type') ?? 'ban') as 'ban' | 'timeout';
     const bonkerUser = interaction.user;
+
+    // Pre-check: can the bot moderate this target?
+    const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+    if (targetMember) {
+      const moderatorMember = await interaction.guild.members.fetch(bonkerUser.id);
+      const check = moderationService.canModerate(moderatorMember, targetMember);
+      if (!check.canModerate) {
+        return interaction.editReply({
+          content: `${EMOJI.STATUS.ERROR} Cannot superbonk this target: ${check.reason}`,
+        });
+      }
+    }
+
     const banReason = randomFrom(SUPERBONK_REASONS);
     const reason = `Super Bonk: ${banReason}`;
 
     try {
-      const imageBuffer = await this.bonkImageService.generateBonkImage({
+      const imageBuffer = await getBonkImageService().generateBonkImage({
         bonkerAvatarUrl: bonkerUser.displayAvatarURL({ extension: 'png', size: 256 }),
         bonkedAvatarUrl: targetUser.displayAvatarURL({ extension: 'png', size: 256 }),
         style: 'doge_fatality',

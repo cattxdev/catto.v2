@@ -8,7 +8,7 @@ This guide will help you set up and run Catto v2.x locally for development.
 - [pnpm](https://pnpm.io/) v10+
 - [Docker](https://www.docker.com/) and Docker Compose (recommended)
 - [Rust](https://rustup.rs/) (optional, for watermark microservice)
-- [Chromium/Chrome](#puppeteer-setup) — downloaded automatically by Puppeteer for image generation
+- [Chromium/Chrome](#puppeteer-setup) — required by Puppeteer for image generation (manual setup required)
 
 ## Installation
 
@@ -108,40 +108,71 @@ pnpm dev
 
 ## Puppeteer Setup
 
-Catto uses [Puppeteer](https://pptr.dev/) to render HTML templates into images (rank cards, leaderboards, bonk memes, etc.). Puppeteer downloads a compatible Chromium binary automatically during `pnpm install`.
+Catto uses [Puppeteer](https://pptr.dev/) to render HTML templates into images (rank cards, leaderboards, bonk memes, etc.). Puppeteer requires a Chromium binary, which is **not** guaranteed to be downloaded automatically by `pnpm install` (pnpm may skip postinstall scripts depending on your configuration).
 
-### Verifying the Installation
+### Installing Chromium
 
-After installing dependencies, confirm Chromium was downloaded:
+After installing dependencies, download a compatible Chromium binary:
+
+```bash
+npx puppeteer browsers install chrome
+```
+
+Verify it was installed:
 
 ```bash
 ls ~/.cache/puppeteer/chrome/
 ```
 
-You should see a directory like `mac_arm-137.0.7151.55` (the version may differ). If the directory is empty or missing, re-trigger the download:
+You should see a directory like `linux-137.0.7151.55` (the version and platform will differ).
+
+### System Dependencies (Linux / WSL)
+
+On Debian/Ubuntu-based systems (including WSL), Chromium needs several system libraries:
 
 ```bash
-npx puppeteer browsers install chrome
+sudo apt-get install -y \
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
+  libgbm1 libpango-1.0-0 libcairo2 libasound2 libxshmfence1
 ```
+
+On Alpine (used in Docker):
+
+```bash
+apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+```
+
+### Docker / CI
+
+The Dockerfile already handles Puppeteer setup using system Chromium:
+
+```dockerfile
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+```
+
+If using a different base image, prefer the official [Puppeteer Docker images](https://pptr.dev/guides/docker) or install system dependencies manually as shown above.
 
 ### Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
 | `Error: Could not find Chrome` | Run `npx puppeteer browsers install chrome` |
-| Sandbox errors on Linux | Puppeteer launches with `--no-sandbox` already; ensure the user has access to `/dev/shm` or add `--disable-dev-shm-usage` |
-| Docker / CI environments | Use the `puppeteer` Docker images or install system dependencies: `apt-get install -y chromium-browser` and set `PUPPETEER_SKIP_DOWNLOAD=true` + `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser` |
+| Sandbox errors on Linux | The bot launches Chromium with `--no-sandbox` for convenience. In production, prefer keeping the sandbox enabled (requires user namespace support). Ensure access to `/dev/shm` or pass `--disable-dev-shm-usage` |
+| Missing shared libraries | Install the system dependencies listed above for your distro |
 | Slow first image generation | The first call launches a headless browser. Subsequent calls reuse the instance and are much faster |
 
 ### How It Works
 
-The `ImageGeneratorService` and `BonkImageService` in `src/lib/services/` use Puppeteer to:
+Both `ImageGeneratorService` and `BonkImageService` extend `BasePuppeteerService` in `src/lib/services/`, which manages the headless Chromium lifecycle. The rendering pipeline:
 
 1. Load an HTML template from `src/lib/templates/`
 2. Inject dynamic data (avatars, stats, text) into the template
-3. Render the page in a headless Chromium browser
-4. Take a screenshot of the resulting DOM element
-5. Return the screenshot as a PNG `Buffer` attached to the Discord message
+3. Render the page in headless Chromium
+4. Screenshot the target DOM element
+5. Return the PNG `Buffer` to attach to the Discord message
 
 Static assets (bonk meme source images) live in `src/lib/assets/` and are copied to `dist/` during the build via `pnpm copy:assets`.
 
