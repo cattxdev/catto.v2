@@ -13,7 +13,7 @@ export { getVoiceLeaderboard, getVoiceUserStats } from './services/voice-xp-lead
 
 export {
   calculateVoiceLevel,
-  recalculateAllVoiceLevels,
+  recalculateGuildVoiceLevels,
 } from './services/voice-level-calculator.service.js';
 
 export {

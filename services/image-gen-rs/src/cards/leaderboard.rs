@@ -194,7 +194,7 @@ pub async fn render_leaderboard(
     let avatar_col_x = entry_left + rank_col_w + 8.0;
     let username_col_x = avatar_col_x + AVATAR_SIZE + 12.0;
     let level_col_w = 50.0;
-    let xp_col_w = 50.0;
+    let xp_col_w = 80.0;
     let col_gap = 12.0;
     let level_col_right = entry_right;
     let xp_col_right = level_col_right - level_col_w - col_gap;

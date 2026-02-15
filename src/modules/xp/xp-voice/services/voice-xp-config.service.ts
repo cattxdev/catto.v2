@@ -8,9 +8,12 @@ import type { UpdateVoiceXPConfigDTO } from '../dtos/index.js';
 import type { VoiceConfigCacheEntry } from '../types/voice-xp.types.js';
 import * as voiceXPConfigRepository from '../repositories/voice-xp-config.repository.js';
 import { voiceXPQueue } from './voice-xp-queue.service.js';
+import { recalculateGuildVoiceLevels } from './voice-level-calculator.service.js';
+import { container } from '@sapphire/framework';
 
 const configCache = new Map<string, VoiceConfigCacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const recalcInFlight = new Set<string>();
 
 export async function getVoiceXPConfig(
   guildId: string,
@@ -56,6 +59,33 @@ export async function updateVoiceXPConfig(
     if (oldConfig.xpMode === 'PER_MINUTE') {
       await voiceXPQueue.unscheduleGuildAwards(guildId);
     }
+  }
+
+  // Recalculate levels in the background if curve parameters changed
+  const curveChanged =
+    oldConfig.levelCurveType !== config.levelCurveType ||
+    oldConfig.formulaBase !== config.formulaBase ||
+    oldConfig.formulaExponent !== config.formulaExponent ||
+    oldConfig.formulaOffset !== config.formulaOffset ||
+    JSON.stringify(oldConfig.tableThresholds) !== JSON.stringify(config.tableThresholds);
+
+  if (curveChanged && !recalcInFlight.has(guildId)) {
+    recalcInFlight.add(guildId);
+    container.logger.info(
+      `[Voice XP] Curve parameters changed for guild ${guildId}, recalculating levels...`
+    );
+    recalculateGuildVoiceLevels(guildId, config)
+      .then(({ processed, updated }) => {
+        container.logger.info(
+          `[Voice XP] Recalculation complete for guild ${guildId}: ${processed} processed, ${updated} updated`
+        );
+      })
+      .catch((error) => {
+        container.logger.error(`[Voice XP] Recalculation failed for guild ${guildId}:`, error);
+      })
+      .finally(() => {
+        recalcInFlight.delete(guildId);
+      });
   }
 
   return config;
