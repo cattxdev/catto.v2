@@ -37,7 +37,7 @@ export async function getVoiceLeaderboard(
       const user = await container.client.users.fetch(userXP.userId);
       username = user.username;
       discriminator = user.discriminator;
-      avatarURL = user.displayAvatarURL();
+      avatarURL = user.displayAvatarURL({ extension: 'png', size: 256 });
     } catch {
       container.logger.warn(`[Voice XP] Failed to fetch user ${userXP.userId} for leaderboard`);
     }

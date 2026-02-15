@@ -1,7 +1,7 @@
 use crate::avatar::{draw_square_avatar, fetch_avatar};
 use crate::error::ImageGenError;
 use crate::text::{FontWeight, SharedTextRenderer};
-use super::common::{center_in, draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align, truncate_username};
+use super::common::{center_in, draw_dot, draw_hline, draw_rect_filled, draw_rect_outline, format_number, right_align, sanitize_text, truncate_username};
 use serde::Deserialize;
 use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
 
@@ -27,8 +27,8 @@ const DIST_ROW_H: f32 = 20.0;
 fn bg_color() -> Color { Color::from_rgba8(13, 17, 23, 255) }
 fn border_color() -> Color { Color::from_rgba8(33, 38, 45, 255) }
 fn text_primary() -> Color { Color::from_rgba8(201, 209, 217, 255) }
-fn text_secondary() -> Color { Color::from_rgba8(72, 79, 88, 255) }
-fn text_muted() -> Color { Color::from_rgba8(139, 148, 158, 255) }
+fn text_secondary() -> Color { Color::from_rgba8(110, 118, 129, 255) }
+fn text_muted() -> Color { Color::from_rgba8(155, 164, 174, 255) }
 fn box_bg() -> Color { Color::from_rgba8(22, 27, 34, 255) }
 fn xp_color() -> Color { Color::from_rgba8(124, 152, 133, 255) }
 fn rank1_color() -> Color { Color::from_rgba8(124, 152, 133, 255) }
@@ -110,8 +110,9 @@ pub async fn render_leaderboard(
     {
         let mut renderer = text_renderer.lock().unwrap();
 
+        let guild_name = sanitize_text(&req.guild_name);
         let (title_pm, _, _) = renderer.render_text(
-            &req.guild_name, "JetBrains Mono", 24.0, FontWeight::Bold,
+            &guild_name, "JetBrains Mono", 24.0, FontWeight::Bold,
             text_primary(), cw,
         )?;
         canvas.draw_pixmap(
@@ -120,14 +121,29 @@ pub async fn render_leaderboard(
         );
         y += HEADER_TITLE_H;
 
-        let subtitle = format!("XP LEADERBOARD \u{2022} TOP {}", entry_count);
-        let (sub_pm, _, _) = renderer.render_text(
-            &subtitle, "JetBrains Mono", 11.0, FontWeight::Medium,
+        // "XP LEADERBOARD  ·  TOP N" with a drawn dot separator
+        let left_part = "XP LEADERBOARD";
+        let right_part = format!("TOP {}", entry_count);
+        let (left_pm, lw, lh) = renderer.render_text(
+            left_part, "JetBrains Mono", 11.0, FontWeight::Medium,
+            text_secondary(), cw,
+        )?;
+        let (right_pm, _, _) = renderer.render_text(
+            &right_part, "JetBrains Mono", 11.0, FontWeight::Medium,
             text_secondary(), cw,
         )?;
         canvas.draw_pixmap(
             PAD as i32, y as i32,
-            sub_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
+            left_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
+        );
+        let dot_gap = 8.0;
+        let dot_x = PAD + lw + dot_gap;
+        let dot_y = y + lh / 2.0;
+        draw_dot(&mut canvas, dot_x, dot_y, 2.0, text_secondary());
+        let right_x = dot_x + dot_gap;
+        canvas.draw_pixmap(
+            right_x as i32, y as i32,
+            right_pm.as_ref(), &PixmapPaint::default(), Transform::identity(), None,
         );
         y += HEADER_SUB_H;
     }
@@ -283,8 +299,9 @@ pub async fn render_leaderboard(
                 draw_square_avatar(&mut canvas, av, avatar_col_x, avatar_y, AVATAR_SIZE);
             }
 
-            // Username — UTF-8 safe truncation
-            let display_name = truncate_username(&entry.username, 18, 15);
+            // Username — sanitize then UTF-8 safe truncation
+            let clean_name = sanitize_text(&entry.username);
+            let display_name = truncate_username(&clean_name, 18, 15);
             let username_max_w = xp_col_right - xp_col_w - col_gap - username_col_x;
             let (name_pm, _, nh) = renderer.render_text(
                 &display_name, "JetBrains Mono", 14.0, FontWeight::SemiBold,

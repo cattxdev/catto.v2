@@ -17,10 +17,25 @@ fn http_client() -> &'static reqwest::Client {
     })
 }
 
+/// Normalise a Discord CDN avatar URL so it always requests a static PNG.
+/// Animated avatars are served as `.gif` by default, which we cannot embed
+/// into a static card image. Discord's CDN happily serves a `.png` for any
+/// avatar hash, so we just swap the extension.
+fn normalise_avatar_url(url: &str) -> String {
+    if (url.contains("cdn.discordapp.com") || url.contains("media.discordapp.net"))
+        && url.ends_with(".gif")
+    {
+        format!("{}.png", url.trim_end_matches(".gif"))
+    } else {
+        url.to_string()
+    }
+}
+
 /// Fetch an avatar image from a URL and return it as a decoded Pixmap.
 pub async fn fetch_avatar(url: &str) -> Result<Pixmap, ImageGenError> {
+    let url = normalise_avatar_url(url);
     let response = http_client()
-        .get(url)
+        .get(&url)
         .send()
         .await
         .map_err(|e| ImageGenError::AvatarFetch(format!("HTTP request failed: {e}")))?;

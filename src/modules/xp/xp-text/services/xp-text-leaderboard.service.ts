@@ -46,7 +46,7 @@ export async function getLeaderboard(
       const discordUser = await container.client.users.fetch(userXP.userId);
       username = discordUser.username;
       discriminator = discordUser.discriminator;
-      avatarUrl = discordUser.displayAvatarURL();
+      avatarUrl = discordUser.displayAvatarURL({ extension: 'png', size: 256 });
     } catch {
       // User not found or inaccessible, use defaults
       container.logger.debug(`Failed to fetch user ${userXP.userId} for leaderboard`);
