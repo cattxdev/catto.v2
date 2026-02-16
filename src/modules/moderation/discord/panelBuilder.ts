@@ -312,7 +312,9 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h2('Context Bundle')
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (${userMention(target.id)}) · \`${target.id}\``)
+    .text(
+      `${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (${userMention(target.id)}) · \`${target.id}\``
+    )
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))

@@ -183,7 +183,9 @@ export function buildModLogEntry(entry: ModLogEntry): FluentContainer {
   const offenseSummary = buildOffenseSummary(entry, 30);
 
   const c = container({ color: display.color })
-    .h2(`${display.emoji} ${entry.targetTag ? safeTag(entry.targetTag) : entry.targetId} was ${display.pastTense}`)
+    .h2(
+      `${display.emoji} ${entry.targetTag ? safeTag(entry.targetTag) : entry.targetId} was ${display.pastTense}`
+    )
     .text(
       [
         `**Reason**: ${entry.reason || 'No reason provided'}`,

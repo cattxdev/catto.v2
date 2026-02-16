@@ -583,7 +583,9 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
       })
     );
 
-    const title = options.target ? `Active mutes for ${safeTag(options.target.tag)}` : 'Active mutes';
+    const title = options.target
+      ? `Active mutes for ${safeTag(options.target.tag)}`
+      : 'Active mutes';
     const remaining = mutes.length > 20 ? `\n*... and ${mutes.length - 20} more*` : '';
 
     await ctx.editReply(
