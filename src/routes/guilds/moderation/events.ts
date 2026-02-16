@@ -35,14 +35,10 @@ export class ModEventsRoute extends Route {
       return response.status(403).json({ error: 'Forbidden', code: auth.code });
     }
 
-    // Access raw Node.js response for SSE streaming
-    const raw = (response as any).raw ?? response;
-    if (!raw.writeHead) {
-      return response.status(500).json({ error: 'SSE not supported in this environment' });
-    }
-
     // Set SSE headers
-    raw.writeHead(200, {
+    // ApiResponse extends ServerResponse and ApiRequest extends IncomingMessage,
+    // so Node.js stream methods are available directly — no need for .raw access.
+    response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
@@ -50,7 +46,7 @@ export class ModEventsRoute extends Route {
     });
 
     // Write initial comment to establish connection
-    raw.write(': connected\n\n');
+    response.write(': connected\n\n');
 
     // Create a dedicated Redis subscriber
     let subscriber: ReturnType<typeof this.container.redis.duplicate> | null = null;
@@ -80,7 +76,7 @@ export class ModEventsRoute extends Route {
       subscriber.on('message', (_ch: string, message: string) => {
         if (closed) return;
         try {
-          raw.write(`data: ${message}\n\n`);
+          response.write(`data: ${message}\n\n`);
         } catch {
           cleanup();
         }
@@ -90,24 +86,21 @@ export class ModEventsRoute extends Route {
       heartbeatTimer = setInterval(() => {
         if (closed) return;
         try {
-          raw.write(': heartbeat\n\n');
+          response.write(': heartbeat\n\n');
         } catch {
           cleanup();
         }
       }, 30_000);
 
       // Cleanup on client disconnect
-      const req = (request as any).raw ?? request;
-      if (req.on) {
-        req.on('close', cleanup);
-        req.on('error', cleanup);
-      }
+      request.on('close', cleanup);
+      request.on('error', cleanup);
     } catch (error) {
       cleanup();
       this.container.logger.error('Error in SSE route:', error);
       // If headers already sent, just close
-      if (raw.headersSent) {
-        raw.end();
+      if (response.headersSent) {
+        response.end();
       } else {
         return response.status(500).json({ error: 'Failed to establish SSE connection' });
       }

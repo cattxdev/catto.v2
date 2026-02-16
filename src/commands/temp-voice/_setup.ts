@@ -31,6 +31,7 @@ import {
 } from '#lib/discord/index.js';
 import { getTempVoiceServices } from '../../modules/temp-voice/services/service-container.js';
 import type { TempVoiceConfig } from '../../modules/temp-voice/models/config.model.js';
+import { TempVoiceNamingScheme } from '@prisma/client';
 
 // ─────────────────────────────────────────────
 // Constants
@@ -551,7 +552,9 @@ async function handleNamingScheme(
       const value = collected.values[0];
       if (value) {
         const { config: configService } = getTempVoiceServices();
-        await configService.update(guildId, { namingScheme: value as any });
+        await configService.update(guildId, {
+          namingScheme: value as TempVoiceNamingScheme,
+        });
 
         const label = NAMING_SCHEME_LABELS[value]?.label ?? value;
         await collected.update({
