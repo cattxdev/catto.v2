@@ -1,15 +1,16 @@
 import { MuteType, ModAction } from '@prisma/client';
+import type { Guild, User } from 'discord.js';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
 import { logModAction, formatDuration } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { MuteOptions, UnmuteOptions } from '#lib/interaction/typedOptions.js';
 import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
 import { errorMessage, successMessage, safeTag } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
-import type { Guild, User } from 'discord.js';
 import type { GuildId } from '../../modules/moderation/domain/types.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { Gate, isFail } from '#lib/validation/Gate.js';
@@ -51,6 +52,20 @@ export async function handleMuteText(options: MuteOptions, ctx: CommandResponder
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
       await ctx.editReply(hierarchyResult.response);
+      return;
+    }
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_TEXT,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
       return;
     }
 
@@ -150,6 +165,20 @@ export async function handleMuteVoice(options: MuteOptions, ctx: CommandResponde
       return;
     }
 
+    // Dedup check
+    const dedupWarningVoice = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_VOICE,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarningVoice) {
+      await ctx.editReply(dedupWarningVoice);
+      return;
+    }
+
     // Execute mute via service
     const result = await muteService.muteVoice(
       options.guild,
@@ -245,6 +274,20 @@ export async function handleMuteBoth(options: MuteOptions, ctx: CommandResponder
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
       await ctx.editReply(hierarchyResult.response);
+      return;
+    }
+
+    // Dedup check
+    const dedupWarningBoth = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_BOTH,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarningBoth) {
+      await ctx.editReply(dedupWarningBoth);
       return;
     }
 

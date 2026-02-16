@@ -16,6 +16,7 @@ import {
 import {
   buildModActionSuccess,
   buildModActionError,
+  buildDedupWarning,
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { getActionDisplay } from '#root/modules/moderation/discord/modlog.js';
 import { evidenceService } from '#root/modules/moderation/services/EvidenceService.js';
@@ -380,6 +381,24 @@ export class ModEvidenceInteractionListener extends Listener {
       // Execute action (creates case + logs) then link evidence
       const result = await this.executeActionAndLinkEvidence(ctx, parsed.action, parsed.snapshotId);
       if (!result.success) {
+        if (result.deduplicated?.pendingId) {
+          const dedupModAction = ACTION_TO_MOD_ACTION[parsed.action];
+          const dedupLabel = dedupModAction
+            ? getActionDisplay(dedupModAction).label
+            : parsed.action;
+          const warning = buildDedupWarning(
+            dedupLabel,
+            ctx.target.tag,
+            result.deduplicated.moderatorTag,
+            result.deduplicated.timestamp,
+            result.deduplicated.pendingId
+          );
+          await interaction.editReply({
+            components: [warning.build()],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         return void (await this.editError(interaction, result.error ?? 'Action failed.'));
       }
 

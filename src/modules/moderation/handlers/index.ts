@@ -8,3 +8,4 @@
 
 export * from './context.js';
 export * from './execute.js';
+export * from './dedupCheck.js';

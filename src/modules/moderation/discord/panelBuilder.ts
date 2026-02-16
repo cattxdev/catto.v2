@@ -20,6 +20,7 @@ import {
   infoContainer,
   successContainer,
   errorContainer,
+  warningContainer,
 } from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
@@ -418,4 +419,34 @@ export function buildModActionError(error: string, suggestion?: string): FluentC
     .when(!!suggestion, (c) =>
       c.separator().text(`${EMOJI.STATUS.INFO} **Suggestion:** ${suggestion}`)
     );
+}
+
+/**
+ * Build a dedup warning message with a confirm override button.
+ *
+ * Shown when a moderator tries to perform an action that was already
+ * executed by another moderator within the last ~2 minutes.
+ *
+ * @see https://github.com/your-org/catto/issues/114
+ */
+export function buildDedupWarning(
+  actionLabel: string,
+  targetTag: string,
+  existingModeratorTag: string,
+  existingTimestamp: number,
+  pendingId: string
+): FluentContainer {
+  const relativeTime = formatRelativeTimestamp(new Date(existingTimestamp));
+
+  return warningContainer()
+    .h2(`${EMOJI.STATUS.WARNING} Duplicate Action Detected`)
+    .text(
+      `**${targetTag}** was already **${actionLabel.toLowerCase()}ed** by **${existingModeratorTag}** ${relativeTime}.`
+    )
+    .text('If this is intentional, click **Confirm Override** to proceed anyway.')
+    .confirmRow(`moddedup:v1:confirm:${pendingId}`, `moddedup:v1:cancel:${pendingId}`, {
+      confirmLabel: 'Confirm Override',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
 }
