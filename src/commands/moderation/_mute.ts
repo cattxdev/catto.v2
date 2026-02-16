@@ -7,7 +7,7 @@ import {
 } from '../../modules/moderation/discord/panelBuilder.js';
 import type { MuteOptions, UnmuteOptions } from '#lib/interaction/typedOptions.js';
 import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
-import { errorMessage, successMessage } from '#lib/discord/index.js';
+import { errorMessage, successMessage, safeTag } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
 import type { Guild, User } from 'discord.js';
 import type { GuildId } from '../../modules/moderation/domain/types.js';
@@ -566,7 +566,7 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
     }
 
     if (mutes.length === 0) {
-      const filterText = options.target ? ` for ${options.target.tag}` : '';
+      const filterText = options.target ? ` for ${safeTag(options.target.tag)}` : '';
       const typeText = type ? ` of type ${type}` : '';
       await ctx.editReply(errorMessage('Error', `No active mutes found${filterText}${typeText}.`));
       return;
@@ -575,7 +575,7 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
     const muteLines = await Promise.all(
       mutes.slice(0, 20).map(async (m) => {
         const user = await ctx.client.users.fetch(m.userId).catch(() => null);
-        const username = user?.tag ?? m.userId;
+        const username = user?.tag ? safeTag(user.tag) : m.userId;
         const expiresText = m.expiresAt
           ? `expires <t:${Math.floor(m.expiresAt.getTime() / 1000)}:R>`
           : 'permanent';
@@ -583,7 +583,7 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
       })
     );
 
-    const title = options.target ? `Active mutes for ${options.target.tag}` : 'Active mutes';
+    const title = options.target ? `Active mutes for ${safeTag(options.target.tag)}` : 'Active mutes';
     const remaining = mutes.length > 20 ? `\n*... and ${mutes.length - 20} more*` : '';
 
     await ctx.editReply(

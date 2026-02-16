@@ -3,7 +3,7 @@ import type { CommandResponder } from '#lib/discord/index.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { createHistoryEmbed } from '../../modules/moderation/discord/embeds/presets.js';
 import { getHistoryPaginationBase } from '../../modules/moderation/discord/customId.js';
-import { infoMessage, errorMessage } from '#lib/discord/index.js';
+import { infoMessage, errorMessage, safeTag } from '#lib/discord/index.js';
 
 export async function handleHistory(options: HistoryOptions, ctx: CommandResponder) {
   await ctx.deferPublic();
@@ -12,7 +12,7 @@ export async function handleHistory(options: HistoryOptions, ctx: CommandRespond
     const cases = await moderationService.getUserCases(options.guildId, options.targetId);
 
     if (cases.length === 0) {
-      await ctx.editReply(infoMessage(`${options.target.tag} has no moderation history.`));
+      await ctx.editReply(infoMessage(`${safeTag(options.target.tag)} has no moderation history.`));
       return;
     }
 

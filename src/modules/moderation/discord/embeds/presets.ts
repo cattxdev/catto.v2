@@ -11,6 +11,7 @@ import {
   EMOJI,
   COLORS,
   paginationRow,
+  safeTag,
   type FluentContainer,
 } from '#lib/discord/index.js';
 import * as modV1 from './v1.js';
@@ -361,7 +362,7 @@ export function createHistoryEmbed(
     })
     .join('\n');
 
-  const header = `${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`;
+  const header = `${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (\`${target.id}\`)`;
   const c = container({ color: COLORS.WARN })
     .beginSection()
     .h2(`${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} Moderation history`)

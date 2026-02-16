@@ -8,6 +8,7 @@ import {
   formatRelativeTimestamp,
   truncateText,
   userMention,
+  safeTag,
   row,
   primaryButton,
   secondaryButton,
@@ -230,7 +231,7 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
 
   const result = primaryContainer()
     .h2(`${EMOJI.MODERATION.ICONS.SHIELD_BLUE} Mod Panel${flagIndicator}`)
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
       c.text(
         `${EMOJI.VOICE.ICONS.GENERIC} <#${ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId')}>`
@@ -311,7 +312,7 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h2('Context Bundle')
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (${userMention(target.id)}) · \`${target.id}\``)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (${userMention(target.id)}) · \`${target.id}\``)
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))
@@ -348,7 +349,7 @@ export function buildNotesList(
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
   const c = container()
-    .h2(`Notes for ${target.tag}`)
+    .h2(`Notes for ${safeTag(target.tag)}`)
     .text(`Page ${page} of ${totalPages} (${notes.length} total)`)
     .separator();
 
@@ -378,7 +379,7 @@ export function buildModActionSuccess(
   duration?: string,
   options?: { dmSent?: boolean; guildId?: string; evidenceAttached?: boolean }
 ): FluentContainer {
-  const targetTag = target.tag;
+  const targetTag = safeTag(target.tag);
   const details: Record<string, string> = {
     [`Target`]: `${targetTag} (\`${target.id}\`)`,
     [`Reason`]: reason,
