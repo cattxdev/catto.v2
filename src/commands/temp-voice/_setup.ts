@@ -551,6 +551,15 @@ async function handleNamingScheme(
     if (collected) {
       const value = collected.values[0];
       if (value) {
+        const validSchemes = Object.values(TempVoiceNamingScheme);
+        if (!validSchemes.includes(value as TempVoiceNamingScheme)) {
+          await collected.update({
+            content: `${EMOJI.STATUS.ERROR} Invalid naming scheme: \`${value}\``,
+            components: [],
+          });
+          return;
+        }
+
         const { config: configService } = getTempVoiceServices();
         await configService.update(guildId, {
           namingScheme: value as TempVoiceNamingScheme,
