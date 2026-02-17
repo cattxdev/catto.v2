@@ -1,6 +1,6 @@
 import { container as sapphireContainer } from '@sapphire/framework';
 import { GuildMember, type User, type Guild, MessageFlags } from 'discord.js';
-import { ModAction } from '@prisma/client';
+import { ModAction, CaseStatus } from '@prisma/client';
 import type { DurationSeconds, CaseNumber } from '../../domain/types.js';
 import {
   container,
@@ -277,7 +277,7 @@ export const buildModLogEntryV2 = buildModLogEntry;
 export function createCaseEmbed(modCase: {
   caseNumber: number;
   action: ModAction;
-  status?: string;
+  status?: CaseStatus;
   targetTag: string;
   targetId: string;
   moderatorTag: string;
@@ -291,8 +291,8 @@ export function createCaseEmbed(modCase: {
 }): FluentContainer {
   const display = getActionDisplay(modCase.action);
   const reason = modCase.reason ?? 'No reason provided';
-  const isVoid = modCase.status === 'VOID';
-  const statusBadge = isVoid ? ' ~~VOID~~' : '';
+  const isVoid = modCase.status === CaseStatus.VOID;
+  const statusBadge = isVoid ? ' [VOID]' : '';
   return container({ color: isVoid ? COLORS.NEUTRAL : display.color })
     .h2(`${display.emoji} Case #${modCase.caseNumber}${statusBadge}`)
     .text(
@@ -322,7 +322,7 @@ export function createCaseEmbed(modCase: {
 export interface HistoryCase {
   caseNumber: number;
   action: ModAction;
-  status?: string;
+  status?: CaseStatus;
   createdAt: Date;
   reason: string | null;
 }
@@ -362,8 +362,8 @@ export function createHistoryEmbed(
       const display = getActionDisplay(c.action);
       const timestamp = formatRelativeTimestamp(c.createdAt);
       const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
-      const isVoid = c.status === 'VOID';
-      const voidBadge = isVoid ? ' ~~VOID~~' : '';
+      const isVoid = c.status === CaseStatus.VOID;
+      const voidBadge = isVoid ? ' [VOID]' : '';
       const label = isVoid ? `~~${display.label}~~` : display.label;
       return `${display.emoji} **#${c.caseNumber} ${label}**${voidBadge} · ${timestamp}\n> Why: \`${reasonPreview}\``;
     })
