@@ -128,9 +128,8 @@ export class ModModalInteractionListener extends Listener {
         // Check if this is a dedup block — show override UI instead of plain error
         if (result.deduplicated?.pendingId) {
           const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
-          const label = getActionDisplay(modAction).label;
           const warning = buildDedupWarning(
-            label,
+            modAction,
             ctx.target.tag,
             result.deduplicated.moderatorTag,
             result.deduplicated.timestamp,
@@ -215,9 +214,8 @@ export class ModModalInteractionListener extends Listener {
       if (!result.success) {
         if (result.deduplicated?.pendingId) {
           const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
-          const label = getActionDisplay(modAction).label;
           const warning = buildDedupWarning(
-            label,
+            modAction,
             ctx.target.tag,
             result.deduplicated.moderatorTag,
             result.deduplicated.timestamp,
@@ -344,9 +342,8 @@ export class ModModalInteractionListener extends Listener {
       if (!result.success) {
         if (result.deduplicated?.pendingId) {
           const muteModAction = MUTE_ACTION_TO_MOD_ACTION[parsed.action]!;
-          const muteLabel = getActionDisplay(muteModAction).label;
           const warning = buildDedupWarning(
-            muteLabel,
+            muteModAction,
             ctx.target.tag,
             result.deduplicated.moderatorTag,
             result.deduplicated.timestamp,

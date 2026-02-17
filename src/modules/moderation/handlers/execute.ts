@@ -371,36 +371,13 @@ export async function executeMute(
     voice: ModAction.MUTE_VOICE,
     both: ModAction.MUTE_BOTH,
   };
-  if (!context.skipDedup) {
-    const dedupResult = await checkAndSetDedup(
-      context.guild.id,
-      context.target.id,
-      muteActionMap[muteType],
-      context.moderator.id,
-      context.moderator.tag,
-      context.reason
-    );
-    if (dedupResult.isDuplicate && dedupResult.existing) {
-      const pendingId = await storePendingOverride({
-        guildId: context.guild.id,
-        targetId: context.target.id,
-        action: muteActionMap[muteType],
-        reason: context.reason,
-        duration: context.duration,
-        moderatorId: context.moderator.id,
-        extra: { muteType },
-      });
-      return {
-        success: false,
-        error: `This user was already muted by ${dedupResult.existing.moderatorTag} less than 2 minutes ago.`,
-        deduplicated: {
-          moderatorId: dedupResult.existing.moderatorId,
-          moderatorTag: dedupResult.existing.moderatorTag,
-          timestamp: dedupResult.existing.timestamp,
-          pendingId,
-        },
-      };
-    }
+  const blocked = await dedupGuard(context, muteActionMap[muteType], { muteType });
+  if (blocked) {
+    return {
+      success: false,
+      error: blocked.error,
+      deduplicated: blocked.deduplicated,
+    };
   }
 
   const muteInput = {

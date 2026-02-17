@@ -112,7 +112,28 @@ export async function checkAndSetDedup(
   const key = dedupKey(guildId, targetId, action);
 
   try {
-    // Check for existing entry
+    const entry: DedupEntry = {
+      moderatorId,
+      moderatorTag,
+      timestamp: Date.now(),
+      reason,
+    };
+
+    // Atomic set-if-not-exists to prevent race conditions between check and set
+    const setResult = await container.redis.set(
+      key,
+      JSON.stringify(entry),
+      'EX',
+      DEDUP_TTL_SECONDS,
+      'NX'
+    );
+
+    if (setResult === 'OK') {
+      // We claimed the slot — no duplicate
+      return { isDuplicate: false };
+    }
+
+    // Key already exists — check if it's a different moderator
     const existing = await getCache<DedupEntry>(key, true);
 
     if (existing && existing.moderatorId !== moderatorId) {
@@ -120,15 +141,8 @@ export async function checkAndSetDedup(
       return { isDuplicate: true, existing };
     }
 
-    // No duplicate (or same moderator retrying) — record this action
-    const entry: DedupEntry = {
-      moderatorId,
-      moderatorTag,
-      timestamp: Date.now(),
-      reason,
-    };
+    // Same moderator retrying — allow and refresh the entry
     await setCache(key, entry, DEDUP_TTL_SECONDS);
-
     return { isDuplicate: false };
   } catch (error) {
     // If Redis is down, don't block the mod action — just log and continue

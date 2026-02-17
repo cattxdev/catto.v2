@@ -430,18 +430,19 @@ export function buildModActionError(error: string, suggestion?: string): FluentC
  * @see https://github.com/your-org/catto/issues/114
  */
 export function buildDedupWarning(
-  actionLabel: string,
+  action: ModAction,
   targetTag: string,
   existingModeratorTag: string,
   existingTimestamp: number,
   pendingId: string
 ): FluentContainer {
   const relativeTime = formatRelativeTimestamp(new Date(existingTimestamp));
+  const display = getActionDisplay(action);
 
   return warningContainer()
     .h2(`${EMOJI.STATUS.WARNING} Duplicate Action Detected`)
     .text(
-      `**${targetTag}** was already **${actionLabel.toLowerCase()}ed** by **${existingModeratorTag}** ${relativeTime}.`
+      `**${targetTag}** was already **${display.pastTense}** by **${existingModeratorTag}** ${relativeTime}.`
     )
     .text('If this is intentional, click **Confirm Override** to proceed anyway.')
     .confirmRow(`moddedup:v1:confirm:${pendingId}`, `moddedup:v1:cancel:${pendingId}`, {

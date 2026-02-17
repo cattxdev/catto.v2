@@ -13,7 +13,7 @@
 import { Listener, container } from '@sapphire/framework';
 import { Events, type Interaction, MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
-import { consumePendingOverride } from '#root/modules/moderation/services/DedupService.js';
+import { consumePendingOverride, setDedup } from '#root/modules/moderation/services/DedupService.js';
 import {
   buildModerationContext,
   executeWarn,
@@ -41,7 +41,8 @@ import { ephemeralError } from '#lib/discord/index.js';
 import { getGate } from '#lib/validation/gateContext.js';
 import { isFail } from '#lib/validation/Gate.js';
 
-const CUSTOM_ID_PREFIX = 'moddedup:v1:confirm:';
+const CONFIRM_PREFIX = 'moddedup:v1:confirm:';
+const CANCEL_PREFIX = 'moddedup:v1:cancel:';
 
 export class ModDedupConfirmInteractionListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -50,9 +51,15 @@ export class ModDedupConfirmInteractionListener extends Listener {
 
   public async run(interaction: Interaction) {
     if (!interaction.isButton()) return;
-    if (!interaction.customId.startsWith(CUSTOM_ID_PREFIX)) return;
 
-    const pendingId = interaction.customId.slice(CUSTOM_ID_PREFIX.length);
+    if (interaction.customId.startsWith(CANCEL_PREFIX)) {
+      await this.handleCancel(interaction);
+      return;
+    }
+
+    if (!interaction.customId.startsWith(CONFIRM_PREFIX)) return;
+
+    const pendingId = interaction.customId.slice(CONFIRM_PREFIX.length);
     if (!pendingId) {
       await interaction.reply(ephemeralError('Invalid confirmation data.'));
       return;
@@ -185,6 +192,16 @@ export class ModDedupConfirmInteractionListener extends Listener {
       const display = getActionDisplay(modAction);
       const durationText = pending.duration ? formatDuration(pending.duration) : undefined;
 
+      // Re-establish the dedup window so a third moderator can't slip through
+      await setDedup(
+        pending.guildId,
+        pending.targetId,
+        modAction,
+        interaction.user.id,
+        interaction.user.tag,
+        pending.reason
+      );
+
       const success = buildModActionSuccess(
         display.label,
         ctx.target,
@@ -206,6 +223,37 @@ export class ModDedupConfirmInteractionListener extends Listener {
           flags: MessageFlags.IsComponentsV2,
         })
         .catch(() => {});
+    }
+  }
+
+  private async handleCancel(interaction: Interaction) {
+    if (!interaction.isButton()) return;
+
+    const pendingId = interaction.customId.slice(CANCEL_PREFIX.length);
+    if (!pendingId) {
+      await interaction.reply(ephemeralError('Invalid cancellation data.'));
+      return;
+    }
+
+    // Consume and discard the pending override
+    const pending = await consumePendingOverride(pendingId);
+
+    if (!pending) {
+      await interaction.reply(
+        ephemeralError('This action has already been cancelled or has expired.')
+      );
+      return;
+    }
+
+    // Update the original message to show cancellation
+    try {
+      await interaction.update({
+        components: [buildModActionError('Action cancelled by moderator.').build()],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch {
+      // If update fails (e.g. message too old), reply ephemerally
+      await interaction.reply(ephemeralError('Action cancelled.'));
     }
   }
 }

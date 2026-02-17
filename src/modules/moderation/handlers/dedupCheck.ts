@@ -10,7 +10,6 @@ import type { Guild, User } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import { checkAndSetDedup, storePendingOverride } from '../services/DedupService.js';
 import { buildDedupWarning } from '../discord/panelBuilder.js';
-import { getActionDisplay } from '../discord/modlog.js';
 import type { FluentContainer } from '#lib/discord/index.js';
 import type { DurationSeconds } from '../domain/types.js';
 
@@ -52,10 +51,8 @@ export async function commandDedupCheck(input: DedupCheckInput): Promise<FluentC
     extra: input.extra,
   });
 
-  const display = getActionDisplay(input.action);
-
   return buildDedupWarning(
-    display.label,
+    input.action,
     input.target.tag,
     result.existing.moderatorTag,
     result.existing.timestamp,

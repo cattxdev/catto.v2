@@ -33,6 +33,7 @@ import {
   type ModerationContext,
 } from '#root/modules/moderation/handlers/index.js';
 import { formatDuration } from '#root/modules/moderation/discord/embeds/presets.js';
+import { ModAction } from '@prisma/client';
 import type { ModActionResult } from '#root/modules/moderation/domain/types.js';
 import {
   asDuration,
@@ -382,12 +383,9 @@ export class ModEvidenceInteractionListener extends Listener {
       const result = await this.executeActionAndLinkEvidence(ctx, parsed.action, parsed.snapshotId);
       if (!result.success) {
         if (result.deduplicated?.pendingId) {
-          const dedupModAction = ACTION_TO_MOD_ACTION[parsed.action];
-          const dedupLabel = dedupModAction
-            ? getActionDisplay(dedupModAction).label
-            : parsed.action;
+          const dedupModAction = ACTION_TO_MOD_ACTION[parsed.action] ?? (parsed.action as ModAction);
           const warning = buildDedupWarning(
-            dedupLabel,
+            dedupModAction,
             ctx.target.tag,
             result.deduplicated.moderatorTag,
             result.deduplicated.timestamp,
