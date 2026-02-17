@@ -294,7 +294,9 @@ export function createCaseEmbed(modCase: {
   const isVoid = modCase.status === CaseStatus.VOID;
   const statusBadge = isVoid ? ' [VOID]' : '';
   return container({ color: isVoid ? COLORS.NEUTRAL : display.color })
-    .h2(`${display.emoji} Case ${isVoid ? `~~#${modCase.caseNumber}~~` : `#${modCase.caseNumber}`}${statusBadge}`)
+    .h2(
+      `${display.emoji} Case ${isVoid ? `~~#${modCase.caseNumber}~~` : `#${modCase.caseNumber}`}${statusBadge}`
+    )
     .text(
       `**Action**: ${display.label ?? modCase.action}${isVoid ? ' (Voided)' : ''}
 **Reason**: ${reason}`
@@ -366,7 +368,7 @@ export function createHistoryEmbed(
       if (isVoid) {
         return `**~~#${c.caseNumber} ${display.label}~~** [VOID] · ${timestamp}\n> Why: \`${reasonPreview}\``;
       }
-      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      return `**#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
     })
     .join('\n');
 
