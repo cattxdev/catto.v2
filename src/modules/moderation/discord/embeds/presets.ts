@@ -117,8 +117,8 @@ export function createModEmbed(
 
   return modV1.buildModActionEmbed(
     action,
-    { tag: targetUser.tag, id: target.id },
-    { tag: moderator.tag, id: moderator.id },
+    { tag: safeTag(targetUser.tag), id: target.id },
+    { tag: safeTag(moderator.tag), id: moderator.id },
     reason || 'No reason provided',
     {
       caseNumber,

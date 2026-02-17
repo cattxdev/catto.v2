@@ -5,7 +5,8 @@
  * even when the user is not in the guild or cannot be resolved.
  */
 
-import { escapeMarkdown, type Client, type User } from 'discord.js';
+import { type Client, type User } from 'discord.js';
+import { safeTag } from './format.js';
 import { container } from '@sapphire/framework';
 
 export interface UserDisplayOptions {
@@ -39,13 +40,13 @@ export async function getUserDisplayLabel(
   }
 
   if (user) {
-    const safeTag = escapeMarkdown(user.tag);
-    const label = includeId ? `${safeTag} (\`${userId}\`)` : safeTag;
+    const escapedTag = safeTag(user.tag);
+    const label = includeId ? `${escapedTag} (\`${userId}\`)` : escapedTag;
     return { label, tag: user.tag, id: userId, resolved: true };
   }
 
   if (fallbackTag && fallbackTag !== 'Unknown#0000' && !fallbackTag.startsWith('Unknown#')) {
-    const safeFallback = escapeMarkdown(fallbackTag);
+    const safeFallback = safeTag(fallbackTag);
     const label = includeId ? `${safeFallback} (\`${userId}\`)` : safeFallback;
     return { label, tag: fallbackTag, id: userId, resolved: false };
   }
@@ -66,13 +67,13 @@ export function getUserDisplayLabelSync(
   const user = client.users.cache.get(userId);
 
   if (user) {
-    const safeTag = escapeMarkdown(user.tag);
-    const label = includeId ? `${safeTag} (\`${userId}\`)` : safeTag;
+    const escapedTag = safeTag(user.tag);
+    const label = includeId ? `${escapedTag} (\`${userId}\`)` : escapedTag;
     return { label, tag: user.tag, id: userId, resolved: true };
   }
 
   if (fallbackTag && fallbackTag !== 'Unknown#0000' && !fallbackTag.startsWith('Unknown#')) {
-    const safeFallback = escapeMarkdown(fallbackTag);
+    const safeFallback = safeTag(fallbackTag);
     const label = includeId ? `${safeFallback} (\`${userId}\`)` : safeFallback;
     return { label, tag: fallbackTag, id: userId, resolved: false };
   }
@@ -108,7 +109,7 @@ export function isPlaceholderTag(tag: string | null | undefined): boolean {
  */
 export function formatUserForLog(userId: string, tag?: string | null): string {
   if (tag && !isPlaceholderTag(tag)) {
-    return `${escapeMarkdown(tag)} (\`${userId}\`)`;
+    return `${safeTag(tag)} (\`${userId}\`)`;
   }
   return `\`${userId}\``;
 }
