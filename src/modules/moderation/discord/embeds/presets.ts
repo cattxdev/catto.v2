@@ -363,9 +363,10 @@ export function createHistoryEmbed(
       const timestamp = formatRelativeTimestamp(c.createdAt);
       const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
       const isVoid = c.status === CaseStatus.VOID;
-      const voidBadge = isVoid ? ' [VOID]' : '';
-      const caseNum = isVoid ? `~~#${c.caseNumber}~~` : `#${c.caseNumber}`;
-      return `${display.emoji} **${caseNum} ${display.label}**${voidBadge} · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      if (isVoid) {
+        return `**~~#${c.caseNumber} ${display.label}~~** [VOID] · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      }
+      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
     })
     .join('\n');
 
