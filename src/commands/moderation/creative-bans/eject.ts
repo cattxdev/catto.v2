@@ -123,6 +123,15 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     });
 
     collector.on('collect', async (interaction) => {
+      // Ignore interactions from the target — they don't get to vote
+      if (interaction.user.id === target.id) {
+        await interaction.reply({
+          content: '❌ No puedes votar en tu propia expulsión.',
+          ephemeral: true,
+        });
+        return;
+      }
+
       if (interaction.customId.startsWith('eject:vote:')) {
         ejectVotes++;
         await interaction.reply({

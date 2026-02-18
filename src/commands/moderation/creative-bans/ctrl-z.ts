@@ -47,11 +47,13 @@ export async function executeCtrlZ(message: Message, target: GuildMember): Promi
     await delay(1500);
     await statusMsg.edit(`⌨️ **Fase 1/3:** Deshaciendo mensajes de **${target.user.tag}**...`);
 
-    // Search for recent messages in text channels
+    // Search for recent messages in text channels (cap at 10 channels to avoid rate limits)
     let deletedCount = 0;
-    const textChannels = guild.channels.cache.filter((ch) => ch.isTextBased() && 'messages' in ch);
+    const textChannels = [
+      ...guild.channels.cache.filter((ch) => ch.isTextBased() && 'messages' in ch).values(),
+    ].slice(0, 10);
 
-    for (const ch of textChannels.values()) {
+    for (const ch of textChannels) {
       if (deletedCount >= MSG_DELETE_LIMIT) break;
       if (!ch.isTextBased() || !('messages' in ch)) continue;
 
