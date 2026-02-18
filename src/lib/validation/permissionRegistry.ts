@@ -262,6 +262,36 @@ const COMMANDS: Record<string, CommandDefinition> = {
     categories: ['moderation', 'admin'],
     fallbackDiscordPermission: PermissionFlagsBits.Administrator,
   },
+  'mod.creative.captcha': {
+    key: 'mod.creative.captcha',
+    displayName: 'Creative Ban: Captcha',
+    categories: ['moderation', 'moderation.punitive'],
+    fallbackDiscordPermission: PermissionFlagsBits.Administrator,
+  },
+  'mod.creative.quicksand': {
+    key: 'mod.creative.quicksand',
+    displayName: 'Creative Ban: Quicksand',
+    categories: ['moderation', 'moderation.punitive'],
+    fallbackDiscordPermission: PermissionFlagsBits.Administrator,
+  },
+  'mod.creative.ctrl-z': {
+    key: 'mod.creative.ctrl-z',
+    displayName: 'Creative Ban: Ctrl-Z',
+    categories: ['moderation', 'moderation.punitive'],
+    fallbackDiscordPermission: PermissionFlagsBits.Administrator,
+  },
+  'mod.creative.missile-strike': {
+    key: 'mod.creative.missile-strike',
+    displayName: 'Creative Ban: Missile Strike',
+    categories: ['moderation', 'moderation.punitive'],
+    fallbackDiscordPermission: PermissionFlagsBits.Administrator,
+  },
+  'mod.creative.eject': {
+    key: 'mod.creative.eject',
+    displayName: 'Creative Ban: Eject',
+    categories: ['moderation', 'moderation.punitive'],
+    fallbackDiscordPermission: PermissionFlagsBits.Administrator,
+  },
   'permission.add': {
     key: 'permission.add',
     displayName: 'Add Permission',
@@ -307,6 +337,11 @@ const COMMAND_SHORTCUTS: Record<string, string> = {
   evidence: 'mod.evidence.add',
   capture: 'mod.evidence.capture',
   setup: 'mod.setup',
+  captcha: 'mod.creative.captcha',
+  quicksand: 'mod.creative.quicksand',
+  'ctrl-z': 'mod.creative.ctrl-z',
+  'missile-strike': 'mod.creative.missile-strike',
+  eject: 'mod.creative.eject',
 };
 
 export function allCategories(): CategoryDefinition[] {
