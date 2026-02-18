@@ -44,12 +44,7 @@ const AUDIO_DIR = resolve(
 // Audio file resolution
 // ---------------------------------------------------------------------------
 
-export type AudioClip =
-  | 'air-raid'
-  | 'missile-fly'
-  | 'explosion'
-  | 'emergency-meeting'
-  | 'ejection';
+export type AudioClip = 'air-raid' | 'missile-fly' | 'explosion' | 'emergency-meeting' | 'ejection';
 
 /**
  * Resolve an audio clip name to its absolute file path.
@@ -109,10 +104,7 @@ export function disconnectVoice(connection: VoiceConnection | null): void {
  * Resolves when the clip finishes or the timeout is reached.
  * Returns `true` if playback completed, `false` otherwise.
  */
-export async function playClip(
-  connection: VoiceConnection,
-  clip: AudioClip
-): Promise<boolean> {
+export async function playClip(connection: VoiceConnection, clip: AudioClip): Promise<boolean> {
   const filePath = resolveAudioPath(clip);
   if (!filePath) {
     container.logger.warn(`[creative-bans/voice] Audio file missing: ${clip}`);
