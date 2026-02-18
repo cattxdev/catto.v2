@@ -2,7 +2,10 @@
  * Creative Ban: Eject (Among Us style)
  *
  * Target must be in a voice channel. Plays an Among Us-style "emergency meeting"
- * with a cosmetic voting UI (outcome is predetermined), then ejects and bans.
+ * with audio in VC plus a cosmetic voting UI in text (outcome is predetermined),
+ * then plays the ejection sound, ejects, and bans.
+ *
+ * If audio playback fails the text theater and ban still execute normally.
  */
 
 import { container } from '@sapphire/framework';
@@ -18,8 +21,11 @@ import {
   ButtonStyle,
 } from 'discord.js';
 import { executeCreativeBan, delay } from './shared.js';
+import { joinVoice, disconnectVoice, playClip } from './voice.js';
+import type { VoiceConnection } from '@discordjs/voice';
 
 const VOTING_DURATION_MS = 15_000;
+const VOICE_SAFETY_TIMEOUT_MS = 45_000;
 const EJECT_COLORS = [0xff0000, 0x0000ff, 0x00ff00, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500];
 
 /**
@@ -44,8 +50,28 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     return;
   }
 
+  // Manage the voice connection manually — we need it across two audio moments
+  // (emergency-meeting before voting, ejection after voting).
+  let connection: VoiceConnection | null = null;
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
   try {
-    // Emergency meeting announcement
+    // --- Join voice (best-effort) ---
+    connection = await joinVoice(voiceChannel);
+
+    if (connection) {
+      // Safety timeout — hard disconnect after max duration
+      safetyTimer = setTimeout(() => {
+        container.logger.warn('[creative-bans/eject] Safety timeout reached, disconnecting');
+        disconnectVoice(connection);
+        connection = null;
+      }, VOICE_SAFETY_TIMEOUT_MS);
+
+      // Play emergency meeting sound
+      await playClip(connection, 'emergency-meeting').catch(() => {});
+    }
+
+    // --- Emergency meeting announcement ---
     await channel.send('# 🚨 ¡¡¡REUNIÓN DE EMERGENCIA!!! 🚨');
     await delay(2000);
 
@@ -97,7 +123,6 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     });
 
     collector.on('collect', async (interaction) => {
-      // Don't let the target vote
       if (interaction.customId.startsWith('eject:vote:')) {
         ejectVotes++;
         await interaction.reply({
@@ -133,10 +158,15 @@ export async function executeEject(message: Message, target: GuildMember): Promi
 
     await voteMsg.edit({ components: [disabledRow] }).catch(() => {});
 
-    // Ejection sequence
+    // --- Ejection sequence ---
     await delay(1000);
     await channel.send(`\n\n\n\u200b`);
     await delay(500);
+
+    // Play ejection sound (best-effort)
+    if (connection) {
+      await playClip(connection, 'ejection').catch(() => {});
+    }
 
     const ejectionSteps = ['.', '. .', '. . .', `. . . .`];
 
@@ -203,5 +233,9 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     await channel
       .send('❌ Error durante la secuencia. Se intentó ejecutar el ban igualmente.')
       .catch(() => {});
+  } finally {
+    // Always clean up voice
+    if (safetyTimer) clearTimeout(safetyTimer);
+    disconnectVoice(connection);
   }
 }

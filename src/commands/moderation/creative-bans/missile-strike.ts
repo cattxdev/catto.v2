@@ -2,8 +2,11 @@
  * Creative Ban: Missile Strike
  *
  * Target must be in a voice channel. The bot performs a theatrical "missile strike"
- * with text-channel messages (audio requires @discordjs/voice which is not installed).
- * Joins VC for visual effect, plays the theater, bans, and disconnects.
+ * with text-channel messages and voice-channel audio. Joins VC, plays air-raid
+ * siren → missile fly-by → explosion, runs the text theater in parallel, bans,
+ * and disconnects.
+ *
+ * If audio playback fails for any reason the text theater and ban still execute.
  */
 
 import { container } from '@sapphire/framework';
@@ -16,6 +19,7 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import { executeCreativeBan, delay } from './shared.js';
+import { withVoiceSession, playClip } from './voice.js';
 
 const STRIKE_PHASES = [
   { delay: 1500, message: '🛰️ **[SISTEMA DE DEFENSA]** Objetivo localizado...' },
@@ -64,11 +68,31 @@ export async function executeMissileStrike(message: Message, target: GuildMember
 
     await channel.send({ embeds: [alertEmbed] });
 
-    // Play through strike phases
+    // --- Voice session (best-effort) ---
+    // We run the voice session in parallel with the text theater.
+    // The voice promise is awaited at the end — if it fails the ban still fires.
+    const voicePromise = withVoiceSession(
+      { voiceChannel, maxDuration: 45_000 },
+      async (connection) => {
+        // Phase 1 — Air-raid siren plays during early text theater
+        await playClip(connection, 'air-raid');
+
+        // Phase 2 — Missile fly-by
+        await playClip(connection, 'missile-fly');
+
+        // Phase 3 — Explosion (timed with the BOOM text phase)
+        await playClip(connection, 'explosion');
+      }
+    );
+
+    // --- Text theater ---
     for (const phase of STRIKE_PHASES) {
       await delay(phase.delay);
       await channel.send(phase.message);
     }
+
+    // Wait for voice to finish (ignore failures)
+    await voicePromise.catch(() => {});
 
     // Try to disconnect the user from voice first (for dramatic effect)
     try {
