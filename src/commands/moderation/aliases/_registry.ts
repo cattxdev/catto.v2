@@ -103,7 +103,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'history',
-    aliases: ['h'],
+    aliases: ['hist'],
     description: "View a member's full moderation history",
     parser: parseHistoryFromMessage,
     handler: handleHistory,
