@@ -24,6 +24,7 @@ const MUTE_TYPE_MAP: Record<
  */
 @ApplyOptions<Command.Options>({
   name: 'mute',
+  aliases: ['m'],
   description: 'Mute a member in text, voice, or both channels',
   preconditions: ['GuildOnly'],
 })
