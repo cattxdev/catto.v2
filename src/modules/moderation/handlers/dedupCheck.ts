@@ -12,6 +12,7 @@ import { checkAndSetDedup, storePendingOverride } from '../services/DedupService
 import { buildDedupWarning } from '../discord/panelBuilder.js';
 import type { FluentContainer } from '#lib/discord/index.js';
 import type { DurationSeconds } from '../domain/types.js';
+import { safeTag } from '#lib/discord/index.js';
 
 export interface DedupCheckInput {
   guild: Guild;
@@ -53,8 +54,8 @@ export async function commandDedupCheck(input: DedupCheckInput): Promise<FluentC
 
   return buildDedupWarning(
     input.action,
-    input.target.tag,
-    result.existing.moderatorTag,
+    safeTag(input.target.tag),
+    safeTag(result.existing.moderatorTag),
     result.existing.timestamp,
     pendingId
   );
