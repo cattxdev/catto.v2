@@ -4,7 +4,7 @@
  * Low-level formatting helpers for Discord messages.
  */
 
-import { escapeMarkdown, type User } from 'discord.js';
+import type { User } from 'discord.js';
 
 /**
  * Format key-value pairs into a stats line
@@ -42,11 +42,11 @@ export function formatStatsLine(
 }
 
 /**
- * Escape markdown characters in a username/tag to prevent unintentional formatting.
- * Wraps discord.js escapeMarkdown for convenience.
+ * Escape underscores in a username/tag to prevent italic formatting.
+ * Discord usernames only allow [a-z0-9_.], so `_` is the only markdown character.
  */
 export function safeTag(tag: string): string {
-  return escapeMarkdown(tag);
+  return tag.replace(/_/g, '\\_');
 }
 
 /**
