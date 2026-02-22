@@ -142,6 +142,20 @@ export interface ModerateCheckResult {
 }
 
 /**
+ * Info about a detected duplicate mod action
+ */
+export interface DedupInfo {
+  /** The moderator who already performed this action */
+  moderatorId: string;
+  /** Display tag of that moderator */
+  moderatorTag: string;
+  /** When the original action was performed (epoch ms) */
+  timestamp: number;
+  /** A pending-override ID that can be used to confirm/override */
+  pendingId?: string;
+}
+
+/**
  * Moderation action result
  */
 export interface ModActionResult {
@@ -149,6 +163,8 @@ export interface ModActionResult {
   caseNumber?: CaseNumber;
   error?: string;
   userNotified: boolean;
+  /** Set when the action was blocked due to a recent duplicate */
+  deduplicated?: DedupInfo;
 }
 
 /**
@@ -286,6 +302,8 @@ export interface MuteResult {
   muteId?: MuteId;
   caseNumber?: CaseNumber;
   error?: string;
+  /** Set when the action was blocked due to a recent duplicate */
+  deduplicated?: DedupInfo;
 }
 
 /**

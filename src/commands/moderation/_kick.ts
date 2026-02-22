@@ -5,6 +5,7 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { KickOptions } from '#lib/interaction/typedOptions.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
@@ -37,6 +38,19 @@ export async function handleKick(options: KickOptions, ctx: CommandResponder) {
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
       await ctx.editReply(hierarchyResult.response);
+      return;
+    }
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.KICK,
+      reason: options.reason ?? 'No reason provided',
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
       return;
     }
 
