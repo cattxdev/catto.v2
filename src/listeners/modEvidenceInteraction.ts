@@ -383,7 +383,8 @@ export class ModEvidenceInteractionListener extends Listener {
       const result = await this.executeActionAndLinkEvidence(ctx, parsed.action, parsed.snapshotId);
       if (!result.success) {
         if (result.deduplicated?.pendingId) {
-          const dedupModAction = ACTION_TO_MOD_ACTION[parsed.action] ?? (parsed.action as ModAction);
+          const dedupModAction =
+            ACTION_TO_MOD_ACTION[parsed.action] ?? (parsed.action as ModAction);
           const warning = buildDedupWarning(
             dedupModAction,
             ctx.target.tag,

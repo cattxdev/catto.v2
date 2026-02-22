@@ -13,7 +13,10 @@
 import { Listener, container } from '@sapphire/framework';
 import { Events, type Interaction, MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
-import { consumePendingOverride, setDedup } from '#root/modules/moderation/services/DedupService.js';
+import {
+  consumePendingOverride,
+  setDedup,
+} from '#root/modules/moderation/services/DedupService.js';
 import {
   buildModerationContext,
   executeWarn,
