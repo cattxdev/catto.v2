@@ -8,7 +8,7 @@ import {
   VOICE_CACHE_TTL,
   type VoiceWatchSession,
 } from '#root/modules/voice/domain/types.js';
-import { container, errorMessage } from '#lib/discord/index.js';
+import { container, errorMessage, safeTag } from '#lib/discord/index.js';
 import { registerSession } from '#root/modules/voice/services/voiceUpdate.js';
 import {
   formatMemberName,
@@ -38,7 +38,7 @@ export async function handleVoiceWatch(options: VoiceWatchOptions, ctx: CommandR
       member = await options.guild.members.fetch(options.targetId);
     } catch {
       await ctx.editReply(
-        container().text(`User **${options.target.tag}** is not a member of this server.`)
+        container().text(`User **${safeTag(options.target.tag)}** is not a member of this server.`)
       );
       return;
     }

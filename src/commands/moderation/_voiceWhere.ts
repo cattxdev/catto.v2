@@ -3,7 +3,7 @@ import type { VoiceWhereOptions } from '#lib/interaction/typedOptions.js';
 import type { CommandResponder } from '#lib/discord/index.js';
 import { getJson, CacheKey } from '#lib/cache/index.js';
 import { VoiceMemberPresenceSchema } from '#root/modules/voice/domain/types.js';
-import { EMOJI, container, errorMessage } from '#lib/discord/index.js';
+import { EMOJI, container, errorMessage, safeTag } from '#lib/discord/index.js';
 import {
   getVoiceIndicators,
   formatMemberName,
@@ -23,7 +23,7 @@ export async function handleVoiceWhere(options: VoiceWhereOptions, ctx: CommandR
       member = await options.guild.members.fetch(options.targetId);
     } catch {
       await ctx.editReply(
-        container().text(`User **${options.target.tag}** is not a member of this server.`)
+        container().text(`User **${safeTag(options.target.tag)}** is not a member of this server.`)
       );
       return;
     }

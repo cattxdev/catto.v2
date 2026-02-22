@@ -28,6 +28,7 @@ export {
   userMention,
   channelMention,
   roleMention,
+  safeTag,
 } from './format.js';
 
 export {
