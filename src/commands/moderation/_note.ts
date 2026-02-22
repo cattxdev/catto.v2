@@ -3,7 +3,7 @@ import type { CommandResponder } from '#root/lib/discord/index.js';
 import { notesService } from '../../modules/moderation/services/NotesService.js';
 import { buildNotesList } from '../../modules/moderation/discord/panelBuilder.js';
 import { asGuildId, asUserId, asNoteId } from '../../modules/moderation/domain/types.js';
-import { errorMessage, successMessage } from '#root/lib/discord/index.js';
+import { errorMessage, successMessage, safeTag } from '#root/lib/discord/index.js';
 
 export interface NoteAddOptions {
   target: User;
@@ -57,7 +57,7 @@ export async function handleNoteAdd(options: NoteAddOptions, ctx: CommandRespond
       tags.length > 0 ? `\n**Tags:** ${tags.map((t) => `\`${t}\``).join(', ')}` : '';
     await ctx.editReply(
       successMessage(
-        `Note added for **${options.target.tag}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``
+        `Note added for **${safeTag(options.target.tag)}**${tagsDisplay}\n**Note ID:** \`${result.noteId}\``
       )
     );
   } catch (error) {
