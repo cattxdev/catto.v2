@@ -1,12 +1,13 @@
 import { ModAction } from '@prisma/client';
+import type { GuildMember } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { SoftbanOptions } from '#lib/interaction/typedOptions.js';
-import type { GuildMember } from 'discord.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
@@ -51,6 +52,19 @@ export async function handleSoftban(options: SoftbanOptions, ctx: CommandRespond
   try {
     // Determine the target tag to display
     const targetTag = target?.tag ?? `User ID: ${targetId}`;
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild,
+      target: target ?? { id: targetId, tag: targetTag },
+      moderator,
+      action: ModAction.SOFTBAN,
+      reason: reason ?? 'No reason provided',
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
+      return;
+    }
 
     // Execute softban via service (use softbanById to support users not in server)
     const result = await moderationService.softbanById(

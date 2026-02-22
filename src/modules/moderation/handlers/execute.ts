@@ -9,10 +9,61 @@ import type { Guild, User } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import { moderationService } from '../services/ModerationService.js';
 import { muteService } from '../services/MuteService.js';
+import { checkAndSetDedup, storePendingOverride } from '../services/DedupService.js';
 import { notifyUser, logModAction } from '../discord/embeds/presets.js';
 import type { ModerationContext } from './context.js';
-import type { ModActionResult, MuteResult, UserId } from '../domain/types.js';
+import type { ModActionResult, MuteResult, DedupInfo, UserId } from '../domain/types.js';
 import { asGuildId, asUserId, asDuration } from '../domain/types.js';
+
+// ─── Dedup Helper ───
+
+/**
+ * Run the dedup check for a moderation action.
+ * Returns a blocked ModActionResult if duplicate detected, or null to proceed.
+ */
+async function dedupGuard(
+  context: ModerationContext,
+  action: ModAction,
+  extra?: Record<string, unknown>
+): Promise<ModActionResult | null> {
+  if (context.skipDedup) return null;
+
+  const result = await checkAndSetDedup(
+    context.guild.id,
+    context.target.id,
+    action,
+    context.moderator.id,
+    context.moderator.tag,
+    context.reason
+  );
+
+  if (!result.isDuplicate || !result.existing) return null;
+
+  // Store pending override so the confirm button can replay the action
+  const pendingId = await storePendingOverride({
+    guildId: context.guild.id,
+    targetId: context.target.id,
+    action,
+    reason: context.reason,
+    duration: context.duration,
+    moderatorId: context.moderator.id,
+    extra,
+  });
+
+  const dedupInfo: DedupInfo = {
+    moderatorId: result.existing.moderatorId,
+    moderatorTag: result.existing.moderatorTag,
+    timestamp: result.existing.timestamp,
+    pendingId,
+  };
+
+  return {
+    success: false,
+    error: `This user was already actioned by ${result.existing.moderatorTag} less than 2 minutes ago.`,
+    userNotified: false,
+    deduplicated: dedupInfo,
+  };
+}
 
 // Core Action Executors
 
@@ -20,6 +71,10 @@ import { asGuildId, asUserId, asDuration } from '../domain/types.js';
  * Execute a warn action
  */
 export async function executeWarn(context: ModerationContext): Promise<ModActionResult> {
+  // Dedup check
+  const blocked = await dedupGuard(context, ModAction.WARN);
+  if (blocked) return blocked;
+
   // Notify user before warning
   await notifyUser(context.target, ModAction.WARN, context.guild, context.reason);
 
@@ -54,6 +109,10 @@ export async function executeKick(context: ModerationContext): Promise<ModAction
     return { success: false, error: 'User is not in this server.', userNotified: false };
   }
 
+  // Dedup check
+  const blockedKick = await dedupGuard(context, ModAction.KICK);
+  if (blockedKick) return blockedKick;
+
   // Notify user before kick
   await notifyUser(context.target, ModAction.KICK, context.guild, context.reason);
 
@@ -87,6 +146,10 @@ export async function executeBan(
   context: ModerationContext,
   deleteMessages: boolean = false
 ): Promise<ModActionResult> {
+  // Dedup check
+  const blockedBan = await dedupGuard(context, ModAction.BAN, { deleteMessages });
+  if (blockedBan) return blockedBan;
+
   // Notify user before ban (only if in server)
   if (context.targetMember) {
     await notifyUser(context.target, ModAction.BAN, context.guild, context.reason);
@@ -120,6 +183,10 @@ export async function executeBan(
  * Execute a softban action (ban + immediate unban to delete messages)
  */
 export async function executeSoftban(context: ModerationContext): Promise<ModActionResult> {
+  // Dedup check
+  const blockedSoftban = await dedupGuard(context, ModAction.SOFTBAN);
+  if (blockedSoftban) return blockedSoftban;
+
   // Notify user before softban (only if in server)
   if (context.targetMember) {
     await notifyUser(context.target, ModAction.SOFTBAN, context.guild, context.reason);
@@ -159,6 +226,10 @@ export async function executeTimeout(context: ModerationContext): Promise<ModAct
   if (!context.duration) {
     return { success: false, error: 'Duration is required for timeout.', userNotified: false };
   }
+
+  // Dedup check
+  const blockedTimeout = await dedupGuard(context, ModAction.TIMEOUT);
+  if (blockedTimeout) return blockedTimeout;
 
   // Notify user before timeout
   await notifyUser(
@@ -204,6 +275,10 @@ export async function executeTempban(
   if (!context.duration) {
     return { success: false, error: 'Duration is required for tempban.', userNotified: false };
   }
+
+  // Dedup check
+  const blockedTempban = await dedupGuard(context, ModAction.TEMPBAN, { deleteMessages });
+  if (blockedTempban) return blockedTempban;
 
   // Notify user before tempban (only if in server)
   if (context.targetMember) {
@@ -288,6 +363,21 @@ export async function executeMute(
 ): Promise<MuteResult> {
   if (!context.targetMember) {
     return { success: false, error: 'User is not in this server.' };
+  }
+
+  // Dedup check — map mute type to the corresponding ModAction
+  const muteActionMap: Record<MuteType, ModAction> = {
+    text: ModAction.MUTE_TEXT,
+    voice: ModAction.MUTE_VOICE,
+    both: ModAction.MUTE_BOTH,
+  };
+  const blocked = await dedupGuard(context, muteActionMap[muteType], { muteType });
+  if (blocked) {
+    return {
+      success: false,
+      error: blocked.error,
+      deduplicated: blocked.deduplicated,
+    };
   }
 
   const muteInput = {
