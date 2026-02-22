@@ -338,11 +338,12 @@ const ALIAS_TO_RESOURCE_KEY: Record<string, string> = {
   unban: 'mod.unban',
   softban: 'mod.softban',
   tempban: 'mod.tempban',
-  mute: 'mod.mute.both',
-  unmute: 'mod.unmute.both',
   case: 'mod.case',
   history: 'mod.history',
 };
+
+/** Valid mute/unmute type keywords */
+const MUTE_TYPES = new Set(['text', 'voice', 'both']);
 
 /**
  * Subcommand groups within the mod command.
@@ -371,6 +372,30 @@ function resolveModSubcommandKey(message: Message): string {
 }
 
 /**
+ * Resolve the resource key for `!mute` / `!unmute` prefix aliases.
+ *
+ * The first word after the command may be a mute type (`text`, `voice`, `both`).
+ * If present, we resolve to the specific key (e.g. `mod.mute.text`).
+ * If absent, we default to `mod.{mute|unmute}.both`.
+ *
+ * Examples:
+ * - `!mute text @user reason`  → `mod.mute.text`
+ * - `!mute @user reason`       → `mod.mute.both`
+ * - `!unmute voice @user`      → `mod.unmute.voice`
+ */
+function resolveMuteAliasKey(commandName: 'mute' | 'unmute', message: Message): string {
+  const pattern = new RegExp(`\\b${commandName}\\s+(\\S+)`, 'i');
+  const match = message.content.match(pattern);
+  const firstArg = match?.[1]?.toLowerCase();
+
+  if (firstArg && MUTE_TYPES.has(firstArg)) {
+    return buildCommandKey('mod', commandName, firstArg);
+  }
+
+  return buildCommandKey('mod', commandName, 'both');
+}
+
+/**
  * Resolve the resource key from a message command.
  *
  * @param commandName - The resolved command name (e.g. "ban" for alias, "mod" for subcommand)
@@ -380,6 +405,12 @@ export function resolveMessageCommandKey(commandName: string, message: Message):
   // Check if it's a known alias
   if (commandName in ALIAS_TO_RESOURCE_KEY) {
     return ALIAS_TO_RESOURCE_KEY[commandName]!;
+  }
+
+  // For mute/unmute aliases, extract the type from message content
+  // `!mute text @user ...` → `mod.mute.text`, `!mute @user ...` → `mod.mute.both`
+  if (commandName === 'mute' || commandName === 'unmute') {
+    return resolveMuteAliasKey(commandName, message);
   }
 
   // For the "mod" subcommand, parse message content
