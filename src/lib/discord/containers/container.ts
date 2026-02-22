@@ -17,7 +17,7 @@ import {
   type MessageActionRowComponentBuilder,
   type RGBTuple,
 } from 'discord.js';
-import { COLORS, SPACING } from '../design/index.js';
+import { COLORS, EMOJI, SPACING } from '../design/index.js';
 
 export type AccentColor = number | RGBTuple;
 
@@ -385,7 +385,7 @@ export class FluentContainer {
         .setCustomId(confirmId)
         .setLabel(options?.confirmLabel ?? 'Confirm')
         .setStyle(confirmStyle)
-        .setEmoji('✅'),
+        .setEmoji(EMOJI.STATUS.SUCCESS),
       new ButtonBuilder()
         .setCustomId(cancelId)
         .setLabel(options?.cancelLabel ?? 'Cancel')
