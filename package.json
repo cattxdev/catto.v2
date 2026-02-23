@@ -126,7 +126,7 @@
       "prettier --write"
     ],
     "prisma/**/*.prisma": [
-      "sh -c 'pnpm prisma format'"
+      "node scripts/format-prisma-staged.mjs"
     ]
   }
 }

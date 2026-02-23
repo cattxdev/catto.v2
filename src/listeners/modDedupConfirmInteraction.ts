@@ -15,6 +15,7 @@ import { Events, type Interaction, MessageFlags } from 'discord.js';
 import { ModAction } from '@prisma/client';
 import {
   consumePendingOverride,
+  getPendingOverride,
   setDedup,
 } from '#root/modules/moderation/services/DedupService.js';
 import {
@@ -68,8 +69,7 @@ export class ModDedupConfirmInteractionListener extends Listener {
       return;
     }
 
-    // Consume the pending override (one-time use)
-    const pending = await consumePendingOverride(pendingId);
+    const pending = await getPendingOverride(pendingId);
     if (!pending) {
       await interaction.reply(
         ephemeralError(
@@ -87,6 +87,15 @@ export class ModDedupConfirmInteractionListener extends Listener {
       return;
     }
 
+    // Consume only after auth check, so unauthorized clicks cannot burn the token.
+    const consumedPending = await consumePendingOverride(pendingId);
+    if (!consumedPending) {
+      await interaction.reply(
+        ephemeralError('This confirmation was already used. Please retry the action.')
+      );
+      return;
+    }
+
     const gate = getGate(interaction);
     if (!gate) {
       await interaction.reply(ephemeralError('This can only be used in a server.'));
@@ -98,11 +107,11 @@ export class ModDedupConfirmInteractionListener extends Listener {
     try {
       const ctxResult = await buildModerationContext({
         guild: gate.guild,
-        targetId: pending.targetId,
+        targetId: consumedPending.targetId,
         moderator: interaction.user,
         moderatorMember: gate.member,
-        reason: pending.reason,
-        duration: pending.duration as DurationSeconds | undefined,
+        reason: consumedPending.reason,
+        duration: consumedPending.duration as DurationSeconds | undefined,
       });
 
       if (!ctxResult.success) {
@@ -129,7 +138,7 @@ export class ModDedupConfirmInteractionListener extends Listener {
       }
 
       let result: ModActionResult;
-      const action = pending.action as string;
+      const action = consumedPending.action as string;
 
       // Check if this is a mute action
       const muteActions = new Set<string>([
@@ -140,7 +149,7 @@ export class ModDedupConfirmInteractionListener extends Listener {
 
       if (muteActions.has(action)) {
         // Resolve the mute type from the extra data or from the action enum
-        const muteType = (pending.extra?.muteType as MuteType) ?? 'both';
+        const muteType = (consumedPending.extra?.muteType as MuteType) ?? 'both';
         const muteResult = await executeMute(ctx, muteType);
         result = {
           success: muteResult.success,
@@ -158,7 +167,7 @@ export class ModDedupConfirmInteractionListener extends Listener {
             result = await executeKick(ctx);
             break;
           case ModAction.BAN:
-            result = await executeBan(ctx, Boolean(pending.extra?.deleteMessages));
+            result = await executeBan(ctx, Boolean(consumedPending.extra?.deleteMessages));
             break;
           case ModAction.SOFTBAN:
             result = await executeSoftban(ctx);
@@ -167,7 +176,7 @@ export class ModDedupConfirmInteractionListener extends Listener {
             result = await executeTimeout(ctx);
             break;
           case ModAction.TEMPBAN:
-            result = await executeTempban(ctx, Boolean(pending.extra?.deleteMessages));
+            result = await executeTempban(ctx, Boolean(consumedPending.extra?.deleteMessages));
             break;
           default:
             await interaction.editReply({
@@ -190,26 +199,28 @@ export class ModDedupConfirmInteractionListener extends Listener {
 
       // Determine display label
       const modAction = (ACTION_TO_MOD_ACTION[action.toLowerCase()] ??
-        MUTE_ACTION_TO_MOD_ACTION[pending.extra?.muteType as string] ??
+        MUTE_ACTION_TO_MOD_ACTION[consumedPending.extra?.muteType as string] ??
         action) as ModAction;
       const display = getActionDisplay(modAction);
-      const durationText = pending.duration ? formatDuration(pending.duration) : undefined;
+      const durationText = consumedPending.duration
+        ? formatDuration(consumedPending.duration)
+        : undefined;
 
       // Re-establish the dedup window so a third moderator can't slip through
       await setDedup(
-        pending.guildId,
-        pending.targetId,
+        consumedPending.guildId,
+        consumedPending.targetId,
         modAction,
         interaction.user.id,
         interaction.user.tag,
-        pending.reason
+        consumedPending.reason
       );
 
       const success = buildModActionSuccess(
         display.label,
         ctx.target,
         caseNumber,
-        pending.reason,
+        consumedPending.reason,
         durationText,
         { guildId: gate.guild.id }
       );
@@ -238,10 +249,25 @@ export class ModDedupConfirmInteractionListener extends Listener {
       return;
     }
 
-    // Consume and discard the pending override
-    const pending = await consumePendingOverride(pendingId);
+    const pending = await getPendingOverride(pendingId);
 
     if (!pending) {
+      await interaction.reply(
+        ephemeralError('This action has already been cancelled or has expired.')
+      );
+      return;
+    }
+
+    if (interaction.user.id !== pending.moderatorId) {
+      await interaction.reply(
+        ephemeralError('Only the moderator who initiated this action can cancel it.')
+      );
+      return;
+    }
+
+    // Consume and discard the pending override
+    const consumedPending = await consumePendingOverride(pendingId);
+    if (!consumedPending) {
       await interaction.reply(
         ephemeralError('This action has already been cancelled or has expired.')
       );

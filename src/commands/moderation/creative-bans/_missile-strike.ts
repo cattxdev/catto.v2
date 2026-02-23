@@ -37,7 +37,6 @@ const NEXT_MISSILE_JOIN_DELAY_MS = Math.max(
   MISSILE_FLY_DURATION_MS - MISSILE_JOIN_BEFORE_END_MS
 );
 const BAN_AFTER_BOOM_START_MS = 1_500;
-const MISSILE_STRIKE_VOID_GUILD = '000000000000000000';
 const SILO_CALLSIGNS = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL'];
 
 interface SwarmClient {
@@ -60,9 +59,8 @@ function getMissileSwarmTokens(): string[] {
   return [...new Set([...inlineTokens, ...indexedTokens])];
 }
 
-function isMissileStrikeGuildEnabled(guildId: string, tokenCount: number): boolean {
-  const flaggedGuildId = tokenCount > 0 ? guildId : MISSILE_STRIKE_VOID_GUILD;
-  return flaggedGuildId === guildId;
+function isMissileStrikeEnabled(tokenCount: number): boolean {
+  return tokenCount > 0;
 }
 
 function waitForClientReady(client: Client, timeoutMs: number): Promise<void> {
@@ -191,7 +189,7 @@ export async function executeMissileStrike(message: Message, target: GuildMember
   }
 
   const swarmTokens = getMissileSwarmTokens();
-  if (!isMissileStrikeGuildEnabled(guild.id, swarmTokens.length)) {
+  if (!isMissileStrikeEnabled(swarmTokens.length)) {
     await channel.send('❌ Missile swarm deshabilitado: no hay instancias configuradas.');
     return;
   }
