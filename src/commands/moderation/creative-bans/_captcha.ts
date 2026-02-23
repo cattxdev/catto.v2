@@ -1,8 +1,9 @@
 /**
  * Creative Ban: Captcha
  *
- * Hides all channels from the target, creates a verification channel with an
- * impossible captcha, gives them 3 attempts, then bans on failure.
+ * Strips all roles from the target (hiding channels naturally), creates a
+ * verification channel with an impossible captcha, gives them 3 attempts,
+ * then bans on failure. No permission overrides are left behind.
  */
 
 import { container } from '@sapphire/framework';
@@ -36,49 +37,19 @@ export async function executeCaptcha(message: Message, target: GuildMember): Pro
   const channel = message.channel as TextChannel;
 
   let verifyChannel: TextChannel | null = null;
-  // Snapshot existing overwrites so we can restore them, not just delete
-  const hiddenOverwrites: Array<{
-    channelId: string;
-    previousAllow: bigint | null;
-    previousDeny: bigint | null;
-    hadOverwrite: boolean;
-    restored: boolean;
-  }> = [];
 
   try {
     // Announce
     await channel.send(`🔒 Iniciando verificación de seguridad para **${target.user.tag}**...`);
 
-    // Step 1: Hide all text channels from the target
-    // Only target actual text channels (not voice)
-    const textChannels = guild.channels.cache.filter(
-      (ch): ch is TextChannel =>
-        ch.type === ChannelType.GuildText &&
-        ch.permissionsFor(target)?.has(PermissionFlagsBits.ViewChannel) === true
+    // Step 1: Strip all roles — channels hidden naturally via role permissions.
+    // No per-channel overrides needed, no footprint left.
+    const rolesToRemove = target.roles.cache.filter(
+      (role) => role.id !== guild.id && role.editable
     );
 
-    // Cap to first 50 channels to avoid rate limit issues on large guilds
-    const channelsToHide = [...textChannels.values()].slice(0, 50);
-
-    for (const ch of channelsToHide) {
-      try {
-        // Snapshot the existing overwrite before modifying
-        const existing = ch.permissionOverwrites.cache.get(target.id);
-        const snapshot = {
-          channelId: ch.id,
-          previousAllow: existing?.allow.bitfield ?? null,
-          previousDeny: existing?.deny.bitfield ?? null,
-          hadOverwrite: !!existing,
-          restored: false,
-        };
-
-        await ch.permissionOverwrites.create(target.id, {
-          ViewChannel: false,
-        });
-        hiddenOverwrites.push(snapshot);
-      } catch {
-        // Some channels may not be editable
-      }
+    if (rolesToRemove.size > 0) {
+      await target.roles.set([], 'Creative ban: captcha verification');
     }
 
     // Step 2: Create the verification channel
@@ -208,39 +179,12 @@ export async function executeCaptcha(message: Message, target: GuildMember): Pro
       .send('❌ Error durante la secuencia de verificación. Se intentó ejecutar el ban igualmente.')
       .catch(() => {});
   } finally {
-    // Cleanup: delete verification channel
+    // Cleanup: delete verification channel (the only artifact we created)
     if (verifyChannel) {
       await delay(3000);
       await safeDeleteChannel(verifyChannel);
     }
-
-    // Cleanup: restore channel overwrites to their pre-command state
-    for (const entry of hiddenOverwrites) {
-      if (entry.restored) continue;
-      try {
-        const ch = guild.channels.cache.get(entry.channelId);
-        if (!ch) continue;
-
-        if (entry.hadOverwrite) {
-          // Restore the original overwrite
-          await (ch as TextChannel).permissionOverwrites.edit(target.id, {
-            ViewChannel:
-              entry.previousDeny !== null &&
-              (entry.previousDeny & PermissionFlagsBits.ViewChannel) !== 0n
-                ? false
-                : entry.previousAllow !== null &&
-                    (entry.previousAllow & PermissionFlagsBits.ViewChannel) !== 0n
-                  ? true
-                  : null,
-          });
-        } else {
-          // No overwrite existed before — delete the one we created
-          await (ch as TextChannel).permissionOverwrites.delete(target.id);
-        }
-        entry.restored = true;
-      } catch {
-        // Overwrite may already be gone (user was banned)
-      }
-    }
+    // No permission overrides to restore — roles were stripped and the ban
+    // removes the user entirely. Zero footprint.
   }
 }
