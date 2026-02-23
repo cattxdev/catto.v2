@@ -16,6 +16,7 @@ import {
   parseUnbanFromMessage,
   parseCaseFromMessage,
   parseHistoryFromMessage,
+  parseVoidFromMessage,
 } from '#lib/interaction/messageArgs.js';
 
 // Handlers
@@ -28,6 +29,7 @@ import { handleTempban } from '../_tempban.js';
 import { handleUnban } from '../_unban.js';
 import { handleCase } from '../_case.js';
 import { handleHistory } from '../_history.js';
+import { handleCaseClose } from '../_caseManagement.js';
 
 interface AliasConfig {
   name: string;
@@ -107,6 +109,13 @@ const SIMPLE_ALIASES: AliasConfig[] = [
     description: "View a member's full moderation history",
     parser: parseHistoryFromMessage,
     handler: handleHistory,
+  },
+  {
+    name: 'void',
+    aliases: ['v'],
+    description: 'Void a moderation case by number',
+    parser: parseVoidFromMessage,
+    handler: handleCaseClose,
   },
 ];
 
