@@ -24,6 +24,7 @@ const UNMUTE_TYPE_MAP: Record<
  */
 @ApplyOptions<Command.Options>({
   name: 'unmute',
+  aliases: ['um'],
   description: 'Remove text, voice, or all mutes from a member',
   preconditions: ['GuildOnly'],
 })
