@@ -21,7 +21,7 @@ import {
   safeDeleteChannel,
   zalgoify,
   generateCaptchaCode,
-} from './shared.js';
+} from './_shared.js';
 
 const CAPTCHA_CHANNEL_NAME = 'verificarse';
 const MAX_ATTEMPTS = 3;

@@ -21,12 +21,12 @@ import {
   checkCreativePermission,
   checkBotBanPermission,
   canModerateTarget,
-} from './shared.js';
-import { executeCaptcha } from './captcha.js';
-import { executeQuicksand } from './quicksand.js';
-import { executeCtrlZ } from './ctrl-z.js';
-import { executeMissileStrike } from './missile-strike.js';
-import { executeEject } from './eject.js';
+} from './_shared.js';
+import { executeCaptcha } from './_captcha.js';
+import { executeQuicksand } from './_quicksand.js';
+import { executeCtrlZ } from './_ctrl-z.js';
+import { executeMissileStrike } from './_missile-strike.js';
+import { executeEject } from './_eject.js';
 
 @ApplyOptions<Command.Options>({
   name: 'captcha',

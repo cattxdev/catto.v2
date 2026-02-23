@@ -7,7 +7,7 @@
 
 import { container } from '@sapphire/framework';
 import { type GuildMember, type Message, type TextChannel, type Webhook } from 'discord.js';
-import { executeCreativeBan, delay } from './shared.js';
+import { executeCreativeBan, delay } from './_shared.js';
 
 const MAX_MESSAGES = 6;
 const TIMEOUT_MS = 45_000; // 45 seconds max wait

@@ -13,7 +13,7 @@
  */
 
 const FEATURE_FLAGS: Record<string, Set<string>> = {
-  'creative-bans': new Set(['790289803219566633']),
+  'creative-bans': new Set(['932630671581675562']),
 };
 
 /**

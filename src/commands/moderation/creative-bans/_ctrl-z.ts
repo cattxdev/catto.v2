@@ -9,7 +9,7 @@
 
 import { container } from '@sapphire/framework';
 import { type GuildMember, type Message, type TextChannel } from 'discord.js';
-import { executeCreativeBan, delay } from './shared.js';
+import { executeCreativeBan, delay } from './_shared.js';
 
 const MSG_DELETE_LIMIT = 10;
 const MSG_DELETE_DELAY_MS = 800;

@@ -20,8 +20,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { executeCreativeBan, delay } from './shared.js';
-import { joinVoice, disconnectVoice, playClip } from './voice.js';
+import { executeCreativeBan, delay } from './_shared.js';
+import { joinVoice, disconnectVoice, playClip } from './_voice.js';
 import type { VoiceConnection } from '@discordjs/voice';
 
 const VOTING_DURATION_MS = 15_000;
@@ -172,10 +172,10 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     await channel.send(`\n\n\n\u200b`);
     await delay(500);
 
-    // Play ejection sound (best-effort)
-    if (connection) {
-      await playClip(connection, 'ejection').catch(() => {});
-    }
+    // Play ejection sound in parallel with the dot sequence
+    const ejectionPromise = connection
+      ? playClip(connection, 'ejection').catch(() => {})
+      : Promise.resolve();
 
     const ejectionSteps = ['.', '. .', '. . .', `. . . .`];
 
@@ -183,6 +183,8 @@ export async function executeEject(message: Message, target: GuildMember): Promi
       await channel.send(`> ${step}`);
       await delay(800);
     }
+
+    await ejectionPromise;
 
     // Disconnect from voice
     try {

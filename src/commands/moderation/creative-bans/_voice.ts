@@ -13,13 +13,14 @@ import {
   createAudioResource,
   AudioPlayerStatus,
   VoiceConnectionStatus,
+  StreamType,
   entersState,
   type VoiceConnection,
 } from '@discordjs/voice';
 import type { VoiceChannel, StageChannel } from 'discord.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { createReadStream, existsSync } from 'node:fs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -67,18 +68,31 @@ export async function joinVoice(
   voiceChannel: VoiceChannel | StageChannel
 ): Promise<VoiceConnection | null> {
   try {
+    container.logger.info(
+      `[creative-bans/voice] Joining ${voiceChannel.name} (${voiceChannel.id})`
+    );
     const connection = joinVoiceChannel({
       channelId: voiceChannel.id,
       guildId: voiceChannel.guild.id,
       adapterCreator: voiceChannel.guild.voiceAdapterCreator,
       selfDeaf: true,
+      debug: true,
     });
+
+    connection.on('debug', (msg) => container.logger.debug(`[creative-bans/voice] ${msg}`));
+    connection.on('error', (err) =>
+      container.logger.error('[creative-bans/voice] Connection error:', err)
+    );
+    connection.on('stateChange', (_old, cur) =>
+      container.logger.info(`[creative-bans/voice] Connection state: ${cur.status}`)
+    );
 
     // Wait until the connection is ready
     await entersState(connection, VoiceConnectionStatus.Ready, CONNECTION_READY_TIMEOUT_MS);
+    container.logger.info('[creative-bans/voice] Connection ready');
     return connection;
   } catch (error) {
-    container.logger.warn('[creative-bans/voice] Failed to join voice channel:', error);
+    container.logger.error('[creative-bans/voice] Failed to join voice channel:', error);
     return null;
   }
 }
@@ -107,21 +121,37 @@ export function disconnectVoice(connection: VoiceConnection | null): void {
 export async function playClip(connection: VoiceConnection, clip: AudioClip): Promise<boolean> {
   const filePath = resolveAudioPath(clip);
   if (!filePath) {
-    container.logger.warn(`[creative-bans/voice] Audio file missing: ${clip}`);
+    container.logger.error(
+      `[creative-bans/voice] Audio file missing: ${clip} (AUDIO_DIR=${AUDIO_DIR})`
+    );
     return false;
   }
 
+  container.logger.info(`[creative-bans/voice] Playing clip: ${clip} (${filePath})`);
   const player = createAudioPlayer();
-  const resource = createAudioResource(filePath);
+
+  player.on('error', (err) =>
+    container.logger.error(`[creative-bans/voice] Player error on ${clip}:`, err)
+  );
+  player.on('stateChange', (_old, cur) =>
+    container.logger.debug(`[creative-bans/voice] Player ${clip}: ${cur.status}`)
+  );
+
+  const resource = createAudioResource(createReadStream(filePath), {
+    inputType: StreamType.OggOpus,
+  });
 
   connection.subscribe(player);
   player.play(resource);
 
   try {
     await entersState(player, AudioPlayerStatus.Idle, PLAYER_IDLE_TIMEOUT_MS);
+    container.logger.info(`[creative-bans/voice] Clip finished: ${clip}`);
     return true;
   } catch {
-    container.logger.warn(`[creative-bans/voice] Playback timed out for: ${clip}`);
+    container.logger.error(
+      `[creative-bans/voice] Playback timed out for: ${clip} (state=${player.state.status})`
+    );
     player.stop(true);
     return false;
   }

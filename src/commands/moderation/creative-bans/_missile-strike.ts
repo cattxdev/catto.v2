@@ -18,8 +18,8 @@ import {
   type StageChannel,
   EmbedBuilder,
 } from 'discord.js';
-import { executeCreativeBan, delay } from './shared.js';
-import { withVoiceSession, playClip } from './voice.js';
+import { executeCreativeBan, delay } from './_shared.js';
+import { withVoiceSession, playClip } from './_voice.js';
 
 const STRIKE_PHASES = [
   { delay: 1500, message: '🛰️ **[SISTEMA DE DEFENSA]** Objetivo localizado...' },
