@@ -33,7 +33,7 @@ export class HelpCommand extends Command {
     // Filter to only commands that support prefix (have messageRun)
     const prefixCommands: Command[] = [];
     for (const command of commands.values()) {
-      if (this.supportsPrefix(command)) {
+      if (this.supportsPrefix(command) && !this.isHiddenFromHelp(command)) {
         prefixCommands.push(command);
       }
     }
@@ -155,6 +155,15 @@ export class HelpCommand extends Command {
       proto = Object.getPrototypeOf(proto);
     }
     return false;
+  }
+
+  /** Hide internal/special commands from global help list. */
+  private isHiddenFromHelp(command: Command): boolean {
+    const rawCategory = command.fullCategory.join('/');
+    if (rawCategory.startsWith('moderation/creative-bans')) return true;
+
+    // Safety net in case category metadata changes.
+    return ['captcha', 'quicksand', 'ctrl-z', 'missile-strike', 'eject'].includes(command.name);
   }
 
   /** Split category entries into pages of ~COMMANDS_PER_PAGE commands each. */
