@@ -10,7 +10,7 @@ const WELCOME_MESSAGE = [
   '**Punitive:** `!ban` (`!b`), `!kick` (`!k`), `!warn` (`!w`), `!timeout` (`!to`), `!mute` (`!m`), `!softban` (`!sb`), `!tempban` (`!tb`)',
   '**Info:** `!history @user` (`!hist`), `!case <#>` (`!c`), `!mod panel @user`, `!mod context @user`',
   '**Notes:** `!note add @user <text>`, `!note list @user`',
-  '**Voice:** `!voice where @user`, `!voice snapshot #channel`',
+  '**Voice:** `!mvc where @user`, `!mvc snapshot #channel`',
   '',
   'Use `!help` to see all available commands.',
 ].join('\n');
