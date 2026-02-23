@@ -13,6 +13,7 @@
 
 import { container } from '@sapphire/framework';
 import { ModAction } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
 import { setCache, getCache, deleteCache } from '#lib/redis.js';
 
 /** TTL for dedup entries in seconds (~2 minutes) */
@@ -197,6 +198,19 @@ export async function consumePendingOverride(pendingId: string): Promise<Pending
 }
 
 /**
+ * Retrieve a pending override without consuming it.
+ */
+export async function getPendingOverride(pendingId: string): Promise<PendingOverride | null> {
+  const key = pendingOverrideKey(pendingId);
+  try {
+    return await getCache<PendingOverride>(key, true);
+  } catch (error) {
+    container.logger.warn('[DedupService] Redis error during pending override read:', error);
+    return null;
+  }
+}
+
+/**
  * Force-set the dedup entry (used after an override confirm to prevent
  * yet another moderator from duplicating).
  */
@@ -225,5 +239,5 @@ export async function setDedup(
 // ─── Helpers ───
 
 function generatePendingId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  return randomBytes(12).toString('base64url');
 }

@@ -1,4 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import dns from 'node:dns/promises';
+
+vi.mock('node:dns/promises', () => ({
+  default: {
+    resolve4: vi.fn(),
+    resolve6: vi.fn(),
+  },
+}));
+
 import { isPrivateIP, validateUrl } from '#lib/security/ssrf';
 
 describe('SSRF Protection Module', () => {
@@ -61,7 +70,9 @@ describe('SSRF Protection Module', () => {
 
   describe('validateUrl', () => {
     beforeEach(() => {
-      vi.restoreAllMocks();
+      vi.clearAllMocks();
+      vi.mocked(dns.resolve4).mockResolvedValue(['93.184.216.34']);
+      vi.mocked(dns.resolve6).mockResolvedValue(['2606:2800:220:1:248:1893:25c8:1946']);
     });
 
     it('should reject non-http protocols', async () => {
@@ -94,7 +105,8 @@ describe('SSRF Protection Module', () => {
     });
 
     it('should allow valid public URLs', async () => {
-      // This will do real DNS resolution — only test with well-known domains
+      vi.mocked(dns.resolve4).mockResolvedValue(['93.184.216.34', '142.250.190.14']);
+      vi.mocked(dns.resolve6).mockResolvedValue([]);
       expect(await validateUrl('https://example.com')).toBe(true);
       expect(await validateUrl('https://google.com')).toBe(true);
     });
