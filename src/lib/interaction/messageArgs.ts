@@ -21,6 +21,7 @@ import {
   type TempbanOptions,
   type CaseOptions,
   type HistoryOptions,
+  type VoidOptions,
   type MuteOptions,
   type UnmuteOptions,
   type VoiceWhereOptions,
@@ -474,6 +475,21 @@ export async function parseCaseFromMessage(message: Message, args: Args): Promis
   });
 
   return { caseNumber, guild, guildId };
+}
+
+/**
+ * `!mod void <number> [reason]`
+ */
+export async function parseVoidFromMessage(message: Message, args: Args): Promise<VoidOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+
+  const caseNumber = await args.pick('integer').catch(() => {
+    missingArg('number', '!mod void <number> [reason]');
+  });
+
+  const reason = await restOrDefault(args, '').then((r) => r || undefined);
+
+  return { caseNumber, reason, guild, guildId, moderator };
 }
 
 /**

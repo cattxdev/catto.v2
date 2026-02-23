@@ -14,6 +14,7 @@ import { handleTimeout } from './_timeout.js';
 import { handleWarn } from './_warn.js';
 import { handleUnban } from './_unban.js';
 import { handleCase } from './_case.js';
+import { handleCaseVoid } from './_void.js';
 import { handleHistory } from './_history.js';
 import { handleBan } from './_ban.js';
 import { handleVoiceWhere } from './_voiceWhere.js';
@@ -51,6 +52,7 @@ import {
   parseWarnOptions,
   parseUnbanOptions,
   parseCaseOptions,
+  parseVoidOptions,
   parseHistoryOptions,
   parseSoftbanOptions,
   parseTempbanOptions,
@@ -72,6 +74,7 @@ import {
   parseSoftbanFromMessage,
   parseTempbanFromMessage,
   parseCaseFromMessage,
+  parseVoidFromMessage,
   parseHistoryFromMessage,
   parsePanelFromMessage,
   parseContextFromMessage,
@@ -111,6 +114,7 @@ import { sendModWelcome } from './aliases/_shared.js';
     { name: 'warn', chatInputRun: 'chatInputWarn', messageRun: 'messageWarn' },
     { name: 'unban', chatInputRun: 'chatInputUnban', messageRun: 'messageUnban' },
     { name: 'case', chatInputRun: 'chatInputCase', messageRun: 'messageCase' },
+    { name: 'void', chatInputRun: 'chatInputVoid', messageRun: 'messageVoid' },
     { name: 'history', chatInputRun: 'chatInputHistory', messageRun: 'messageHistory' },
     { name: 'softban', chatInputRun: 'chatInputSoftban', messageRun: 'messageSoftban' },
     { name: 'tempban', chatInputRun: 'chatInputTempban', messageRun: 'messageTempban' },
@@ -196,6 +200,7 @@ export class ModCommand extends Subcommand {
         .addSubcommand(this.buildWarnSubcommand)
         .addSubcommand(this.buildUnbanSubcommand)
         .addSubcommand(this.buildCaseSubcommand)
+        .addSubcommand(this.buildVoidSubcommand)
         .addSubcommand(this.buildHistorySubcommand)
         .addSubcommand(this.buildSoftbanSubcommand)
         .addSubcommand(this.buildTempbanSubcommand)
@@ -294,6 +299,18 @@ export class ModCommand extends Subcommand {
       .setDescription('View a moderation case')
       .addIntegerOption((option) =>
         option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+      );
+  }
+
+  private buildVoidSubcommand(subcommand: SlashCommandSubcommandBuilder) {
+    return subcommand
+      .setName('void')
+      .setDescription('Void a moderation case (mark as invalid)')
+      .addIntegerOption((option) =>
+        option.setName('number').setDescription('Case number').setRequired(true).setMinValue(1)
+      )
+      .addStringOption((option) =>
+        option.setName('reason').setDescription('Reason for voiding the case').setMaxLength(512)
       );
   }
 
@@ -724,6 +741,20 @@ export class ModCommand extends Subcommand {
     return handleCase(options, new InteractionResponder(interaction));
   }
 
+  public async chatInputVoid(interaction: Subcommand.ChatInputCommandInteraction) {
+    let options;
+    try {
+      options = parseVoidOptions(interaction);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        await interaction.reply(ephemeralError(error.message));
+        return;
+      }
+      throw error;
+    }
+    return handleCaseVoid(options, new InteractionResponder(interaction));
+  }
+
   public async chatInputHistory(interaction: Subcommand.ChatInputCommandInteraction) {
     let options;
     try {
@@ -1042,6 +1073,7 @@ export class ModCommand extends Subcommand {
           value: [
             `\`${p}case\` / \`${p}c\` \`<number>\` — View a case`,
             `\`${p}history\` / \`${p}hist\` \`[user]\` — Moderation history`,
+            `\`${p}mod void <number> [reason]\` / \`${p}v <number> [reason]\` — Void a case`,
             `\`${p}mod panel <user>\` — Interactive mod panel`,
             `\`${p}mod context <user> [window]\` — Context bundle`,
             `\`${p}mod mutes [user]\` — List active mutes`,
@@ -1203,6 +1235,10 @@ export class ModCommand extends Subcommand {
 
   public async messageCase(message: Message, args: Args) {
     return this.handleMessageCommand(message, args, parseCaseFromMessage, handleCase);
+  }
+
+  public async messageVoid(message: Message, args: Args) {
+    return this.handleMessageCommand(message, args, parseVoidFromMessage, handleCaseVoid);
   }
 
   public async messageHistory(message: Message, args: Args) {
