@@ -29,7 +29,7 @@ import { handleTempban } from '../_tempban.js';
 import { handleUnban } from '../_unban.js';
 import { handleCase } from '../_case.js';
 import { handleHistory } from '../_history.js';
-import { handleCaseClose } from '../_caseManagement.js';
+import { handleCaseVoid } from '../_void.js';
 
 interface AliasConfig {
   name: string;
@@ -115,7 +115,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
     aliases: ['v'],
     description: 'Void a moderation case by number',
     parser: parseVoidFromMessage,
-    handler: handleCaseClose,
+    handler: handleCaseVoid,
   },
 ];
 

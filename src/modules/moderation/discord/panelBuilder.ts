@@ -1,5 +1,6 @@
 import { type User, type GuildMember } from 'discord.js';
 import { ModAction } from '@prisma/client';
+import { voidStrike } from './embeds/presets.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import { getActionDisplay } from './modlog.js';
 import {
@@ -277,7 +278,8 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
       const display = getActionDisplay(c.action as ModAction);
       const timestamp = formatRelativeTimestamp(c.createdAt);
       const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
-      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      const reasonDisplay = `\`${reasonPreview}\``;
+      return `${display.emoji} **${voidStrike(`#${c.caseNumber} ${display.label}`, c.status)}** · ${timestamp}\n> \n${voidStrike(reasonDisplay, c.status)}`;
     })
     .join('\n');
   const casesText = recentCases.length > 0 ? `**Cases**\n${recentCaseList}` : 'No cases found.';
