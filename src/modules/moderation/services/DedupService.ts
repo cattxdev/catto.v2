@@ -8,7 +8,7 @@
  * When a duplicate is detected, the second moderator receives a warning
  * and can choose to confirm/override.
  *
- * @see https://github.com/your-org/catto/issues/114
+ * @see https://github.com/cattxdev/catto.v2/issues/114
  */
 
 import { container } from '@sapphire/framework';

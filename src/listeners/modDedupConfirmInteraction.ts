@@ -7,7 +7,7 @@
  *
  * Custom ID format: moddedup:v1:confirm:{pendingId}
  *
- * @see https://github.com/your-org/catto/issues/114
+ * @see https://github.com/cattxdev/catto.v2/issues/114
  */
 
 import { Listener, container } from '@sapphire/framework';
