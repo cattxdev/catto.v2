@@ -49,6 +49,8 @@ export type AudioClip =
   | 'air-raid'
   | 'missile-fly'
   | 'explosion'
+  | 'target-locked'
+  | 'target-locked-2'
   | 'emergency-meeting'
   | 'ejection'
   | 'discussion';
@@ -70,12 +72,20 @@ export function resolveAudioPath(clip: AudioClip): string | null {
  * Join a voice channel and return the connection once it is ready.
  * Returns `null` if the connection cannot be established within the timeout.
  */
+export interface JoinVoiceOptions {
+  /** Optional connection group to isolate concurrent sessions in the same guild. */
+  group?: string;
+}
+
 export async function joinVoice(
-  voiceChannel: VoiceChannel | StageChannel
+  voiceChannel: VoiceChannel | StageChannel,
+  options: JoinVoiceOptions = {}
 ): Promise<VoiceConnection | null> {
+  const { group } = options;
+
   try {
     container.logger.info(
-      `[creative-bans/voice] Joining ${voiceChannel.name} (${voiceChannel.id})`
+      `[creative-bans/voice] Joining ${voiceChannel.name} (${voiceChannel.id})${group ? ` group=${group}` : ''}`
     );
     const connection = joinVoiceChannel({
       channelId: voiceChannel.id,
@@ -83,6 +93,7 @@ export async function joinVoice(
       adapterCreator: voiceChannel.guild.voiceAdapterCreator,
       selfDeaf: true,
       debug: true,
+      group,
     });
 
     connection.on('debug', (msg) => container.logger.debug(`[creative-bans/voice] ${msg}`));
