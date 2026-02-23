@@ -21,7 +21,7 @@ import {
   ButtonStyle,
 } from 'discord.js';
 import { executeCreativeBan, delay } from './_shared.js';
-import { joinVoice, disconnectVoice, playClip } from './_voice.js';
+import { joinVoice, disconnectVoice, playClip, startClip } from './_voice.js';
 import type { VoiceConnection } from '@discordjs/voice';
 
 const VOTING_DURATION_MS = 15_000;
@@ -114,6 +114,12 @@ export async function executeEject(message: Message, target: GuildMember): Promi
       components: [voteRow],
     });
 
+    // Play discussion music during voting (background — stopped when voting ends)
+    let stopDiscussion: (() => void) | null = null;
+    if (connection) {
+      stopDiscussion = startClip(connection, 'discussion');
+    }
+
     // Collect votes (cosmetic — outcome is predetermined)
     let ejectVotes = 1; // Starts at 1 (the moderator's implicit vote)
     let skipVotes = 0;
@@ -166,6 +172,9 @@ export async function executeEject(message: Message, target: GuildMember): Promi
     );
 
     await voteMsg.edit({ components: [disabledRow] }).catch(() => {});
+
+    // Stop discussion music before ejection sequence
+    if (stopDiscussion) stopDiscussion();
 
     // --- Ejection sequence ---
     await delay(1000);

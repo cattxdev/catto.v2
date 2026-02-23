@@ -45,7 +45,13 @@ const AUDIO_DIR = resolve(
 // Audio file resolution
 // ---------------------------------------------------------------------------
 
-export type AudioClip = 'air-raid' | 'missile-fly' | 'explosion' | 'emergency-meeting' | 'ejection';
+export type AudioClip =
+  | 'air-raid'
+  | 'missile-fly'
+  | 'explosion'
+  | 'emergency-meeting'
+  | 'ejection'
+  | 'discussion';
 
 /**
  * Resolve an audio clip name to its absolute file path.
@@ -155,6 +161,40 @@ export async function playClip(connection: VoiceConnection, clip: AudioClip): Pr
     player.stop(true);
     return false;
   }
+}
+
+/**
+ * Start playing a clip without awaiting completion.
+ * Returns a stop function to end playback early (e.g. for background music during voting).
+ * Returns `null` if the clip couldn't be started.
+ */
+export function startClip(connection: VoiceConnection, clip: AudioClip): (() => void) | null {
+  const filePath = resolveAudioPath(clip);
+  if (!filePath) {
+    container.logger.error(
+      `[creative-bans/voice] Audio file missing: ${clip} (AUDIO_DIR=${AUDIO_DIR})`
+    );
+    return null;
+  }
+
+  container.logger.info(`[creative-bans/voice] Starting background clip: ${clip}`);
+  const player = createAudioPlayer();
+
+  player.on('error', (err) =>
+    container.logger.error(`[creative-bans/voice] Player error on ${clip}:`, err)
+  );
+
+  const resource = createAudioResource(createReadStream(filePath), {
+    inputType: StreamType.OggOpus,
+  });
+
+  connection.subscribe(player);
+  player.play(resource);
+
+  return () => {
+    player.stop(true);
+    container.logger.info(`[creative-bans/voice] Stopped background clip: ${clip}`);
+  };
 }
 
 /**
