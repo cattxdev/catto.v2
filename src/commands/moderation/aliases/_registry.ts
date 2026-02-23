@@ -31,6 +31,7 @@ import { handleHistory } from '../_history.js';
 
 interface AliasConfig {
   name: string;
+  aliases?: string[];
   description: string;
   parser: (message: Message, args: Args) => Promise<unknown>;
   handler: (options: any, ctx: MessageResponder) => Promise<unknown>;
@@ -40,6 +41,7 @@ interface AliasConfig {
 const SIMPLE_ALIASES: AliasConfig[] = [
   {
     name: 'ban',
+    aliases: ['b'],
     description: 'Permanently ban a member or user ID from the server',
     parser: parseBanFromMessage,
     handler: handleBan,
@@ -47,6 +49,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'kick',
+    aliases: ['k'],
     description: 'Kick a member from the server',
     parser: parseKickFromMessage,
     handler: handleKick,
@@ -54,6 +57,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'warn',
+    aliases: ['w'],
     description: 'Issue a formal warning to a member',
     parser: parseWarnFromMessage,
     handler: handleWarn,
@@ -61,6 +65,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'timeout',
+    aliases: ['to'],
     description: 'Temporarily restrict a member from interacting',
     parser: parseTimeoutFromMessage,
     handler: handleTimeout,
@@ -68,6 +73,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'softban',
+    aliases: ['sb'],
     description: 'Ban and immediately unban to purge recent messages',
     parser: parseSoftbanFromMessage,
     handler: handleSoftban,
@@ -75,6 +81,7 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'tempban',
+    aliases: ['tb'],
     description: 'Temporarily ban a member for a set duration',
     parser: parseTempbanFromMessage,
     handler: handleTempban,
@@ -82,18 +89,21 @@ const SIMPLE_ALIASES: AliasConfig[] = [
   },
   {
     name: 'unban',
+    aliases: ['ub'],
     description: 'Unban a user by their ID',
     parser: parseUnbanFromMessage,
     handler: handleUnban,
   },
   {
     name: 'case',
+    aliases: ['c'],
     description: 'View details of a moderation case by number',
     parser: parseCaseFromMessage,
     handler: handleCase,
   },
   {
     name: 'history',
+    aliases: ['h'],
     description: "View a member's full moderation history",
     parser: parseHistoryFromMessage,
     handler: handleHistory,
@@ -107,6 +117,7 @@ function createAliasCommand(config: AliasConfig): Constructor<Command> {
     public constructor(context: Command.LoaderContext) {
       super(context, {
         name: config.name,
+        aliases: config.aliases ?? [],
         description: config.description,
         fullCategory: ['moderation', 'aliases'],
         preconditions: ['GuildOnly'],
