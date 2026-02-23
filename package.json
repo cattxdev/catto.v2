@@ -120,6 +120,9 @@
       "tsx scripts/fix-imports.ts",
       "eslint --fix",
       "prettier --write"
+    ],
+    "prisma/**/*.prisma": [
+      "sh -c 'pnpm prisma format'"
     ]
   }
 }
