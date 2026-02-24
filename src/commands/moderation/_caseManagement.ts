@@ -23,6 +23,7 @@ export interface CaseLinkOptions {
 export interface CaseCloseOptions {
   caseNumber: number;
   status?: CaseStatus;
+  successDescription?: string;
   guild: Guild;
   guildId: string;
   moderator: User;
@@ -107,7 +108,8 @@ export async function handleCaseClose(options: CaseCloseOptions, ctx: CommandRes
     const statusLabel = status === CaseStatus.VOID ? 'voided' : 'closed';
     await ctx.editReply(
       successMessage(
-        `Case #${options.caseNumber} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`
+        `Case #${options.caseNumber} ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`,
+        options.successDescription
       )
     );
   } catch (error) {

@@ -60,6 +60,8 @@
     "@aws-sdk/client-s3": "^3.980.0",
     "@aws-sdk/s3-request-presigner": "^3.980.0",
     "@discordjs/builders": "^1.13.1",
+    "@discordjs/opus": "^0.9.0",
+    "@discordjs/voice": "^0.19.0",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@sapphire/decorators": "^6.2.0",
@@ -70,6 +72,7 @@
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/plugin-subcommands": "^7.0.1",
     "@sapphire/utilities": "^3.17.3",
+    "@snazzah/davey": "^0.1.9",
     "archiver": "^7.0.1",
     "axios": "^1.13.5",
     "bullmq": "^5.66.5",
@@ -85,6 +88,7 @@
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.34.5",
     "signale": "^1.4.0",
+    "sodium-native": "^5.0.10",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -120,6 +124,9 @@
       "tsx scripts/fix-imports.ts",
       "eslint --fix",
       "prettier --write"
+    ],
+    "prisma/**/*.prisma": [
+      "node scripts/format-prisma-staged.mjs"
     ]
   }
 }

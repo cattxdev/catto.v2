@@ -1,15 +1,16 @@
 import { MuteType, ModAction } from '@prisma/client';
+import type { Guild, User } from 'discord.js';
 import { muteService } from '../../modules/moderation/services/MuteService.js';
 import { logModAction, formatDuration } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { MuteOptions, UnmuteOptions } from '#lib/interaction/typedOptions.js';
 import { asUserId, asGuildId } from '../../modules/moderation/domain/types.js';
-import { errorMessage, successMessage } from '#lib/discord/index.js';
+import { errorMessage, successMessage, safeTag } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
-import type { Guild, User } from 'discord.js';
 import type { GuildId } from '../../modules/moderation/domain/types.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { Gate, isFail } from '#lib/validation/Gate.js';
@@ -51,6 +52,20 @@ export async function handleMuteText(options: MuteOptions, ctx: CommandResponder
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
       await ctx.editReply(hierarchyResult.response);
+      return;
+    }
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_TEXT,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
       return;
     }
 
@@ -150,6 +165,20 @@ export async function handleMuteVoice(options: MuteOptions, ctx: CommandResponde
       return;
     }
 
+    // Dedup check
+    const dedupWarningVoice = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_VOICE,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarningVoice) {
+      await ctx.editReply(dedupWarningVoice);
+      return;
+    }
+
     // Execute mute via service
     const result = await muteService.muteVoice(
       options.guild,
@@ -245,6 +274,20 @@ export async function handleMuteBoth(options: MuteOptions, ctx: CommandResponder
     const hierarchyResult = gate.checkHierarchy(targetMember);
     if (isFail(hierarchyResult)) {
       await ctx.editReply(hierarchyResult.response);
+      return;
+    }
+
+    // Dedup check
+    const dedupWarningBoth = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.MUTE_BOTH,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarningBoth) {
+      await ctx.editReply(dedupWarningBoth);
       return;
     }
 
@@ -566,7 +609,7 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
     }
 
     if (mutes.length === 0) {
-      const filterText = options.target ? ` for ${options.target.tag}` : '';
+      const filterText = options.target ? ` for ${safeTag(options.target.tag)}` : '';
       const typeText = type ? ` of type ${type}` : '';
       await ctx.editReply(errorMessage('Error', `No active mutes found${filterText}${typeText}.`));
       return;
@@ -575,7 +618,7 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
     const muteLines = await Promise.all(
       mutes.slice(0, 20).map(async (m) => {
         const user = await ctx.client.users.fetch(m.userId).catch(() => null);
-        const username = user?.tag ?? m.userId;
+        const username = user?.tag ? safeTag(user.tag) : m.userId;
         const expiresText = m.expiresAt
           ? `expires <t:${Math.floor(m.expiresAt.getTime() / 1000)}:R>`
           : 'permanent';
@@ -583,7 +626,9 @@ export async function handleMutesList(options: MutesListOptions, ctx: CommandRes
       })
     );
 
-    const title = options.target ? `Active mutes for ${options.target.tag}` : 'Active mutes';
+    const title = options.target
+      ? `Active mutes for ${safeTag(options.target.tag)}`
+      : 'Active mutes';
     const remaining = mutes.length > 20 ? `\n*... and ${mutes.length - 20} more*` : '';
 
     await ctx.editReply(

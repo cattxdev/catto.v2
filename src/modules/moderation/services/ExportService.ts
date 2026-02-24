@@ -76,7 +76,7 @@ export class ExportService {
           createdAt: item.createdAt.toISOString(),
           sizeBytes: item.sizeBytes,
           contentHash: item.contentHash,
-          tags: (item as any).tags ?? [],
+          tags: item.tags ?? [],
           localFilename,
           amendments: (item.amendments ?? []).map((a) => ({
             action: a.action,

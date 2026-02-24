@@ -7,10 +7,10 @@ import { buildErrorText } from '#lib/discord/index.js';
 const WELCOME_MESSAGE = [
   '**Welcome to the moderation team!** Here are some tips to get started:',
   '',
-  '**Punitive:** `!ban`, `!kick`, `!warn`, `!timeout`, `!mute`, `!softban`, `!tempban`',
-  '**Info:** `!mod history @user`, `!mod case <#>`, `!mod panel @user`, `!mod context @user`',
+  '**Punitive:** `!ban` (`!b`), `!kick` (`!k`), `!warn` (`!w`), `!timeout` (`!to`), `!mute` (`!m`), `!softban` (`!sb`), `!tempban` (`!tb`)',
+  '**Info:** `!history @user` (`!hist`), `!case <#>` (`!c`), `!mod panel @user`, `!mod context @user`',
   '**Notes:** `!note add @user <text>`, `!note list @user`',
-  '**Voice:** `!voice where @user`, `!voice snapshot #channel`',
+  '**Voice:** `!mvc where @user`, `!mvc snapshot #channel`',
   '',
   'Use `!help` to see all available commands.',
 ].join('\n');

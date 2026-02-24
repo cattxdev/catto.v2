@@ -31,6 +31,7 @@
 // Core Services
 export * from './ModerationService.js';
 export * from './MuteService.js';
+export * from './DedupService.js';
 export * from './MuteScheduler.js';
 export * from './TempbanScheduler.js';
 export * from './CaseService.js';

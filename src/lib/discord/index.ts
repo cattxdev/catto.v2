@@ -50,6 +50,7 @@ export {
   userMention,
   channelMention,
   roleMention,
+  safeTag,
   // User display
   type UserDisplayOptions,
   type UserDisplayResult,

@@ -101,6 +101,7 @@ jobs:
               - 'tsconfig.json'
               - 'Dockerfile'
               - 'languages/**'
+              - 'assets/**'
               - 'prisma.config.ts'
             watermark:
               - 'services/watermark-rs/**'

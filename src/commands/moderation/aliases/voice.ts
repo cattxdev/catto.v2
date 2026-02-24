@@ -19,8 +19,8 @@ import { runAliasCommand } from './_shared.js';
  * Standalone shortcut for `!mod voice <subcommand>`.
  */
 @ApplyOptions<Command.Options>({
-  name: 'voice',
-  aliases: ['vc'],
+  name: 'mvc',
+  aliases: [],
   description: 'Monitor and snapshot voice channel activity',
   preconditions: ['GuildOnly'],
 })
@@ -57,10 +57,10 @@ export class VoiceAliasCommand extends Command {
     return message.channel.send({
       content: [
         '**Voice Commands**',
-        `\`${prefix}voice where <user>\` — Locate user in voice`,
-        `\`${prefix}voice watch <user> <duration>\` — Watch voice activity`,
-        `\`${prefix}voice snapshot <channel>\` — Snapshot voice channel`,
-        `\`${prefix}voice track <channel> <duration>\` — Track voice channel`,
+        `\`${prefix}mvc where <user>\` — Locate user in voice`,
+        `\`${prefix}mvc watch <user> <duration>\` — Watch voice activity`,
+        `\`${prefix}mvc snapshot <channel>\` — Snapshot voice channel`,
+        `\`${prefix}mvc track <channel> <duration>\` — Track voice channel`,
       ].join('\n'),
       allowedMentions: { parse: [] },
     });

@@ -1,4 +1,5 @@
 import { ModAction } from '@prisma/client';
+import type { GuildMember } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import {
   logModAction,
@@ -9,8 +10,8 @@ import {
   buildModActionError,
   buildModActionSuccess,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { TempbanOptions } from '#lib/interaction/typedOptions.js';
-import type { GuildMember } from 'discord.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
 import { ensureNonNull } from '#root/lib/utils.js';
@@ -60,6 +61,21 @@ export async function handleTempban(options: TempbanOptions, ctx: CommandRespond
 
   try {
     const targetTag = target?.tag ?? `User ID: ${targetId}`;
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild,
+      target: target ?? { id: targetId, tag: targetTag },
+      moderator,
+      action: ModAction.TEMPBAN,
+      reason: reason ?? 'No reason provided',
+      duration: durationSeconds,
+      extra: { deleteMessages },
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
+      return;
+    }
 
     const result = await moderationService.tempbanById(
       guild,

@@ -1,5 +1,6 @@
 import { type User, type GuildMember } from 'discord.js';
 import { ModAction } from '@prisma/client';
+import { voidStrike } from './embeds/presets.js';
 import { encodeModPanelCustomId, ModPanelAction } from './customId.js';
 import { getActionDisplay } from './modlog.js';
 import {
@@ -8,6 +9,7 @@ import {
   formatRelativeTimestamp,
   truncateText,
   userMention,
+  safeTag,
   row,
   primaryButton,
   secondaryButton,
@@ -19,6 +21,7 @@ import {
   infoContainer,
   successContainer,
   errorContainer,
+  warningContainer,
 } from '#lib/discord/index.js';
 import type { NoteData } from '../services/NotesService.js';
 import type { ExtendedCaseData } from '../services/CaseService.js';
@@ -230,7 +233,7 @@ export function buildModPanel(context: ModPanelContext): FluentContainer {
 
   const result = primaryContainer()
     .h2(`${EMOJI.MODERATION.ICONS.SHIELD_BLUE} Mod Panel${flagIndicator}`)
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`)
+    .text(`${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (\`${target.id}\`)`)
     .when(!!voiceChannelId, (c) =>
       c.text(
         `${EMOJI.VOICE.ICONS.GENERIC} <#${ensureNonNull(voiceChannelId, 'panelBuilder > buildModPanel(158): voiceChannelId')}>`
@@ -275,7 +278,8 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
       const display = getActionDisplay(c.action as ModAction);
       const timestamp = formatRelativeTimestamp(c.createdAt);
       const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
-      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      const reasonDisplay = `\`${reasonPreview}\``;
+      return `${display.emoji} **${voidStrike(`#${c.caseNumber} ${display.label}`, c.status)}** · ${timestamp}\n> \n${voidStrike(reasonDisplay, c.status)}`;
     })
     .join('\n');
   const casesText = recentCases.length > 0 ? `**Cases**\n${recentCaseList}` : 'No cases found.';
@@ -311,7 +315,9 @@ export function buildContextBundle(context: ModPanelContext): FluentContainer {
 
   return infoContainer()
     .h2('Context Bundle')
-    .text(`${EMOJI.USER.ICONS.MEMBER} ${target.tag} (${userMention(target.id)}) · \`${target.id}\``)
+    .text(
+      `${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (${userMention(target.id)}) · \`${target.id}\``
+    )
     .separator()
     .h2('Timeline')
     .text(timeline.join('\n'))
@@ -348,7 +354,7 @@ export function buildNotesList(
   const pageNotes = notes.slice(startIdx, startIdx + pageSize);
 
   const c = container()
-    .h2(`Notes for ${target.tag}`)
+    .h2(`Notes for ${safeTag(target.tag)}`)
     .text(`Page ${page} of ${totalPages} (${notes.length} total)`)
     .separator();
 
@@ -378,7 +384,7 @@ export function buildModActionSuccess(
   duration?: string,
   options?: { dmSent?: boolean; guildId?: string; evidenceAttached?: boolean }
 ): FluentContainer {
-  const targetTag = target.tag;
+  const targetTag = safeTag(target.tag);
   const details: Record<string, string> = {
     [`Target`]: `${targetTag} (\`${target.id}\`)`,
     [`Reason`]: reason,
@@ -415,4 +421,35 @@ export function buildModActionError(error: string, suggestion?: string): FluentC
     .when(!!suggestion, (c) =>
       c.separator().text(`${EMOJI.STATUS.INFO} **Suggestion:** ${suggestion}`)
     );
+}
+
+/**
+ * Build a dedup warning message with a confirm override button.
+ *
+ * Shown when a moderator tries to perform an action that was already
+ * executed by another moderator within the last ~2 minutes.
+ *
+ * @see https://github.com/your-org/catto/issues/114
+ */
+export function buildDedupWarning(
+  action: ModAction,
+  targetTag: string,
+  existingModeratorTag: string,
+  existingTimestamp: number,
+  pendingId: string
+): FluentContainer {
+  const relativeTime = formatRelativeTimestamp(new Date(existingTimestamp));
+  const display = getActionDisplay(action);
+
+  return warningContainer()
+    .h2(`${EMOJI.STATUS.WARNING} Duplicate Action Detected`)
+    .text(
+      `**${targetTag}** was already **${display.pastTense}** by **${existingModeratorTag}** ${relativeTime}.`
+    )
+    .text('If this is intentional, click **Confirm Override** to proceed anyway.')
+    .confirmRow(`moddedup:v1:confirm:${pendingId}`, `moddedup:v1:cancel:${pendingId}`, {
+      confirmLabel: 'Confirm Override',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
 }

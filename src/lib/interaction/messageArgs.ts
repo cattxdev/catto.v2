@@ -21,6 +21,7 @@ import {
   type TempbanOptions,
   type CaseOptions,
   type HistoryOptions,
+  type VoidOptions,
   type MuteOptions,
   type UnmuteOptions,
   type VoiceWhereOptions,
@@ -477,6 +478,21 @@ export async function parseCaseFromMessage(message: Message, args: Args): Promis
 }
 
 /**
+ * `!mod void <number> [reason]`
+ */
+export async function parseVoidFromMessage(message: Message, args: Args): Promise<VoidOptions> {
+  const { guild, guildId, moderator } = ensureGuildMessage(message);
+
+  const caseNumber = await args.pick('integer').catch(() => {
+    missingArg('number', '!mod void <number> [reason]');
+  });
+
+  const reason = await restOrDefault(args, '').then((r) => r || undefined);
+
+  return { caseNumber, reason, guild, guildId, moderator };
+}
+
+/**
  * `!history [@user]`
  *
  * If no user is provided, defaults to the message author.
@@ -504,7 +520,7 @@ export async function parseHistoryFromMessage(
 }
 
 /**
- * `!mute <@user> [duration] <reason>`
+ * `!mute [text|voice|both] <@user> [duration] <reason>`
  *
  * If the first word after the user mention parses as a valid duration it is
  * consumed as the optional duration; otherwise the entire remainder (including
@@ -512,7 +528,9 @@ export async function parseHistoryFromMessage(
  */
 export async function parseMuteFromMessage(message: Message, args: Args): Promise<MuteOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await pickUserFlexible(args, guild, '!mute <@user> [duration] <reason>');
+  const p = container.client.options.defaultPrefix ?? '!';
+  const usage = `${p}mute [text|voice|both] <@user> [duration] <reason>`;
+  const target = await pickUserFlexible(args, guild, usage);
 
   let durationSeconds: DurationSeconds | undefined;
 
@@ -535,7 +553,7 @@ export async function parseMuteFromMessage(message: Message, args: Args): Promis
   }
 
   const reason = await args.rest('string').catch(() => {
-    missingArg('reason', '!mute <@user> [duration] <reason>');
+    missingArg('reason', usage);
   });
 
   return {
@@ -551,11 +569,16 @@ export async function parseMuteFromMessage(message: Message, args: Args): Promis
 }
 
 /**
- * `!unmute <@user> [reason]`
+ * `!unmute [text|voice|both] <@user> [reason]`
  */
 export async function parseUnmuteFromMessage(message: Message, args: Args): Promise<UnmuteOptions> {
   const { guild, guildId, moderator, moderatorMember } = ensureGuildMessage(message);
-  const target = await pickUserFlexible(args, guild, '!unmute <@user> [reason]');
+  const p = container.client.options.defaultPrefix ?? '!';
+  const target = await pickUserFlexible(
+    args,
+    guild,
+    `${p}unmute [text|voice|both] <@user> [reason]`
+  );
   const reason = await restOrDefault(args, 'No reason provided');
 
   return {

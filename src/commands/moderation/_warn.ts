@@ -5,6 +5,7 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { WarnOptions } from '#lib/interaction/typedOptions.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
@@ -32,6 +33,19 @@ export async function handleWarn(options: WarnOptions, ctx: CommandResponder) {
   await ctx.defer();
 
   try {
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.WARN,
+      reason: options.reason ?? 'No reason provided',
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
+      return;
+    }
+
     // Notify user before warn
     const notified = await notifyUser(
       options.target,

@@ -135,6 +135,17 @@ export interface CaseOptions {
 }
 
 /**
+ * Parsed void options from interaction
+ */
+export interface VoidOptions {
+  caseNumber: number;
+  reason?: string;
+  guild: Guild;
+  guildId: GuildId;
+  moderator: User;
+}
+
+/**
  * Parsed history options from interaction
  */
 export interface HistoryOptions {
@@ -348,6 +359,24 @@ export function parseCaseOptions(interaction: ChatInputCommandInteraction): Case
     caseNumber,
     guild,
     guildId,
+  };
+}
+
+/**
+ * Parse void subcommand options
+ */
+export function parseVoidOptions(interaction: ChatInputCommandInteraction): VoidOptions {
+  const { guild, guildId } = ensureGuildContext(interaction);
+
+  const caseNumber = interaction.options.getInteger('number', true);
+  const reason = interaction.options.getString('reason') ?? undefined;
+
+  return {
+    caseNumber,
+    reason,
+    guild,
+    guildId,
+    moderator: interaction.user,
   };
 }
 

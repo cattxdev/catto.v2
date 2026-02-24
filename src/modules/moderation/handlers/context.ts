@@ -25,6 +25,8 @@ export interface ModerationContext {
   reason: string;
   /** Optional duration for timed actions (in seconds) */
   duration?: DurationSeconds;
+  /** When true, skip the mod action dedup check (used for confirmed overrides) */
+  skipDedup?: boolean;
 }
 
 /**

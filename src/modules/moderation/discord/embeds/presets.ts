@@ -1,6 +1,6 @@
 import { container as sapphireContainer } from '@sapphire/framework';
 import { GuildMember, type User, type Guild, MessageFlags } from 'discord.js';
-import { ModAction } from '@prisma/client';
+import { ModAction, CaseStatus } from '@prisma/client';
 import type { DurationSeconds, CaseNumber } from '../../domain/types.js';
 import {
   container,
@@ -11,6 +11,7 @@ import {
   EMOJI,
   COLORS,
   paginationRow,
+  safeTag,
   type FluentContainer,
 } from '#lib/discord/index.js';
 import * as modV1 from './v1.js';
@@ -24,6 +25,20 @@ import { ensureNonNull } from '#root/lib/utils.js';
 
 // Re-export for convenience
 export { formatDuration, type ModLogEntry };
+
+/**
+ * Check whether a case status is voided.
+ */
+export function isVoidCase(status?: CaseStatus): boolean {
+  return status === CaseStatus.VOID;
+}
+
+/**
+ * Apply strikethrough to text when voided.
+ */
+export function voidStrike(text: string, status?: CaseStatus): string {
+  return isVoidCase(status) ? `~~${text}~~` : text;
+}
 
 const OFFENSE_WINDOW_DAYS = 30;
 
@@ -116,8 +131,8 @@ export function createModEmbed(
 
   return modV1.buildModActionEmbed(
     action,
-    { tag: targetUser.tag, id: target.id },
-    { tag: moderator.tag, id: moderator.id },
+    { tag: safeTag(targetUser.tag), id: target.id },
+    { tag: safeTag(moderator.tag), id: moderator.id },
     reason || 'No reason provided',
     {
       caseNumber,
@@ -276,6 +291,7 @@ export const buildModLogEntryV2 = buildModLogEntry;
 export function createCaseEmbed(modCase: {
   caseNumber: number;
   action: ModAction;
+  status?: CaseStatus;
   targetTag: string;
   targetId: string;
   moderatorTag: string;
@@ -288,9 +304,11 @@ export function createCaseEmbed(modCase: {
   evidenceCount?: number;
 }): FluentContainer {
   const display = getActionDisplay(modCase.action);
-  const reason = modCase.reason ?? 'No reason provided';
-  return container({ color: display.color })
-    .h2(`${display.emoji} Case #${modCase.caseNumber}`)
+  const reason = '`' + (modCase.reason ?? 'No reason provided') + '`';
+  const voided = isVoidCase(modCase.status);
+  const s = modCase.status;
+  return container({ color: voided ? COLORS.NEUTRAL : display.color })
+    .h2(`${display.emoji} ${voidStrike(`Case #${modCase.caseNumber}`, s)}`)
     .text(
       `**Action**: ${display.label ?? modCase.action}
 **Reason**: ${reason}`
@@ -306,8 +324,8 @@ export function createCaseEmbed(modCase: {
       )
     )
     .text(
-      `-# Target: <@${modCase.targetId}>(${modCase.targetTag ?? modCase.targetId})
--# Moderator: ${modCase.moderatorId === 'System' ? 'System' : `<@${modCase.moderatorId}>(${modCase.moderatorTag ?? modCase.moderatorId})`}`
+      `-# Target: <@${modCase.targetId}> (${modCase.targetId})
+-# Moderator: ${modCase.moderatorId === 'System' ? 'System' : `<@${modCase.moderatorId}> (${modCase.moderatorId})`}`
     )
     .when(modCase.evidenceCount !== undefined && modCase.evidenceCount > 0, (c) =>
       c.text(`> Evidence: ${modCase.evidenceCount} item(s)`)
@@ -318,6 +336,7 @@ export function createCaseEmbed(modCase: {
 export interface HistoryCase {
   caseNumber: number;
   action: ModAction;
+  status?: CaseStatus;
   createdAt: Date;
   reason: string | null;
 }
@@ -357,11 +376,12 @@ export function createHistoryEmbed(
       const display = getActionDisplay(c.action);
       const timestamp = formatRelativeTimestamp(c.createdAt);
       const reasonPreview = c.reason ? truncateText(c.reason, 50) : 'No reason provided';
-      return `${display.emoji} **#${c.caseNumber} ${display.label}** · ${timestamp}\n> Why: \`${reasonPreview}\``;
+      const reasonDisplay = `\`${reasonPreview}\``;
+      return `**${voidStrike(`#${c.caseNumber} ${display.label}`, c.status)}** · ${timestamp}\n> Why: ${voidStrike(reasonDisplay, c.status)}`;
     })
     .join('\n');
 
-  const header = `${EMOJI.USER.ICONS.MEMBER} ${target.tag} (\`${target.id}\`)`;
+  const header = `${EMOJI.USER.ICONS.MEMBER} ${safeTag(target.tag)} (\`${target.id}\`)`;
   const c = container({ color: COLORS.WARN })
     .beginSection()
     .h2(`${EMOJI.MODERATION.ICONS.CENSOR_ASTERISK} Moderation history`)
@@ -372,7 +392,7 @@ export function createHistoryEmbed(
 
   if (pageCases.length > 0) {
     c.separator();
-    c.text(`**Cases (page ${page} of ${totalPages})**\n${caseList}`);
+    c.text(`**Cases (page ${page} of ${totalPages})**\n\n${caseList}`);
   } else {
     c.text('No cases found.');
   }

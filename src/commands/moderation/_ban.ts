@@ -1,14 +1,15 @@
 import { ModAction } from '@prisma/client';
+import type { User } from 'discord.js';
 import { moderationService } from '../../modules/moderation/services/ModerationService.js';
 import { logModAction, notifyUser } from '../../modules/moderation/discord/embeds/presets.js';
 import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { BanOptions } from '#lib/interaction/typedOptions.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
-import type { User } from 'discord.js';
 import { ensureNonNull } from '#root/lib/utils.js';
 import { Gate, isFail } from '#lib/validation/Gate.js';
 
@@ -55,6 +56,20 @@ export async function handleBan(options: BanOptions, ctx: CommandResponder) {
     } catch {
       // User is not in the server - that's fine, we can still ban them by ID
       // No hierarchy check needed, no DM can be sent
+    }
+
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: targetUser ?? { id: options.targetId, tag: `Unknown (${options.targetId})` },
+      moderator: options.moderator,
+      action: ModAction.BAN,
+      reason: options.reason ?? 'No reason provided',
+      extra: { deleteMessages: options.deleteMessages },
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
+      return;
     }
 
     // Execute ban via service

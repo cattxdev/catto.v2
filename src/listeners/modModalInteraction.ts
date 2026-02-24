@@ -9,6 +9,7 @@ import {
 import {
   buildModActionSuccess,
   buildModActionError,
+  buildDedupWarning,
 } from '#root/modules/moderation/discord/panelBuilder.js';
 import { getActionDisplay } from '#root/modules/moderation/discord/modlog.js';
 import { notesService } from '#root/modules/moderation/services/NotesService.js';
@@ -123,8 +124,25 @@ export class ModModalInteractionListener extends Listener {
           return void (await this.editError(interaction, 'Unknown action.'));
       }
 
-      if (!result.success)
+      if (!result.success) {
+        // Check if this is a dedup block — show override UI instead of plain error
+        if (result.deduplicated?.pendingId) {
+          const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+          const warning = buildDedupWarning(
+            modAction,
+            ctx.target.tag,
+            result.deduplicated.moderatorTag,
+            result.deduplicated.timestamp,
+            result.deduplicated.pendingId
+          );
+          await interaction.editReply({
+            components: [warning.build()],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         return void (await this.editError(interaction, result.error ?? 'Action failed.'));
+      }
 
       const caseNumber = ensureNonNull(result.caseNumber, 'reason modal > caseNumber');
       const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
@@ -193,8 +211,24 @@ export class ModModalInteractionListener extends Listener {
           return void (await this.editError(interaction, 'Unknown action.'));
       }
 
-      if (!result.success)
+      if (!result.success) {
+        if (result.deduplicated?.pendingId) {
+          const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
+          const warning = buildDedupWarning(
+            modAction,
+            ctx.target.tag,
+            result.deduplicated.moderatorTag,
+            result.deduplicated.timestamp,
+            result.deduplicated.pendingId
+          );
+          await interaction.editReply({
+            components: [warning.build()],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         return void (await this.editError(interaction, result.error ?? 'Action failed.'));
+      }
 
       const caseNumber = ensureNonNull(result.caseNumber, 'duration modal > caseNumber');
       const modAction = ACTION_TO_MOD_ACTION[parsed.action]!;
@@ -305,8 +339,24 @@ export class ModModalInteractionListener extends Listener {
       }
 
       const result = await executeMute(ctx, parsed.action);
-      if (!result.success)
+      if (!result.success) {
+        if (result.deduplicated?.pendingId) {
+          const muteModAction = MUTE_ACTION_TO_MOD_ACTION[parsed.action]!;
+          const warning = buildDedupWarning(
+            muteModAction,
+            ctx.target.tag,
+            result.deduplicated.moderatorTag,
+            result.deduplicated.timestamp,
+            result.deduplicated.pendingId
+          );
+          await interaction.editReply({
+            components: [warning.build()],
+            flags: MessageFlags.IsComponentsV2,
+          });
+          return;
+        }
         return void (await this.editError(interaction, result.error ?? 'Mute action failed.'));
+      }
 
       const caseNumber = ensureNonNull(result.caseNumber, 'mute modal > caseNumber');
       const durationText = duration ? formatDuration(duration) : undefined;

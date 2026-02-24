@@ -9,6 +9,7 @@ import {
   buildModActionSuccess,
   buildModActionError,
 } from '../../modules/moderation/discord/panelBuilder.js';
+import { commandDedupCheck } from '../../modules/moderation/handlers/dedupCheck.js';
 import type { TimeoutOptions } from '#lib/interaction/typedOptions.js';
 import { errorMessage } from '#lib/discord/index.js';
 import type { CommandResponder } from '#lib/discord/index.js';
@@ -55,6 +56,20 @@ export async function handleTimeout(options: TimeoutOptions, ctx: CommandRespond
   await ctx.defer();
 
   try {
+    // Dedup check
+    const dedupWarning = await commandDedupCheck({
+      guild: options.guild,
+      target: options.target,
+      moderator: options.moderator,
+      action: ModAction.TIMEOUT,
+      reason: options.reason ?? 'No reason provided',
+      duration: options.durationSeconds,
+    });
+    if (dedupWarning) {
+      await ctx.editReply(dedupWarning);
+      return;
+    }
+
     // Notify user before timeout
     const notified = await notifyUser(
       options.target,

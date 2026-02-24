@@ -42,6 +42,14 @@ export function formatStatsLine(
 }
 
 /**
+ * Escape underscores in a username/tag to prevent italic formatting.
+ * Discord usernames only allow [a-z0-9_.], so `_` is the only markdown character.
+ */
+export function safeTag(tag: string): string {
+  return tag.replace(/_/g, '\\_');
+}
+
+/**
  * Format a user with tag and ID
  */
 export function formatUserMention(user: User | string): string {
@@ -49,7 +57,7 @@ export function formatUserMention(user: User | string): string {
     return `<@${user}>`;
   }
 
-  return `${user.tag} (\`${user.id}\`)`;
+  return `${safeTag(user.tag)} (\`${user.id}\`)`;
 }
 
 /**
