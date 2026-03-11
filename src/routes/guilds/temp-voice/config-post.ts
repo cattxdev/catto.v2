@@ -9,6 +9,7 @@ import { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { CreateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 import { ApiGate } from '#lib/validation/ApiGate.js';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class TempVoiceConfigPostRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -46,19 +47,17 @@ export class TempVoiceConfigPostRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
-      // Parse body if it's a string
-      let body: unknown = request.body;
-      if (typeof body === 'string') {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
+      // Parse body from request stream
+      const body = await parseRequestBody(request);
 
-      // Default to empty object if body is undefined
       if (!body) {
-        body = {};
+        return response.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_BODY',
+            message: 'Request body is required',
+          },
+        });
       }
 
       // Check if config already exists

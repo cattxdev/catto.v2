@@ -27,10 +27,6 @@ export enum XPMode {
 export enum LevelCurveType {
   FORMULA = 'FORMULA',
   TABLE = 'TABLE',
-  // Legacy values kept for backward compatibility (normalized to FORMULA at route layer)
-  LINEAR = 'LINEAR',
-  EXPONENTIAL = 'EXPONENTIAL',
-  LOGARITHMIC = 'LOGARITHMIC',
 }
 
 export class UpdateXPConfigDto {
@@ -130,8 +126,7 @@ export class UpdateXPConfigDto {
 
   // Level Curve Configuration
   @IsEnum(LevelCurveType, {
-    message:
-      'levelCurveType must be FORMULA or TABLE (legacy LINEAR/EXPONENTIAL/LOGARITHMIC are accepted)',
+    message: 'levelCurveType must be FORMULA or TABLE',
   })
   @IsOptional()
   levelCurveType?: LevelCurveType;
@@ -156,7 +151,10 @@ export class UpdateXPConfigDto {
 
   @IsArray()
   @IsOptional()
-  @ArrayMinSize(1, { message: 'tableThresholds must contain at least one value' })
+  @ValidateIf((o) => o.levelCurveType === 'TABLE')
+  @ArrayMinSize(1, {
+    message: 'tableThresholds must contain at least one value when using TABLE curve type',
+  })
   @Type(() => Number)
   tableThresholds?: number[];
 }

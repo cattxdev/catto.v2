@@ -8,6 +8,7 @@ import { RouteRequestWithBody } from '#root/lib/route-types.js';
 import { validateDto } from '#lib/validation/validate-dto.js';
 import { CreateTempVoiceConfigDto } from '#lib/dtos/temp-voice/temp-voice-config.dto.js';
 import { ApiGate } from '#lib/validation/ApiGate.js';
+import { parseRequestBody } from '#lib/route-utils.js';
 
 export class TempVoiceValidateRoute extends Route {
   public constructor(context: Route.LoaderContext, options: Route.Options) {
@@ -45,15 +46,8 @@ export class TempVoiceValidateRoute extends Route {
         return response.status(403).json({ error: 'Forbidden', code: auth.code });
       }
 
-      // Parse body if it's a string
-      let body: unknown = request.body;
-      if (typeof body === 'string') {
-        try {
-          body = JSON.parse(body);
-        } catch {
-          body = {};
-        }
-      }
+      // Parse body from request stream
+      const body = await parseRequestBody(request);
 
       // Validate against schema
       const validationResult = await validateDto(CreateTempVoiceConfigDto, body);

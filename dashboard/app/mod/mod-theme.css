@@ -16,6 +16,13 @@
   --mono-100: #e5e5e5;
   --mono-white: #ffffff;
 
+  /* Override Tailwind primary color */
+  --primary: var(--mono-white);
+  --primary-foreground: var(--mono-black);
+
+  /* Override input background */
+  --input: var(--mono-900);
+
   --mod-bg: var(--mono-950);
   --mod-surface: var(--mono-900);
   --mod-surface-hover: var(--mono-850);
@@ -95,3 +102,411 @@
   color: var(--mono-300) !important;
   font-family: var(--font-mono) !important;
 }
+
+/* ─── Shadcn/UI Component Overrides for Mod Theme ─── */
+
+/* Card components */
+[data-theme='mod'] [class*="rounded-xl"][class*="border"][class*="bg-card"],
+[data-theme='mod'] [class*="rounded-xl"][class*="border"][class*="shadow-glass"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] [class*="text-card-foreground"] {
+  color: var(--mod-text) !important;
+}
+
+[data-theme='mod'] [class*="text-muted-foreground"] {
+  color: var(--mod-text-muted) !important;
+}
+
+/* Button overrides */
+[data-theme='mod'] button[class*="bg-primary"]:not([class*="text-primary"]) {
+  background-color: var(--mono-white) !important;
+  color: var(--mono-black) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] button[class*="bg-primary"]:not([class*="text-primary"]):hover {
+  background-color: var(--mono-200) !important;
+}
+
+/* Outline buttons (have border + bg-transparent + text-primary) */
+[data-theme='mod'] button[class*="border"][class*="text-primary"] {
+  background-color: transparent !important;
+  border-color: var(--mod-border) !important;
+  color: var(--mod-text-muted) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] button[class*="border"][class*="text-primary"]:hover {
+  background-color: var(--mod-surface-hover) !important;
+  border-color: var(--mod-border-hover) !important;
+  color: var(--mod-text) !important;
+}
+
+[data-theme='mod'] button[class*="border"][class*="bg-transparent"] {
+  border-color: var(--mod-border) !important;
+  color: var(--mod-text) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] button[class*="border"][class*="bg-transparent"]:hover {
+  background-color: var(--mod-surface-hover) !important;
+  border-color: var(--mod-border-hover) !important;
+}
+
+[data-theme='mod'] button[class*="bg-destructive"] {
+  background-color: var(--mod-error) !important;
+  border-radius: 0 !important;
+  color: var(--mono-white) !important;
+  border: none !important;
+}
+
+[data-theme='mod'] button[class*="bg-destructive"]:hover {
+  background-color: #dc2626 !important;
+}
+
+[data-theme='mod'] button[class*="ghost"],
+[data-theme='mod'] button[class*="text-muted-foreground"]:not([class*="bg-"]) {
+  color: var(--mod-text-muted) !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] button[class*="ghost"]:hover,
+[data-theme='mod'] button[class*="text-muted-foreground"]:not([class*="bg-"]):hover {
+  background-color: var(--mod-surface-hover) !important;
+  color: var(--mod-text) !important;
+}
+
+/* Input overrides */
+[data-theme='mod'] input[class*="border"][class*="bg-input"],
+[data-theme='mod'] input[class*="rounded-lg"][class*="border"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+  color: var(--mod-text) !important;
+  font-family: var(--font-mono) !important;
+}
+
+[data-theme='mod'] input[class*="border"]:focus {
+  border-color: var(--mono-500) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+[data-theme='mod'] input::placeholder {
+  color: var(--mod-text-dim) !important;
+}
+
+/* Switch overrides */
+[data-theme='mod'] button[role="switch"] {
+  border-radius: 2px !important;
+  width: 2.75rem !important;
+  height: 1.5rem !important;
+  border: 1px solid var(--mod-border) !important;
+}
+
+[data-theme='mod'] button[role="switch"][data-state="unchecked"] {
+  background-color: var(--mono-700) !important;
+}
+
+[data-theme='mod'] button[role="switch"][data-state="checked"] {
+  background-color: var(--mono-600) !important;
+  border-color: var(--mono-500) !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] button[role="switch"] span,
+[data-theme='mod'] button[role="switch"] > span {
+  border-radius: 2px !important;
+  width: 1rem !important;
+  height: 1rem !important;
+  background-color: var(--mono-400) !important;
+}
+
+[data-theme='mod'] button[role="switch"][data-state="checked"] span,
+[data-theme='mod'] button[role="switch"][data-state="checked"] > span {
+  background-color: var(--mono-white) !important;
+}
+
+/* Select/Dropdown overrides */
+[data-theme='mod'] [class*="rounded-md"][class*="border"][class*="bg-popover"],
+[data-theme='mod'] [role="listbox"],
+[data-theme='mod'] [data-radix-popper-content-wrapper] > div {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+}
+
+/* Native select elements */
+[data-theme='mod'] select,
+[data-theme='mod'] select[class*="bg-input"] {
+  background-color: var(--mod-surface) !important;
+  border: 1px solid var(--mod-border) !important;
+  border-radius: 0 !important;
+  color: var(--mod-text) !important;
+  font-family: var(--font-mono) !important;
+  padding: 0.5rem 2rem 0.5rem 1rem !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+}
+
+[data-theme='mod'] select:focus {
+  border-color: var(--mono-500) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme='mod'] select option {
+  background-color: var(--mod-surface) !important;
+  color: var(--mod-text) !important;
+}
+
+[data-theme='mod'] [role="option"] {
+  font-family: var(--font-mono) !important;
+}
+
+[data-theme='mod'] [role="option"]:hover,
+[data-theme='mod'] [role="option"][data-highlighted] {
+  background-color: var(--mod-surface-hover) !important;
+}
+
+/* Label overrides */
+[data-theme='mod'] label {
+  font-family: var(--font-mono) !important;
+  color: var(--mod-text) !important;
+}
+
+/* Separator/Divider */
+[data-theme='mod'] [class*="border-t"],
+[data-theme='mod'] [class*="border-b"],
+[data-theme='mod'] hr {
+  border-color: var(--mod-border) !important;
+}
+
+/* Alerts and badges */
+[data-theme='mod'] [class*="bg-green"],
+[data-theme='mod'] [class*="text-green"] {
+  color: var(--mod-success) !important;
+}
+
+[data-theme='mod'] [class*="bg-red"],
+[data-theme='mod'] [class*="text-red"] {
+  color: var(--mod-error) !important;
+}
+
+[data-theme='mod'] [class*="bg-yellow"],
+[data-theme='mod'] [class*="text-yellow"] {
+  color: var(--mod-warning) !important;
+}
+
+/* Tabs */
+[data-theme='mod'] [role="tablist"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] [role="tab"] {
+  font-family: var(--font-mono) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] [role="tab"][data-state="active"] {
+  background-color: var(--mod-surface-hover) !important;
+  color: var(--mono-white) !important;
+}
+
+/* Checkbox overrides */
+[data-theme='mod'] button[role="checkbox"] {
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+
+[data-theme='mod'] button[role="checkbox"][data-state="checked"] {
+  background-color: var(--mono-white) !important;
+  border-color: var(--mono-white) !important;
+}
+
+[data-theme='mod'] button[role="checkbox"][data-state="checked"] svg {
+  color: var(--mono-black) !important;
+}
+
+/* Textarea overrides */
+[data-theme='mod'] textarea {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+  color: var(--mod-text) !important;
+  font-family: var(--font-mono) !important;
+}
+
+[data-theme='mod'] textarea:focus {
+  border-color: var(--mono-500) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Dialog/Modal overrides */
+[data-theme='mod'] [role="dialog"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+}
+
+/* Toast overrides */
+[data-theme='mod'] [data-sonner-toast] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* ─── Additional Utility Overrides ─── */
+
+/* Loading spinners */
+[data-theme='mod'] .neon-spinner,
+[data-theme='mod'] [class*="animate-spin"] {
+  border-color: var(--mono-500) !important;
+  border-top-color: var(--mono-white) !important;
+}
+
+/* Destructive text */
+[data-theme='mod'] .text-destructive,
+[data-theme='mod'] [class*="text-destructive"] {
+  color: var(--mod-error) !important;
+}
+
+/* Foreground text */
+[data-theme='mod'] .text-foreground,
+[data-theme='mod'] [class*="text-foreground"] {
+  color: var(--mod-text) !important;
+}
+
+/* Background utilities */
+[data-theme='mod'] [class*="bg-muted"] {
+  background-color: var(--mono-800) !important;
+}
+
+[data-theme='mod'] [class*="bg-card"] {
+  background-color: var(--mod-surface) !important;
+}
+
+[data-theme='mod'] [class*="bg-background"] {
+  background-color: var(--mod-bg) !important;
+}
+
+/* Border utilities */
+[data-theme='mod'] [class*="border-border"] {
+  border-color: var(--mod-border) !important;
+}
+
+/* Rounded utilities - remove rounded corners */
+[data-theme='mod'] [class*="rounded-xl"],
+[data-theme='mod'] [class*="rounded-lg"],
+[data-theme='mod'] [class*="rounded-md"],
+[data-theme='mod'] [class*="rounded-full"]:not(button[role="switch"] span):not(.neon-spinner):not([class*="animate-spin"]) {
+  border-radius: 0 !important;
+}
+
+/* Focus ring adjustments */
+[data-theme='mod'] *:focus-visible {
+  outline: 1px solid var(--mono-500) !important;
+  outline-offset: 1px !important;
+  box-shadow: none !important;
+  ring: none !important;
+}
+
+/* Select trigger */
+[data-theme='mod'] [data-slot="trigger"],
+[data-theme='mod'] button[aria-haspopup="listbox"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Slider/Range inputs */
+[data-theme='mod'] input[type="range"] {
+  accent-color: var(--mono-white) !important;
+}
+
+/* ─── Primary Color Overrides ─── */
+
+/* Border primary → mono white */
+[data-theme='mod'] [class*="border-primary"] {
+  border-color: var(--mono-white) !important;
+}
+
+/* Background primary with opacity → mono shades */
+[data-theme='mod'] [class*="bg-primary/10"],
+[data-theme='mod'] [class*="bg-primary/5"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme='mod'] [class*="bg-primary/20"] {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Text primary → mono white */
+[data-theme='mod'] [class*="text-primary"]:not(button) {
+  color: var(--mono-white) !important;
+}
+
+/* Hover states for log type cards and similar */
+[data-theme='mod'] label[class*="cursor-pointer"]:hover {
+  background-color: var(--mod-surface-hover) !important;
+}
+
+/* Selected log type cards */
+[data-theme='mod'] label[class*="border-primary"] {
+  border-color: var(--mono-white) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Checkbox in log cards */
+[data-theme='mod'] input[type="checkbox"] {
+  background-color: var(--mod-surface) !important;
+  border-color: var(--mod-border) !important;
+  accent-color: var(--mono-white) !important;
+  border-radius: 0 !important;
+}
+
+[data-theme='mod'] input[type="checkbox"]:checked {
+  background-color: var(--mono-white) !important;
+  border-color: var(--mono-white) !important;
+}
+
+/* Focus ring for checkboxes */
+[data-theme='mod'] input[type="checkbox"]:focus {
+  ring: none !important;
+  box-shadow: none !important;
+  outline: 1px solid var(--mono-500) !important;
+}
+
+/* Ring color overrides */
+[data-theme='mod'] [class*="ring-primary"],
+[data-theme='mod'] [class*="focus:ring-primary"] {
+  --tw-ring-color: var(--mono-500) !important;
+}
+
+/* Shadow overrides - remove neon effects */
+[data-theme='mod'] [class*="shadow-neon"],
+[data-theme='mod'] [class*="shadow-glass"] {
+  box-shadow: none !important;
+}
+
+/* Hover scale - disable in mod theme */
+[data-theme='mod'] [class*="hover-scale"]:hover {
+  transform: none !important;
+}
+
+

@@ -206,10 +206,17 @@ export const tempVoiceService = {
    * Update temp voice configuration for a guild
    */
   async updateConfig(guildId: string, config: TempVoiceConfigUpdate): Promise<TempVoiceConfig> {
+    console.log('[TempVoice Service] Updating config for guild:', guildId);
+    console.log('[TempVoice Service] Update payload:', JSON.stringify(config, null, 2));
+    console.log('[TempVoice Service] Payload keys:', Object.keys(config));
+    
     const response = await botApi.patch<ApiResponse<TempVoiceConfig>>(
       `/api/guilds/${guildId}/temp-voice/config`,
       config
     );
+    
+    console.log('[TempVoice Service] Response:', JSON.stringify(response.data, null, 2));
+    
     if (!response.data.data) {
       throw new Error(response.data.error?.message || 'Failed to update config');
     }
