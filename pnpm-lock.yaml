@@ -293,7 +293,7 @@ importers:
         version: 1.4.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       jose:
         specifier: latest
-        version: 6.1.3
+        version: 6.2.3
       lucide-react:
         specifier: ^0.454.0
         version: 0.454.0(react@19.2.4)
@@ -705,6 +705,10 @@ packages:
 
   '@babel/runtime@7.28.6':
     resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.28.6':
@@ -3550,8 +3554,8 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@tootallnate/once@2.0.0':
-    resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
+  '@tootallnate/once@2.0.1':
+    resolution: {integrity: sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ==}
     engines: {node: '>= 10'}
 
   '@tybys/wasm-util@0.10.1':
@@ -3640,6 +3644,9 @@ packages:
 
   '@types/node@22.19.11':
     resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
+
+  '@types/node@22.19.19':
+    resolution: {integrity: sha512-dyh/xO2Fh5bYrfWaaqGrRQQGkNdmYw6AmaAUvYeUMNTWQtvb796ikLdmTchRmOlOiIJ1TDXfWgVx1QkUlQ6Hew==}
 
   '@types/node@22.19.7':
     resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
@@ -3752,6 +3759,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@unrs/resolver-binding-android-arm-eabi@1.11.1':
     resolution: {integrity: sha512-ppLRUgHVaGRWUx0R0Ut06Mjo9gBaBkg3v/8AxusGLhsIotbBLuRk51rAzqLC8gq6NyyAojEXglNjzf6R948DNw==}
@@ -4013,12 +4021,17 @@ packages:
     peerDependencies:
       acorn: ^6.0.0 || ^7.0.0 || ^8.0.0
 
-  acorn-walk@8.3.4:
-    resolution: {integrity: sha512-ueEepnujpqee2o5aIYnvHU6C0A42MNdsIDeqy5BydrkuC5R1ZuUFnm27EeFJGoEHJQgn3uleRvmTXaJgfXbt4g==}
+  acorn-walk@8.3.5:
+    resolution: {integrity: sha512-HEHNfbars9v4pgpW6SO1KSPkfoS0xVOM/9UzkJltjlsHZmJasxg8aXkuZa7SMf8vKGIBhpUsPluQSqhJFCqebw==}
     engines: {node: '>=0.4.0'}
 
   acorn@8.15.0:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
+  acorn@8.16.0:
+    resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -5571,8 +5584,8 @@ packages:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
 
-  jose@6.1.3:
-    resolution: {integrity: sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ==}
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -5729,6 +5742,7 @@ packages:
 
   lucide-vue-next@0.563.0:
     resolution: {integrity: sha512-zsE/lCKtmaa7bGfhSpN84br1K9YoQ5pCN+2oKWjQQG3Lo6ufUUKBuHSjNFI6RvUevxaajNXb8XwFUKeTXG3sIA==}
+    deprecated: Package deprecated. Please use @lucide/vue instead.
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -5882,6 +5896,9 @@ packages:
 
   nan@2.25.0:
     resolution: {integrity: sha512-0M90Ag7Xn5KMLLZ7zliPWP3rT90P6PN+IzVFS0VqmnPktBk3700xUVv8Ikm9EUaUE5SDWdp/BIxdENzVznpm1g==}
+
+  nan@2.27.0:
+    resolution: {integrity: sha512-hC+0LidcL3XE4rp1C4H54KujgXKzbfyTngZTwBByQxsOxCEKZT0MPQ4hOKUH2jU1OYstqdDH4onyHPDzcV0XdQ==}
 
   nano-spawn@2.0.0:
     resolution: {integrity: sha512-tacvGzUY5o2D8CBh2rrwxyNojUsZNU2zjNTzKQrkgGJQTbGAfArVWXSKMBokBeeg6C7OLRGUEyoFlYbfeWQIqw==}
@@ -6647,6 +6664,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.1:
+    resolution: {integrity: sha512-rkVq3IXh+4FDGch+KwzX3aV9W3kO54GyEgpvBzSyctDA6Xtd7RJQV1xmXbeQp5v7+VzLOfVqiutSE6GICgPFvg==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   seq-queue@0.0.5:
     resolution: {integrity: sha512-hr3Wtp/GZIc/6DAGPDcV4/9WoZhjrkXsi5B/07QgX8tsdc6ilr7BFM6PM6rbdAX1kFSDYeZGLipIZZKyQP0O5Q==}
 
@@ -7166,6 +7188,7 @@ packages:
 
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@11.1.0:
@@ -7407,6 +7430,18 @@ packages:
 
   ws@8.19.0:
     resolution: {integrity: sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.20.1:
+    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -8185,6 +8220,8 @@ snapshots:
 
   '@babel/runtime@7.28.6': {}
 
+  '@babel/runtime@7.29.2': {}
+
   '@babel/template@7.28.6':
     dependencies:
       '@babel/code-frame': 7.29.0
@@ -8782,7 +8819,7 @@ snapshots:
       nopt: 5.0.0
       npmlog: 5.0.1
       rimraf: 3.0.2
-      semver: 7.7.4
+      semver: 7.8.1
       tar: 6.2.1
     transitivePeerDependencies:
       - encoding
@@ -11111,7 +11148,7 @@ snapshots:
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -11142,7 +11179,7 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.1
 
-  '@tootallnate/once@2.0.0':
+  '@tootallnate/once@2.0.1':
     optional: true
 
   '@tybys/wasm-util@0.10.1':
@@ -11225,7 +11262,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.19.19
       form-data: 4.0.5
 
   '@types/node@10.17.60':
@@ -11236,6 +11273,10 @@ snapshots:
       undici-types: 5.26.5
 
   '@types/node@22.19.11':
+    dependencies:
+      undici-types: 6.21.0
+
+  '@types/node@22.19.19':
     dependencies:
       undici-types: 6.21.0
 
@@ -11514,6 +11555,14 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
+  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.8.2))':
+    dependencies:
+      '@vitest/spy': 4.0.18
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 7.3.1(@types/node@22.19.7)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.8.2)
+
   '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@vitest/spy': 4.0.18
@@ -11661,20 +11710,23 @@ snapshots:
 
   acorn-globals@7.0.1:
     dependencies:
-      acorn: 8.15.0
-      acorn-walk: 8.3.4
+      acorn: 8.16.0
+      acorn-walk: 8.3.5
     optional: true
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
       acorn: 8.15.0
 
-  acorn-walk@8.3.4:
+  acorn-walk@8.3.5:
     dependencies:
-      acorn: 8.15.0
+      acorn: 8.16.0
     optional: true
 
   acorn@8.15.0: {}
+
+  acorn@8.16.0:
+    optional: true
 
   agent-base@6.0.2:
     dependencies:
@@ -12061,7 +12113,7 @@ snapshots:
   canvas@2.11.2(encoding@0.1.13):
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.11(encoding@0.1.13)
-      nan: 2.25.0
+      nan: 2.27.0
       simple-get: 3.1.1
     transitivePeerDependencies:
       - encoding
@@ -13319,7 +13371,7 @@ snapshots:
 
   http-proxy-agent@5.0.0:
     dependencies:
-      '@tootallnate/once': 2.0.0
+      '@tootallnate/once': 2.0.1
       agent-base: 6.0.2
       debug: 4.4.3
     transitivePeerDependencies:
@@ -13564,7 +13616,7 @@ snapshots:
 
   jiti@2.6.1: {}
 
-  jose@6.1.3: {}
+  jose@6.2.3: {}
 
   js-tokens@4.0.0: {}
 
@@ -13575,7 +13627,7 @@ snapshots:
   jsdom@20.0.3(canvas@2.11.2(encoding@0.1.13)):
     dependencies:
       abab: 2.0.6
-      acorn: 8.15.0
+      acorn: 8.16.0
       acorn-globals: 7.0.1
       cssom: 0.5.0
       cssstyle: 2.3.0
@@ -13598,7 +13650,7 @@ snapshots:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.19.0
+      ws: 8.20.1
       xml-name-validator: 4.0.0
     optionalDependencies:
       canvas: 2.11.2(encoding@0.1.13)
@@ -13892,6 +13944,9 @@ snapshots:
       lru.min: 1.1.3
 
   nan@2.25.0:
+    optional: true
+
+  nan@2.27.0:
     optional: true
 
   nano-spawn@2.0.0: {}
@@ -14710,6 +14765,9 @@ snapshots:
   semver@7.7.3: {}
 
   semver@7.7.4: {}
+
+  semver@7.8.1:
+    optional: true
 
   seq-queue@0.0.5: {}
 
@@ -15549,7 +15607,7 @@ snapshots:
   vitest@4.0.18(@types/node@22.19.7)(happy-dom@20.5.0)(jiti@1.21.7)(jsdom@20.0.3(canvas@2.11.2(encoding@0.1.13)))(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
+      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.8.2))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18
@@ -15743,6 +15801,9 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.19.0: {}
+
+  ws@8.20.1:
+    optional: true
 
   xml-name-validator@4.0.0:
     optional: true
