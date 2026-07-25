@@ -86,7 +86,7 @@
     "prisma": "^7.2.0",
     "re2-wasm": "^1.0.2",
     "reflect-metadata": "^0.2.2",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "signale": "^1.4.0",
     "sodium-native": "^5.0.10",
     "zod": "^4.3.5"
